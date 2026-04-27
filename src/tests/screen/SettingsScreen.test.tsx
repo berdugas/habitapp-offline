@@ -72,6 +72,12 @@ describe("SettingsScreen", () => {
   it("shows an empty inactive state after a successful empty load", () => {
     render(<SettingsScreen />);
 
+    expect(screen.getByText("Foundation status")).toBeTruthy();
+    expect(
+      screen.getByText(
+        "Current version: full non-AI habit builder. Weekly reviews and rule-based suggestions are enabled. AI coaching is planned for a later premium phase.",
+      ),
+    ).toBeTruthy();
     expect(screen.getByText("Inactive habits")).toBeTruthy();
     expect(screen.getByText("No inactive habits")).toBeTruthy();
   });

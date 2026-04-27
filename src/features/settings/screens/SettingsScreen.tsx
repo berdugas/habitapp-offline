@@ -47,7 +47,9 @@ export default function SettingsScreen() {
           Foundation status
         </Text>
         <Text selectable style={styles.body}>
-          Reminders, reviews, and AI are intentionally left for later phases.
+          Current version: full non-AI habit builder. Weekly reviews and
+          rule-based suggestions are enabled. AI coaching is planned for a later
+          premium phase.
         </Text>
       </View>
       <View style={styles.card}>

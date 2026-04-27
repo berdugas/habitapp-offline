@@ -4,6 +4,7 @@ import { router, useLocalSearchParams } from "expo-router";
 
 import { PrimaryButton } from "@/components/buttons/PrimaryButton";
 import { SecondaryButton } from "@/components/buttons/SecondaryButton";
+import { FEATURE_FLAGS } from "@/config/featureFlags";
 import { ErrorState } from "@/components/feedback/ErrorState";
 import { LoadingState } from "@/components/feedback/LoadingState";
 import { ChoicePills } from "@/components/forms/ChoicePills";
@@ -151,6 +152,7 @@ export default function EditHabitScreen() {
 
   async function handleGenerateRewrite() {
     if (
+      !FEATURE_FLAGS.aiRewrite ||
       generateRewriteMutation.isPending ||
       !ownedHabitQuery.data ||
       !normalizedSuggestionType
@@ -254,62 +256,66 @@ export default function EditHabitScreen() {
           <Text style={styles.suggestionReason}>
             {suggestionGuidance.reason}
           </Text>
-          <Text style={styles.aiRewriteHelper}>
-            AI can suggest a rewrite, but you stay in control. It will not change
-            your habit unless you edit and save it.
-          </Text>
-          <SecondaryButton
-            disabled={generateRewriteMutation.isPending}
-            label={rewriteButtonLabel}
-            onPress={() => void handleGenerateRewrite()}
-          />
-          {rewriteError ? <ErrorState message={rewriteError} /> : null}
-          {rewriteDraft ? (
-            <View style={styles.aiRewriteCard}>
-              <Text selectable style={styles.aiRewriteTitle}>
-                AI rewrite idea
+          {FEATURE_FLAGS.aiRewrite ? (
+            <>
+              <Text style={styles.aiRewriteHelper}>
+                AI can suggest a rewrite, but you stay in control. It will not
+                change your habit unless you edit and save it.
               </Text>
-              <Text selectable style={styles.aiRewriteLabel}>
-                Trigger
-              </Text>
-              <Text selectable style={styles.aiRewriteValue}>
-                {rewriteDraft.suggestedStackTrigger ??
-                  "No trigger change suggested"}
-              </Text>
-              <Text selectable style={styles.aiRewriteLabel}>
-                Tiny action
-              </Text>
-              <Text selectable style={styles.aiRewriteValue}>
-                {rewriteDraft.suggestedTinyAction ??
-                  "No tiny action change suggested"}
-              </Text>
-              <Text selectable style={styles.aiRewriteLabel}>
-                Why
-              </Text>
-              <Text selectable style={styles.aiRewriteValue}>
-                {rewriteDraft.explanation}
-              </Text>
-              <Text selectable style={styles.aiRewriteNote}>
-                Use this as inspiration. To use it, manually update the fields
-                below and save.
-              </Text>
-              {hasRewriteFieldChanges ? (
-                <SecondaryButton
-                  disabled={generateRewriteMutation.isPending}
-                  label="Copy into fields"
-                  onPress={handleCopyRewriteIntoFields}
-                />
-              ) : (
-                <Text selectable style={styles.aiRewriteCopyMessage}>
-                  No field changes to copy.
-                </Text>
-              )}
-              {rewriteCopyMessage ? (
-                <Text selectable style={styles.aiRewriteCopyMessage}>
-                  {rewriteCopyMessage}
-                </Text>
+              <SecondaryButton
+                disabled={generateRewriteMutation.isPending}
+                label={rewriteButtonLabel}
+                onPress={() => void handleGenerateRewrite()}
+              />
+              {rewriteError ? <ErrorState message={rewriteError} /> : null}
+              {rewriteDraft ? (
+                <View style={styles.aiRewriteCard}>
+                  <Text selectable style={styles.aiRewriteTitle}>
+                    AI rewrite idea
+                  </Text>
+                  <Text selectable style={styles.aiRewriteLabel}>
+                    Trigger
+                  </Text>
+                  <Text selectable style={styles.aiRewriteValue}>
+                    {rewriteDraft.suggestedStackTrigger ??
+                      "No trigger change suggested"}
+                  </Text>
+                  <Text selectable style={styles.aiRewriteLabel}>
+                    Tiny action
+                  </Text>
+                  <Text selectable style={styles.aiRewriteValue}>
+                    {rewriteDraft.suggestedTinyAction ??
+                      "No tiny action change suggested"}
+                  </Text>
+                  <Text selectable style={styles.aiRewriteLabel}>
+                    Why
+                  </Text>
+                  <Text selectable style={styles.aiRewriteValue}>
+                    {rewriteDraft.explanation}
+                  </Text>
+                  <Text selectable style={styles.aiRewriteNote}>
+                    Use this as inspiration. To use it, manually update the
+                    fields below and save.
+                  </Text>
+                  {hasRewriteFieldChanges ? (
+                    <SecondaryButton
+                      disabled={generateRewriteMutation.isPending}
+                      label="Copy into fields"
+                      onPress={handleCopyRewriteIntoFields}
+                    />
+                  ) : (
+                    <Text selectable style={styles.aiRewriteCopyMessage}>
+                      No field changes to copy.
+                    </Text>
+                  )}
+                  {rewriteCopyMessage ? (
+                    <Text selectable style={styles.aiRewriteCopyMessage}>
+                      {rewriteCopyMessage}
+                    </Text>
+                  ) : null}
+                </View>
               ) : null}
-            </View>
+            </>
           ) : null}
         </View>
       ) : null}
