@@ -9,7 +9,17 @@
       "Bash(git push *)",
       "Bash(node -e ' *)",
       "Bash(node -e \"const config = require\\('./node_modules/jest-expo/jest-preset.js'\\); console.log\\(JSON.stringify\\(config, null, 2\\)\\)\")",
-      "Bash(node --input-type=module)"
+      "Bash(node --input-type=module)",
+      "Bash(git checkout *)",
+      "Bash(git pull *)",
+      "Bash(sed -i 's/const { createHabit: repoCreate } = await import\\(\"@\\\\/lib\\\\/db\\\\/repositories\\\\/habits\"\\);//g' src/tests/integration/habit-api.test.ts)",
+      "Bash(sed -i 's/repoCreate\\(/repoCreateHabit\\(/g' src/tests/integration/habit-api.test.ts)",
+      "Bash(git stash *)",
+      "Bash(grep -v \"node_modules\\\\|\\\\.js$\")",
+      "Bash(rm src/tests/unit/habitApi.test.ts src/tests/unit/habitLogsApi.test.ts src/tests/unit/habitUpdateApi.test.ts src/tests/unit/habitDetailHooks.test.ts src/tests/unit/habitUpdateHooks.test.ts)",
+      "Bash(ls src/tests/unit/habitDetail*.test.ts)",
+      "Bash(git restore *)",
+      "Bash(git merge *)"
     ]
   }
 }
