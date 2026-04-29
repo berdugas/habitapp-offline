@@ -341,6 +341,7 @@ Source-of-truth docs live directly in `docs/`. Sprint planning and per-sprint de
 | Project Brain | .md | `docs/PROJECT_BRAIN.md` | **Current — this document** |
 | Sprint Plan | .md | `docs/sprint_tickets/sprint-plan.md` | **Current — the when (21-sprint roadmap, 4 phases)** |
 | Sprint 1 Tickets | .md | `docs/sprint_tickets/sprint-1-tickets.md` | **Current — DEV-S1-01..04 dev packages** |
+| Sprint 1 Follow-ups | .md | `docs/sprint_tickets/sprint-1-followups.md` | **Current — DEV-S1-05 polish ticket** |
 | PRD Monetization | .docx | `docs/habits-app-prd-monetization.docx` | Reference for post-Core-v1 monetization |
 | User Flow | .html | `docs/habits-app-user-flow.html` | Stale — regenerate post-Core-v1 |
 
