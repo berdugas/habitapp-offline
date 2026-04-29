@@ -1,0 +1,906 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Habits App — Complete User Flow</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #FAFAF8;
+  --surface: #FFFFFF;
+  --surface-muted: #F4F3F0;
+  --border: #E4E2DC;
+  --border-light: #ECEAE4;
+  --text: #1A1A18;
+  --text-secondary: #6B6A65;
+  --text-muted: #9C9A92;
+  --accent: #3B3A36;
+  --purple: #534AB7;
+  --purple-bg: #EEEDFE;
+  --purple-text: #3C3489;
+  --blue: #378ADD;
+  --blue-bg: #E6F1FB;
+  --blue-text: #0C447C;
+  --green: #1D9E75;
+  --green-bg: #E1F5EE;
+  --green-text: #085041;
+  --orange: #D85A30;
+  --orange-bg: #FAECE7;
+  --orange-text: #712B13;
+  --red: #D4372C;
+  --red-bg: #FEF3F2;
+  --red-text: #791F1F;
+  --amber: #BA7517;
+  --amber-bg: #FAEEDA;
+  --amber-text: #633806;
+  --font: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  --mono: 'DM Mono', monospace;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ---- LAYOUT ---- */
+.layout {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  min-height: 100vh;
+}
+
+/* ---- SIDEBAR ---- */
+.sidebar {
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  padding: 32px 0;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar-header {
+  padding: 0 24px 24px;
+  border-bottom: 1px solid var(--border-light);
+  margin-bottom: 16px;
+}
+
+.sidebar-header .eyebrow {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+
+.sidebar-header h1 {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.3;
+}
+
+.sidebar-header .version {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+.sidebar-nav { flex: 1; padding: 0 12px; }
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background .15s;
+  text-decoration: none;
+  color: inherit;
+  margin-bottom: 2px;
+}
+
+.nav-item:hover { background: var(--surface-muted); }
+.nav-item.active { background: var(--surface-muted); }
+
+.nav-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.nav-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+  flex: 1;
+}
+
+.nav-badge {
+  font-size: 10px;
+  font-weight: 700;
+  color: #fff;
+  background: var(--red);
+  border-radius: 10px;
+  padding: 1px 7px;
+  line-height: 1.6;
+}
+
+.sidebar-stats {
+  padding: 16px 24px;
+  border-top: 1px solid var(--border-light);
+  margin-top: auto;
+}
+
+.stat-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 0;
+}
+
+.stat-label { font-size: 12px; color: var(--text-muted); }
+.stat-value { font-size: 13px; font-weight: 700; color: var(--text); }
+.stat-value.red { color: var(--red); }
+
+/* ---- MAIN ---- */
+.main {
+  padding: 40px 48px 80px;
+  max-width: 900px;
+}
+
+.main-header {
+  margin-bottom: 40px;
+  padding-bottom: 32px;
+  border-bottom: 1px solid var(--border);
+}
+
+.main-header h1 {
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  margin-bottom: 8px;
+}
+
+.main-header p {
+  font-size: 15px;
+  color: var(--text-secondary);
+  max-width: 600px;
+  line-height: 1.7;
+}
+
+/* ---- LEGEND ---- */
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  padding: 16px 20px;
+  background: var(--surface);
+  border: 1px solid var(--border-light);
+  border-radius: 10px;
+  margin-bottom: 40px;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+/* ---- FILTER BAR ---- */
+.filter-bar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 32px;
+  flex-wrap: wrap;
+}
+
+.filter-btn {
+  font-family: var(--font);
+  font-size: 12px;
+  font-weight: 500;
+  padding: 6px 14px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all .15s;
+}
+
+.filter-btn:hover { border-color: var(--accent); color: var(--text); }
+.filter-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+/* ---- PHASE ---- */
+.phase {
+  margin-bottom: 12px;
+  scroll-margin-top: 24px;
+}
+
+.phase-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 20px;
+  background: var(--surface);
+  border: 1px solid var(--border-light);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all .15s;
+  user-select: none;
+}
+
+.phase-header:hover { border-color: var(--border); }
+.phase-header.open { border-radius: 12px 12px 0 0; border-bottom-color: transparent; }
+
+.phase-arrow {
+  font-size: 10px;
+  color: var(--text-muted);
+  transition: transform .2s;
+  width: 14px;
+  flex-shrink: 0;
+}
+
+.phase-header.open .phase-arrow { transform: rotate(90deg); }
+
+.phase-num {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.phase-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+  flex: 1;
+}
+
+.phase-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.phase-count {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.phase-gap-count {
+  font-size: 10px;
+  font-weight: 700;
+  color: #fff;
+  background: var(--red);
+  border-radius: 10px;
+  padding: 2px 8px;
+}
+
+.phase-body {
+  display: none;
+  background: var(--surface);
+  border: 1px solid var(--border-light);
+  border-top: none;
+  border-radius: 0 0 12px 12px;
+  padding: 8px 0;
+}
+
+.phase-body.open { display: block; }
+
+/* ---- STEP ---- */
+.step {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 20px 12px 24px;
+  position: relative;
+  transition: background .1s;
+}
+
+.step:hover { background: var(--surface-muted); }
+
+.step::before {
+  content: '';
+  position: absolute;
+  left: 24px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--border-light);
+}
+
+.step:first-child::before { top: 50%; }
+.step:last-child::before { bottom: 50%; }
+
+.step-indicator {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  width: 28px;
+}
+
+.step-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid var(--surface);
+  box-shadow: 0 0 0 1px var(--border);
+}
+
+.step-num {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.step-content { flex: 1; padding-top: 1px; min-width: 0; }
+
+.step-type {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: 4px;
+  margin-bottom: 4px;
+}
+
+.step-text {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text);
+  line-height: 1.5;
+}
+
+.step-detail {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-top: 3px;
+  line-height: 1.5;
+}
+
+/* Step type colors */
+.type-user .step-dot { background: var(--purple); box-shadow: 0 0 0 2px var(--surface), 0 0 0 3px var(--purple); }
+.type-user .step-type { background: var(--purple-bg); color: var(--purple-text); }
+
+.type-screen .step-dot { background: var(--blue); box-shadow: 0 0 0 2px var(--surface), 0 0 0 3px var(--blue); }
+.type-screen .step-type { background: var(--blue-bg); color: var(--blue-text); }
+
+.type-system .step-dot { background: var(--green); box-shadow: 0 0 0 2px var(--surface), 0 0 0 3px var(--green); }
+.type-system .step-type { background: var(--green-bg); color: var(--green-text); }
+
+.type-decision .step-dot { background: var(--orange); box-shadow: 0 0 0 2px var(--surface), 0 0 0 3px var(--orange); }
+.type-decision .step-type { background: var(--orange-bg); color: var(--orange-text); }
+
+/* ---- GAP ---- */
+.gap {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 4px 20px 4px 52px;
+  padding: 10px 14px;
+  background: var(--red-bg);
+  border-radius: 8px;
+  border-left: 3px solid var(--red);
+}
+
+.gap-icon {
+  font-size: 13px;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.gap-text {
+  font-size: 13px;
+  color: var(--red-text);
+  line-height: 1.5;
+  font-weight: 500;
+}
+
+/* ---- DIVIDER ---- */
+.step-divider {
+  height: 1px;
+  background: var(--border-light);
+  margin: 4px 24px;
+}
+
+/* ---- GAP SUMMARY ---- */
+.gap-summary {
+  margin-top: 48px;
+  scroll-margin-top: 24px;
+}
+
+.gap-summary h2 {
+  font-size: 22px;
+  font-weight: 700;
+  margin-bottom: 16px;
+}
+
+.gap-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  background: var(--surface);
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--border-light);
+}
+
+.gap-table th {
+  text-align: left;
+  padding: 12px 16px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.gap-table td {
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border-light);
+  vertical-align: top;
+}
+
+.gap-table tr:last-child td { border-bottom: none; }
+.gap-table tr:nth-child(even) td { background: var(--surface-muted); }
+
+.priority-tag {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 10px;
+  border-radius: 12px;
+  white-space: nowrap;
+}
+
+.priority-p0 { background: var(--red-bg); color: var(--red-text); }
+.priority-p1 { background: var(--amber-bg); color: var(--amber-text); }
+.priority-p2 { background: var(--blue-bg); color: var(--blue-text); }
+
+.impact-tag {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 10px;
+  border-radius: 12px;
+  white-space: nowrap;
+  background: var(--surface-muted);
+  color: var(--text-secondary);
+}
+
+/* ---- RESPONSIVE ---- */
+@media (max-width: 900px) {
+  .layout { grid-template-columns: 1fr; }
+  .sidebar {
+    position: relative;
+    height: auto;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
+  .sidebar-nav { display: flex; flex-wrap: wrap; gap: 4px; padding: 0 16px 16px; }
+  .nav-item { padding: 6px 12px; }
+  .main { padding: 24px 20px 60px; }
+  .sidebar-stats { display: none; }
+}
+
+/* ---- PRINT ---- */
+@media print {
+  .layout { grid-template-columns: 1fr; }
+  .sidebar { display: none; }
+  .filter-bar { display: none; }
+  .phase-body { display: block !important; }
+  .phase-header { break-inside: avoid; }
+  .step { break-inside: avoid; }
+  .gap { break-inside: avoid; }
+  body { background: #fff; }
+  .main { padding: 20px; max-width: 100%; }
+}
+</style>
+</head>
+<body>
+<div class="layout">
+
+<aside class="sidebar">
+  <div class="sidebar-header">
+    <div class="eyebrow">User flow document</div>
+    <h1>Habits App</h1>
+    <div class="version">v1.0 — April 2026</div>
+  </div>
+  <nav class="sidebar-nav" id="nav"></nav>
+  <div class="sidebar-stats">
+    <div class="stat-row"><span class="stat-label">Total steps</span><span class="stat-value" id="stat-steps">82</span></div>
+    <div class="stat-row"><span class="stat-label">User actions</span><span class="stat-value" id="stat-user">0</span></div>
+    <div class="stat-row"><span class="stat-label">Screens</span><span class="stat-value" id="stat-screen">0</span></div>
+    <div class="stat-row"><span class="stat-label">Decisions</span><span class="stat-value" id="stat-decision">0</span></div>
+    <div class="stat-row"><span class="stat-label">Gaps found</span><span class="stat-value red" id="stat-gaps">0</span></div>
+  </div>
+</aside>
+
+<main class="main" id="main"></main>
+
+</div>
+
+<script>
+const PHASES = [
+  {
+    id: "discovery", title: "Discovery & download", color: "#534AB7",
+    desc: "The user finds and installs the app. This phase happens entirely outside our app.",
+    steps: [
+      { n:1, type:"user", text:"Discovers app in App Store or Google Play", detail:"Via search, ad, referral, or word of mouth" },
+      { gap:"No website, landing page, or organic discovery channel exists yet" },
+      { n:2, type:"screen", text:"Views app store listing", detail:"Screenshots, description, rating, reviews" },
+      { gap:"No app store listing assets (screenshots, description copy) have been created" },
+      { n:3, type:"user", text:"Taps Download / Install" },
+      { n:4, type:"system", text:"App installs on device" },
+    ]
+  },
+  {
+    id: "first-launch", title: "First launch & account creation", color: "#534AB7",
+    desc: "The user opens the app for the first time, sees the welcome screen, and creates an account. The trial period begins at account creation.",
+    steps: [
+      { n:5, type:"user", text:"Opens app for the first time" },
+      { n:6, type:"screen", text:"Splash screen displayed while fonts load" },
+      { n:7, type:"screen", text:"Welcome Screen appears", detail:"Hero card: \"Build habits through small actions and stronger triggers.\" Two CTAs: Start Your First Habit, I already have an account" },
+      { n:8, type:"decision", text:"Decision: sign up (new user) or sign in (returning user)" },
+      { divider: true },
+      { n:9, type:"screen", text:"Path A — Sign-Up screen", detail:"Email + password via Supabase Auth" },
+      { n:10, type:"screen", text:"Path B — Sign-In screen", detail:"Email + password for returning users" },
+      { divider: true },
+      { n:11, type:"system", text:"Account created / session restored", detail:"trial_started_at = now, payment_tier = trial" },
+      { n:12, type:"system", text:"RootEntryScreen checks: has habits? → redirects accordingly", detail:"No habits → Create Habit. Has habits → Today screen." },
+      { gap:"No onboarding education — user goes straight to a blank form with no context on what makes a good trigger, tiny action, or identity statement" },
+      { gap:"No email verification flow visible in the current codebase" },
+    ]
+  },
+  {
+    id: "first-habit", title: "First habit creation", color: "#1D9E75",
+    desc: "The user creates their first habit. The quality of this setup directly determines whether the daily loop will stick.",
+    steps: [
+      { n:13, type:"screen", text:"Create Habit screen appears", detail:"Title: \"Create your first habit.\" Helper: keep it concrete, small, easy to repeat." },
+      { n:14, type:"user", text:"Enters habit name (required)", detail:"E.g. \"Reading\"" },
+      { n:15, type:"user", text:"Enters identity statement (optional)", detail:"E.g. \"Become someone who reads daily\"" },
+      { gap:"No explanation of what an identity statement is or why it matters — users will skip it or write something unhelpful" },
+      { n:16, type:"user", text:"Enters stack trigger (required)", detail:"E.g. \"After I brush my teeth\"" },
+      { n:17, type:"user", text:"Enters tiny action (required)", detail:"E.g. \"Read 1 page\"" },
+      { n:18, type:"user", text:"Selects preferred time window", detail:"ChoicePills component with predefined options (morning, afternoon, evening)" },
+      { n:19, type:"user", text:"Toggles reminder on/off", detail:"Captures preference only — the description admits scheduling comes later" },
+      { gap:"Reminder preference is stored but never acted on. No push notification system exists. Users expect a reminder toggle to actually send reminders." },
+      { n:20, type:"user", text:"If reminder on: enters reminder time as text", detail:"Free text field (e.g. \"20:00\"). Known bug: should be a time picker." },
+      { n:21, type:"screen", text:"Formula preview updates live", detail:"\"After [trigger], I will [tiny action]\"" },
+      { n:22, type:"user", text:"Taps \"Save Habit\"", detail:"Client-side validation: name, trigger, action required. Normalization trims whitespace." },
+      { n:23, type:"system", text:"Habit saved to Supabase", detail:"start_date = today, is_active = true" },
+      { gap:"No habit templates, categories, or examples. User must invent everything from scratch. High friction for users unfamiliar with habit stacking." },
+      { n:24, type:"system", text:"Redirects to Today screen" },
+    ]
+  },
+  {
+    id: "daily-loop", title: "Daily usage loop (Days 1–14)", color: "#1D9E75",
+    desc: "The core loop. The user opens the app each day to log their habit status. This repeats throughout the trial and indefinitely for paid users.",
+    steps: [
+      { n:25, type:"user", text:"Opens app", detail:"No notification or external trigger brings them back" },
+      { gap:"No push notifications or reminders. The app relies entirely on self-motivation during the most fragile habit-formation period." },
+      { n:26, type:"screen", text:"Today screen loads", detail:"Shows all active habits that have reached their start date. Upcoming habits shown separately." },
+      { n:27, type:"screen", text:"Each habit card displays: name, formula, today status, 30-day skip count, consistency %, streak" },
+      { n:28, type:"decision", text:"For each habit: tap Done, Skipped, or Missed", detail:"Pill buttons below each card. Submit lock prevents double-taps." },
+      { n:29, type:"system", text:"Status upserted to habit_logs", detail:"Unique on user_id + habit_id + log_date. Progress stats recalculate." },
+      { n:30, type:"user", text:"Optionally taps habit card → Habit Detail screen" },
+      { n:31, type:"screen", text:"Habit Detail: setup info, today status, progress grid, recent log history", detail:"Also shows latest weekly review and adjustment suggestion if available" },
+      { n:32, type:"user", text:"Optionally taps \"Edit habit\" → Edit Habit screen" },
+      { n:33, type:"user", text:"Optionally deactivates habit", detail:"Removes from Today, preserves history. Can be reactivated later." },
+      { n:34, type:"user", text:"Optionally creates additional habits", detail:"Via button on Today screen or from Create Habit screen" },
+      { n:35, type:"system", text:"Loop repeats daily" },
+      { gap:"No progress visualization — no calendar heatmap, trend chart, or timeline. User sees only numeric snapshots with no visual momentum." },
+    ]
+  },
+  {
+    id: "weekly-review", title: "Weekly review cycle", color: "#D85A30",
+    desc: "After ~7 days of logging, a weekly review becomes due for each habit. The review answers drive the recommendation engine.",
+    steps: [
+      { n:36, type:"system", text:"\"Weekly review due\" prompt appears", detail:"Shown on Today screen (inline on habit card) and on Habit Detail. Checks if current week has a review." },
+      { n:37, type:"user", text:"Taps \"Start review\"", detail:"Navigates to Weekly Review screen for that specific habit" },
+      { n:38, type:"screen", text:"Weekly Review screen loads" },
+      { n:39, type:"user", text:"Answers: \"What went well this week?\"", detail:"Free text field" },
+      { n:40, type:"user", text:"Answers: \"What was hard this week?\"", detail:"Free text field" },
+      { n:41, type:"user", text:"Answers: \"Did the trigger work?\"", detail:"Yes / No toggle" },
+      { n:42, type:"user", text:"Answers: \"Was the tiny action too hard?\"", detail:"Yes / No toggle" },
+      { n:43, type:"user", text:"Writes adjustment note", detail:"Free text, optional" },
+      { n:44, type:"user", text:"Taps \"Save review\"", detail:"Upserted to weekly_reviews (unique: user + habit + week_start)" },
+      { n:45, type:"system", text:"Returns to Habit Detail — review data now visible" },
+      { gap:"No overall weekly summary across all habits — review is per-habit only. No holistic \"how was your week\" reflection." },
+      { gap:"No historical review browsing — user can only see the latest review, not compare across weeks." },
+    ]
+  },
+  {
+    id: "recommendations", title: "Recommendations & AI suggestions", color: "#D85A30",
+    desc: "After a review is saved, the adjustment engine generates a suggestion. AI-tier users can also request an AI-powered rewrite.",
+    steps: [
+      { n:46, type:"system", text:"Adjustment engine evaluates review answers + progress data", detail:"Inputs: trigger_worked, tiny_action_too_hard, consistency_rate, skip_count, was_hard" },
+      { n:47, type:"system", text:"Selects one of 6 suggestion types", detail:"fix_trigger_and_tiny_action · make_tiny_action_smaller · change_trigger · reduce_friction · plan_for_obstacle · keep_going" },
+      { n:48, type:"screen", text:"\"Suggested adjustment\" card appears on Habit Detail", detail:"Shows: title, body text, reason for suggestion" },
+      { n:49, type:"user", text:"Taps \"Review suggestion\"" },
+      { n:50, type:"screen", text:"Edit Habit screen with suggestion guidance", detail:"Guidance: what to change, why, and draft suggestion text" },
+      { n:51, type:"decision", text:"Decision: manually edit fields OR tap \"AI Rewrite\"" },
+      { divider: true },
+      { n:52, type:"decision", text:"If AI tier → edge function generates suggested trigger + action + explanation", detail:"Calls generate-habit-rewrite Supabase function" },
+      { n:53, type:"decision", text:"If not AI tier → upgrade prompt shown", detail:"Links to AI Upgrade purchase flow ($14.99)" },
+      { divider: true },
+      { n:54, type:"user", text:"Reviews and optionally modifies the suggestions" },
+      { n:55, type:"user", text:"Saves edited habit", detail:"Updated in Supabase. New trigger/action take effect immediately." },
+      { gap:"Known bug: \"reduce friction\" text suggests changes but AI may find nothing to change. Logic contradiction between rule engine and AI prompt." },
+      { gap:"Known bug: when both trigger AND action need updating, only one suggestion shows initially." },
+    ]
+  },
+  {
+    id: "trial-paywall", title: "Trial awareness & paywall (Days 10–15+)", color: "#D4372C",
+    desc: "Starting Day 10, the app surfaces awareness of the trial end. On Day 15+, the paywall activates.",
+    steps: [
+      { n:56, type:"system", text:"Day 10: trial awareness banner appears on Today screen", detail:"\"Your free trial has 4 days left. Your progress is saved no matter what.\"" },
+      { n:57, type:"user", text:"Can dismiss banner each day — returns next day with updated count" },
+      { n:58, type:"system", text:"Day 11–14: banner updates daily (3, 2, 1 days remaining)" },
+      { n:59, type:"system", text:"Day 15+ (or after week 2 review): paywall trigger activates", detail:"Smart trigger: prefers to fire after weekly review for stronger conversion context" },
+      { n:60, type:"screen", text:"Paywall: celebration section", detail:"Shows: total days logged, longest streak, consistency rate, reviews completed" },
+      { n:61, type:"screen", text:"Paywall: purchase options", detail:"Primary: Paid Core $1.99 (launch price) · Secondary: AI Upgrade $14.99 · Tertiary: Continue with one habit" },
+      { n:62, type:"decision", text:"User chooses: purchase Core, purchase AI, or continue free" },
+      { n:63, type:"system", text:"Routes to purchase flow (Phase 8) or habit selection (Phase 9)" },
+      { gap:"Entire paywall infrastructure does not exist yet — no trial tracking, payment integration, feature gating, or paywall screens" },
+    ]
+  },
+  {
+    id: "purchase", title: "Purchase flow", color: "#D4372C",
+    desc: "The user purchases Paid Core or AI Upgrade through the native App Store or Google Play.",
+    steps: [
+      { n:64, type:"user", text:"Taps purchase button", detail:"Source: paywall screen, contextual upgrade prompt, or Settings" },
+      { n:65, type:"system", text:"Native App Store / Google Play purchase flow opens" },
+      { n:66, type:"user", text:"Confirms purchase via native store UI" },
+      { n:67, type:"system", text:"Server validates receipt → updates payment_tier", detail:"Core: payment_tier = core · AI: payment_tier = ai" },
+      { n:68, type:"system", text:"Client syncs tier state, caches in AsyncStorage", detail:"Features unlock immediately. Offline capability enabled (Core+)." },
+      { n:69, type:"screen", text:"Confirmation screen → returns to previous context", detail:"Paywall → Today. Contextual prompt → same screen, restriction lifted." },
+      { gap:"No purchase restoration flow exists yet (needed for reinstalls and device switches)" },
+    ]
+  },
+  {
+    id: "expired-trial", title: "Expired trial restricted mode", color: "#D4372C",
+    desc: "If the user chose \"Continue with one habit,\" the app enters restricted mode where only one habit remains fully active.",
+    steps: [
+      { n:70, type:"user", text:"Selected \"Continue with one habit\" on paywall" },
+      { n:71, type:"decision", text:"If multiple active habits → habit selection screen", detail:"User picks which one habit stays fully active" },
+      { n:72, type:"system", text:"Selected habit: fully active (log, review, suggestions)" },
+      { n:73, type:"system", text:"Other habits: view-only mode", detail:"History visible, but logging, reviews, editing locked with upgrade prompts" },
+      { n:74, type:"user", text:"Can switch active habit at any time (but only 1 simultaneously)" },
+      { n:75, type:"screen", text:"Contextual upgrade prompts at every locked interaction", detail:"Create habit, edit locked habit, review locked habit, AI rewrite" },
+      { n:76, type:"user", text:"Can tap any upgrade prompt → enters purchase flow" },
+      { n:77, type:"system", text:"Daily loop continues for the one active habit", detail:"Full value retained. No streak is broken." },
+    ]
+  },
+  {
+    id: "settings", title: "Settings & account management", color: "#378ADD",
+    desc: "The user accesses account info, tier status, upgrades, and account controls via the Settings tab.",
+    steps: [
+      { n:78, type:"user", text:"Taps Settings tab" },
+      { n:79, type:"screen", text:"Account tier display", detail:"Shows: current tier (Trial with days remaining, Core, or AI)" },
+      { n:80, type:"screen", text:"Upgrade card (if applicable)", detail:"Trial: Core + AI options · Core: AI only · AI: no card" },
+      { n:81, type:"user", text:"Restore purchases button", detail:"For reinstalls or device switches — validates receipts with stores" },
+      { n:82, type:"user", text:"Sign out" },
+      { gap:"No account deletion, data export, or privacy controls visible in current build. May be required for App Store / Google Play compliance." },
+    ]
+  },
+];
+
+const GAPS = [
+  { phase: 1, impact: "Growth", text: "No website or landing page for organic discovery", priority: "P2" },
+  { phase: 1, impact: "Growth", text: "No app store listing assets created", priority: "P1" },
+  { phase: 2, impact: "Activation", text: "No onboarding education for new users", priority: "P1" },
+  { phase: 2, impact: "Security", text: "No email verification flow", priority: "P2" },
+  { phase: 3, impact: "Activation", text: "No explanation of identity statement concept", priority: "P1" },
+  { phase: 3, impact: "Activation", text: "No habit templates, categories, or examples", priority: "P2" },
+  { phase: 3, impact: "UX Bug", text: "Reminder toggle stored but never sends notifications", priority: "P1" },
+  { phase: 4, impact: "Retention", text: "No push notifications or reminders to bring user back", priority: "P0" },
+  { phase: 4, impact: "Engagement", text: "No progress visualization (heatmap, chart, timeline)", priority: "P1" },
+  { phase: 5, impact: "Engagement", text: "No overall weekly summary across all habits", priority: "P2" },
+  { phase: 5, impact: "Engagement", text: "No historical review browsing (only latest visible)", priority: "P2" },
+  { phase: 6, impact: "UX Bug", text: "Reduce friction logic contradicts AI rewrite output", priority: "P0" },
+  { phase: 6, impact: "UX Bug", text: "Dual suggestion display shows only one initially", priority: "P0" },
+  { phase: "7–8", impact: "Revenue", text: "Entire paywall infrastructure not yet built", priority: "P0" },
+  { phase: 8, impact: "Revenue", text: "No purchase restoration for reinstalls / device switches", priority: "P1" },
+  { phase: 10, impact: "Compliance", text: "No account deletion, data export, or privacy controls", priority: "P1" },
+];
+
+let activeFilter = "all";
+
+function countType(type) {
+  let c = 0;
+  PHASES.forEach(p => p.steps.forEach(s => { if (s.type === type) c++; }));
+  return c;
+}
+
+function countGapsInPhase(phase) {
+  return phase.steps.filter(s => s.gap).length;
+}
+
+function renderNav() {
+  const nav = document.getElementById("nav");
+  nav.innerHTML = PHASES.map((p, i) => {
+    const gc = countGapsInPhase(p);
+    return `<a class="nav-item" href="#phase-${p.id}" onclick="scrollToPhase('${p.id}')">
+      <div class="nav-dot" style="background:${p.color}"></div>
+      <span class="nav-label">${p.title}</span>
+      ${gc ? `<span class="nav-badge">${gc}</span>` : ""}
+    </a>`;
+  }).join("") + `<a class="nav-item" href="#gap-summary" onclick="scrollToGaps()">
+    <div class="nav-dot" style="background:var(--red)"></div>
+    <span class="nav-label">Gap summary</span>
+    <span class="nav-badge">${GAPS.length}</span>
+  </a>`;
+}
+
+function renderPhases() {
+  const main = document.getElementById("main");
+  let html = `<div class="main-header">
+    <h1>Complete user flow</h1>
+    <p>Every step from downloading the app through daily use, weekly reviews, monetization, and account management. Gaps are flagged in red for inspection.</p>
+  </div>`;
+
+  html += `<div class="legend">
+    <div class="legend-item"><div class="legend-dot" style="background:var(--purple)"></div>User action</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--blue)"></div>Screen</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--green)"></div>System</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--orange)"></div>Decision</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--red);box-shadow:0 0 0 3px rgba(212,55,44,.15)"></div>Gap / opportunity</div>
+  </div>`;
+
+  html += `<div class="filter-bar">
+    <button class="filter-btn active" onclick="setFilter('all')">All steps</button>
+    <button class="filter-btn" onclick="setFilter('user')">User actions</button>
+    <button class="filter-btn" onclick="setFilter('screen')">Screens</button>
+    <button class="filter-btn" onclick="setFilter('system')">System</button>
+    <button class="filter-btn" onclick="setFilter('decision')">Decisions</button>
+    <button class="filter-btn" onclick="setFilter('gap')">Gaps only</button>
+  </div>`;
+
+  PHASES.forEach((phase, pi) => {
+    const gc = countGapsInPhase(phase);
+    const sc = phase.steps.filter(s => s.n).length;
+    html += `<div class="phase" id="phase-${phase.id}">
+      <div class="phase-header open" onclick="togglePhase(this)">
+        <span class="phase-arrow">▶</span>
+        <div class="phase-num" style="background:${phase.color}">${pi + 1}</div>
+        <span class="phase-title">${phase.title}</span>
+        <div class="phase-meta">
+          <span class="phase-count">${sc} steps</span>
+          ${gc ? `<span class="phase-gap-count">${gc} gaps</span>` : ""}
+        </div>
+      </div>
+      <div class="phase-body open">`;
+
+    phase.steps.forEach(step => {
+      if (step.divider) {
+        html += `<div class="step-divider"></div>`;
+        return;
+      }
+      if (step.gap) {
+        html += `<div class="gap" data-filter="gap">
+          <span class="gap-icon">⚠</span>
+          <span class="gap-text">${step.gap}</span>
+        </div>`;
+        return;
+      }
+      const typeLabel = { user: "User action", screen: "Screen", system: "System", decision: "Decision" }[step.type];
+      html += `<div class="step type-${step.type}" data-filter="${step.type}">
+        <div class="step-indicator">
+          <div class="step-dot"></div>
+          <span class="step-num">${step.n}</span>
+        </div>
+        <div class="step-content">
+          <span class="step-type">${typeLabel}</span>
+          <div class="step-text">${step.text}</div>
+          ${step.detail ? `<div class="step-detail">${step.detail}</div>` : ""}
+        </div>
+      </div>`;
+    });
+
+    html += `</div></div>`;
+  });
+
+  html += renderGapSummary();
+  main.innerHTML = html;
+}
+
+function renderGapSummary() {
+  let html = `<div class="gap-summary" id="gap-summary">
+    <h2>Gap summary</h2>
+    <table class="gap-table">
+      <thead><tr><th>Phase</th><th>Impact</th><th>Gap</th><th>Priority</th></tr></thead><tbody>`;
+  GAPS.forEach(g => {
+    const pc = { P0: "priority-p0", P1: "priority-p1", P2: "priority-p2" }[g.priority];
+    html += `<tr>
+      <td>${g.phase}</td>
+      <td><span class="impact-tag">${g.impact}</span></td>
+      <td>${g.text}</td>
+      <td><span class="priority-tag ${pc}">${g.priority}</span></td>
+    </tr>`;
+  });
+  html += `</tbody></table></div>`;
+  return html;
+}
+
+function togglePhase(el) {
+  el.classList.toggle("open");
+  el.nextElementSibling.classList.toggle("open");
+}
+
+function scrollToPhase(id) {
+  document.getElementById("phase-" + id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function scrollToGaps() {
+  document.getElementById("gap-summary")?.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function setFilter(type) {
+  activeFilter = type;
+  document.querySelectorAll(".filter-btn").forEach(b => b.classList.remove("active"));
+  event.target.classList.add("active");
+
+  document.querySelectorAll(".step, .gap, .step-divider").forEach(el => {
+    if (type === "all") { el.style.display = ""; return; }
+    if (type === "gap") {
+      el.style.display = el.classList.contains("gap") ? "" : "none";
+      return;
+    }
+    if (el.classList.contains("step-divider") || el.classList.contains("gap")) {
+      el.style.display = type === "all" ? "" : "none";
+      return;
+    }
+    el.style.display = el.dataset.filter === type ? "" : "none";
+  });
+}
+
+renderNav();
+renderPhases();
+
+document.getElementById("stat-steps").textContent = PHASES.reduce((a, p) => a + p.steps.filter(s => s.n).length, 0);
+document.getElementById("stat-user").textContent = countType("user");
+document.getElementById("stat-screen").textContent = countType("screen");
+document.getElementById("stat-decision").textContent = countType("decision");
+document.getElementById("stat-gaps").textContent = GAPS.length;
+</script>
+</body>
+</html>

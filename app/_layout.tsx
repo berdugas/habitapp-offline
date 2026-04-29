@@ -1,6 +1,6 @@
 import "react-native-gesture-handler";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { Stack } from "expo-router";
@@ -8,21 +8,42 @@ import { StatusBar } from "expo-status-bar";
 import * as SplashScreen from "expo-splash-screen";
 import { useFonts } from "expo-font";
 
+import { initDb } from "@/lib/db/client";
 import { AppProviders } from "@/providers/AppProviders";
+import { logger } from "@/services/logger";
 import { colors } from "@/theme/colors";
 
 void SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({});
+  const [dbReady, setDbReady] = useState(false);
 
   useEffect(() => {
-    if (fontsLoaded) {
+    let cancelled = false;
+    initDb()
+      .then(() => {
+        if (!cancelled) setDbReady(true);
+      })
+      .catch((error: unknown) => {
+        if (!cancelled) {
+          logger.error("DB init failed at app launch", { error });
+          // Splash stays up; user sees no UI. Acceptable failure mode for
+          // S1 — recovery UX is out of scope until we see this in practice.
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (fontsLoaded && dbReady) {
       void SplashScreen.hideAsync();
     }
-  }, [fontsLoaded]);
+  }, [fontsLoaded, dbReady]);
 
-  if (!fontsLoaded) {
+  if (!fontsLoaded || !dbReady) {
     return null;
   }
 
