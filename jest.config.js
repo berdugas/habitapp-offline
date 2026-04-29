@@ -7,6 +7,8 @@ module.exports = {
     "**/src/tests/**/*.test.ts",
     "**/src/tests/**/*.test.tsx",
     "**/src/lib/**/__tests__/**/*.test.ts",
+    "**/src/features/**/__tests__/**/*.test.ts",
+    "**/src/features/**/__tests__/**/*.test.tsx",
   ],
   transformIgnorePatterns: [
     "node_modules/(?!((jest-)?react-native|@react-native|expo(nent)?|@expo(nent)?/.*|expo-router|@expo-google-fonts/.*|react-navigation|@react-navigation/.*|@sentry/react-native|native-base|react-native-svg))"
