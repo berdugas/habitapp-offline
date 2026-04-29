@@ -1,71 +1,75 @@
-import type {
-  HabitLogRecord,
-  HabitLogStatus,
-  HabitRecord,
-} from "@/features/habits/types";
+import type { HabitState, HabitStatus, LogStatus } from "@/features/habits/types";
 
-export const PHASE_2A_HABIT_IMPLEMENTED_FIELDS: ReadonlyArray<keyof HabitRecord> = [
+// Fields persisted on local_habits, in schema declaration order.
+// Used by tests that round-trip rows through the repo.
+export const LOCAL_HABIT_FIELDS = [
   "id",
   "user_id",
-  "name",
-  "identity_statement",
-  "stack_trigger",
+  "title",
+  "identity_phrase",
+  "cue",
   "tiny_action",
+  "minimum_viable_action",
   "preferred_time_window",
-  "reminder_enabled",
-  "reminder_time",
+  "habit_state",
+  "status",
   "start_date",
-  "is_active",
   "created_at",
   "updated_at",
-];
+  "archived_at",
+  "automated_at",
+  "backlog_at",
+] as const;
 
-export const PHASE_2A_HABIT_LOG_FIELDS: ReadonlyArray<keyof HabitLogRecord> = [
+export const LOCAL_HABIT_LOG_FIELDS = [
   "id",
   "habit_id",
   "user_id",
   "log_date",
   "status",
+  "note",
   "created_at",
   "updated_at",
-  "note",
-];
+] as const;
 
-export const PHASE_2A_HABIT_LOG_STATUS_VALUES = [
+export const HABIT_STATES = [
+  "focus",
+  "supporting",
+  "automatic",
+] as const satisfies readonly HabitState[];
+
+export const HABIT_STATUSES = [
+  "active",
+  "archived",
+  "backlog",
+] as const satisfies readonly HabitStatus[];
+
+export const HABIT_LOG_STATUSES = [
   "done",
   "skipped",
   "missed",
-] as const satisfies readonly HabitLogStatus[];
+] as const satisfies readonly LogStatus[];
 
-export const PHASE_2A_HABIT_LOG_STATUS_LABELS: Record<HabitLogStatus, string> = {
+export const HABIT_LOG_STATUS_LABELS: Record<LogStatus, string> = {
   done: "Done",
   skipped: "Skipped",
   missed: "Missed",
 };
 
-export const PHASE_2A_HABIT_LOG_STATUS_MEANINGS: Record<HabitLogStatus, string> = {
-  done: "The user completed the habit for that logical day.",
-  skipped: "The user intentionally chose not to do the habit for that logical day.",
-  missed:
-    "The day is treated as not completed. It is user-settable in the current implementation, but it is a future candidate for system-derived behavior.",
-};
-
-export const PHASE_2A_HABIT_LOG_UNIQUENESS = [
-  "user_id",
-  "habit_id",
-  "log_date",
-] as const;
-
-export const PHASE_2A_HABIT_LOG_ON_CONFLICT =
-  PHASE_2A_HABIT_LOG_UNIQUENESS.join(",");
-
-export const PHASE_2A_PROGRESS_RULES = {
-  consistencyFormula: "done / (done + missed)",
-  skippedExcludedFromConsistency: true,
-  streakBreaksOnNonDoneDay: true,
-  streakRequiresConsecutiveDoneDays: true,
+// Product rules — documented here so tests can assert against them.
+export const FORGIVING_STREAK_RULES = {
+  doneIncrements: true,
+  skippedIsNeutral: true,
+  toleratesIsolatedMiss: true,
+  breaksOnConsecutiveMisses: true,
+  skippedRemovedBeforeMissEvaluation: true,
 } as const;
 
-export const PHASE_2A_LOGICAL_DAY_FORMAT = "YYYY-MM-DD";
-export const PHASE_2A_LOGICAL_DAY_SOURCE = "device_local_day" as const;
-export const PHASE_2A_START_DATE_ALIGNMENT_STATUS = "implemented" as const;
+export const RETRO_LOG_WINDOW_HOURS = 48 as const;
+
+export const ACTIVE_HABIT_CAP = 3 as const;
+export const ACTIVE_FOCUS_LIMIT = 1 as const;
+export const ACTIVE_SUPPORTING_LIMIT = 2 as const;
+
+export const LOGICAL_DAY_FORMAT = "YYYY-MM-DD";
+export const LOGICAL_DAY_SOURCE = "device_local_day" as const;
