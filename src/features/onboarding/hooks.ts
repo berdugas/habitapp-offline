@@ -1,8 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 
+import { useAuthSession } from "@/features/auth/hooks";
 import { logger } from "@/services/logger";
 
-import { loadOnboardingDraft, saveOnboardingDraft } from "./storage";
+import {
+  isOnboardingCompleted,
+  loadOnboardingDraft,
+  saveOnboardingDraft,
+} from "./storage";
 import { EMPTY_DRAFT, type OnboardingDraft } from "./types";
 
 export function useOnboardingDraft(): {
@@ -63,4 +69,18 @@ export function useOnboardingDraft(): {
   }, []);
 
   return { draft, hydrated, update };
+}
+
+export function getIsOnboardingCompletedQueryKey(userId: string | undefined) {
+  return ["onboarding", "completed", userId ?? "guest"];
+}
+
+export function useIsOnboardingCompletedQuery() {
+  const { user } = useAuthSession();
+  return useQuery({
+    queryKey: getIsOnboardingCompletedQueryKey(user?.id),
+    queryFn: isOnboardingCompleted,
+    enabled: Boolean(user?.id),
+    staleTime: Infinity,
+  });
 }
