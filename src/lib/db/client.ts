@@ -64,3 +64,18 @@ export function getDb(): SQLiteDatabase {
   }
   return dbInstance;
 }
+
+/**
+ * Closes the active database connection and resets the cached instance so
+ * a subsequent `initDb()` opens a fresh connection.
+ *
+ * Dev-only utility — called by `devWipe.ts` before deleting the DB file.
+ * Not intended for use in production code.
+ */
+export async function closeDb(): Promise<void> {
+  if (dbInstance) {
+    await dbInstance.closeAsync();
+    dbInstance = null;
+  }
+  initPromise = null;
+}
