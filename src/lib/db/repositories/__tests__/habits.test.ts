@@ -84,6 +84,23 @@ describe("habits repository", () => {
     ).rejects.toThrow("nonexistent-id");
   });
 
+  it("updateHabit ignores fields explicitly set to undefined", async () => {
+    const habit = await createHabit(makeInput({ title: "Original" }));
+    await updateHabit(habit.id, { title: undefined, cue: "New cue" });
+
+    const after = await getHabit(habit.id);
+    expect(after!.title).toBe("Original");
+    expect(after!.cue).toBe("New cue");
+  });
+
+  it("updateHabit can explicitly clear nullable fields with null", async () => {
+    const habit = await createHabit(makeInput({ identity_phrase: "a runner" }));
+    await updateHabit(habit.id, { identity_phrase: null });
+
+    const after = await getHabit(habit.id);
+    expect(after!.identity_phrase).toBeNull();
+  });
+
   it("archiveHabit sets status=archived and archived_at", async () => {
     const habit = await createHabit(makeInput());
     await archiveHabit(habit.id);
@@ -91,6 +108,24 @@ describe("habits repository", () => {
     const archived = await getHabit(habit.id);
     expect(archived!.status).toBe("archived");
     expect(archived!.archived_at).toBeTruthy();
+  });
+
+  it("archiveHabit is idempotent — re-archiving preserves the original archived_at", async () => {
+    const habit = await createHabit(makeInput());
+    await archiveHabit(habit.id);
+
+    const afterFirst = await getHabit(habit.id);
+    const firstArchivedAt = afterFirst!.archived_at;
+
+    await new Promise((r) => setTimeout(r, 5));
+    await archiveHabit(habit.id);
+
+    const afterSecond = await getHabit(habit.id);
+    expect(afterSecond!.archived_at).toBe(firstArchivedAt);
+  });
+
+  it("archiveHabit throws when the id does not exist", async () => {
+    await expect(archiveHabit("does-not-exist")).rejects.toThrow("does-not-exist");
   });
 
   it("getHabit returns null for a missing id", async () => {
@@ -138,11 +173,27 @@ describe("habits repository", () => {
     expect(results[0].status).toBe("backlog");
   });
 
-  it("deleteHabit removes the row", async () => {
-    const habit = await createHabit(makeInput());
-    await deleteHabit(habit.id);
+  it("listHabits returns habits in created_at DESC order", async () => {
+    const a = await createHabit(makeInput({ title: "A" }));
+    await new Promise((r) => setTimeout(r, 5));
+    const b = await createHabit(makeInput({ title: "B" }));
+    await new Promise((r) => setTimeout(r, 5));
+    const c = await createHabit(makeInput({ title: "C" }));
 
+    const results = await listHabits({ user_id: "user-1" });
+    expect(results.map((h) => h.id)).toEqual([c.id, b.id, a.id]);
+  });
+
+  it("deleteHabit removes the row and returns true", async () => {
+    const habit = await createHabit(makeInput());
+    const deleted = await deleteHabit(habit.id);
+
+    expect(deleted).toBe(true);
     expect(await getHabit(habit.id)).toBeNull();
+  });
+
+  it("deleteHabit returns false when the id does not exist", async () => {
+    expect(await deleteHabit("does-not-exist")).toBe(false);
   });
 
   it("deleteHabit cascades to local_habit_logs via FK", async () => {

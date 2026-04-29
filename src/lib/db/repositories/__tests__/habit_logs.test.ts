@@ -161,16 +161,20 @@ describe("habit_logs repository", () => {
     expect(ids).toContain(habitId2);
   });
 
-  it("deleteLog removes the row by id", async () => {
+  it("deleteLog removes the row by id and returns true", async () => {
     const log = await upsertLog(makeLogInput(habitId));
-    await deleteLog(log.id);
+    const deleted = await deleteLog(log.id);
 
-    const result = await getLog({
+    expect(deleted).toBe(true);
+    expect(await getLog({
       habit_id: habitId,
       user_id: "user-1",
       log_date: "2026-04-29",
-    });
-    expect(result).toBeNull();
+    })).toBeNull();
+  });
+
+  it("deleteLog returns false when the id does not exist", async () => {
+    expect(await deleteLog("does-not-exist")).toBe(false);
   });
 
   it("rejects an invalid status via CHECK constraint", async () => {

@@ -140,14 +140,18 @@ export async function archiveHabit(id: string): Promise<void> {
   const now = new Date().toISOString();
 
   const result = await db.runAsync(
-    `UPDATE local_habits SET status = 'archived', archived_at = ?, updated_at = ? WHERE id = ?`,
+    `UPDATE local_habits
+       SET status = 'archived', archived_at = ?, updated_at = ?
+     WHERE id = ? AND status != 'archived'`,
     now,
     now,
     id,
   );
 
   if (result.changes === 0) {
-    throw new Error(`Habit not found: ${id}`);
+    const existing = await getHabit(id);
+    if (!existing) throw new Error(`Habit not found: ${id}`);
+    // Already archived — no-op.
   }
 }
 
@@ -187,7 +191,8 @@ export async function listHabits(filter: HabitFilter): Promise<Habit[]> {
   );
 }
 
-export async function deleteHabit(id: string): Promise<void> {
+export async function deleteHabit(id: string): Promise<boolean> {
   const db = getDb();
-  await db.runAsync("DELETE FROM local_habits WHERE id = ?", id);
+  const result = await db.runAsync("DELETE FROM local_habits WHERE id = ?", id);
+  return result.changes > 0;
 }
