@@ -1,256 +1,183 @@
-import { supabase } from "@/lib/supabase/client";
+import {
+  archiveHabit as archiveHabitRow,
+  createHabit as createHabitRow,
+  getHabit,
+  listHabits,
+  updateHabit as updateHabitRow,
+} from "@/lib/db/repositories/habits";
+import { listLogs, listLogsByUser, upsertLog } from "@/lib/db/repositories/habit_logs";
+import { RETRO_LOG_WINDOW_HOURS } from "@/features/habits/contract";
+import { now, todayDateString } from "@/utils/clock";
 import { logger } from "@/services/logger";
-import { PHASE_2A_HABIT_LOG_ON_CONFLICT } from "@/features/habits/contract";
-import { normalizeHabitReminderTime } from "@/features/habits/time";
-import { toDeviceDateString } from "@/utils/dates";
 
 import type {
+  CreateHabitInput,
   CreateHabitPayload,
+  Habit,
+  HabitLog,
   HabitSetupPayload,
-  HabitLogRecord,
-  HabitRecord,
+  UpdateHabitPatch,
   UpsertHabitLogPayload,
 } from "@/features/habits/types";
 
-function mapHabitSetupPayload(payload: HabitSetupPayload) {
-  const normalizedReminderTime = normalizeHabitReminderTime(payload.reminderTime);
+// ─── Typed errors ─────────────────────────────────────────────────────────────
 
-  return {
-    identity_statement: payload.identityStatement.trim() || null,
-    name: payload.name.trim(),
-    preferred_time_window: payload.preferredTimeWindow.trim() || null,
-    reminder_enabled: payload.reminderEnabled,
-    reminder_time: payload.reminderEnabled
-      ? normalizedReminderTime || null
-      : null,
-    stack_trigger: payload.stackTrigger.trim(),
-    tiny_action: payload.tinyAction.trim(),
-  };
+export type RetroLogReason =
+  | "outside_window"
+  | "future_date"
+  | "before_start_date"
+  | "habit_archived";
+
+export class RetroLogError extends Error {
+  reason: RetroLogReason;
+  constructor(reason: RetroLogReason) {
+    super(`Retro log rejected: ${reason}`);
+    this.reason = reason;
+  }
 }
 
-function mapCreateHabitPayload(userId: string, payload: CreateHabitPayload) {
-  return {
-    ...mapHabitSetupPayload(payload),
-    start_date: toDeviceDateString(),
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+function isWithinRetroWindow(logDate: string, currentTime: Date): boolean {
+  const [y, m, d] = logDate.split("-").map(Number) as [number, number, number];
+  const endOfLogDay = new Date(y, m - 1, d, 23, 59, 59, 999);
+  const windowEnds = new Date(
+    endOfLogDay.getTime() + RETRO_LOG_WINDOW_HOURS * 60 * 60 * 1000,
+  );
+  return currentTime <= windowEnds;
+}
+
+// ─── Habit listings ───────────────────────────────────────────────────────────
+
+export async function listActiveHabits(userId: string): Promise<Habit[]> {
+  return listHabits({ user_id: userId, status: "active" });
+}
+
+export async function listEligibleHabitsForToday(
+  userId: string,
+  todayDate: string,
+): Promise<Habit[]> {
+  const all = await listHabits({ user_id: userId, status: "active" });
+  return all.filter((h) => h.start_date <= todayDate);
+}
+
+export async function listUpcomingHabits(
+  userId: string,
+  todayDate: string,
+): Promise<Habit[]> {
+  const all = await listHabits({ user_id: userId, status: "active" });
+  return all
+    .filter((h) => h.start_date > todayDate)
+    .sort((a, b) => {
+      if (a.start_date !== b.start_date) {
+        return a.start_date < b.start_date ? -1 : 1;
+      }
+      return a.created_at < b.created_at ? -1 : 1;
+    });
+}
+
+export async function listArchivedHabits(userId: string): Promise<Habit[]> {
+  return listHabits({ user_id: userId, status: "archived" });
+}
+
+export async function listBacklogHabits(userId: string): Promise<Habit[]> {
+  return listHabits({ user_id: userId, status: "backlog" });
+}
+
+// ─── Habit CRUD ───────────────────────────────────────────────────────────────
+
+export async function getHabitById(
+  userId: string,
+  habitId: string,
+): Promise<Habit> {
+  const habit = await getHabit(habitId);
+  if (!habit || habit.user_id !== userId) {
+    throw new Error(`Habit not found: ${habitId}`);
+  }
+  return habit;
+}
+
+export async function createHabit(
+  userId: string,
+  payload: CreateHabitPayload,
+): Promise<Habit> {
+  const input: CreateHabitInput = {
     user_id: userId,
+    title: payload.title.trim(),
+    identity_phrase: payload.identityPhrase.trim() || null,
+    cue: payload.cue.trim(),
+    tiny_action: payload.tinyAction.trim(),
+    minimum_viable_action: payload.minimumViableAction.trim() || null,
+    preferred_time_window: payload.preferredTimeWindow.trim() || null,
+    start_date: todayDateString(),
+    habit_state: payload.habitState,
+    status: "active",
   };
-}
-
-export async function getEligibleHabits(userId: string, todayDate: string) {
-  const { data, error } = await supabase
-    .from("habits")
-    .select("*")
-    .eq("user_id", userId)
-    .eq("is_active", true)
-    .lte("start_date", todayDate)
-    .order("created_at", { ascending: true });
-
-  if (error) {
-    logger.error("Failed to fetch eligible habits", { error, todayDate, userId });
-    throw error;
-  }
-
-  return (data ?? []) as HabitRecord[];
-}
-
-export async function getUpcomingActiveHabits(userId: string, todayDate: string) {
-  const { data, error } = await supabase
-    .from("habits")
-    .select("*")
-    .eq("user_id", userId)
-    .eq("is_active", true)
-    .gt("start_date", todayDate)
-    .order("start_date", { ascending: true })
-    .order("created_at", { ascending: true });
-
-  if (error) {
-    logger.error("Failed to fetch upcoming active habits", {
-      error,
-      todayDate,
-      userId,
-    });
-    throw error;
-  }
-
-  return (data ?? []) as HabitRecord[];
-}
-
-export async function getInactiveHabits(userId: string) {
-  const { data, error } = await supabase
-    .from("habits")
-    .select("*")
-    .eq("user_id", userId)
-    .eq("is_active", false)
-    .order("updated_at", { ascending: false });
-
-  if (error) {
-    logger.error("Failed to fetch inactive habits", {
-      error,
-      userId,
-    });
-    throw error;
-  }
-
-  return (data ?? []) as HabitRecord[];
-}
-
-export async function createHabit(userId: string, payload: CreateHabitPayload) {
-  const { data, error } = await supabase
-    .from("habits")
-    .insert(mapCreateHabitPayload(userId, payload))
-    .select("*")
-    .single();
-
-  if (error) {
-    logger.error("Failed to create habit", { error });
-    throw error;
-  }
-
-  return data as HabitRecord;
+  return createHabitRow(input);
 }
 
 export async function updateHabit(
   userId: string,
   habitId: string,
   payload: HabitSetupPayload,
-) {
-  const { data, error } = await supabase
-    .from("habits")
-    .update(mapHabitSetupPayload(payload))
-    .eq("id", habitId)
-    .eq("user_id", userId)
-    .select("*")
-    .single();
+): Promise<Habit> {
+  await getHabitById(userId, habitId);
 
-  if (error) {
-    logger.error("Failed to update habit", {
-      error,
-      habitId,
-      userId,
-    });
-    throw error;
-  }
-
-  return data as HabitRecord;
+  const patch: UpdateHabitPatch = {
+    title: payload.title.trim(),
+    identity_phrase: payload.identityPhrase.trim() || null,
+    cue: payload.cue.trim(),
+    tiny_action: payload.tinyAction.trim(),
+    minimum_viable_action: payload.minimumViableAction.trim() || null,
+    preferred_time_window: payload.preferredTimeWindow.trim() || null,
+  };
+  return updateHabitRow(habitId, patch);
 }
 
-export async function setHabitActiveState(
+export async function archiveHabit(
   userId: string,
   habitId: string,
-  isActive: boolean,
-) {
-  const { data, error } = await supabase
-    .from("habits")
-    .update({
-      is_active: isActive,
-    })
-    .eq("id", habitId)
-    .eq("user_id", userId)
-    .select("*")
-    .single();
-
-  if (error) {
-    logger.error("Failed to update habit active state", {
-      error,
-      habitId,
-      isActive,
-      userId,
-    });
-    throw error;
-  }
-
-  return data as HabitRecord;
+): Promise<void> {
+  await getHabitById(userId, habitId);
+  await archiveHabitRow(habitId);
 }
 
-export async function getHabitLogsInRange(
-  userId: string,
-  startDate: string,
-  endDate: string,
-) {
-  const { data, error } = await supabase
-    .from("habit_logs")
-    .select("*")
-    .eq("user_id", userId)
-    .gte("log_date", startDate)
-    .lte("log_date", endDate)
-    .order("log_date", { ascending: false });
-
-  if (error) {
-    logger.error("Failed to fetch habit logs", {
-      endDate,
-      error,
-      startDate,
-      userId,
-    });
-    throw error;
-  }
-
-  return (data ?? []) as HabitLogRecord[];
-}
-
-export async function getHabitById(userId: string, habitId: string) {
-  const { data, error } = await supabase
-    .from("habits")
-    .select("*")
-    .eq("id", habitId)
-    .eq("user_id", userId)
-    .single();
-
-  if (error) {
-    logger.error("Failed to load owned habit", {
-      error,
-      habitId,
-      userId,
-    });
-    throw error;
-  }
-
-  return data as HabitRecord;
-}
+// ─── Log reads ────────────────────────────────────────────────────────────────
 
 export async function getHabitLogsForHabitInRange(
   userId: string,
   habitId: string,
   startDate: string,
   endDate: string,
-) {
-  const { data, error } = await supabase
-    .from("habit_logs")
-    .select("*")
-    .eq("user_id", userId)
-    .eq("habit_id", habitId)
-    .gte("log_date", startDate)
-    .lte("log_date", endDate)
-    .order("log_date", { ascending: false });
-
-  if (error) {
-    logger.error("Failed to fetch habit detail logs", {
-      endDate,
-      error,
-      habitId,
-      startDate,
-      userId,
-    });
-    throw error;
-  }
-
-  return (data ?? []) as HabitLogRecord[];
+): Promise<HabitLog[]> {
+  await getHabitById(userId, habitId);
+  return listLogs({ habit_id: habitId, from_date: startDate, to_date: endDate });
 }
+
+export async function getHabitLogsInRange(
+  userId: string,
+  startDate: string,
+  endDate: string,
+): Promise<HabitLog[]> {
+  return listLogsByUser({ user_id: userId, from_date: startDate, to_date: endDate });
+}
+
+// ─── Log upsert with 48-hour retro window ─────────────────────────────────────
 
 export async function upsertHabitLog(
   userId: string,
   payload: UpsertHabitLogPayload,
-) {
+): Promise<HabitLog> {
   const habit = await getHabitById(userId, payload.habitId);
 
-  if (!habit.is_active) {
-    logger.warn("Rejected habit log for inactive habit", {
+  if (habit.status !== "active") {
+    logger.warn("Rejected habit log for archived habit", {
       habitId: payload.habitId,
       logDate: payload.logDate,
       status: payload.status,
       userId,
     });
-    throw new Error("Inactive habits cannot receive new logs.");
+    throw new RetroLogError("habit_archived");
   }
 
   if (payload.logDate < habit.start_date) {
@@ -258,39 +185,34 @@ export async function upsertHabitLog(
       habitId: payload.habitId,
       logDate: payload.logDate,
       startDate: habit.start_date,
-      status: payload.status,
       userId,
     });
-    throw new Error("Habits cannot be logged before their start date.");
+    throw new RetroLogError("before_start_date");
   }
 
-  const { data, error } = await supabase
-    .from("habit_logs")
-    .upsert(
-      {
-        habit_id: payload.habitId,
-        log_date: payload.logDate,
-        note: payload.note ?? null,
-        status: payload.status,
-        user_id: userId,
-      },
-      {
-        onConflict: PHASE_2A_HABIT_LOG_ON_CONFLICT,
-      },
-    )
-    .select("*")
-    .single();
-
-  if (error) {
-    logger.error("Failed to upsert habit log", {
-      error,
+  if (payload.logDate > todayDateString()) {
+    logger.warn("Rejected habit log for future date", {
       habitId: payload.habitId,
       logDate: payload.logDate,
-      status: payload.status,
       userId,
     });
-    throw error;
+    throw new RetroLogError("future_date");
   }
 
-  return data as HabitLogRecord;
+  if (!isWithinRetroWindow(payload.logDate, now())) {
+    logger.warn("Rejected habit log outside 48-hour retro window", {
+      habitId: payload.habitId,
+      logDate: payload.logDate,
+      userId,
+    });
+    throw new RetroLogError("outside_window");
+  }
+
+  return upsertLog({
+    habit_id: payload.habitId,
+    user_id: userId,
+    log_date: payload.logDate,
+    status: payload.status,
+    note: payload.note ?? null,
+  });
 }
