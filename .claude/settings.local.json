@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx tsc *)",
+      "Bash(npm install *)",
+      "Bash(npx jest *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "Bash(node -e ' *)",
+      "Bash(node -e \"const config = require\\('./node_modules/jest-expo/jest-preset.js'\\); console.log\\(JSON.stringify\\(config, null, 2\\)\\)\")",
+      "Bash(node --input-type=module)"
+    ]
+  }
+}

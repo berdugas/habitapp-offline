@@ -331,13 +331,16 @@ The previous plan's monetization analytics events (paywall_shown, purchase_compl
 
 ## 10. Documents
 
+Source-of-truth docs live directly in `docs/`. Sprint planning and per-sprint dev ticket packages live in `docs/sprint_tickets/` — add new ticket files there going forward.
+
 | Document | Format | Location | Status |
 |----------|--------|----------|--------|
 | Product Strategy | .md | `docs/product-strategy.md` | **Current — the why** |
 | Core v1 Requirements | .md | `docs/core-v1-requirements.md` | **Current — the what** |
 | Technical Handoff Core v1 | .md | `docs/tech-handoff-core-v1.md` | **Current — the how** |
 | Project Brain | .md | `docs/PROJECT_BRAIN.md` | **Current — this document** |
-| Product Brief v2 | .md | `docs/product-brief-v2.md` | Superseded — archive when convenient |
+| Sprint Plan | .md | `docs/sprint_tickets/sprint-plan.md` | **Current — the when (21-sprint roadmap, 4 phases)** |
+| Sprint 1 Tickets | .md | `docs/sprint_tickets/sprint-1-tickets.md` | **Current — DEV-S1-01..04 dev packages** |
 | PRD Monetization | .docx | `docs/habits-app-prd-monetization.docx` | Reference for post-Core-v1 monetization |
 | User Flow | .html | `docs/habits-app-user-flow.html` | Stale — regenerate post-Core-v1 |
 
