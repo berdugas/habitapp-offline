@@ -14,7 +14,7 @@ export function isWeeklyReviewDue({
   latestReview,
   todayDate,
 }: WeeklyReviewDueInput) {
-  if (!habit?.is_active || habit.start_date > todayDate) {
+  if (!habit || habit.status !== "active" || habit.start_date > todayDate) {
     return false;
   }
 

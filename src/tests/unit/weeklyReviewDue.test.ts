@@ -1,17 +1,21 @@
 import { isWeeklyReviewDue } from "@/features/reviews/due";
+import type { Habit } from "@/features/habits/types";
 
-const baseHabit = {
+const baseHabit: Habit = {
+  archived_at: null,
+  automated_at: null,
+  backlog_at: null,
   created_at: "2026-04-01T00:00:00.000Z",
+  cue: "After breakfast",
+  habit_state: "focus",
   id: "habit-1",
-  identity_statement: null,
-  is_active: true,
-  name: "Reading",
+  identity_phrase: null,
+  minimum_viable_action: null,
   preferred_time_window: null,
-  reminder_enabled: false,
-  reminder_time: null,
-  stack_trigger: "After breakfast",
   start_date: "2026-04-20",
+  status: "active",
   tiny_action: "Read 1 page",
+  title: "Reading",
   updated_at: "2026-04-01T00:00:00.000Z",
   user_id: "user-1",
 };
@@ -64,14 +68,11 @@ describe("weekly review due logic", () => {
     ).toBe(true);
   });
 
-  it("does not mark inactive habits as due", () => {
+  it("does not mark archived habits as due", () => {
     expect(
       isWeeklyReviewDue({
         currentWeekStart: "2026-04-20",
-        habit: {
-          ...baseHabit,
-          is_active: false,
-        },
+        habit: { ...baseHabit, status: "archived" },
         latestReview: null,
         todayDate: "2026-04-24",
       }),
@@ -82,10 +83,7 @@ describe("weekly review due logic", () => {
     expect(
       isWeeklyReviewDue({
         currentWeekStart: "2026-04-20",
-        habit: {
-          ...baseHabit,
-          start_date: "2026-04-30",
-        },
+        habit: { ...baseHabit, start_date: "2026-04-30" },
         latestReview: null,
         todayDate: "2026-04-24",
       }),

@@ -9,7 +9,6 @@ import { ErrorState } from "@/components/feedback/ErrorState";
 import { LoadingState } from "@/components/feedback/LoadingState";
 import { ChoicePills } from "@/components/forms/ChoicePills";
 import { TextField } from "@/components/forms/TextField";
-import { ToggleRow } from "@/components/forms/ToggleRow";
 import {
   useOwnedHabitQuery,
   useUpdateHabitMutation,
@@ -19,7 +18,6 @@ import {
   stripLeadingAfter,
 } from "@/features/habits/formatters";
 import { PREFERRED_TIME_WINDOW_OPTIONS } from "@/features/habits/preferredTimeWindows";
-import { normalizeHabitReminderTime } from "@/features/habits/time";
 import {
   normalizeHabitSetupPayload,
   validateHabitSetupPayload,
@@ -63,13 +61,12 @@ export default function EditHabitScreen() {
     normalizeHabitAdjustmentSuggestionType(suggestionType);
   const suggestionGuidance = getHabitSuggestionEditGuidance(suggestionType);
 
-  const [name, setName] = useState("");
-  const [identityStatement, setIdentityStatement] = useState("");
-  const [stackTrigger, setStackTrigger] = useState("");
+  const [title, setTitle] = useState("");
+  const [identityPhrase, setIdentityPhrase] = useState("");
+  const [cue, setCue] = useState("");
   const [tinyAction, setTinyAction] = useState("");
+  const [minimumViableAction, setMinimumViableAction] = useState("");
   const [preferredTimeWindow, setPreferredTimeWindow] = useState("");
-  const [reminderEnabled, setReminderEnabled] = useState(false);
-  const [reminderTime, setReminderTime] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
   const [rewriteDraft, setRewriteDraft] =
     useState<GenerateHabitRewriteResponse | null>(null);
@@ -90,13 +87,12 @@ export default function EditHabitScreen() {
         : "Generate rewrite";
 
   const formPayload = {
-    identityStatement,
-    name,
-    preferredTimeWindow,
-    reminderEnabled,
-    reminderTime,
-    stackTrigger,
+    title,
+    identityPhrase,
+    cue,
     tinyAction,
+    minimumViableAction,
+    preferredTimeWindow,
   };
   const normalizedPayload = normalizeHabitSetupPayload(formPayload);
   const validationErrors = useMemo(
@@ -109,13 +105,12 @@ export default function EditHabitScreen() {
       return;
     }
 
-    setName(ownedHabitQuery.data.name);
-    setIdentityStatement(ownedHabitQuery.data.identity_statement ?? "");
-    setStackTrigger(ownedHabitQuery.data.stack_trigger);
+    setTitle(ownedHabitQuery.data.title);
+    setIdentityPhrase(ownedHabitQuery.data.identity_phrase ?? "");
+    setCue(ownedHabitQuery.data.cue);
     setTinyAction(ownedHabitQuery.data.tiny_action);
+    setMinimumViableAction(ownedHabitQuery.data.minimum_viable_action ?? "");
     setPreferredTimeWindow(ownedHabitQuery.data.preferred_time_window ?? "");
-    setReminderEnabled(ownedHabitQuery.data.reminder_enabled);
-    setReminderTime(normalizeHabitReminderTime(ownedHabitQuery.data.reminder_time));
     hasHydratedFormRef.current = true;
   }, [ownedHabitQuery.data]);
 
@@ -183,7 +178,7 @@ export default function EditHabitScreen() {
     let copiedAnyField = false;
 
     if (rewriteDraft.suggestedStackTrigger) {
-      setStackTrigger(stripLeadingAfter(rewriteDraft.suggestedStackTrigger));
+      setCue(stripLeadingAfter(rewriteDraft.suggestedStackTrigger));
       copiedAnyField = true;
     }
 
@@ -200,7 +195,7 @@ export default function EditHabitScreen() {
   }
 
   const preview = formatHabitFormula(
-    normalizedPayload.stackTrigger,
+    normalizedPayload.cue,
     normalizedPayload.tinyAction,
   );
 
@@ -323,24 +318,25 @@ export default function EditHabitScreen() {
       <View style={styles.formCard}>
         {formError ? <ErrorState message={formError} /> : null}
         <TextField
-          error={validationErrors.name}
+          error={validationErrors.title}
           label="Habit name"
-          onChangeText={setName}
+          onChangeText={setTitle}
           placeholder="Reading"
-          value={name}
+          value={title}
         />
         <TextField
-          label="Identity statement"
-          onChangeText={setIdentityStatement}
+          error={validationErrors.identityPhrase}
+          label="Identity phrase"
+          onChangeText={setIdentityPhrase}
           placeholder="Become someone who reads daily"
-          value={identityStatement}
+          value={identityPhrase}
         />
         <TextField
-          error={validationErrors.stackTrigger}
-          label="Stack trigger"
-          onChangeText={setStackTrigger}
+          error={validationErrors.cue}
+          label="Cue"
+          onChangeText={setCue}
           placeholder="After I brush my teeth"
-          value={stackTrigger}
+          value={cue}
         />
         <TextField
           error={validationErrors.tinyAction}
@@ -349,27 +345,20 @@ export default function EditHabitScreen() {
           placeholder="Read 1 page"
           value={tinyAction}
         />
+        <TextField
+          error={validationErrors.minimumViableAction}
+          label="Minimum viable action (optional)"
+          onChangeText={setMinimumViableAction}
+          placeholder="Just open the book"
+          value={minimumViableAction}
+        />
         <ChoicePills
           label="Preferred time window"
           onChange={setPreferredTimeWindow}
           options={PREFERRED_TIME_WINDOW_OPTIONS}
           value={preferredTimeWindow}
         />
-        <ToggleRow
-          description="Reminder scheduling comes in a later phase, but we capture the preference now."
-          label="Reminder"
-          onValueChange={setReminderEnabled}
-          value={reminderEnabled}
-        />
-        {reminderEnabled ? (
-          <TextField
-            error={validationErrors.reminderTime}
-            label="Reminder time"
-            onChangeText={setReminderTime}
-            placeholder="20:00"
-            value={reminderTime}
-          />
-        ) : null}
+        {/* TODO(S15): reminder settings */}
       </View>
 
       <View style={styles.previewCard}>

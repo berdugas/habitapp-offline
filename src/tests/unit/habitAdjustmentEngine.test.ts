@@ -4,17 +4,20 @@ import type { HabitRecord } from "@/features/habits/types";
 import type { WeeklyReviewRecord } from "@/features/reviews/types";
 
 const baseHabit: HabitRecord = {
+  archived_at: null,
+  automated_at: null,
+  backlog_at: null,
   created_at: "2026-04-01T00:00:00.000Z",
+  cue: "After breakfast",
+  habit_state: "focus",
   id: "habit-1",
-  identity_statement: null,
-  is_active: true,
-  name: "Reading",
+  identity_phrase: null,
+  minimum_viable_action: null,
   preferred_time_window: null,
-  reminder_enabled: false,
-  reminder_time: null,
-  stack_trigger: "After breakfast",
   start_date: "2026-04-20",
+  status: "active",
   tiny_action: "Read 1 page",
+  title: "Reading",
   updated_at: "2026-04-01T00:00:00.000Z",
   user_id: "user-1",
 };

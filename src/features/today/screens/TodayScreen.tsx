@@ -9,8 +9,8 @@ import { EmptyState } from "@/components/feedback/EmptyState";
 import { ErrorState } from "@/components/feedback/ErrorState";
 import { LoadingState } from "@/components/feedback/LoadingState";
 import {
-  PHASE_2A_HABIT_LOG_STATUS_LABELS,
-  PHASE_2A_HABIT_LOG_STATUS_VALUES,
+  HABIT_LOG_STATUS_LABELS,
+  HABIT_LOG_STATUSES,
 } from "@/features/habits/contract";
 import {
   useTodayHabits,
@@ -202,7 +202,7 @@ export default function TodayScreen() {
               </View>
             ) : null}
             <View style={styles.actionsRow}>
-              {PHASE_2A_HABIT_LOG_STATUS_VALUES.map((status) => {
+              {HABIT_LOG_STATUSES.map((status) => {
                 const isSelected = habit.todayStatus === status;
 
                 return (
@@ -223,7 +223,7 @@ export default function TodayScreen() {
                         isSelected && styles.statusButtonLabelSelected,
                       ]}
                     >
-                      {PHASE_2A_HABIT_LOG_STATUS_LABELS[status]}
+                      {HABIT_LOG_STATUS_LABELS[status]}
                     </Text>
                   </Pressable>
                 );

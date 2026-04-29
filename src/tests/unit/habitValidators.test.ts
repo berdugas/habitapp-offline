@@ -115,8 +115,11 @@ describe("assertCanCreateActiveHabit", () => {
     return repoCreateHabit({
       user_id: userId,
       title: "Test habit",
+      identity_phrase: null,
       cue: "Morning",
       tiny_action: "Do it",
+      minimum_viable_action: null,
+      preferred_time_window: null,
       start_date: "2026-04-23",
       habit_state: state,
       status,

@@ -66,7 +66,7 @@ describe("WeeklyReviewScreen", () => {
       formula: "After breakfast, I will Read 1 page.",
       habit: {
         id: "habit-1",
-        name: "Reading",
+        title: "Reading",
       },
       isLoading: false,
       isUpcoming: false,

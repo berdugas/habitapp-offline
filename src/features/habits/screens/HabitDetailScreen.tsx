@@ -7,13 +7,12 @@ import { EmptyState } from "@/components/feedback/EmptyState";
 import { ErrorState } from "@/components/feedback/ErrorState";
 import { LoadingState } from "@/components/feedback/LoadingState";
 import {
-  PHASE_2A_HABIT_LOG_STATUS_LABELS,
+  HABIT_LOG_STATUS_LABELS,
 } from "@/features/habits/contract";
 import {
+  useArchiveHabitMutation,
   useHabitDetail,
-  useSetHabitActiveStateMutation,
 } from "@/features/habits/hooks";
-import { normalizeHabitReminderTime } from "@/features/habits/time";
 import { getHabitAdjustmentSuggestion } from "@/features/recommendations/habitAdjustmentEngine";
 import { colors } from "@/theme/colors";
 import { radius } from "@/theme/radius";
@@ -66,20 +65,8 @@ function formatBooleanAnswer(value: boolean | null) {
   return value ? "Yes" : "No";
 }
 
-function getUpcomingHabitMessage(isActive: boolean) {
-  if (!isActive) {
-    return "This habit is inactive and scheduled to start later. Reactivate it first; it will become loggable on its start date.";
-  }
-
+function getUpcomingHabitMessage() {
   return "This habit is scheduled and will become loggable on its start date.";
-}
-
-function getActiveStateHelperMessage(isActive: boolean) {
-  if (!isActive) {
-    return "This habit is inactive. Reactivate it to return it to Today.";
-  }
-
-  return "This removes the habit from Today, but keeps its history.";
 }
 
 export default function HabitDetailScreen() {
@@ -95,13 +82,13 @@ export default function HabitDetailScreen() {
     progress,
     recentLogs,
   } = useHabitDetail(habitId);
-  const setHabitActiveStateMutation = useSetHabitActiveStateMutation();
+  const archiveHabitMutation = useArchiveHabitMutation();
 
-  async function handleActiveStatePress(nextIsActive: boolean) {
+  async function handleArchivePress() {
     if (
       !habit ||
       activeStateSubmitLockRef.current ||
-      setHabitActiveStateMutation.isPending
+      archiveHabitMutation.isPending
     ) {
       return;
     }
@@ -109,10 +96,7 @@ export default function HabitDetailScreen() {
     activeStateSubmitLockRef.current = true;
 
     try {
-      await setHabitActiveStateMutation.mutateAsync({
-        habitId: habit.id,
-        isActive: nextIsActive,
-      });
+      await archiveHabitMutation.mutateAsync({ habitId: habit.id });
     } finally {
       activeStateSubmitLockRef.current = false;
     }
@@ -157,7 +141,7 @@ export default function HabitDetailScreen() {
     >
       <View style={styles.header}>
         <Text selectable style={styles.title}>
-          {habit.name}
+          {habit.title}
         </Text>
         <Text selectable style={styles.formula}>
           {formula}
@@ -170,7 +154,7 @@ export default function HabitDetailScreen() {
             Starts on {formatDateLabel(habit.start_date)}
           </Text>
           <Text selectable style={styles.infoBody}>
-            {getUpcomingHabitMessage(habit.is_active)}
+            {getUpcomingHabitMessage()}
           </Text>
         </View>
       ) : null}
@@ -179,13 +163,13 @@ export default function HabitDetailScreen() {
         <Text selectable style={styles.sectionTitle}>
           Setup
         </Text>
-        {habit.identity_statement ? (
+        {habit.identity_phrase ? (
           <View style={styles.row}>
             <Text selectable style={styles.label}>
               Identity
             </Text>
             <Text selectable style={styles.value}>
-              {habit.identity_statement}
+              {habit.identity_phrase}
             </Text>
           </View>
         ) : null}
@@ -207,20 +191,7 @@ export default function HabitDetailScreen() {
             </Text>
           </View>
         ) : null}
-        <View style={styles.row}>
-          <Text selectable style={styles.label}>
-            Reminder
-          </Text>
-            <Text selectable style={styles.value}>
-              {habit.reminder_enabled
-              ? `Enabled${
-                  habit.reminder_time
-                    ? ` at ${normalizeHabitReminderTime(habit.reminder_time)}`
-                    : ""
-                }`
-              : "Disabled"}
-            </Text>
-          </View>
+        {/* TODO(S15): reminder settings row */}
       </View>
 
       <View style={styles.sectionCard}>
@@ -278,7 +249,7 @@ export default function HabitDetailScreen() {
             <View key={log.id} style={styles.logRow}>
               <Text selectable style={styles.logPrimary}>
                 {formatDateLabel(log.log_date)} -{" "}
-                {PHASE_2A_HABIT_LOG_STATUS_LABELS[log.status]}
+                {HABIT_LOG_STATUS_LABELS[log.status]}
               </Text>
               {log.note ? (
                 <Text selectable style={styles.logSecondary}>
@@ -390,22 +361,35 @@ export default function HabitDetailScreen() {
       ) : null}
 
       <View style={styles.actions}>
-        {setHabitActiveStateMutation.error ? (
+        {archiveHabitMutation.error ? (
           <ErrorState message={getUpdateHabitActiveStateErrorMessage()} />
         ) : null}
-        <View style={styles.actionHelperCard}>
-          <Text selectable style={styles.actionHelperTitle}>
-            {habit.is_active ? "Deactivate habit" : "Reactivate habit"}
-          </Text>
-          <Text selectable style={styles.actionHelperBody}>
-            {getActiveStateHelperMessage(habit.is_active)}
-          </Text>
-        </View>
-        <SecondaryButton
-          disabled={setHabitActiveStateMutation.isPending}
-          label={habit.is_active ? "Deactivate habit" : "Reactivate habit"}
-          onPress={() => void handleActiveStatePress(!habit.is_active)}
-        />
+        {habit.status === "active" ? (
+          <>
+            <View style={styles.actionHelperCard}>
+              <Text selectable style={styles.actionHelperTitle}>
+                Archive habit
+              </Text>
+              <Text selectable style={styles.actionHelperBody}>
+                This removes the habit from Today, but keeps its history.
+              </Text>
+            </View>
+            <SecondaryButton
+              disabled={archiveHabitMutation.isPending}
+              label="Archive habit"
+              onPress={() => void handleArchivePress()}
+            />
+          </>
+        ) : (
+          <View style={styles.actionHelperCard}>
+            <Text selectable style={styles.actionHelperTitle}>
+              Archived
+            </Text>
+            <Text selectable style={styles.actionHelperBody}>
+              This habit is archived. Reactivation coming in a future release.
+            </Text>
+          </View>
+        )}
         <SecondaryButton
           label="Edit habit"
           onPress={() => router.push(`/(app)/habits/${habit.id}/edit`)}

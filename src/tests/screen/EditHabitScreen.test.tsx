@@ -29,6 +29,19 @@ jest.mock("@/features/recommendations/hooks", () => ({
   useGenerateHabitRewriteMutation: () => mockUseGenerateHabitRewriteMutation(),
 }));
 
+const baseHabitData = {
+  id: "habit-1",
+  title: "Reading",
+  identity_phrase: "Become a reader",
+  cue: "After I brush my teeth",
+  tiny_action: "Read 1 page",
+  minimum_viable_action: null,
+  preferred_time_window: "Evening",
+  habit_state: "focus",
+  status: "active",
+  start_date: "2026-04-24",
+};
+
 describe("EditHabitScreen", () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -36,18 +49,7 @@ describe("EditHabitScreen", () => {
       habitId: "habit-1",
     });
     mockUseOwnedHabitQuery.mockReturnValue({
-      data: {
-        id: "habit-1",
-        identity_statement: "Become a reader",
-        is_active: true,
-        name: "Reading",
-        preferred_time_window: "Evening",
-        reminder_enabled: true,
-        reminder_time: "20:00",
-        stack_trigger: "After I brush my teeth",
-        start_date: "2026-04-24",
-        tiny_action: "Read 1 page",
-      },
+      data: baseHabitData,
       error: null,
       isLoading: false,
     });
@@ -110,7 +112,6 @@ describe("EditHabitScreen", () => {
     expect(
       screen.getByLabelText("Evening preferred time window selected"),
     ).toBeTruthy();
-    expect(screen.getByDisplayValue("20:00")).toBeTruthy();
   });
 
   it("shows tiny-action suggestion guidance without changing hydrated fields", () => {
@@ -245,31 +246,6 @@ describe("EditHabitScreen", () => {
     ).toBeNull();
   });
 
-  it("normalizes database reminder times with seconds before showing the form", () => {
-    mockUseOwnedHabitQuery.mockReturnValue({
-      data: {
-        id: "habit-1",
-        identity_statement: "Become a reader",
-        is_active: true,
-        name: "Reading",
-        preferred_time_window: "Evening",
-        reminder_enabled: true,
-        reminder_time: "20:00:00",
-        stack_trigger: "After I brush my teeth",
-        start_date: "2026-04-24",
-        tiny_action: "Read 1 page",
-      },
-      error: null,
-      isLoading: false,
-    });
-
-    render(<EditHabitScreen />);
-
-    expect(screen.getByDisplayValue("20:00")).toBeTruthy();
-    expect(screen.queryByDisplayValue("20:00:00")).toBeNull();
-    expect(screen.queryByText("Use a valid 24-hour time like 20:00.")).toBeNull();
-  });
-
   it("blocks blank required edits before saving", async () => {
     render(<EditHabitScreen />);
 
@@ -282,39 +258,6 @@ describe("EditHabitScreen", () => {
       ).toBeTruthy();
     });
 
-    expect(mockMutateAsync).not.toHaveBeenCalled();
-  });
-
-  it("requires a reminder time when reminders are enabled", async () => {
-    mockUseOwnedHabitQuery.mockReturnValue({
-      data: {
-        id: "habit-1",
-        identity_statement: null,
-        is_active: true,
-        name: "Reading",
-        preferred_time_window: null,
-        reminder_enabled: false,
-        reminder_time: null,
-        stack_trigger: "After I brush my teeth",
-        start_date: "2026-04-24",
-        tiny_action: "Read 1 page",
-      },
-      error: null,
-      isLoading: false,
-    });
-
-    render(<EditHabitScreen />);
-
-    fireEvent(screen.getByRole("switch"), "valueChange", true);
-    fireEvent.press(screen.getByText("Save changes"));
-
-    await waitFor(() => {
-      expect(
-        screen.getByText("Fix the highlighted fields before saving."),
-      ).toBeTruthy();
-    });
-
-    expect(screen.getByText("Pick a reminder time or turn reminders off.")).toBeTruthy();
     expect(mockMutateAsync).not.toHaveBeenCalled();
   });
 
@@ -338,7 +281,6 @@ describe("EditHabitScreen", () => {
     );
     fireEvent.changeText(screen.getByDisplayValue("Read 1 page"), "  Read 2 pages  ");
     fireEvent.press(screen.getByLabelText("No preference preferred time window"));
-    fireEvent.changeText(screen.getByDisplayValue("20:00"), " 21:15 ");
 
     fireEvent.press(screen.getByText("Save changes"));
 
@@ -346,13 +288,12 @@ describe("EditHabitScreen", () => {
       expect(mockMutateAsync).toHaveBeenCalledWith({
         habitId: "habit-1",
         payload: {
-          identityStatement: "",
-          name: "Reading habit",
-          preferredTimeWindow: "",
-          reminderEnabled: true,
-          reminderTime: "21:15",
-          stackTrigger: "After breakfast",
+          title: "Reading habit",
+          identityPhrase: "",
+          cue: "After breakfast",
           tinyAction: "Read 2 pages",
+          minimumViableAction: "",
+          preferredTimeWindow: "",
         },
       });
     });

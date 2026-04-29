@@ -1,69 +1,74 @@
 import {
-  PHASE_2A_HABIT_IMPLEMENTED_FIELDS,
-  PHASE_2A_HABIT_LOG_FIELDS,
-  PHASE_2A_HABIT_LOG_ON_CONFLICT,
-  PHASE_2A_HABIT_LOG_STATUS_MEANINGS,
-  PHASE_2A_HABIT_LOG_STATUS_VALUES,
-  PHASE_2A_LOGICAL_DAY_FORMAT,
-  PHASE_2A_LOGICAL_DAY_SOURCE,
-  PHASE_2A_PROGRESS_RULES,
-  PHASE_2A_START_DATE_ALIGNMENT_STATUS,
+  ACTIVE_FOCUS_LIMIT,
+  ACTIVE_HABIT_CAP,
+  ACTIVE_SUPPORTING_LIMIT,
+  FORGIVING_STREAK_RULES,
+  HABIT_LOG_STATUSES,
+  HABIT_STATES,
+  HABIT_STATUSES,
+  LOCAL_HABIT_FIELDS,
+  LOCAL_HABIT_LOG_FIELDS,
+  LOGICAL_DAY_FORMAT,
+  LOGICAL_DAY_SOURCE,
+  RETRO_LOG_WINDOW_HOURS,
 } from "@/features/habits/contract";
 
-describe("Phase 2A habit contract", () => {
-  it("locks the implemented habit fields and marks start_date as implemented", () => {
-    expect(PHASE_2A_HABIT_IMPLEMENTED_FIELDS).toEqual([
-      "id",
-      "user_id",
-      "name",
-      "identity_statement",
-      "stack_trigger",
-      "tiny_action",
-      "preferred_time_window",
-      "reminder_enabled",
-      "reminder_time",
-      "start_date",
-      "is_active",
-      "created_at",
-      "updated_at",
-    ]);
-    expect(PHASE_2A_START_DATE_ALIGNMENT_STATUS).toBe("implemented");
+describe("local-DB contract constants", () => {
+  it("LOCAL_HABIT_FIELDS includes the new field names and not the old ones", () => {
+    expect(LOCAL_HABIT_FIELDS).toContain("title");
+    expect(LOCAL_HABIT_FIELDS).toContain("identity_phrase");
+    expect(LOCAL_HABIT_FIELDS).toContain("cue");
+    expect(LOCAL_HABIT_FIELDS).toContain("status");
+    expect(LOCAL_HABIT_FIELDS).toContain("habit_state");
+    expect(LOCAL_HABIT_FIELDS).not.toContain("name");
+    expect(LOCAL_HABIT_FIELDS).not.toContain("identity_statement");
+    expect(LOCAL_HABIT_FIELDS).not.toContain("stack_trigger");
+    expect(LOCAL_HABIT_FIELDS).not.toContain("is_active");
+    expect(LOCAL_HABIT_FIELDS).not.toContain("reminder_enabled");
+    expect(LOCAL_HABIT_FIELDS).not.toContain("reminder_time");
   });
 
-  it("locks the habit log field set, statuses, and owned-day uniqueness key", () => {
-    expect(PHASE_2A_HABIT_LOG_FIELDS).toEqual([
+  it("LOCAL_HABIT_LOG_FIELDS matches the schema", () => {
+    expect(LOCAL_HABIT_LOG_FIELDS).toEqual([
       "id",
       "habit_id",
       "user_id",
       "log_date",
       "status",
+      "note",
       "created_at",
       "updated_at",
-      "note",
     ]);
-    expect(PHASE_2A_HABIT_LOG_STATUS_VALUES).toEqual([
-      "done",
-      "skipped",
-      "missed",
-    ]);
-    expect(PHASE_2A_HABIT_LOG_ON_CONFLICT).toBe("user_id,habit_id,log_date");
   });
 
-  it("locks the official status meanings and progress rules", () => {
-    expect(PHASE_2A_HABIT_LOG_STATUS_MEANINGS.done).toContain("completed");
-    expect(PHASE_2A_HABIT_LOG_STATUS_MEANINGS.skipped).toContain(
-      "intentionally chose not to do",
-    );
-    expect(PHASE_2A_HABIT_LOG_STATUS_MEANINGS.missed).toContain(
-      "future candidate for system-derived behavior",
-    );
-    expect(PHASE_2A_PROGRESS_RULES).toEqual({
-      consistencyFormula: "done / (done + missed)",
-      skippedExcludedFromConsistency: true,
-      streakBreaksOnNonDoneDay: true,
-      streakRequiresConsecutiveDoneDays: true,
-    });
-    expect(PHASE_2A_LOGICAL_DAY_FORMAT).toBe("YYYY-MM-DD");
-    expect(PHASE_2A_LOGICAL_DAY_SOURCE).toBe("device_local_day");
+  it("HABIT_LOG_STATUSES matches expected values", () => {
+    expect(HABIT_LOG_STATUSES).toEqual(["done", "skipped", "missed"]);
+  });
+
+  it("HABIT_STATES matches expected values", () => {
+    expect(HABIT_STATES).toEqual(["focus", "supporting", "automatic"]);
+  });
+
+  it("HABIT_STATUSES matches expected values", () => {
+    expect(HABIT_STATUSES).toEqual(["active", "archived", "backlog"]);
+  });
+
+  it("cap and streak constants have the correct values", () => {
+    expect(ACTIVE_HABIT_CAP).toBe(3);
+    expect(ACTIVE_FOCUS_LIMIT).toBe(1);
+    expect(ACTIVE_SUPPORTING_LIMIT).toBe(2);
+    expect(RETRO_LOG_WINDOW_HOURS).toBe(48);
+  });
+
+  it("FORGIVING_STREAK_RULES documents the forgiving algorithm", () => {
+    expect(FORGIVING_STREAK_RULES.skippedIsNeutral).toBe(true);
+    expect(FORGIVING_STREAK_RULES.toleratesIsolatedMiss).toBe(true);
+    expect(FORGIVING_STREAK_RULES.breaksOnConsecutiveMisses).toBe(true);
+    expect(FORGIVING_STREAK_RULES.skippedRemovedBeforeMissEvaluation).toBe(true);
+  });
+
+  it("logical day constants are correct", () => {
+    expect(LOGICAL_DAY_FORMAT).toBe("YYYY-MM-DD");
+    expect(LOGICAL_DAY_SOURCE).toBe("device_local_day");
   });
 });

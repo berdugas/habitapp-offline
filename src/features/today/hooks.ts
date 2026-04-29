@@ -95,7 +95,7 @@ export function useTodayHabits() {
           logs: logsByHabitId.get(habit.id) ?? [],
           windowDays: TODAY_PROGRESS_WINDOW_DAYS,
         }),
-        formula: formatHabitFormula(habit.stack_trigger, habit.tiny_action),
+        formula: formatHabitFormula(habit.cue, habit.tiny_action),
         id: habit.id,
         isWeeklyReviewDue: isWeeklyReviewDue({
           currentWeekStart,
@@ -104,7 +104,7 @@ export function useTodayHabits() {
           todayDate,
         }),
         latestReviewWeekStart: latestReview?.week_start ?? null,
-        name: habit.name,
+        name: habit.title,
       };
     }),
     isLoading:
@@ -114,9 +114,9 @@ export function useTodayHabits() {
       latestReviewQueries.some((query) => query.isLoading),
     upcomingHabits: (upcomingHabitsQuery.data ?? []).map<UpcomingHabitCardData>(
       (habit) => ({
-        formula: formatHabitFormula(habit.stack_trigger, habit.tiny_action),
+        formula: formatHabitFormula(habit.cue, habit.tiny_action),
         id: habit.id,
-        name: habit.name,
+        name: habit.title,
         startDate: habit.start_date,
       }),
     ),

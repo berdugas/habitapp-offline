@@ -87,8 +87,8 @@ describe("SettingsScreen", () => {
       data: [
         {
           id: "habit-1",
-          name: "Reading",
-          stack_trigger: "After breakfast",
+          title: "Reading",
+          cue: "After breakfast",
           tiny_action: "Read 1 page",
         },
       ],

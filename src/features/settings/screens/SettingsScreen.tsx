@@ -68,12 +68,12 @@ export default function SettingsScreen() {
             {inactiveHabitsQuery.data.map((habit) => (
               <HabitCard
                 formula={formatHabitFormula(
-                  habit.stack_trigger,
+                  habit.cue,
                   habit.tiny_action,
                 )}
                 key={habit.id}
                 metaText="Inactive habit"
-                name={habit.name}
+                name={habit.title}
                 onPress={() => router.push(`/(app)/habits/${habit.id}`)}
               />
             ))}

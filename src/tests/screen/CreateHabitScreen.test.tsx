@@ -29,7 +29,7 @@ jest.mock("@/features/auth/hooks", () => ({
 }));
 
 jest.mock("@/features/habits/api", () => ({
-  getEligibleHabits: jest.fn(),
+  listEligibleHabitsForToday: jest.fn(),
 }));
 
 jest.mock("@/features/habits/hooks", () => ({
@@ -109,13 +109,13 @@ describe("CreateHabitScreen", () => {
 
     await waitFor(() => {
       expect(mockMutateAsync).toHaveBeenCalledWith({
-        identityStatement: "",
-        name: "Reading",
-        preferredTimeWindow: "",
-        reminderEnabled: false,
-        reminderTime: "",
-        stackTrigger: "I brush my teeth",
+        title: "Reading",
+        identityPhrase: "",
+        cue: "I brush my teeth",
         tinyAction: "Read 1 page",
+        minimumViableAction: "",
+        preferredTimeWindow: "",
+        habitState: "focus",
       });
     });
 
@@ -317,8 +317,8 @@ describe("CreateHabitScreen", () => {
       data: [
         {
           id: "habit-9",
-          name: "Reading",
-          stack_trigger: "After breakfast",
+          title: "Reading",
+          cue: "After breakfast",
           tiny_action: "Read 1 page",
         },
       ],

@@ -4,7 +4,7 @@ import HabitDetailScreen from "@/features/habits/screens/HabitDetailScreen";
 
 const mockPush = jest.fn();
 const mockUseHabitDetail = jest.fn();
-const mockUseSetHabitActiveStateMutation = jest.fn();
+const mockUseArchiveHabitMutation = jest.fn();
 const mockMutateAsync = jest.fn();
 const mockUseLocalSearchParams = jest.fn();
 
@@ -18,8 +18,28 @@ jest.mock("expo-router", () => ({
 jest.mock("@/features/habits/hooks", () => ({
   useHabitDetail: (habitId: string | string[] | undefined) =>
     mockUseHabitDetail(habitId),
-  useSetHabitActiveStateMutation: () => mockUseSetHabitActiveStateMutation(),
+  useArchiveHabitMutation: () => mockUseArchiveHabitMutation(),
 }));
+
+const baseHabit = {
+  id: "habit-1",
+  title: "Reading",
+  identity_phrase: null,
+  cue: "breakfast",
+  tiny_action: "Read 1 page",
+  minimum_viable_action: null,
+  preferred_time_window: null,
+  habit_state: "focus",
+  status: "active",
+  start_date: "2026-04-24",
+};
+
+const emptyProgress = {
+  consistencyRate: 0,
+  skipCount: 0,
+  streak: 0,
+  todayStatus: null,
+};
 
 describe("HabitDetailScreen", () => {
   beforeEach(() => {
@@ -27,7 +47,7 @@ describe("HabitDetailScreen", () => {
     mockUseLocalSearchParams.mockReturnValue({
       habitId: "habit-1",
     });
-    mockUseSetHabitActiveStateMutation.mockReturnValue({
+    mockUseArchiveHabitMutation.mockReturnValue({
       error: null,
       isPending: false,
       mutateAsync: mockMutateAsync,
@@ -41,12 +61,7 @@ describe("HabitDetailScreen", () => {
       habit: null,
       isLoading: true,
       isUpcoming: false,
-      progress: {
-        consistencyRate: 0,
-        skipCount: 0,
-        streak: 0,
-        todayStatus: null,
-      },
+      progress: emptyProgress,
       recentLogs: [],
     });
 
@@ -62,12 +77,7 @@ describe("HabitDetailScreen", () => {
       habit: null,
       isLoading: false,
       isUpcoming: false,
-      progress: {
-        consistencyRate: 0,
-        skipCount: 0,
-        streak: 0,
-        todayStatus: null,
-      },
+      progress: emptyProgress,
       recentLogs: [],
     });
 
@@ -87,16 +97,11 @@ describe("HabitDetailScreen", () => {
       error: null,
       formula: "After I brush my teeth, I will Read 1 page.",
       habit: {
-        id: "habit-1",
-        identity_statement: "Become a reader",
-        is_active: true,
-        name: "Reading",
+        ...baseHabit,
+        title: "Reading",
+        identity_phrase: "Become a reader",
+        cue: "I brush my teeth",
         preferred_time_window: "Evening",
-        reminder_enabled: true,
-        reminder_time: "20:00",
-        stack_trigger: "I brush my teeth",
-        start_date: "2026-04-24",
-        tiny_action: "Read 1 page",
       },
       isLoading: false,
       isUpcoming: false,
@@ -139,12 +144,12 @@ describe("HabitDetailScreen", () => {
       screen.getAllByText("After I brush my teeth, I will Read 1 page.").length,
     ).toBeGreaterThan(0);
     expect(screen.getByText("Evening")).toBeTruthy();
-    expect(screen.getByText("Enabled at 20:00")).toBeTruthy();
     expect(screen.getByText("Today: Done")).toBeTruthy();
     expect(screen.getByText("1")).toBeTruthy();
     expect(screen.getByText("67%")).toBeTruthy();
     expect(screen.getByText("2 days")).toBeTruthy();
     expect(screen.getByText("Felt easy today")).toBeTruthy();
+    expect(screen.getAllByText("Archive habit").length).toBeGreaterThan(0);
     expect(
       screen.getByText("This removes the habit from Today, but keeps its history."),
     ).toBeTruthy();
@@ -155,7 +160,6 @@ describe("HabitDetailScreen", () => {
     expect(screen.getByText("Start weekly review")).toBeTruthy();
     expect(screen.queryByText("Suggested adjustment")).toBeNull();
     expect(screen.queryByText("Delete habit")).toBeNull();
-    expect(screen.queryByText("Archive habit")).toBeNull();
     expect(screen.queryByText("Pause habit")).toBeNull();
 
     fireEvent.press(screen.getByText("Edit habit"));
@@ -167,18 +171,7 @@ describe("HabitDetailScreen", () => {
     mockUseHabitDetail.mockReturnValue({
       error: null,
       formula: "After breakfast, I will Read 1 page.",
-      habit: {
-        id: "habit-1",
-        identity_statement: null,
-        is_active: true,
-        name: "Reading",
-        preferred_time_window: null,
-        reminder_enabled: false,
-        reminder_time: null,
-        stack_trigger: "breakfast",
-        start_date: "2026-04-24",
-        tiny_action: "Read 1 page",
-      },
+      habit: baseHabit,
       isLoading: false,
       isUpcoming: false,
       latestReview: {
@@ -194,12 +187,7 @@ describe("HabitDetailScreen", () => {
         week_start: "2026-04-20",
         went_well: "Breakfast cue worked",
       },
-      progress: {
-        consistencyRate: 0,
-        skipCount: 0,
-        streak: 0,
-        todayStatus: null,
-      },
+      progress: emptyProgress,
       recentLogs: [],
     });
 
@@ -230,18 +218,7 @@ describe("HabitDetailScreen", () => {
     mockUseHabitDetail.mockReturnValue({
       error: null,
       formula: "After breakfast, I will Read 1 page.",
-      habit: {
-        id: "habit-1",
-        identity_statement: null,
-        is_active: true,
-        name: "Reading",
-        preferred_time_window: null,
-        reminder_enabled: false,
-        reminder_time: null,
-        stack_trigger: "breakfast",
-        start_date: "2026-04-24",
-        tiny_action: "Read 1 page",
-      },
+      habit: baseHabit,
       isLoading: false,
       isUpcoming: false,
       latestReview: {
@@ -257,12 +234,7 @@ describe("HabitDetailScreen", () => {
         week_start: "2026-04-20",
         went_well: "Breakfast cue worked",
       },
-      progress: {
-        consistencyRate: 1,
-        skipCount: 0,
-        streak: 2,
-        todayStatus: "done",
-      },
+      progress: { consistencyRate: 1, skipCount: 0, streak: 2, todayStatus: "done" },
       recentLogs: [],
     });
 
@@ -281,18 +253,7 @@ describe("HabitDetailScreen", () => {
     mockUseHabitDetail.mockReturnValue({
       error: null,
       formula: "After breakfast, I will Read 1 page.",
-      habit: {
-        id: "habit-1",
-        identity_statement: null,
-        is_active: true,
-        name: "Reading",
-        preferred_time_window: null,
-        reminder_enabled: false,
-        reminder_time: null,
-        stack_trigger: "breakfast",
-        start_date: "2026-04-24",
-        tiny_action: "Read 1 page",
-      },
+      habit: baseHabit,
       isLoading: false,
       isUpcoming: false,
       latestReview: {
@@ -308,12 +269,7 @@ describe("HabitDetailScreen", () => {
         week_start: "2026-04-20",
         went_well: "Breakfast cue worked",
       },
-      progress: {
-        consistencyRate: 1,
-        skipCount: 0,
-        streak: 2,
-        todayStatus: "done",
-      },
+      progress: { consistencyRate: 1, skipCount: 0, streak: 2, todayStatus: "done" },
       recentLogs: [],
     });
 
@@ -334,18 +290,7 @@ describe("HabitDetailScreen", () => {
     mockUseHabitDetail.mockReturnValue({
       error: null,
       formula: "After breakfast, I will Read 1 page.",
-      habit: {
-        id: "habit-1",
-        identity_statement: null,
-        is_active: true,
-        name: "Reading",
-        preferred_time_window: null,
-        reminder_enabled: false,
-        reminder_time: null,
-        stack_trigger: "breakfast",
-        start_date: "2026-04-24",
-        tiny_action: "Read 1 page",
-      },
+      habit: baseHabit,
       isLoading: false,
       isUpcoming: false,
       latestReview: {
@@ -361,12 +306,7 @@ describe("HabitDetailScreen", () => {
         week_start: "2026-04-20",
         went_well: "Breakfast cue worked",
       },
-      progress: {
-        consistencyRate: 1,
-        skipCount: 0,
-        streak: 2,
-        todayStatus: "done",
-      },
+      progress: { consistencyRate: 1, skipCount: 0, streak: 2, todayStatus: "done" },
       recentLogs: [],
     });
 
@@ -384,18 +324,7 @@ describe("HabitDetailScreen", () => {
     mockUseHabitDetail.mockReturnValue({
       error: null,
       formula: "After breakfast, I will Read 1 page.",
-      habit: {
-        id: "habit-1",
-        identity_statement: null,
-        is_active: true,
-        name: "Reading",
-        preferred_time_window: null,
-        reminder_enabled: false,
-        reminder_time: null,
-        stack_trigger: "breakfast",
-        start_date: "2026-04-24",
-        tiny_action: "Read 1 page",
-      },
+      habit: baseHabit,
       isLoading: false,
       isUpcoming: false,
       latestReview: {
@@ -411,12 +340,7 @@ describe("HabitDetailScreen", () => {
         week_start: "2026-04-20",
         went_well: "Breakfast cue worked",
       },
-      progress: {
-        consistencyRate: 1,
-        skipCount: 0,
-        streak: 2,
-        todayStatus: "done",
-      },
+      progress: { consistencyRate: 1, skipCount: 0, streak: 2, todayStatus: "done" },
       recentLogs: [],
     });
 
@@ -446,25 +370,17 @@ describe("HabitDetailScreen", () => {
       error: null,
       formula: "After I wake up, I will Meditate for 1 minute.",
       habit: {
+        ...baseHabit,
         id: "habit-2",
-        identity_statement: null,
-        is_active: true,
-        name: "Meditation",
-        preferred_time_window: null,
-        reminder_enabled: false,
-        reminder_time: null,
-        stack_trigger: "I wake up",
-        start_date: "2026-04-24",
+        title: "Meditation",
+        cue: "I wake up",
         tiny_action: "Meditate for 1 minute",
+        identity_phrase: null,
+        preferred_time_window: null,
       },
       isLoading: false,
       isUpcoming: false,
-      progress: {
-        consistencyRate: 0,
-        skipCount: 0,
-        streak: 0,
-        todayStatus: null,
-      },
+      progress: emptyProgress,
       recentLogs: [],
     });
 
@@ -472,40 +388,6 @@ describe("HabitDetailScreen", () => {
 
     expect(screen.queryByText("Identity")).toBeNull();
     expect(screen.queryByText("Preferred time")).toBeNull();
-    expect(screen.getByText("Disabled")).toBeTruthy();
-  });
-
-  it("shows reminder times without database seconds noise", () => {
-    mockUseHabitDetail.mockReturnValue({
-      error: null,
-      formula: "After I brush my teeth, I will Read 1 page.",
-      habit: {
-        id: "habit-1",
-        identity_statement: null,
-        is_active: true,
-        name: "Reading",
-        preferred_time_window: null,
-        reminder_enabled: true,
-        reminder_time: "20:00:00",
-        stack_trigger: "I brush my teeth",
-        start_date: "2026-04-24",
-        tiny_action: "Read 1 page",
-      },
-      isLoading: false,
-      isUpcoming: false,
-      progress: {
-        consistencyRate: 0,
-        skipCount: 0,
-        streak: 0,
-        todayStatus: null,
-      },
-      recentLogs: [],
-    });
-
-    render(<HabitDetailScreen />);
-
-    expect(screen.getByText("Enabled at 20:00")).toBeTruthy();
-    expect(screen.queryByText("Enabled at 20:00:00")).toBeNull();
   });
 
   it("shows active future-start context and empty history for upcoming habits", () => {
@@ -513,25 +395,16 @@ describe("HabitDetailScreen", () => {
       error: null,
       formula: "After lunch, I will Stretch for 1 minute.",
       habit: {
+        ...baseHabit,
         id: "habit-3",
-        identity_statement: null,
-        is_active: true,
-        name: "Stretching",
-        preferred_time_window: null,
-        reminder_enabled: false,
-        reminder_time: null,
-        stack_trigger: "After lunch",
-        start_date: "2026-04-26",
+        title: "Stretching",
+        cue: "After lunch",
         tiny_action: "Stretch for 1 minute",
+        start_date: "2026-04-26",
       },
       isLoading: false,
       isUpcoming: true,
-      progress: {
-        consistencyRate: 0,
-        skipCount: 0,
-        streak: 0,
-        todayStatus: null,
-      },
+      progress: emptyProgress,
       recentLogs: [],
     });
 
@@ -546,119 +419,51 @@ describe("HabitDetailScreen", () => {
     expect(screen.getByText("No recent history yet")).toBeTruthy();
   });
 
-  it("shows deactivate for active habits and updates the active state in place", () => {
+  it("shows archive button for active habits and calls archiveHabitMutation on press", () => {
     mockUseHabitDetail.mockReturnValue({
       error: null,
       formula: "After breakfast, I will Read 1 page.",
-      habit: {
-        id: "habit-1",
-        identity_statement: null,
-        is_active: true,
-        name: "Reading",
-        preferred_time_window: null,
-        reminder_enabled: false,
-        reminder_time: null,
-        stack_trigger: "breakfast",
-        start_date: "2026-04-24",
-        tiny_action: "Read 1 page",
-      },
+      habit: { ...baseHabit, status: "active" },
       isLoading: false,
       isUpcoming: false,
-      progress: {
-        consistencyRate: 0,
-        skipCount: 0,
-        streak: 0,
-        todayStatus: null,
-      },
+      progress: emptyProgress,
       recentLogs: [],
     });
 
     render(<HabitDetailScreen />);
 
-    fireEvent.press(screen.getAllByText("Deactivate habit")[1]);
+    // The screen renders a title "Archive habit" and a button "Archive habit".
+    // Press the last one (the SecondaryButton).
+    const archiveButtons = screen.getAllByText("Archive habit");
+    fireEvent.press(archiveButtons[archiveButtons.length - 1]!);
 
     expect(mockMutateAsync).toHaveBeenCalledWith({
       habitId: "habit-1",
-      isActive: false,
     });
   });
 
-  it("shows reactivate for inactive habits", () => {
+  it("shows archived state for archived habits (no archive button)", () => {
     mockUseHabitDetail.mockReturnValue({
       error: null,
       formula: "After breakfast, I will Read 1 page.",
-      habit: {
-        id: "habit-1",
-        identity_statement: null,
-        is_active: false,
-        name: "Reading",
-        preferred_time_window: null,
-        reminder_enabled: false,
-        reminder_time: null,
-        stack_trigger: "breakfast",
-        start_date: "2026-04-24",
-        tiny_action: "Read 1 page",
-      },
+      habit: { ...baseHabit, status: "archived" },
       isLoading: false,
       isUpcoming: false,
-      progress: {
-        consistencyRate: 0,
-        skipCount: 0,
-        streak: 0,
-        todayStatus: null,
-      },
+      progress: emptyProgress,
       recentLogs: [],
     });
 
     render(<HabitDetailScreen />);
 
-    expect(screen.getAllByText("Reactivate habit")).toHaveLength(2);
+    expect(screen.getByText("Archived")).toBeTruthy();
     expect(
-      screen.getByText("This habit is inactive. Reactivate it to return it to Today."),
+      screen.getByText("This habit is archived. Reactivation coming in a future release."),
     ).toBeTruthy();
+    expect(screen.queryByText("Archive habit")).toBeNull();
   });
 
-  it("shows inactive future-start context for upcoming inactive habits", () => {
-    mockUseHabitDetail.mockReturnValue({
-      error: null,
-      formula: "After breakfast, I will Read 1 page.",
-      habit: {
-        id: "habit-1",
-        identity_statement: null,
-        is_active: false,
-        name: "Reading",
-        preferred_time_window: null,
-        reminder_enabled: false,
-        reminder_time: null,
-        stack_trigger: "breakfast",
-        start_date: "2026-04-26",
-        tiny_action: "Read 1 page",
-      },
-      isLoading: false,
-      isUpcoming: true,
-      progress: {
-        consistencyRate: 0,
-        skipCount: 0,
-        streak: 0,
-        todayStatus: null,
-      },
-      recentLogs: [],
-    });
-
-    render(<HabitDetailScreen />);
-
-    expect(
-      screen.getByText(
-        "This habit is inactive and scheduled to start later. Reactivate it first; it will become loggable on its start date.",
-      ),
-    ).toBeTruthy();
-    expect(
-      screen.getByText("This habit is inactive. Reactivate it to return it to Today."),
-    ).toBeTruthy();
-  });
-
-  it("shows a friendly active-state error instead of the raw mutation message", () => {
-    mockUseSetHabitActiveStateMutation.mockReturnValue({
+  it("shows a friendly archive error instead of the raw mutation message", () => {
+    mockUseArchiveHabitMutation.mockReturnValue({
       error: new Error("database exploded"),
       isPending: false,
       mutateAsync: mockMutateAsync,
@@ -666,26 +471,10 @@ describe("HabitDetailScreen", () => {
     mockUseHabitDetail.mockReturnValue({
       error: null,
       formula: "After breakfast, I will Read 1 page.",
-      habit: {
-        id: "habit-1",
-        identity_statement: null,
-        is_active: true,
-        name: "Reading",
-        preferred_time_window: null,
-        reminder_enabled: false,
-        reminder_time: null,
-        stack_trigger: "breakfast",
-        start_date: "2026-04-24",
-        tiny_action: "Read 1 page",
-      },
+      habit: { ...baseHabit, status: "active" },
       isLoading: false,
       isUpcoming: false,
-      progress: {
-        consistencyRate: 0,
-        skipCount: 0,
-        streak: 0,
-        todayStatus: null,
-      },
+      progress: emptyProgress,
       recentLogs: [],
     });
 

@@ -2,13 +2,13 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { useAuthSession } from "@/features/auth/hooks";
 import {
+  archiveHabit,
   createHabit,
-  getEligibleHabits,
   getHabitById,
-  getInactiveHabits,
   getHabitLogsForHabitInRange,
-  getUpcomingActiveHabits,
-  setHabitActiveState,
+  listArchivedHabits,
+  listEligibleHabitsForToday,
+  listUpcomingHabits,
   updateHabit,
 } from "@/features/habits/api";
 import { getLatestWeeklyReview } from "@/features/reviews/api";
@@ -78,7 +78,7 @@ export function useEligibleHabitsQuery() {
 
   return useQuery({
     enabled: Boolean(user?.id),
-    queryFn: () => getEligibleHabits(user!.id, todayDate),
+    queryFn: () => listEligibleHabitsForToday(user!.id, todayDate),
     queryKey: getEligibleHabitsQueryKey(user?.id, todayDate),
   });
 }
@@ -89,7 +89,7 @@ export function useUpcomingActiveHabitsQuery() {
 
   return useQuery({
     enabled: Boolean(user?.id),
-    queryFn: () => getUpcomingActiveHabits(user!.id, todayDate),
+    queryFn: () => listUpcomingHabits(user!.id, todayDate),
     queryKey: getUpcomingActiveHabitsQueryKey(user?.id, todayDate),
   });
 }
@@ -131,7 +131,7 @@ export function useInactiveHabitsQuery() {
 
   return useQuery({
     enabled: Boolean(user?.id),
-    queryFn: () => getInactiveHabits(user!.id),
+    queryFn: () => listArchivedHabits(user!.id),
     queryKey: getInactiveHabitsQueryKey(user?.id),
   });
 }
@@ -172,7 +172,7 @@ export function useHabitDetail(
       (latestReviewQuery.error as Error | null) ??
       null,
     formula: habit
-      ? formatHabitFormula(habit.stack_trigger, habit.tiny_action)
+      ? formatHabitFormula(habit.cue, habit.tiny_action)
       : "",
     habit,
     isLoading:
@@ -267,29 +267,21 @@ export function useUpdateHabitMutation() {
   });
 }
 
-type SetHabitActiveStateVariables = {
-  habitId: string;
-  isActive: boolean;
-};
-
-export function useSetHabitActiveStateMutation() {
+export function useArchiveHabitMutation() {
   const { user } = useAuthSession();
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({
-      habitId,
-      isActive,
-    }: SetHabitActiveStateVariables) => {
+    mutationFn: async ({ habitId }: { habitId: string }) => {
       if (!user?.id) {
         throw new Error(
-          "You need an account session before updating a habit state.",
+          "You need an account session before archiving a habit.",
         );
       }
 
-      return setHabitActiveState(user.id, habitId, isActive);
+      return archiveHabit(user.id, habitId);
     },
-    onSuccess: async (_updatedHabit, variables) => {
+    onSuccess: async (_result, variables) => {
       if (!user?.id) {
         return;
       }
@@ -297,10 +289,9 @@ export function useSetHabitActiveStateMutation() {
       await invalidateHabitSurfaceQueries(user.id, variables.habitId, queryClient);
     },
     onError: (error, variables) => {
-      logger.error("Habit active-state mutation failed", {
+      logger.error("Habit archive mutation failed", {
         error,
         habitId: variables.habitId,
-        isActive: variables.isActive,
         userId: user?.id ?? null,
       });
     },

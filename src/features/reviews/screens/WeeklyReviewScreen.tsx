@@ -236,7 +236,7 @@ export default function WeeklyReviewScreen() {
 
       <View style={styles.card}>
         <Text selectable style={styles.cardTitle}>
-          {habitDetail.habit.name}
+          {habitDetail.habit.title}
         </Text>
         <Text selectable style={styles.body}>
           Week of {weekStart}
