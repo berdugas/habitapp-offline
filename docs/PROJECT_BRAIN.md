@@ -35,10 +35,10 @@ It is **not** a tracker, productivity app, or AI coach. It is a guide that helps
 | Routing | Expo Router (file-based) | v6 | |
 | Language | TypeScript | 5.9 | |
 | Server | Supabase (Auth + minimal storage) | 2.104.0 | **Auth, profile, trial entitlement only — no habit data** |
-| Local DB | SQLite via expo-sqlite | TBD | **Source of truth for habit data (Core v1, NEW)** |
+| Local DB | SQLite via expo-sqlite | ~16.0.10 | **Source of truth for habit data (Core v1, installed S0)** |
 | Server state | TanStack React Query | v5 | Server queries only (auth, entitlement) |
 | Local storage | AsyncStorage | 2.2.0 | Cached entitlement, onboarding resume, prefs |
-| Notifications | expo-notifications | TBD | **Local notifications only — no push tokens (Core v1, NEW)** |
+| Notifications | expo-notifications | ~0.32.17 | **Local notifications only — no push tokens (Core v1, installed S0)** |
 | Testing | Jest + React Native Testing Library | Jest 29.7 | |
 | AI provider | Kimi (deferred) | — | Edge function exists but disabled (`aiRewrite=false`) |
 
@@ -347,42 +347,25 @@ Source-of-truth docs live directly in `docs/`. Sprint planning and per-sprint de
 
 ---
 
-## 11. What to build next
+## 11. Where we are now
 
-Per `tech-handoff-core-v1.md` Section 11.
+Live status of the Core v1 build. For the full 21-sprint plan, see `docs/sprint_tickets/sprint-plan.md`.
 
-### Stage 1 — Private Beta (target 2-3 weeks)
+### Done
 
-**Sprint 1 (week 1):**
-- Drop existing Supabase habit tables; install new `profiles` + `trial_entitlements`
-- Install `expo-sqlite`; build `src/lib/db/` (schema, migrations, repositories: habits + habit_logs + preferences)
-- Rewrite `features/habits/api.ts` against repositories
-- Onboarding flow (full 6 screens + persistence)
-- TodayScreen redesign (Focus card + identity-flavored streak)
-- Forgiving streak rule rewrite + tests (including skipped-day edge case)
-- Heatmap component (30-day variant)
+- **S0** — Supabase migration `0005_core_v1_local_first_pivot.sql` applied. Old habit tables dropped; `profiles` + `trial_entitlements` created with auto-provision trigger on signup. `expo-sqlite` and `expo-notifications` installed. `.npmrc` added with `legacy-peer-deps=true`.
+- **S1** — Local DB rails complete. `src/lib/db/` foundation (`client.ts`, `migrations.ts`, `migrations/001_initial.ts`, `migrations/index.ts`). Three repositories shipped: `preferences.ts`, `habits.ts`, `habit_logs.ts`. Dev-only `devWipe.ts` utility. Jest test infrastructure with `better-sqlite3` adapter (`src/tests/setup/sqliteTestAdapter.ts`, `createTestDb.ts`, `globals.ts`). Repository unit tests for all three repos. `app/_layout.tsx` gates render until `initDb()` resolves.
+- **DEV-S1-05** — Polish round merged. `updateHabit` undefined-guard fix, `listHabits` ORDER BY created_at DESC, `deleteHabit`/`deleteLog` return boolean, `archiveHabit` is idempotent, `CreateHabitInput` type tightened, dead ternary removed from test adapter.
 
-**Sprint 2 (week 2):**
-- Habit detail (extended heatmap, consistency)
-- 48-hour retro logging (local enforcement)
-- Single-miss reframing copy
-- Recovery modal
-- Bug #2 fix
-- Trial validation with 7-day grace
-- Settings basic
+### Up next: S2 — habits API rewrite + forgiving streak
 
-**Sprint 3 (week 3, partial):**
-- Beta tester seeding (define invitation criteria, send invites)
-- Bug fixes from internal testing
-- TestFlight / Internal track build
+The first sprint where the app starts working again on top of SQLite. Rewrites `src/features/habits/api.ts` against the new repositories. Replaces the strict streak rule with the forgiving streak (including the skipped-day removal edge case per requirements §8). Adds 48-hour retroactive logging window enforcement (local). Comprehensive `src/tests/unit/todayProgress.test.ts` rewrite.
 
-### Stage 2 — Full Core v1 (weeks 4-8)
+After S2 lands, the daily-logging flow is functional end-to-end against the local DB.
 
-- **Sprint 4:** SRHI repo, Graduation ceremony, Library (basic list)
-- **Sprint 5:** Supporting habits, Backlog management, Library promote-back
-- **Sprint 6:** Reminders (expo-notifications)
-- **Sprint 7:** Account deletion, Data export, Bug #3, Privacy/Terms
-- **Sprint 8:** Polish, Anonymous analytics instrumentation, App Store / Play Store submission
+### Transitional state to be aware of
+
+Pre-existing tests under `src/tests/unit/` and `src/tests/screen/` (~30 tests) test the old Supabase-shaped feature modules. They pass green because they mock the Supabase client, but they exercise code paths that hit dropped tables in production. These tests will be deleted or rewritten as part of S2 and beyond, when the feature modules they cover are rewritten. Don't be alarmed by their presence in the suite — they're transitional.
 
 ---
 
@@ -409,8 +392,13 @@ Per `tech-handoff-core-v1.md` Section 11.
 |-----------|-----------|
 | Understand entry routing | `src/features/entry/screens/RootEntryScreen.tsx` |
 | Add a feature flag | `src/config/featureFlags.ts` |
-| Read/write habit data | `src/lib/db/repositories/habits.ts` (planned) |
-| Read/write logs | `src/lib/db/repositories/habit_logs.ts` (planned) |
+| Read/write habit data | `src/lib/db/repositories/habits.ts` |
+| Read/write logs | `src/lib/db/repositories/habit_logs.ts` |
+| Read/write user preferences | `src/lib/db/repositories/preferences.ts` |
+| Initialize / get the DB | `src/lib/db/client.ts` (initDb, getDb, closeDb) |
+| Add a new local migration | `src/lib/db/migrations/00N_*.ts` + register in `migrations/index.ts` |
+| Wipe local DB during dev | `src/lib/db/devWipe.ts` |
+| Run repository tests | `npm test` (uses better-sqlite3 adapter at `src/tests/setup/sqliteTestAdapter.ts`) |
 | Modify habit form fields | `src/features/habits/types.ts` + `validators.ts` + `api.ts` |
 | Modify streak/progress | `src/features/today/progress.ts` |
 | Modify suggestion logic | `src/features/recommendations/habitAdjustmentEngine.ts` |

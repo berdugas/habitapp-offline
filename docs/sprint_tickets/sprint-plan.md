@@ -666,6 +666,40 @@ If Private Beta surfaces issues that change the product (becoming-bridge fails, 
 
 If Private Beta surfaces issues that don't change the product (bugs, polish gaps), they slot into Phase D's S19 or earlier — don't let them invade S10–S18 feature work.
 
+### 8.5 Branching convention
+
+Every sprint runs on its own integration branch off `main`. Per-ticket work branches off the sprint branch and PRs back into it. The sprint branch only merges to `main` when the sprint's Definition of Done is met.
+
+The flow:
+
+1. **Sprint kickoff.** First action of the sprint — cut `sprint-N` off the current `main`:
+
+   ```bash
+   git checkout main && git pull
+   git checkout -b sprint-N
+   git push -u origin sprint-N
+   ```
+
+2. **Ticket work.** Each ticket branches off `sprint-N` and PRs back into it. The branch suggestion on each ticket (e.g. `s2/types-migration`) is a ticket branch, not a sprint branch.
+
+   ```bash
+   git checkout sprint-N && git pull
+   git checkout -b sN/short-slug
+   # ... do the work ...
+   # Open PR: sN/short-slug → sprint-N
+   ```
+
+3. **Sprint close.** When all tickets are merged into `sprint-N` and the Definition of Done is met, open one PR `sprint-N` → `main`. After review, merge.
+
+Why this rather than ticket PRs straight to `main`:
+- `main` stays demo-ready throughout a sprint. A ticket that lands the wider repo in a half-finished state (DEV-S2-01 leaves TS errors until DEV-S2-06 closes) doesn't pollute `main`.
+- The sprint can be evaluated cumulatively before it touches `main`. This matters most for high-risk sprints (S2 engine swap, S7 recovery flow, S15-16 reminders).
+- If a sprint reveals a thesis problem and needs replan, the sprint branch can be paused or unwound without disturbing `main`.
+
+Per-ticket PRs stay small and reviewable — they just target the sprint branch instead of `main`.
+
+**Historical note.** S0 and S1 predate this convention and went straight to `main`. No rework needed; the convention applies from S2 forward.
+
 ## 9. Risks register
 
 | # | Risk | Affects | Mitigation |
