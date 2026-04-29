@@ -169,7 +169,6 @@ export function useHabitDetail(
       routeError ??
       (habitQuery.error as Error | null) ??
       (habitLogsQuery.error as Error | null) ??
-      (latestReviewQuery.error as Error | null) ??
       null,
     formula: habit
       ? formatHabitFormula(habit.cue, habit.tiny_action)

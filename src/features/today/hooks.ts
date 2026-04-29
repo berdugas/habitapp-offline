@@ -85,7 +85,7 @@ export function useTodayHabits() {
       eligibleHabitsQuery.error ??
       upcomingHabitsQuery.error ??
       historyLogsQuery.error ??
-      latestReviewError,
+      null,
     habits: eligibleHabits.map<TodayHabitCardData>((habit) => {
       const latestReview = latestReviewsByHabitId.get(habit.id) ?? null;
 
