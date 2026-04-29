@@ -26,7 +26,14 @@ export type Habit = {
 
 export type CreateHabitInput = Omit<
   Habit,
-  "id" | "created_at" | "updated_at" | "archived_at" | "automated_at" | "backlog_at"
+  | "id"
+  | "created_at"
+  | "updated_at"
+  | "archived_at"
+  | "automated_at"
+  | "backlog_at"
+  | "habit_state"
+  | "status"
 > & {
   habit_state?: HabitState;
   status?: HabitStatus;
@@ -107,7 +114,7 @@ export async function updateHabit(
   ];
 
   for (const key of allowed) {
-    if (key in patch) {
+    if (patch[key] !== undefined) {
       sets.push(`${key} = ?`);
       params.push(patch[key] ?? null);
     }
@@ -175,7 +182,7 @@ export async function listHabits(filter: HabitFilter): Promise<Habit[]> {
   }
 
   return db.getAllAsync<Habit>(
-    `SELECT * FROM local_habits WHERE ${conditions.join(" AND ")}`,
+    `SELECT * FROM local_habits WHERE ${conditions.join(" AND ")} ORDER BY created_at DESC`,
     ...params,
   );
 }

@@ -60,10 +60,13 @@ function createAdapter(db: Database.Database): SQLiteDatabase {
   } as unknown as SQLiteDatabase;
 }
 
-export async function openDatabaseAsync(name: string): Promise<SQLiteDatabase> {
+export async function openDatabaseAsync(_name: string): Promise<SQLiteDatabase> {
   // Always open in-memory so each test DB is isolated and leaves no files.
-  const filename = name === ":memory:" ? ":memory:" : ":memory:";
-  const db = new Database(filename);
+  const db = new Database(":memory:");
+  // Use db.pragma() directly rather than execAsync so these settings are
+  // guaranteed regardless of Jest worker state or module execution order.
+  db.pragma("foreign_keys = ON");
+  db.pragma("ignore_check_constraints = 0");
   return createAdapter(db);
 }
 
