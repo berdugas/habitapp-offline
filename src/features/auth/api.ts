@@ -21,9 +21,3 @@ export async function signOut() {
 export async function getSession() {
   return supabase.auth.getSession();
 }
-
-export async function upsertUserProfile(userId: string) {
-  return supabase.from("user_profiles").upsert({
-    id: userId,
-  });
-}

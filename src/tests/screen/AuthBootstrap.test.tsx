@@ -6,18 +6,16 @@ import { AuthBootstrap } from "@/providers/AuthBootstrap";
 
 jest.mock("@/features/auth/api", () => ({
   getSession: jest.fn(),
-  upsertUserProfile: jest.fn(),
 }));
 
 jest.mock("@/lib/supabase/auth", () => ({
   onSupabaseAuthStateChange: jest.fn(),
 }));
 
-const { getSession, upsertUserProfile } = jest.requireMock(
+const { getSession } = jest.requireMock(
   "@/features/auth/api",
 ) as {
   getSession: jest.Mock;
-  upsertUserProfile: jest.Mock;
 };
 
 const { onSupabaseAuthStateChange } = jest.requireMock(
@@ -34,11 +32,8 @@ function Probe() {
 }
 
 describe("AuthBootstrap", () => {
-  let consoleWarnSpy: jest.SpyInstance;
-
   beforeEach(() => {
     jest.clearAllMocks();
-    consoleWarnSpy = jest.spyOn(console, "warn").mockImplementation(() => undefined);
     onSupabaseAuthStateChange.mockReturnValue({
       data: {
         subscription: {
@@ -48,11 +43,7 @@ describe("AuthBootstrap", () => {
     });
   });
 
-  afterEach(() => {
-    consoleWarnSpy.mockRestore();
-  });
-
-  it("hydrates session and does not block on profile upsert failure", async () => {
+  it("hydrates the session and surfaces the user id to children", async () => {
     getSession.mockResolvedValue({
       data: {
         session: {
@@ -62,9 +53,6 @@ describe("AuthBootstrap", () => {
         },
       },
       error: null,
-    });
-    upsertUserProfile.mockResolvedValue({
-      error: new Error("profile failed"),
     });
 
     render(
@@ -76,7 +64,5 @@ describe("AuthBootstrap", () => {
     await waitFor(() => {
       expect(screen.getByText("user-1")).toBeTruthy();
     });
-
-    expect(upsertUserProfile).toHaveBeenCalledWith("user-1");
   });
 });

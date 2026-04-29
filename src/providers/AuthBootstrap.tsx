@@ -2,7 +2,7 @@ import type { PropsWithChildren } from "react";
 import { useEffect, useState } from "react";
 
 import { AuthSessionProvider } from "@/features/auth/hooks";
-import { getSession, upsertUserProfile } from "@/features/auth/api";
+import { getSession } from "@/features/auth/api";
 import { onSupabaseAuthStateChange } from "@/lib/supabase/auth";
 import { logger } from "@/services/logger";
 
@@ -63,24 +63,6 @@ export function AuthBootstrap({ children }: PropsWithChildren) {
       subscription.data.subscription.unsubscribe();
     };
   }, []);
-
-  useEffect(() => {
-    if (!authState.user?.id) {
-      return;
-    }
-
-    void upsertUserProfile(authState.user.id)
-      .then(({ error }) => {
-        if (error) {
-          logger.warn("Best-effort user profile upsert failed", { error });
-        }
-      })
-      .catch((error) => {
-        logger.warn("Best-effort user profile upsert threw unexpectedly", {
-          error,
-        });
-      });
-  }, [authState.user?.id]);
 
   return (
     <AuthSessionProvider value={authState}>{children}</AuthSessionProvider>
