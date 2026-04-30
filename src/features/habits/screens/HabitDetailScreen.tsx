@@ -2,6 +2,8 @@ import { useRef } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 
+import { Heatmap } from "@/components/Heatmap";
+import { IdentityStreakDisplay } from "@/components/IdentityStreakDisplay";
 import { SecondaryButton } from "@/components/buttons/SecondaryButton";
 import { EmptyState } from "@/components/feedback/EmptyState";
 import { ErrorState } from "@/components/feedback/ErrorState";
@@ -13,10 +15,13 @@ import {
   useArchiveHabitMutation,
   useHabitDetail,
 } from "@/features/habits/hooks";
+import { extractIdentityNoun } from "@/features/onboarding/identityNoun";
 import { getHabitAdjustmentSuggestion } from "@/features/recommendations/habitAdjustmentEngine";
+import { useHabitLogsForRange } from "@/features/today/hooks";
 import { colors } from "@/theme/colors";
 import { radius } from "@/theme/radius";
 import { spacing } from "@/theme/spacing";
+import { typography } from "@/theme/typography";
 import {
   getLoadHabitDetailErrorMessage,
   getUpdateHabitActiveStateErrorMessage,
@@ -34,10 +39,6 @@ function formatTodayStatus(status: HabitLogStatus | null) {
 
 function formatConsistency(consistencyRate: number) {
   return `${Math.round(consistencyRate * 100)}%`;
-}
-
-function formatStreak(streak: number) {
-  return `${streak} day${streak === 1 ? "" : "s"}`;
 }
 
 function formatDateLabel(dateString: string) {
@@ -140,6 +141,11 @@ export default function HabitDetailScreen() {
       style={styles.screen}
     >
       <View style={styles.header}>
+        {habit.identity_phrase ? (
+          <Text selectable style={styles.becomingHeader}>
+            Become {habit.identity_phrase}
+          </Text>
+        ) : null}
         <Text selectable style={styles.title}>
           {habit.title}
         </Text>
@@ -194,6 +200,12 @@ export default function HabitDetailScreen() {
         {/* TODO(S15): reminder settings row */}
       </View>
 
+      {!isUpcoming ? (
+        <View style={styles.sectionCard}>
+          <HabitDetailHeatmap habitId={habit.id} />
+        </View>
+      ) : null}
+
       <View style={styles.sectionCard}>
         <Text selectable style={styles.sectionTitle}>
           Today
@@ -207,6 +219,10 @@ export default function HabitDetailScreen() {
         <Text selectable style={styles.sectionTitle}>
           Progress
         </Text>
+        <IdentityStreakDisplay
+          identityNoun={extractIdentityNoun(habit.identity_phrase ?? "")}
+          streak={progress.streak}
+        />
         <View style={styles.progressGrid}>
           <View style={styles.progressItem}>
             <Text selectable style={styles.progressLabel}>
@@ -221,15 +237,7 @@ export default function HabitDetailScreen() {
               Consistency
             </Text>
             <Text selectable style={styles.progressValue}>
-              {formatConsistency(progress.consistencyRate)}
-            </Text>
-          </View>
-          <View style={styles.progressItem}>
-            <Text selectable style={styles.progressLabel}>
-              Streak
-            </Text>
-            <Text selectable style={styles.progressValue}>
-              {formatStreak(progress.streak)}
+              {formatConsistency(progress.consistencyRate)} over the last 30 days
             </Text>
           </View>
         </View>
@@ -403,6 +411,12 @@ export default function HabitDetailScreen() {
   );
 }
 
+function HabitDetailHeatmap({ habitId }: { habitId: string }) {
+  const logsQuery = useHabitLogsForRange(habitId, 90);
+  if (!logsQuery.data) return null;
+  return <Heatmap days={90} logs={logsQuery.data} />;
+}
+
 const styles = StyleSheet.create({
   actionHelperBody: {
     color: colors.textMuted,
@@ -424,6 +438,12 @@ const styles = StyleSheet.create({
   },
   actions: {
     gap: spacing.md,
+  },
+  becomingHeader: {
+    color: colors.text,
+    fontSize: typography.heading,
+    fontWeight: "700",
+    lineHeight: 30,
   },
   content: {
     gap: spacing.xl,
