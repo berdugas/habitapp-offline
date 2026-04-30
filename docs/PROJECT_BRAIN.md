@@ -1,7 +1,7 @@
 # Habits App — Project Brain
 
 > Single source of truth for anyone picking up this project.
-> Last updated: April 29, 2026
+> Last updated: April 30, 2026
 
 ---
 
@@ -360,14 +360,15 @@ Live status of the Core v1 build. For the full 21-sprint plan, see `docs/sprint_
 - **DEV-S2-07** — Removed dead `upsertUserProfile` call. The S0 trigger handles `profiles` + `trial_entitlements` provisioning server-side; client no longer attempts a redundant (and broken) upsert against the dropped `user_profiles` table.
 - **S3** — Onboarding flow (Phase B kickoff). Four tickets merged: state machine + SQLite persistence (`onboarding.draft` / `onboarding.completed_at` via preferences repo, 200ms debounce, flush-on-unmount); `app/(onboarding)/` route group with `OnboardingProvider`; three screens (Welcome, Becoming, Daily Action) with verbatim spec copy; keyword-aware daily-action placeholder; `RootEntryScreen` extended with onboarding routing + one-time backfill for existing accounts. `jest.config.js` extended to cover `src/features/**/__tests__/`. 309 tests passing.
 - **S4** — Becoming bridge complete. `cueAction` dropped from `OnboardingDraft`; whitelist-load added to `loadOnboardingDraft`. Four new screens shipped (Shrink, Cue, Worst-day, Confirmation). `WorstDayCheck` shared component extracted for reuse in S13. `finalizeOnboarding` in `completion.ts` atomically writes the Focus habit row, marks onboarding complete, and clears the draft inside a single `withTransactionAsync` transaction. `useFinalizeOnboardingMutation` invalidates three query keys and routes to Today via `RootEntryScreen`. A brand-new user can now complete the full 7-screen flow and land on Today with their first Focus habit. 325 tests passing.
+- **S5** — TodayScreen redesigned around the Focus habit card. New components: `Heatmap` (`src/components/Heatmap.tsx`, 30/90-day grid, display-only with optional `onCellPress` stub for S6), `IdentityStreakDisplay` (`src/components/IdentityStreakDisplay.tsx`), and `extractIdentityNoun` (`src/features/onboarding/identityNoun.ts`). First-day copy ("Your first day. Start small.") renders on Day 1 before any log; standard streak copy takes over after first Done/Skip. Library tab placeholder added; bottom nav is now Today | Library | Settings. `useHabitLogsForRange` hook and `listLogsForHabitInRange` repo function added in `features/today/hooks.ts` and `lib/db/repositories/habit_logs.ts` — both reusable for S6's 90-day heatmap on Habit Detail. 8-item Appium smoke checklist passed (April 30 2026). 43 new tests (42 feature tests + migration-count assertion corrected in close-out); 355 passing, all suites green.
 
-### Up next: S5 — Today screen redesign
+### Up next: S6 — Habit Detail with 90-day heatmap + 48-hour retro logging
 
-Focus card, 30-day heatmap, identity-flavored streak copy, and the "Your first day. Start small." first-day state that was deferred from S4 (decision D7). See `docs/sprint_tickets/sprint-plan.md`.
+90-day `Heatmap` variant on Habit Detail (one-line prop change — component already built). Retro-log selector wired into `Heatmap.onCellPress`. 48-hour window enforcement via the existing `RetroLogError` in `features/habits/api.ts`. See `docs/sprint_tickets/sprint-plan.md`.
 
 ### Transitional state to be aware of
 
-`src/features/reviews/api.ts` still queries the Supabase `weekly_reviews` table, which was dropped in S0. The error is silently swallowed inside `useTodayHabits` (caught but not surfaced in the hook's `error` field), so the app does not crash — but every Today render produces console noise. This is expected and out of scope for S4; gets fixed when the weekly-reviews feature migrates to local SQLite. No sprint assigned yet — likely lands in Phase C alongside whatever sprint surfaces the need first.
+`src/features/reviews/api.ts` still queries the Supabase `weekly_reviews` table, which was dropped in S0. The error is silently swallowed inside `useTodayHabits` (caught but not surfaced in the hook's `error` field), so the app does not crash — but every Today render produces console noise. This is expected and was out of scope for S5. Note: the redesigned TodayScreen no longer reads `isWeeklyReviewDue`, so these queries now fire with no consumer — pure noise. When Reviews migrates to local SQLite, delete the `latestReviewQueries` block in `useTodayHabits` as part of that migration. No sprint assigned yet — likely lands in Phase C alongside whatever sprint surfaces the need first.
 
 ---
 

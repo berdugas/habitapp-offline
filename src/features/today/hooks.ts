@@ -21,11 +21,14 @@ import { getLatestWeeklyReviewQueryKey } from "@/features/reviews/queryKeys";
 import { summarizeHabitProgress } from "@/features/today/progress";
 import { logger } from "@/services/logger";
 import {
+  addDeviceDays,
   getWeekStartDateString,
   getTrailingDateRangeStrings,
   toDeviceDateString,
 } from "@/utils/dates";
 import { TODAY_PROGRESS_WINDOW_DAYS } from "@/features/today/constants";
+import { listLogsForHabitInRange } from "@/lib/db/repositories/habit_logs";
+import { todayDateString } from "@/utils/clock";
 
 import type { HabitLogRecord, HabitLogStatus } from "@/features/habits/types";
 import type {
@@ -33,12 +36,31 @@ import type {
   UpcomingHabitCardData,
 } from "@/features/today/types";
 
-export function getHabitLogsRangeQueryKey(
+export function getUserHabitLogsRangeQueryKey(
   userId: string | undefined,
   startDate: string,
   endDate: string,
 ) {
   return ["habit-logs", userId ?? "guest", startDate, endDate];
+}
+
+export function getHabitLogsRangeQueryKey(
+  habitId: string,
+  fromDate: string,
+  toDate: string,
+) {
+  return ["habit_logs", "range", habitId, fromDate, toDate];
+}
+
+export function useHabitLogsForRange(habitId: string | undefined, days: number) {
+  const today = todayDateString();
+  const fromDate = toDeviceDateString(addDeviceDays(new Date(), -(days - 1)));
+  return useQuery({
+    enabled: Boolean(habitId),
+    queryFn: () => listLogsForHabitInRange(habitId!, fromDate, today),
+    queryKey: getHabitLogsRangeQueryKey(habitId ?? "none", fromDate, today),
+    staleTime: 30_000,
+  });
 }
 
 export function useTodayHabits() {
@@ -54,7 +76,7 @@ export function useTodayHabits() {
   const historyLogsQuery = useQuery({
     enabled: Boolean(user?.id),
     queryFn: () => getHabitLogsInRange(user!.id, startDate, endDate),
-    queryKey: getHabitLogsRangeQueryKey(user?.id, startDate, endDate),
+    queryKey: getUserHabitLogsRangeQueryKey(user?.id, startDate, endDate),
   });
   const latestReviewQueries = useQueries({
     queries: eligibleHabits.map((habit) => ({
@@ -95,8 +117,11 @@ export function useTodayHabits() {
           logs: logsByHabitId.get(habit.id) ?? [],
           windowDays: TODAY_PROGRESS_WINDOW_DAYS,
         }),
+        cue: habit.cue,
         formula: formatHabitFormula(habit.cue, habit.tiny_action),
+        habitState: habit.habit_state,
         id: habit.id,
+        identityPhrase: habit.identity_phrase ?? "",
         isWeeklyReviewDue: isWeeklyReviewDue({
           currentWeekStart,
           habit,
@@ -105,6 +130,8 @@ export function useTodayHabits() {
         }),
         latestReviewWeekStart: latestReview?.week_start ?? null,
         name: habit.title,
+        startDate: habit.start_date,
+        tinyAction: habit.tiny_action,
       };
     }),
     isLoading:
@@ -149,7 +176,7 @@ export function useUpsertTodayHabitStatusMutation() {
         status,
       });
     },
-    onSuccess: async () => {
+    onSuccess: async (_data, variables) => {
       if (!user?.id) {
         return;
       }
@@ -157,14 +184,17 @@ export function useUpsertTodayHabitStatusMutation() {
       const { endDate, startDate } = getTrailingDateRangeStrings(
         TODAY_PROGRESS_WINDOW_DAYS,
       );
-      const queryKey = getHabitLogsRangeQueryKey(user.id, startDate, endDate);
+      const queryKey = getUserHabitLogsRangeQueryKey(user.id, startDate, endDate);
 
-      await queryClient.invalidateQueries({
-        queryKey,
-      });
+      await queryClient.invalidateQueries({ queryKey });
       await queryClient.fetchQuery({
         queryFn: () => getHabitLogsInRange(user.id, startDate, endDate),
         queryKey,
+      });
+
+      // Invalidate the habit-specific range query so the heatmap re-renders.
+      await queryClient.invalidateQueries({
+        queryKey: ["habit_logs", "range", variables.habitId],
       });
     },
     onError: (error, variables) => {

@@ -124,6 +124,22 @@ export async function listLogsByUser(args: {
   );
 }
 
+export async function listLogsForHabitInRange(
+  habitId: string,
+  fromDate: string,
+  toDate: string,
+): Promise<HabitLog[]> {
+  const db = getDb();
+  return db.getAllAsync<HabitLog>(
+    `SELECT * FROM local_habit_logs
+     WHERE habit_id = ? AND log_date BETWEEN ? AND ?
+     ORDER BY log_date ASC`,
+    habitId,
+    fromDate,
+    toDate,
+  );
+}
+
 export async function deleteLog(id: string): Promise<boolean> {
   const db = getDb();
   const result = await db.runAsync("DELETE FROM local_habit_logs WHERE id = ?", id);
