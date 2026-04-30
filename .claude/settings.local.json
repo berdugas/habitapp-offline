@@ -19,7 +19,11 @@
       "Bash(rm src/tests/unit/habitApi.test.ts src/tests/unit/habitLogsApi.test.ts src/tests/unit/habitUpdateApi.test.ts src/tests/unit/habitDetailHooks.test.ts src/tests/unit/habitUpdateHooks.test.ts)",
       "Bash(ls src/tests/unit/habitDetail*.test.ts)",
       "Bash(git restore *)",
-      "Bash(git merge *)"
+      "Bash(git merge *)",
+      "Bash(npm test *)",
+      "Bash(cat jest.config.js)",
+      "Bash(cat jest.config.ts)",
+      "Bash(node -e \"const p=require\\('./package.json'\\); console.log\\(JSON.stringify\\(p.jest,null,2\\)\\)\")"
     ]
   }
 }
