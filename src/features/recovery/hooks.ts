@@ -11,8 +11,16 @@ import {
   singleMissBannerPreferenceKey,
 } from "./api";
 
-import type { HabitRecord } from "@/features/habits/types";
+import type { HabitState } from "@/features/habits/types";
 import type { HabitLog } from "@/lib/db/repositories/habit_logs";
+
+// Minimal habit fields required by recovery detection. Satisfied by both
+// HabitRecord (snake_case) and any inline adapter created from TodayHabitCardData.
+export type RecoveryHabitRef = {
+  id: string;
+  habit_state: HabitState;
+  start_date: string;
+};
 
 type RecoveryCheckResult = {
   shouldShowModal: boolean;
@@ -24,7 +32,7 @@ type RecoveryCheckResult = {
 // Returns logs so TodayScreen can forward them to useSingleMissBanner without
 // a second subscription.
 export function useRecoveryCheck(
-  habit: HabitRecord | null,
+  habit: RecoveryHabitRef | null,
 ): RecoveryCheckResult {
   const isFocusHabit = habit?.habit_state === "focus";
   const logsQuery = useHabitLogsForRange(
@@ -51,9 +59,10 @@ export function useRecoveryCheck(
     staleTime: 0,
   });
 
-  // shouldShowModal: broken AND the "shown" preference has not been set yet.
-  // preferenceQuery.data === null means the key is absent from the DB (not shown).
-  // preferenceQuery.data === undefined means the query is disabled or still loading.
+  // shouldShowModal: broken AND the "shown" preference is absent from the DB.
+  // preferenceQuery.data === null  → key not in DB (modal not yet shown)
+  // preferenceQuery.data === "true" → key in DB (modal was shown; suppress)
+  // preferenceQuery.data === undefined → disabled or still loading; suppress
   const shouldShowModal =
     breakResult.broken && preferenceQuery.data === null;
 
@@ -68,13 +77,14 @@ export function useRecoveryCheck(
 
 type SingleMissBannerResult = {
   showBanner: boolean;
+  missDate: string | null;
 };
 
 // Checks whether the single-miss reframing banner should appear.
 // Accepts logs from useRecoveryCheck to avoid a second subscription.
 // shouldShowModal must be passed in; if the modal is showing, the banner is suppressed.
 export function useSingleMissBanner(
-  habit: HabitRecord | null,
+  habit: RecoveryHabitRef | null,
   logs: HabitLog[],
   shouldShowModal: boolean,
 ): SingleMissBannerResult {
@@ -99,5 +109,8 @@ export function useSingleMissBanner(
 
   const showBanner = missResult.isSingleMiss && preferenceQuery.data === null;
 
-  return { showBanner };
+  return {
+    showBanner,
+    missDate: missResult.isSingleMiss ? missResult.missDate : null,
+  };
 }
