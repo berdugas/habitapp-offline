@@ -1,3 +1,4 @@
+import { migrations } from "@/lib/db/migrations/index";
 import { createTestDb } from "@/tests/setup/createTestDb";
 import { openDatabaseAsync } from "@/tests/setup/sqliteTestAdapter";
 import type { SQLiteDatabase } from "expo-sqlite";
@@ -111,15 +112,13 @@ describe("sqliteTestAdapter", () => {
 });
 
 describe("createTestDb", () => {
-  it("returns a DB with migration 001 applied", async () => {
+  it("returns a DB with all registered migrations applied", async () => {
     const db = await createTestDb();
 
     const rows = await db.getAllAsync<{ id: number; name: string }>(
       "SELECT id, name FROM schema_migrations ORDER BY id",
     );
-    expect(rows).toHaveLength(1);
-    expect(rows[0].id).toBe(1);
-    expect(rows[0].name).toBe("001_initial");
+    expect(rows.map((r) => r.name)).toEqual(migrations.map((m) => m.name));
 
     await db.closeAsync();
   });
