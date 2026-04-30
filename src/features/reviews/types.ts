@@ -1,7 +1,6 @@
-import type { Database } from "@/lib/supabase/types";
+import type { WeeklyReviewRecord } from "@/lib/db/repositories/weekly_reviews";
 
-export type WeeklyReviewRecord =
-  Database["public"]["Tables"]["weekly_reviews"]["Row"];
+export type { WeeklyReviewRecord };
 
 export type UpsertWeeklyReviewPayload = {
   adjustmentNote: string;

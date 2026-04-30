@@ -1,4 +1,5 @@
 import { migration001 } from "@/lib/db/migrations/001_initial";
+import { migration002 } from "@/lib/db/migrations/002_weekly_reviews";
 
 export type Migration = {
   /** Monotonically increasing identifier. Determines execution order. */
@@ -17,4 +18,4 @@ export type Migration = {
  *   2. Append it to the array below.
  *   3. Never edit, reorder, or delete an applied migration — write a new one.
  */
-export const migrations: Migration[] = [migration001];
+export const migrations: Migration[] = [migration001, migration002];
