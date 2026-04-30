@@ -38,7 +38,7 @@ export class RetroLogError extends Error {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function isWithinRetroWindow(logDate: string, currentTime: Date): boolean {
+export function isWithinRetroWindow(logDate: string, currentTime: Date): boolean {
   const [y, m, d] = logDate.split("-").map(Number) as [number, number, number];
   const endOfLogDay = new Date(y, m - 1, d, 23, 59, 59, 999);
   const windowEnds = new Date(

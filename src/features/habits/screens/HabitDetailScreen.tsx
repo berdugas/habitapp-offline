@@ -1,7 +1,9 @@
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 
+import { Heatmap } from "@/components/Heatmap";
+import { IdentityStreakDisplay } from "@/components/IdentityStreakDisplay";
 import { SecondaryButton } from "@/components/buttons/SecondaryButton";
 import { EmptyState } from "@/components/feedback/EmptyState";
 import { ErrorState } from "@/components/feedback/ErrorState";
@@ -9,14 +11,21 @@ import { LoadingState } from "@/components/feedback/LoadingState";
 import {
   HABIT_LOG_STATUS_LABELS,
 } from "@/features/habits/contract";
+import { isWithinRetroWindow } from "@/features/habits/api";
+import { RetroLogSelector } from "@/features/habits/components/RetroLogSelector";
 import {
   useArchiveHabitMutation,
   useHabitDetail,
+  useUpsertHabitLogMutation,
 } from "@/features/habits/hooks";
+import { extractIdentityNoun } from "@/features/onboarding/identityNoun";
 import { getHabitAdjustmentSuggestion } from "@/features/recommendations/habitAdjustmentEngine";
+import { useHabitLogsForRange } from "@/features/today/hooks";
+import { now } from "@/utils/clock";
 import { colors } from "@/theme/colors";
 import { radius } from "@/theme/radius";
 import { spacing } from "@/theme/spacing";
+import { typography } from "@/theme/typography";
 import {
   getLoadHabitDetailErrorMessage,
   getUpdateHabitActiveStateErrorMessage,
@@ -34,10 +43,6 @@ function formatTodayStatus(status: HabitLogStatus | null) {
 
 function formatConsistency(consistencyRate: number) {
   return `${Math.round(consistencyRate * 100)}%`;
-}
-
-function formatStreak(streak: number) {
-  return `${streak} day${streak === 1 ? "" : "s"}`;
 }
 
 function formatDateLabel(dateString: string) {
@@ -83,6 +88,43 @@ export default function HabitDetailScreen() {
     recentLogs,
   } = useHabitDetail(habitId);
   const archiveHabitMutation = useArchiveHabitMutation();
+  const upsertHabitLogMutation = useUpsertHabitLogMutation();
+  const retroLogSubmitLockRef = useRef(false);
+  const [selectorState, setSelectorState] = useState<{
+    visible: boolean;
+    date: string;
+    currentStatus: HabitLogStatus | null;
+    canEdit: boolean;
+  } | null>(null);
+  const heatmapLogs = useHabitLogsForRange(habit?.id, 90).data ?? [];
+
+  function handleCellPress(date: string) {
+    if (!habit) return;
+    if (date < habit.start_date) return;
+    const existing = heatmapLogs.find((log) => log.log_date === date);
+    const currentStatus = existing?.status ?? null;
+    const canEdit = isWithinRetroWindow(date, now());
+    setSelectorState({ visible: true, date, currentStatus, canEdit });
+  }
+
+  async function handleSelectorSubmit(status: HabitLogStatus) {
+    if (!habit || !selectorState || retroLogSubmitLockRef.current) return;
+    if (upsertHabitLogMutation.isPending) return;
+    retroLogSubmitLockRef.current = true;
+    try {
+      await upsertHabitLogMutation.mutateAsync({
+        habitId: habit.id,
+        logDate: selectorState.date,
+        status,
+      });
+    } finally {
+      retroLogSubmitLockRef.current = false;
+    }
+  }
+
+  function handleSelectorClose() {
+    setSelectorState(null);
+  }
 
   async function handleArchivePress() {
     if (
@@ -140,6 +182,11 @@ export default function HabitDetailScreen() {
       style={styles.screen}
     >
       <View style={styles.header}>
+        {habit.identity_phrase ? (
+          <Text selectable style={styles.becomingHeader}>
+            Become {habit.identity_phrase}
+          </Text>
+        ) : null}
         <Text selectable style={styles.title}>
           {habit.title}
         </Text>
@@ -194,6 +241,12 @@ export default function HabitDetailScreen() {
         {/* TODO(S15): reminder settings row */}
       </View>
 
+      {!isUpcoming ? (
+        <View style={styles.sectionCard}>
+          <HabitDetailHeatmap habitId={habit.id} onCellPress={handleCellPress} />
+        </View>
+      ) : null}
+
       <View style={styles.sectionCard}>
         <Text selectable style={styles.sectionTitle}>
           Today
@@ -207,6 +260,10 @@ export default function HabitDetailScreen() {
         <Text selectable style={styles.sectionTitle}>
           Progress
         </Text>
+        <IdentityStreakDisplay
+          identityNoun={extractIdentityNoun(habit.identity_phrase ?? "")}
+          streak={progress.streak}
+        />
         <View style={styles.progressGrid}>
           <View style={styles.progressItem}>
             <Text selectable style={styles.progressLabel}>
@@ -221,15 +278,7 @@ export default function HabitDetailScreen() {
               Consistency
             </Text>
             <Text selectable style={styles.progressValue}>
-              {formatConsistency(progress.consistencyRate)}
-            </Text>
-          </View>
-          <View style={styles.progressItem}>
-            <Text selectable style={styles.progressLabel}>
-              Streak
-            </Text>
-            <Text selectable style={styles.progressValue}>
-              {formatStreak(progress.streak)}
+              {formatConsistency(progress.consistencyRate)} over the last 30 days
             </Text>
           </View>
         </View>
@@ -399,8 +448,31 @@ export default function HabitDetailScreen() {
           onPress={() => router.push("/(app)/(tabs)/today")}
         />
       </View>
+      {selectorState ? (
+        <RetroLogSelector
+          canEdit={selectorState.canEdit}
+          currentStatus={selectorState.currentStatus}
+          date={selectorState.date}
+          isVisible={selectorState.visible}
+          isPending={upsertHabitLogMutation.isPending}
+          onClose={handleSelectorClose}
+          onSubmit={handleSelectorSubmit}
+        />
+      ) : null}
     </ScrollView>
   );
+}
+
+function HabitDetailHeatmap({
+  habitId,
+  onCellPress,
+}: {
+  habitId: string;
+  onCellPress?: (date: string) => void;
+}) {
+  const logsQuery = useHabitLogsForRange(habitId, 90);
+  if (!logsQuery.data) return null;
+  return <Heatmap days={90} logs={logsQuery.data} onCellPress={onCellPress} />;
 }
 
 const styles = StyleSheet.create({
@@ -424,6 +496,12 @@ const styles = StyleSheet.create({
   },
   actions: {
     gap: spacing.md,
+  },
+  becomingHeader: {
+    color: colors.text,
+    fontSize: typography.heading,
+    fontWeight: "700",
+    lineHeight: 30,
   },
   content: {
     gap: spacing.xl,

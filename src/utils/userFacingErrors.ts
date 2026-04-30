@@ -1,3 +1,5 @@
+import type { RetroLogReason } from "@/features/habits/api";
+
 function getErrorMessage(error: unknown) {
   if (error instanceof Error) {
     return error.message;
@@ -100,4 +102,33 @@ export function getUpdateHabitActiveStateErrorMessage() {
 
 export function getGenerateHabitRewriteErrorMessage() {
   return "We couldn't generate a rewrite right now. You can still edit this habit manually.";
+}
+
+export function getRetroLogOutsideWindowErrorMessage() {
+  return "This day was more than 48 hours ago. It's locked.";
+}
+
+export function getRetroLogBeforeStartDateErrorMessage() {
+  return "This day is before your habit started.";
+}
+
+export function getRetroLogFutureDateErrorMessage() {
+  return "That day hasn't happened yet.";
+}
+
+export function getRetroLogHabitArchivedErrorMessage() {
+  return "This habit is archived. Reactivate it to log.";
+}
+
+export function getRetroLogErrorMessage(reason: RetroLogReason): string {
+  switch (reason) {
+    case "outside_window":
+      return getRetroLogOutsideWindowErrorMessage();
+    case "before_start_date":
+      return getRetroLogBeforeStartDateErrorMessage();
+    case "future_date":
+      return getRetroLogFutureDateErrorMessage();
+    case "habit_archived":
+      return getRetroLogHabitArchivedErrorMessage();
+  }
 }

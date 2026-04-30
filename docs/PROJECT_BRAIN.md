@@ -340,8 +340,8 @@ Source-of-truth docs live directly in `docs/`. Sprint planning and per-sprint de
 | Technical Handoff Core v1 | .md | `docs/tech-handoff-core-v1.md` | **Current — the how** |
 | Project Brain | .md | `docs/PROJECT_BRAIN.md` | **Current — this document** |
 | Sprint Plan | .md | `docs/sprint_tickets/sprint-plan.md` | **Current — the when (21-sprint roadmap, 4 phases)** |
-| Sprint 1 Tickets | .md | `docs/sprint_tickets/sprint-1-tickets.md` | **Current — DEV-S1-01..04 dev packages** |
-| Sprint 1 Follow-ups | .md | `docs/sprint_tickets/sprint-1-followups.md` | **Current — DEV-S1-05 polish ticket** |
+| Sprint Tickets | .md | `docs/sprint_tickets/sprint-N-tickets.md` | **Current — per-sprint dev ticket packages (S1–S5 closed; S6+ to come)** |
+| Sprint Follow-ups | .md | `docs/sprint_tickets/sprint-N-followups.md` | **Current — per-sprint deferred items / cleanup notes** |
 | PRD Monetization | .docx | `docs/habits-app-prd-monetization.docx` | Reference for post-Core-v1 monetization |
 | User Flow | .html | `docs/habits-app-user-flow.html` | Stale — regenerate post-Core-v1 |
 
@@ -361,10 +361,11 @@ Live status of the Core v1 build. For the full 21-sprint plan, see `docs/sprint_
 - **S3** — Onboarding flow (Phase B kickoff). Four tickets merged: state machine + SQLite persistence (`onboarding.draft` / `onboarding.completed_at` via preferences repo, 200ms debounce, flush-on-unmount); `app/(onboarding)/` route group with `OnboardingProvider`; three screens (Welcome, Becoming, Daily Action) with verbatim spec copy; keyword-aware daily-action placeholder; `RootEntryScreen` extended with onboarding routing + one-time backfill for existing accounts. `jest.config.js` extended to cover `src/features/**/__tests__/`. 309 tests passing.
 - **S4** — Becoming bridge complete. `cueAction` dropped from `OnboardingDraft`; whitelist-load added to `loadOnboardingDraft`. Four new screens shipped (Shrink, Cue, Worst-day, Confirmation). `WorstDayCheck` shared component extracted for reuse in S13. `finalizeOnboarding` in `completion.ts` atomically writes the Focus habit row, marks onboarding complete, and clears the draft inside a single `withTransactionAsync` transaction. `useFinalizeOnboardingMutation` invalidates three query keys and routes to Today via `RootEntryScreen`. A brand-new user can now complete the full 7-screen flow and land on Today with their first Focus habit. 325 tests passing.
 - **S5** — TodayScreen redesigned around the Focus habit card. New components: `Heatmap` (`src/components/Heatmap.tsx`, 30/90-day grid, display-only with optional `onCellPress` stub for S6), `IdentityStreakDisplay` (`src/components/IdentityStreakDisplay.tsx`), and `extractIdentityNoun` (`src/features/onboarding/identityNoun.ts`). First-day copy ("Your first day. Start small.") renders on Day 1 before any log; standard streak copy takes over after first Done/Skip. Library tab placeholder added; bottom nav is now Today | Library | Settings. `useHabitLogsForRange` hook and `listLogsForHabitInRange` repo function added in `features/today/hooks.ts` and `lib/db/repositories/habit_logs.ts` — both reusable for S6's 90-day heatmap on Habit Detail. 8-item Appium smoke checklist passed (April 30 2026). 43 new tests (42 feature tests + migration-count assertion corrected in close-out); 355 passing, all suites green.
+- **S6** — Habit Detail redesigned and retro-log interaction complete. `HabitDetailScreen` updated: "Become [identity_phrase]" eyebrow header, `IdentityStreakDisplay` replacing raw streak number, 90-day `Heatmap` between Setup and Today (display-only in DEV-S6-01; `onCellPress` wired in DEV-S6-02), and consistency copy aligned with §10.2 ("N% over the last 30 days"). New: `RetroLogSelector` component (`src/features/habits/components/RetroLogSelector.tsx`) — Modal-based, editable/read-only modes keyed on the 48-hour window; `useUpsertHabitLogMutation` hook (`src/features/habits/hooks.ts`) — general-purpose retro log with three-key invalidation (heatmap, today aggregate, habit detail); `getRetroLogErrorMessage` dispatcher and four reason-specific functions added to `utils/userFacingErrors.ts`; `isWithinRetroWindow` exported from `features/habits/api.ts` for parent `canEdit` derivation. The 48-hour window is enforced by the existing `RetroLogError` from S2 — S6 surfaces it in the UI without re-implementing it. Test gap closures: F3 (TodayScreen load/save error paths) and F4 (heatmap refresh round-trip integration test) from S5 followups. `Heatmap.onCellPress` is now consumed on Habit Detail; Today stays display-only. 25 new tests; 380 passing, all suites green.
 
-### Up next: S6 — Habit Detail with 90-day heatmap + 48-hour retro logging
+### Up next: S7 — Recovery flow + single-miss reframing
 
-90-day `Heatmap` variant on Habit Detail (one-line prop change — component already built). Retro-log selector wired into `Heatmap.onCellPress`. 48-hour window enforcement via the existing `RetroLogError` in `features/habits/api.ts`. See `docs/sprint_tickets/sprint-plan.md`.
+Post-streak-break recovery modal (2 consecutive misses), single-miss reframing copy on Today, and streak-break detection logic. See `docs/sprint_tickets/sprint-plan.md`.
 
 ### Transitional state to be aware of
 
@@ -421,14 +422,19 @@ Live status of the Core v1 build. For the full 21-sprint plan, see `docs/sprint_
 
 ---
 
-## 14. New components to build (Core v1)
+## 14. Components for Core v1
 
-In `src/components/` per tech handoff Section 9:
+Per tech handoff Section 9. Status as of S5 close.
 
-- `Heatmap.tsx` — 30-day and 90-day variants
-- `IdentityStreakDisplay.tsx` — identity-flavored streak rendering
-- `WorstDayCheck.tsx` — reusable check (onboarding + Supporting creation)
-- `LibraryCard.tsx` — Automatic Library card
+### Built
+
+- `src/components/Heatmap.tsx` — 30-day and 90-day variants (S5; 90-day variant supported but not yet rendered — lights up on Habit Detail in S6)
+- `src/components/IdentityStreakDisplay.tsx` — identity-flavored streak rendering (S5)
+- `src/features/onboarding/components/WorstDayCheck.tsx` — reusable check; originally for onboarding, slated for reuse in Supporting habit creation (S4)
+
+### To build
+
+- `LibraryCard.tsx` — Automatic Library card (lights up when graduation ships)
 - `RecoveryModal.tsx` — post-streak-break recovery
 - `SrhiQuestion.tsx` — single SRHI question with Likert input
 - `BacklogList.tsx` — backlog management list

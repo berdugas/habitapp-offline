@@ -19,6 +19,15 @@ jest.mock("@/features/habits/hooks", () => ({
   useHabitDetail: (habitId: string | string[] | undefined) =>
     mockUseHabitDetail(habitId),
   useArchiveHabitMutation: () => mockUseArchiveHabitMutation(),
+  useUpsertHabitLogMutation: () => ({
+    mutateAsync: jest.fn().mockResolvedValue(undefined),
+    isPending: false,
+    error: null,
+  }),
+}));
+
+jest.mock("@/features/today/hooks", () => ({
+  useHabitLogsForRange: jest.fn().mockReturnValue({ data: [] }),
 }));
 
 const baseHabit = {
@@ -146,8 +155,8 @@ describe("HabitDetailScreen", () => {
     expect(screen.getByText("Evening")).toBeTruthy();
     expect(screen.getByText("Today: Done")).toBeTruthy();
     expect(screen.getByText("1")).toBeTruthy();
-    expect(screen.getByText("67%")).toBeTruthy();
-    expect(screen.getByText("2 days")).toBeTruthy();
+    expect(screen.getByText("67% over the last 30 days")).toBeTruthy();
+    expect(screen.getByText("You've shown up 2 days for this habit.")).toBeTruthy();
     expect(screen.getByText("Felt easy today")).toBeTruthy();
     expect(screen.getAllByText("Archive habit").length).toBeGreaterThan(0);
     expect(

@@ -3,6 +3,10 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 import TodayScreen from "@/features/today/screens/TodayScreen";
 import { resetClockForTesting, setNowForTesting } from "@/utils/clock";
+import {
+  getLoadHabitsErrorMessage,
+  getSaveTodayStatusErrorMessage,
+} from "@/utils/userFacingErrors";
 
 jest.mock("expo-router", () => ({
   router: { push: jest.fn(), replace: jest.fn() },
@@ -161,5 +165,32 @@ describe("TodayScreen", () => {
     });
     renderWithClient(<TodayScreen />);
     expect(screen.queryByText("Missed")).toBeNull();
+  });
+
+  it("renders a load error state when useTodayHabits returns an error", () => {
+    useTodayHabits.mockReturnValue({
+      error: new Error("Failed to load"),
+      habits: [],
+      isLoading: false,
+      upcomingHabits: [],
+    });
+    renderWithClient(<TodayScreen />);
+    expect(screen.getByText(getLoadHabitsErrorMessage())).toBeTruthy();
+  });
+
+  it("renders a save error state when the mutation has an error", () => {
+    useTodayHabits.mockReturnValue({
+      error: null,
+      habits: [makeHabit()],
+      isLoading: false,
+      upcomingHabits: [],
+    });
+    useUpsertTodayHabitStatusMutation.mockReturnValue({
+      error: new Error("Save failed"),
+      isPending: false,
+      mutateAsync: jest.fn().mockRejectedValue(new Error("Save failed")),
+    });
+    renderWithClient(<TodayScreen />);
+    expect(screen.getByText(getSaveTodayStatusErrorMessage())).toBeTruthy();
   });
 });
