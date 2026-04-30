@@ -336,7 +336,12 @@ export function useUpsertHabitLogMutation() {
         queryKey: ["habit-logs", user.id, startDate, endDate],
       });
 
-      // 3) Habit detail query.
+      // 3) Habit Detail progress/recent-history logs.
+      await queryClient.invalidateQueries({
+        queryKey: ["habit-logs", "detail", user.id, variables.habitId],
+      });
+
+      // 4) Habit detail query.
       await queryClient.invalidateQueries({
         queryKey: getHabitDetailQueryKey(user.id, variables.habitId),
       });
