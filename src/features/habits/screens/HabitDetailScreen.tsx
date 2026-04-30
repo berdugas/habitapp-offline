@@ -3,6 +3,7 @@ import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 
 import { Heatmap } from "@/components/Heatmap";
+import type { HeatmapLog } from "@/components/Heatmap";
 import { IdentityStreakDisplay } from "@/components/IdentityStreakDisplay";
 import { SecondaryButton } from "@/components/buttons/SecondaryButton";
 import { EmptyState } from "@/components/feedback/EmptyState";
@@ -243,7 +244,7 @@ export default function HabitDetailScreen() {
 
       {!isUpcoming ? (
         <View style={styles.sectionCard}>
-          <HabitDetailHeatmap habitId={habit.id} onCellPress={handleCellPress} />
+          <HabitDetailHeatmap logs={heatmapLogs} onCellPress={handleCellPress} />
         </View>
       ) : null}
 
@@ -464,15 +465,13 @@ export default function HabitDetailScreen() {
 }
 
 function HabitDetailHeatmap({
-  habitId,
+  logs,
   onCellPress,
 }: {
-  habitId: string;
+  logs: HeatmapLog[];
   onCellPress?: (date: string) => void;
 }) {
-  const logsQuery = useHabitLogsForRange(habitId, 90);
-  if (!logsQuery.data) return null;
-  return <Heatmap days={90} logs={logsQuery.data} onCellPress={onCellPress} />;
+  return <Heatmap days={90} logs={logs} onCellPress={onCellPress} />;
 }
 
 const styles = StyleSheet.create({

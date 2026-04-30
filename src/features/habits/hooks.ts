@@ -325,7 +325,7 @@ export function useUpsertHabitLogMutation() {
 
       // 1) Heatmap range query for this habit (prefix-match all date ranges).
       await queryClient.invalidateQueries({
-        queryKey: ["habit_logs", "range", variables.habitId],
+        queryKey: ["habit-logs", "range", variables.habitId],
       });
 
       // 2) Today aggregate query.
