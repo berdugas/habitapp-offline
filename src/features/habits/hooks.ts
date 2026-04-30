@@ -10,6 +10,7 @@ import {
   listEligibleHabitsForToday,
   listUpcomingHabits,
   updateHabit,
+  upsertHabitLog,
 } from "@/features/habits/api";
 import { getLatestWeeklyReview } from "@/features/reviews/api";
 import { getLatestWeeklyReviewQueryKey } from "@/features/reviews/queryKeys";
@@ -25,9 +26,10 @@ import { TODAY_PROGRESS_WINDOW_DAYS } from "@/features/today/constants";
 
 import type {
   CreateHabitPayload,
-  HabitSetupPayload,
   HabitLogRecord,
+  HabitLogStatus,
   HabitRecord,
+  HabitSetupPayload,
 } from "@/features/habits/types";
 import type { WeeklyReviewRecord } from "@/features/reviews/types";
 
@@ -291,6 +293,60 @@ export function useArchiveHabitMutation() {
       logger.error("Habit archive mutation failed", {
         error,
         habitId: variables.habitId,
+        userId: user?.id ?? null,
+      });
+    },
+  });
+}
+
+type UpsertHabitLogVariables = {
+  habitId: string;
+  logDate: string;
+  status: HabitLogStatus;
+};
+
+export function useUpsertHabitLogMutation() {
+  const { user } = useAuthSession();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      habitId,
+      logDate,
+      status,
+    }: UpsertHabitLogVariables): Promise<HabitLogRecord> => {
+      if (!user?.id) {
+        throw new Error("You need an account session before logging a habit.");
+      }
+      return upsertHabitLog(user.id, { habitId, logDate, status });
+    },
+    onSuccess: async (_data, variables) => {
+      if (!user?.id) return;
+
+      // 1) Heatmap range query for this habit (prefix-match all date ranges).
+      await queryClient.invalidateQueries({
+        queryKey: ["habit_logs", "range", variables.habitId],
+      });
+
+      // 2) Today aggregate query.
+      const { endDate, startDate } = getTrailingDateRangeStrings(
+        TODAY_PROGRESS_WINDOW_DAYS,
+      );
+      await queryClient.invalidateQueries({
+        queryKey: ["habit-logs", user.id, startDate, endDate],
+      });
+
+      // 3) Habit detail query.
+      await queryClient.invalidateQueries({
+        queryKey: getHabitDetailQueryKey(user.id, variables.habitId),
+      });
+    },
+    onError: (error, variables) => {
+      logger.error("Retro log mutation failed", {
+        error,
+        habitId: variables.habitId,
+        logDate: variables.logDate,
+        status: variables.status,
         userId: user?.id ?? null,
       });
     },

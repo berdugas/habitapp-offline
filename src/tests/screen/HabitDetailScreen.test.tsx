@@ -19,6 +19,11 @@ jest.mock("@/features/habits/hooks", () => ({
   useHabitDetail: (habitId: string | string[] | undefined) =>
     mockUseHabitDetail(habitId),
   useArchiveHabitMutation: () => mockUseArchiveHabitMutation(),
+  useUpsertHabitLogMutation: () => ({
+    mutateAsync: jest.fn().mockResolvedValue(undefined),
+    isPending: false,
+    error: null,
+  }),
 }));
 
 jest.mock("@/features/today/hooks", () => ({

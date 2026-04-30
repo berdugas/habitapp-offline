@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react-native";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import React from "react";
 
@@ -13,17 +13,21 @@ jest.mock("expo-router", () => ({
 jest.mock("@/features/habits/hooks", () => ({
   useArchiveHabitMutation: jest.fn(),
   useHabitDetail: jest.fn(),
+  useUpsertHabitLogMutation: jest.fn(),
 }));
 
 jest.mock("@/features/today/hooks", () => ({
   useHabitLogsForRange: jest.fn(),
 }));
 
-const { useHabitDetail, useArchiveHabitMutation } = jest.requireMock(
-  "@/features/habits/hooks",
-) as {
+const {
+  useHabitDetail,
+  useArchiveHabitMutation,
+  useUpsertHabitLogMutation,
+} = jest.requireMock("@/features/habits/hooks") as {
   useHabitDetail: jest.Mock;
   useArchiveHabitMutation: jest.Mock;
+  useUpsertHabitLogMutation: jest.Mock;
 };
 
 const { useHabitLogsForRange } = jest.requireMock(
@@ -70,6 +74,11 @@ describe("HabitDetailScreen", () => {
     jest.clearAllMocks();
     setNowForTesting(new Date("2026-04-30T10:00:00.000Z"));
     useArchiveHabitMutation.mockReturnValue({
+      mutateAsync: jest.fn().mockResolvedValue(undefined),
+      isPending: false,
+      error: null,
+    });
+    useUpsertHabitLogMutation.mockReturnValue({
       mutateAsync: jest.fn().mockResolvedValue(undefined),
       isPending: false,
       error: null,
@@ -177,5 +186,76 @@ describe("HabitDetailScreen", () => {
     renderWithClient(<HabitDetailScreen />);
     expect(screen.getByText(/Starts on /)).toBeTruthy();
     expect(screen.queryByLabelText("Today, not logged")).toBeNull();
+  });
+
+  it("opens the selector with canEdit=true when an in-window cell is tapped", async () => {
+    // Today is April 30 10:00. April 29 is ~34h ago — within the 48h window.
+    useHabitDetail.mockReturnValue({
+      error: null,
+      formula: "After morning coffee, run for 2 minutes",
+      habit: makeHabit({ start_date: "2026-04-01" }),
+      isLoading: false,
+      isUpcoming: false,
+      latestReview: null,
+      progress: makeProgress(),
+      recentLogs: [],
+    });
+    renderWithClient(<HabitDetailScreen />);
+
+    fireEvent.press(screen.getByLabelText("2026-04-29, not logged"));
+
+    await waitFor(() => {
+      expect(screen.getByText("Done")).toBeTruthy();
+      expect(screen.getByText("Skip")).toBeTruthy();
+    });
+  });
+
+  it("opens the selector with canEdit=false when an out-of-window cell is tapped", async () => {
+    // April 25 is 5 days ago — outside the 48h window.
+    useHabitDetail.mockReturnValue({
+      error: null,
+      formula: "After morning coffee, run for 2 minutes",
+      habit: makeHabit({ start_date: "2026-04-01" }),
+      isLoading: false,
+      isUpcoming: false,
+      latestReview: null,
+      progress: makeProgress(),
+      recentLogs: [],
+    });
+    renderWithClient(<HabitDetailScreen />);
+
+    fireEvent.press(screen.getByLabelText("2026-04-25, not logged"));
+
+    await waitFor(() => {
+      expect(
+        screen.getByText("This day is locked. Logs older than 48 hours can't be changed."),
+      ).toBeTruthy();
+    });
+    expect(screen.queryByText("Done")).toBeNull();
+    expect(screen.queryByText("Skip")).toBeNull();
+  });
+
+  it("does not open the selector when a cell before habit.start_date is tapped", async () => {
+    // start_date = April 27 (3 days ago). Tap April 25 (before start_date).
+    useHabitDetail.mockReturnValue({
+      error: null,
+      formula: "After morning coffee, run for 2 minutes",
+      habit: makeHabit({ start_date: "2026-04-27" }),
+      isLoading: false,
+      isUpcoming: false,
+      latestReview: null,
+      progress: makeProgress(),
+      recentLogs: [],
+    });
+    renderWithClient(<HabitDetailScreen />);
+
+    fireEvent.press(screen.getByLabelText("2026-04-25, not logged"));
+
+    // Selector should not appear.
+    expect(screen.queryByText("Done")).toBeNull();
+    expect(screen.queryByText("Skip")).toBeNull();
+    expect(
+      screen.queryByText("This day is locked. Logs older than 48 hours can't be changed."),
+    ).toBeNull();
   });
 });

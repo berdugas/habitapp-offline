@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 
@@ -11,13 +11,17 @@ import { LoadingState } from "@/components/feedback/LoadingState";
 import {
   HABIT_LOG_STATUS_LABELS,
 } from "@/features/habits/contract";
+import { isWithinRetroWindow } from "@/features/habits/api";
+import { RetroLogSelector } from "@/features/habits/components/RetroLogSelector";
 import {
   useArchiveHabitMutation,
   useHabitDetail,
+  useUpsertHabitLogMutation,
 } from "@/features/habits/hooks";
 import { extractIdentityNoun } from "@/features/onboarding/identityNoun";
 import { getHabitAdjustmentSuggestion } from "@/features/recommendations/habitAdjustmentEngine";
 import { useHabitLogsForRange } from "@/features/today/hooks";
+import { now } from "@/utils/clock";
 import { colors } from "@/theme/colors";
 import { radius } from "@/theme/radius";
 import { spacing } from "@/theme/spacing";
@@ -84,6 +88,43 @@ export default function HabitDetailScreen() {
     recentLogs,
   } = useHabitDetail(habitId);
   const archiveHabitMutation = useArchiveHabitMutation();
+  const upsertHabitLogMutation = useUpsertHabitLogMutation();
+  const retroLogSubmitLockRef = useRef(false);
+  const [selectorState, setSelectorState] = useState<{
+    visible: boolean;
+    date: string;
+    currentStatus: HabitLogStatus | null;
+    canEdit: boolean;
+  } | null>(null);
+  const heatmapLogs = useHabitLogsForRange(habit?.id, 90).data ?? [];
+
+  function handleCellPress(date: string) {
+    if (!habit) return;
+    if (date < habit.start_date) return;
+    const existing = heatmapLogs.find((log) => log.log_date === date);
+    const currentStatus = existing?.status ?? null;
+    const canEdit = isWithinRetroWindow(date, now());
+    setSelectorState({ visible: true, date, currentStatus, canEdit });
+  }
+
+  async function handleSelectorSubmit(status: HabitLogStatus) {
+    if (!habit || !selectorState || retroLogSubmitLockRef.current) return;
+    if (upsertHabitLogMutation.isPending) return;
+    retroLogSubmitLockRef.current = true;
+    try {
+      await upsertHabitLogMutation.mutateAsync({
+        habitId: habit.id,
+        logDate: selectorState.date,
+        status,
+      });
+    } finally {
+      retroLogSubmitLockRef.current = false;
+    }
+  }
+
+  function handleSelectorClose() {
+    setSelectorState(null);
+  }
 
   async function handleArchivePress() {
     if (
@@ -202,7 +243,7 @@ export default function HabitDetailScreen() {
 
       {!isUpcoming ? (
         <View style={styles.sectionCard}>
-          <HabitDetailHeatmap habitId={habit.id} />
+          <HabitDetailHeatmap habitId={habit.id} onCellPress={handleCellPress} />
         </View>
       ) : null}
 
@@ -407,14 +448,31 @@ export default function HabitDetailScreen() {
           onPress={() => router.push("/(app)/(tabs)/today")}
         />
       </View>
+      {selectorState ? (
+        <RetroLogSelector
+          canEdit={selectorState.canEdit}
+          currentStatus={selectorState.currentStatus}
+          date={selectorState.date}
+          isVisible={selectorState.visible}
+          isPending={upsertHabitLogMutation.isPending}
+          onClose={handleSelectorClose}
+          onSubmit={handleSelectorSubmit}
+        />
+      ) : null}
     </ScrollView>
   );
 }
 
-function HabitDetailHeatmap({ habitId }: { habitId: string }) {
+function HabitDetailHeatmap({
+  habitId,
+  onCellPress,
+}: {
+  habitId: string;
+  onCellPress?: (date: string) => void;
+}) {
   const logsQuery = useHabitLogsForRange(habitId, 90);
   if (!logsQuery.data) return null;
-  return <Heatmap days={90} logs={logsQuery.data} />;
+  return <Heatmap days={90} logs={logsQuery.data} onCellPress={onCellPress} />;
 }
 
 const styles = StyleSheet.create({
