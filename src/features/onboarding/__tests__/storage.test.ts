@@ -61,6 +61,24 @@ describe("onboarding storage", () => {
       expect(loaded.worstDayPassed).toBeNull();
     });
 
+    it("drops unknown keys when loading a draft persisted under an older shape", async () => {
+      // Simulate a draft saved before cueAction was removed from the schema.
+      const oldShape = {
+        step: "cue",
+        becomingPhrase: "a writer",
+        cueAction: "this field no longer exists",
+        bogusField: 12345,
+      };
+      await setPreference(ONBOARDING_DRAFT_KEY, JSON.stringify(oldShape));
+
+      const loaded = await loadOnboardingDraft();
+      expect(loaded.step).toBe("cue");
+      expect(loaded.becomingPhrase).toBe("a writer");
+      // Unknown keys should not appear on the result.
+      expect(loaded).not.toHaveProperty("cueAction");
+      expect(loaded).not.toHaveProperty("bogusField");
+    });
+
     it("returns EMPTY_DRAFT without throwing when the stored JSON is malformed", async () => {
       await setPreference(ONBOARDING_DRAFT_KEY, "{not valid json");
       const loaded = await loadOnboardingDraft();

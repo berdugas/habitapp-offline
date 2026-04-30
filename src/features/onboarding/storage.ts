@@ -8,10 +8,25 @@ import { nowIso } from "@/utils/clock";
 
 import {
   EMPTY_DRAFT,
+  KNOWN_DRAFT_KEYS,
   ONBOARDING_COMPLETED_AT_KEY,
   ONBOARDING_DRAFT_KEY,
   type OnboardingDraft,
 } from "./types";
+
+function pickKnownDraftKeys(parsed: unknown): Partial<OnboardingDraft> {
+  if (typeof parsed !== "object" || parsed === null) {
+    return {};
+  }
+  const result: Partial<OnboardingDraft> = {};
+  for (const key of KNOWN_DRAFT_KEYS) {
+    if (key in parsed) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (result as any)[key] = (parsed as any)[key];
+    }
+  }
+  return result;
+}
 
 export async function loadOnboardingDraft(): Promise<OnboardingDraft> {
   const raw = await getPreference(ONBOARDING_DRAFT_KEY);
@@ -19,8 +34,8 @@ export async function loadOnboardingDraft(): Promise<OnboardingDraft> {
     return { ...EMPTY_DRAFT };
   }
   try {
-    const parsed = JSON.parse(raw) as Partial<OnboardingDraft>;
-    return { ...EMPTY_DRAFT, ...parsed };
+    const parsed = JSON.parse(raw);
+    return { ...EMPTY_DRAFT, ...pickKnownDraftKeys(parsed) };
   } catch (error) {
     logger.warn("Failed to parse onboarding draft — resetting to empty", {
       error,

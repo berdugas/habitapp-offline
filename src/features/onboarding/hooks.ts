@@ -1,15 +1,23 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { router } from "expo-router";
 
 import { useAuthSession } from "@/features/auth/hooks";
+import {
+  getEligibleHabitsQueryKey,
+  getUpcomingActiveHabitsQueryKey,
+} from "@/features/habits/hooks";
 import { logger } from "@/services/logger";
+import { toDeviceDateString } from "@/utils/dates";
 
+import { finalizeOnboarding } from "./completion";
 import {
   isOnboardingCompleted,
   loadOnboardingDraft,
   saveOnboardingDraft,
 } from "./storage";
 import { EMPTY_DRAFT, type OnboardingDraft } from "./types";
+import { useOnboarding } from "./OnboardingProvider";
 
 export function useOnboardingDraft(): {
   draft: OnboardingDraft;
@@ -82,5 +90,40 @@ export function useIsOnboardingCompletedQuery() {
     queryFn: isOnboardingCompleted,
     enabled: Boolean(user?.id),
     staleTime: Infinity,
+  });
+}
+
+export function useFinalizeOnboardingMutation() {
+  const { user } = useAuthSession();
+  const { draft } = useOnboarding();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async () => {
+      if (!user?.id) {
+        throw new Error("No user session");
+      }
+      return finalizeOnboarding(user.id, draft);
+    },
+    onSuccess: async () => {
+      if (!user?.id) {
+        return;
+      }
+      const todayDate = toDeviceDateString();
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: getIsOnboardingCompletedQueryKey(user.id),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: getEligibleHabitsQueryKey(user.id, todayDate),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: getUpcomingActiveHabitsQueryKey(user.id, todayDate),
+        }),
+      ]);
+      // (D10) Bounce through RootEntryScreen so it routes to Today using
+      // freshly invalidated queries.
+      router.replace("/");
+    },
   });
 }

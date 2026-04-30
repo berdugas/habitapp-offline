@@ -8,12 +8,10 @@ const STEP_TO_HREF: Record<OnboardingStep, string> = {
   "welcome": "/(onboarding)/welcome",
   "becoming": "/(onboarding)/becoming",
   "daily-action": "/(onboarding)/daily-action",
-  // S4 steps are capped at daily-action — the last screen S3 ships.
-  // S4 will replace these entries with real routes.
-  "shrink": "/(onboarding)/daily-action",
-  "cue": "/(onboarding)/daily-action",
-  "worst-day": "/(onboarding)/daily-action",
-  "confirmation": "/(onboarding)/daily-action",
+  "shrink": "/(onboarding)/shrink",
+  "cue": "/(onboarding)/cue",
+  "worst-day": "/(onboarding)/worst-day",
+  "confirmation": "/(onboarding)/confirmation",
 };
 
 export default function OnboardingIndex() {

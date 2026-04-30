@@ -4,6 +4,24 @@ import { loadOnboardingDraft, saveOnboardingDraft } from "../storage";
 import { EMPTY_DRAFT } from "../types";
 import { useOnboardingDraft } from "../hooks";
 
+// Prevent the transitive import chain onboarding/hooks → habits/hooks →
+// reviews/api → supabase/client → @react-native-async-storage from breaking
+// this isolated unit test.
+jest.mock("@/features/habits/hooks", () => ({
+  getEligibleHabitsQueryKey: jest.fn(),
+  getUpcomingActiveHabitsQueryKey: jest.fn(),
+}));
+jest.mock("expo-router", () => ({ router: { replace: jest.fn() } }));
+jest.mock("@tanstack/react-query", () => ({
+  useMutation: jest.fn(),
+  useQuery: jest.fn(),
+  useQueryClient: jest.fn(),
+}));
+jest.mock("@/features/auth/hooks", () => ({ useAuthSession: jest.fn() }));
+jest.mock("../OnboardingProvider", () => ({ useOnboarding: jest.fn() }));
+jest.mock("../completion", () => ({ finalizeOnboarding: jest.fn() }));
+jest.mock("@/utils/dates", () => ({ toDeviceDateString: jest.fn() }));
+
 jest.mock("../storage");
 const mockLoad = loadOnboardingDraft as jest.MockedFunction<
   typeof loadOnboardingDraft

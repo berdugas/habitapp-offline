@@ -3,25 +3,36 @@ import { router } from "expo-router";
 
 import { PrimaryButton } from "@/components/buttons/PrimaryButton";
 import { useOnboarding } from "@/features/onboarding/OnboardingProvider";
-import { getDailyActionPlaceholder } from "@/features/onboarding/dailyActionPlaceholder";
-import type { OnboardingDraft } from "@/features/onboarding/types";
 import { colors } from "@/theme/colors";
 import { radius } from "@/theme/radius";
 import { shadows } from "@/theme/shadows";
 import { spacing } from "@/theme/spacing";
 import { typography } from "@/theme/typography";
 
-export default function DailyActionScreen() {
+const COACHING_PARAGRAPH =
+  "Habits form through repetition, not intensity. The smaller the action, " +
+  "the more reliable it becomes. Most people start too big and quit. " +
+  "Start absurdly small. You can always do more on the day. The goal is " +
+  "showing up, not achieving.";
+
+const EXAMPLES = [
+  "Run for 2 minutes",
+  "Read one page",
+  "Sit quietly for one breath",
+];
+
+export default function ShrinkScreen() {
   const { draft, update } = useOnboarding();
 
   const handleContinue = () => {
-    const next: Partial<OnboardingDraft> = { step: "shrink" };
-    if (draft.tinyAction.trim().length === 0) {
-      next.tinyAction = draft.dailyAction;
-    }
-    update(next);
-    router.push("/(onboarding)/shrink");
+    update({ step: "cue" });
+    router.push("/(onboarding)/cue");
   };
+
+  const headerCopy =
+    draft.worstDayPassed === false
+      ? "Let's make it smaller. What would survive a hard day?"
+      : "That's a great direction. Now let's make it laughably small for tomorrow.";
 
   return (
     <ScrollView
@@ -32,29 +43,34 @@ export default function DailyActionScreen() {
     >
       <View style={styles.card}>
         <Text selectable style={styles.header}>
-          What does that person do every day?
+          {headerCopy}
         </Text>
-        {draft.becomingPhrase.trim().length > 0 && (
-          <Text selectable style={styles.reflection}>
-            Becoming: {draft.becomingPhrase}
-          </Text>
-        )}
         <TextInput
           autoCorrect
           multiline
-          onChangeText={(text) => update({ dailyAction: text })}
-          placeholder={getDailyActionPlaceholder(draft.becomingPhrase)}
+          onChangeText={(text) => update({ tinyAction: text })}
+          placeholder=""
           placeholderTextColor={colors.textMuted}
           style={styles.input}
-          value={draft.dailyAction}
+          value={draft.tinyAction}
         />
-        <Text selectable style={styles.helper}>
-          Even one minute counts. We'll make it smaller in the next step.
+        <Text selectable style={styles.coaching}>
+          {COACHING_PARAGRAPH}
         </Text>
+        <View style={styles.examples}>
+          <Text selectable style={styles.examplesLabel}>
+            For example:
+          </Text>
+          {EXAMPLES.map((example) => (
+            <Text key={example} selectable style={styles.exampleItem}>
+              {example}
+            </Text>
+          ))}
+        </View>
       </View>
 
       <PrimaryButton
-        disabled={draft.dailyAction.trim().length === 0}
+        disabled={draft.tinyAction.trim().length === 0}
         label="Continue"
         onPress={handleContinue}
       />
@@ -72,22 +88,35 @@ const styles = StyleSheet.create({
     gap: spacing.lg,
     padding: spacing.xxl,
   },
+  coaching: {
+    color: colors.textMuted,
+    fontSize: typography.body,
+    lineHeight: 24,
+  },
   content: {
     flexGrow: 1,
     gap: spacing.xxl,
     justifyContent: "center",
     padding: spacing.xl,
   },
+  exampleItem: {
+    color: colors.textMuted,
+    fontSize: typography.body,
+    lineHeight: 24,
+  },
+  examples: {
+    gap: spacing.md,
+  },
+  examplesLabel: {
+    color: colors.text,
+    fontSize: typography.body,
+    fontWeight: "600",
+  },
   header: {
     color: colors.text,
     fontSize: typography.title,
     fontWeight: "800",
     lineHeight: 36,
-  },
-  helper: {
-    color: colors.textMuted,
-    fontSize: typography.body,
-    lineHeight: 24,
   },
   input: {
     borderColor: colors.border,
@@ -98,11 +127,6 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     minHeight: 80,
     padding: spacing.md,
-  },
-  reflection: {
-    color: colors.textMuted,
-    fontSize: typography.caption,
-    fontStyle: "italic",
   },
   screen: {
     backgroundColor: colors.background,
