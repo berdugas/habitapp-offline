@@ -11,7 +11,8 @@
     "plugins": [
       "expo-router",
       "expo-font",
-      "expo-sqlite"
+      "expo-sqlite",
+      "expo-notifications"
     ],
     "splash": {
       "image": "./assets/icons/splash-icon.png",
@@ -20,10 +21,10 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.habits.app"
+      "bundleIdentifier": "com.berdugas.habits"
     },
     "android": {
-      "package": "com.habits.app",
+      "package": "com.berdugas.habits",
       "adaptiveIcon": {
         "foregroundImage": "./assets/icons/adaptive-icon.png",
         "backgroundColor": "#f8f4ec"
@@ -34,6 +35,12 @@
     "web": {
       "favicon": "./assets/icons/favicon.png",
       "bundler": "metro"
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "a6076041-eb28-4ded-affc-589659dc05f4"
+      }
     }
   }
 }
