@@ -18,6 +18,12 @@ export default function AppTabsLayout() {
         }}
       />
       <Tabs.Screen
+        name="library"
+        options={{
+          title: "Library",
+        }}
+      />
+      <Tabs.Screen
         name="settings"
         options={{
           title: "Settings",
