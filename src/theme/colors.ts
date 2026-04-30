@@ -10,4 +10,8 @@ export const colors = {
   success: "#3f7d4d",
   danger: "#b5483f",
   white: "#ffffff",
+  heatmapDone: "#3f7d4d",
+  heatmapSkipped: "#e6d3a8",
+  heatmapMissed: "#f0eadf",
+  heatmapTodayOutline: "#ded4c6",
 };
