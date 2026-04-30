@@ -121,9 +121,10 @@ export function useFinalizeOnboardingMutation() {
           queryKey: getUpcomingActiveHabitsQueryKey(user.id, todayDate),
         }),
       ]);
-      // (D10) Bounce through RootEntryScreen so it routes to Today using
-      // freshly invalidated queries.
-      router.replace("/");
+      // Navigate directly to Today — we know the habit exists and onboarding is
+      // complete, so bypassing RootEntryScreen avoids a stale-cache race where
+      // "/" redirects back to onboarding before the invalidated queries refetch.
+      router.replace("/(app)/(tabs)/today");
     },
   });
 }
