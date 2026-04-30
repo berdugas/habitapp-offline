@@ -111,7 +111,6 @@ const styles = StyleSheet.create({
     fontSize: typography.caption,
     fontWeight: "600",
     letterSpacing: 0.4,
-    textTransform: "uppercase",
   },
   screen: {
     backgroundColor: colors.background,
