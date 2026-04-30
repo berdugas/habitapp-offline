@@ -22,7 +22,7 @@ function getFinalizeErrorMessage(error: unknown): string {
 
 export default function ConfirmationScreen() {
   const { draft } = useOnboarding();
-  const finalizeMutation = useFinalizeOnboardingMutation();
+  const finalizeMutation = useFinalizeOnboardingMutation(draft);
 
   const handleStart = () => {
     finalizeMutation.mutate();

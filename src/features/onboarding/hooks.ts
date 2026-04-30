@@ -17,7 +17,6 @@ import {
   saveOnboardingDraft,
 } from "./storage";
 import { EMPTY_DRAFT, type OnboardingDraft } from "./types";
-import { useOnboarding } from "./OnboardingProvider";
 
 export function useOnboardingDraft(): {
   draft: OnboardingDraft;
@@ -93,9 +92,8 @@ export function useIsOnboardingCompletedQuery() {
   });
 }
 
-export function useFinalizeOnboardingMutation() {
+export function useFinalizeOnboardingMutation(draft: OnboardingDraft) {
   const { user } = useAuthSession();
-  const { draft } = useOnboarding();
   const queryClient = useQueryClient();
 
   return useMutation({
