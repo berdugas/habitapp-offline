@@ -5,6 +5,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import { Heatmap } from "@/components/Heatmap";
 import type { HeatmapLog } from "@/components/Heatmap";
 import { IdentityStreakDisplay } from "@/components/IdentityStreakDisplay";
+import { ReadOnlyBanner } from "@/components/ReadOnlyBanner";
 import { SecondaryButton } from "@/components/buttons/SecondaryButton";
 import { EmptyState } from "@/components/feedback/EmptyState";
 import { ErrorState } from "@/components/feedback/ErrorState";
@@ -32,7 +33,6 @@ import {
   getLoadHabitDetailErrorMessage,
   getUpdateHabitActiveStateErrorMessage,
 } from "@/utils/userFacingErrors";
-import { ReadOnlyBanner } from "@/components/ReadOnlyBanner";
 
 import type { HabitLogStatus } from "@/features/habits/types";
 

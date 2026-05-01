@@ -1,7 +1,7 @@
 # Habits App — Project Brain
 
 > Single source of truth for anyone picking up this project.
-> Last updated: May 1, 2026
+> Last updated: May 1, 2026 (post-S8 close)
 
 ---
 
@@ -66,6 +66,7 @@ D:\habits_offline\
 │   │   ├── habit-context/        # STUB — returns null (no Core v1 work)
 │   │   ├── sync/                 # FOUNDATION — stays dormant in Core v1
 │   │   ├── settings/             # Existing — expanding
+│   │   ├── trial/                # NEW — entitlement validation + offline grace (S8)
 │   │   ├── onboarding/           # NEW — becoming bridge
 │   │   ├── library/              # NEW — Automatic Library
 │   │   ├── graduation/           # NEW — SRHI ceremony
@@ -287,18 +288,18 @@ When a habit's streak breaks (2 consecutive Missed days), the next app open show
 
 Server validates entitlement at sign-in and periodically. Client caches `last_validated_at`. If offline, full access for 7 days; beyond that, read-only mode until reconnection.
 
-### 7.9 Adjustment engine priority (existing, unchanged)
+### 7.9 Adjustment engine priority (updated S8)
 
 ```
-1. trigger_worked=false AND tiny_action_too_hard=true → fix both
-2. tiny_action_too_hard=true → make action smaller
-3. trigger_worked=false → change trigger
+1. trigger_worked=false AND tiny_action_too_hard=true → [make_tiny_action_smaller, change_trigger]
+2. tiny_action_too_hard=true → [make_tiny_action_smaller]
+3. trigger_worked=false → [change_trigger]
 4. consistencyRate<0.5 OR skipCount>=3 → reduce friction
 5. was_hard has content → plan for obstacle
 6. (default) → keep going
 ```
 
-Bug #2 (dual suggestion display) needs fixing during recommendations work.
+Engine now returns `HabitAdjustmentSuggestion[]`. Rule 1 returns both suggestions in priority order (action-fix first per D9). `fix_trigger_and_tiny_action` type removed. Fix is inert until reviews migrates to local SQLite.
 
 ---
 
@@ -307,7 +308,7 @@ Bug #2 (dual suggestion display) needs fixing during recommendations work.
 | # | Bug | Location | Status |
 |---|-----|----------|--------|
 | 1 | Reduce friction logic ↔ AI rewrite contradiction | `habitAdjustmentEngine.ts` + AI prompt | **Deferred** (AI off for Core v1) |
-| 2 | Dual suggestion shows only one | Suggestion display logic | **In scope** for Core v1 Sprint 8 |
+| 2 | Dual suggestion shows only one | Suggestion display logic | **Fixed in S8** (inert until reviews migrates to local SQLite) |
 | 3 | Preferred time should be picker, not text | `CreateHabitScreen.tsx` | **In scope** for Core v1 Sprint 20 |
 | 4 | AI rewrite prompt needs guidelines | `generate-habit-rewrite/index.ts` | **Deferred** (AI off for Core v1) |
 
@@ -340,7 +341,7 @@ Source-of-truth docs live directly in `docs/`. Sprint planning and per-sprint de
 | Technical Handoff Core v1 | .md | `docs/tech-handoff-core-v1.md` | **Current — the how** |
 | Project Brain | .md | `docs/PROJECT_BRAIN.md` | **Current — this document** |
 | Sprint Plan | .md | `docs/sprint_tickets/sprint-plan.md` | **Current — the when (23-sprint roadmap, 4 phases; S9 visual design sprint inserted post-S7)** |
-| Sprint Tickets | .md | `docs/sprint_tickets/sprint-N-tickets.md` | **Current — per-sprint dev ticket packages (S1–S7 closed; S8+ to come)** |
+| Sprint Tickets | .md | `docs/sprint_tickets/sprint-N-tickets.md` | **Current — per-sprint dev ticket packages (S1–S8 closed; S9+ to come)** |
 | Sprint Follow-ups | .md | `docs/sprint_tickets/sprint-N-followups.md` | **Current — per-sprint deferred items / cleanup notes** |
 | PRD Monetization | .docx | `docs/habits-app-prd-monetization.docx` | Reference for post-Core-v1 monetization |
 | User Flow | .html | `docs/habits-app-user-flow.html` | Stale — regenerate post-Core-v1 |
@@ -412,6 +413,7 @@ Live status of the Core v1 build. For the full 21-sprint plan, see `docs/sprint_
 | Modify suggestion logic | `src/features/recommendations/habitAdjustmentEngine.ts` |
 | Edit suggestion copy | `src/features/recommendations/copy.ts` |
 | Edit edit-screen guidance | `src/features/recommendations/editGuidance.ts` |
+| Trial validation logic | `src/features/trial/grace.ts` (computeAccessMode), `api.ts` (fetch), `storage.ts` (cache), `hooks.tsx` (provider) |
 | AI prompt (deferred) | `supabase/functions/generate-habit-rewrite/index.ts` |
 | Add a screen | Create in `app/` (route) + `src/features/*/screens/` (component) |
 | Add a shared component | `src/components/` |
@@ -428,15 +430,16 @@ Live status of the Core v1 build. For the full 21-sprint plan, see `docs/sprint_
 
 ## 14. Components for Core v1
 
-Per tech handoff Section 9. Status as of S5 close.
+Per tech handoff Section 9. Status as of S8 close.
 
 ### Built
 
-- `src/components/Heatmap.tsx` — 30-day and 90-day variants (S5; 90-day variant supported but not yet rendered — lights up on Habit Detail in S6)
+- `src/components/Heatmap.tsx` — 30-day and 90-day variants (S5; 90-day rendered on Habit Detail in S6)
 - `src/components/IdentityStreakDisplay.tsx` — identity-flavored streak rendering (S5)
 - `src/features/onboarding/components/WorstDayCheck.tsx` — reusable check; originally for onboarding, slated for reuse in Supporting habit creation (S4)
 - `src/components/RecoveryModal.tsx` — post-streak-break recovery modal with 4 actions and submit-lock on Pause (S7)
-- `src/features/habits/components/RetroLogSelector.tsx` — modal-based retro-log selector with editable/read-only modes (S6)
+- `src/features/habits/components/RetroLogSelector.tsx` — modal-based retro-log selector with editable/read-only modes; `readOnlyReason` prop added in S8 to distinguish window-locked vs app-locked copy (S6 + S8)
+- `src/components/ReadOnlyBanner.tsx` — calm non-dismissible banner with PrimaryButton reconnect CTA, surfaced when offline-grace exhausted (S8)
 
 ### To build
 
