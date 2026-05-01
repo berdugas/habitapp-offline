@@ -3,19 +3,23 @@ import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { router } from "expo-router";
 import Constants from "expo-constants";
 
-import { PrimaryButton } from "@/components/buttons/PrimaryButton";
+import { TertiaryButton } from "@/components/buttons/TertiaryButton";
 import { HabitCard } from "@/components/cards/HabitCard";
+import { RowLV } from "@/components/cards/RowLV";
+import { ZenCard } from "@/components/cards/ZenCard";
 import { EmptyState } from "@/components/feedback/EmptyState";
 import { ErrorState } from "@/components/feedback/ErrorState";
 import { LoadingState } from "@/components/feedback/LoadingState";
+import { Eyebrow } from "@/components/text/Eyebrow";
 import { useAuthSession } from "@/features/auth/hooks";
 import { formatHabitFormula } from "@/features/habits/formatters";
 import { useInactiveHabitsQuery } from "@/features/habits/hooks";
 import { signOut } from "@/features/auth/api";
 import { useTrialValidation } from "@/features/trial/hooks";
 import { colors } from "@/theme/colors";
-import { radius } from "@/theme/radius";
+import { fontFamilies } from "@/theme/fontFamilies";
 import { spacing } from "@/theme/spacing";
+import { typography } from "@/theme/typography";
 import { getLoadInactiveHabitsErrorMessage } from "@/utils/userFacingErrors";
 
 import type { TrialEntitlementStatus } from "@/features/trial/types";
@@ -53,11 +57,9 @@ export default function SettingsScreen() {
       contentInsetAdjustmentBehavior="automatic"
       style={styles.screen}
     >
-      <View style={styles.card}>
-        <Text selectable style={styles.title}>
-          Account
-        </Text>
-        <Text selectable style={styles.body}>
+      <ZenCard>
+        <Eyebrow label="Account" />
+        <Text selectable style={styles.email}>
           {user?.email ?? "Signed in"}
         </Text>
         {statusLabel ? (
@@ -65,12 +67,11 @@ export default function SettingsScreen() {
             {statusLabel}
           </Text>
         ) : null}
-      </View>
-      <View style={styles.card}>
-        <Text selectable style={styles.title}>
-          Your archived habits
-        </Text>
-        <Text selectable style={styles.body}>
+      </ZenCard>
+
+      <ZenCard>
+        <Eyebrow label="Your archived habits" />
+        <Text selectable style={styles.helper}>
           Pause and resume habits without losing their history.
         </Text>
         {inactiveHabitsQuery.isLoading ? (
@@ -81,10 +82,7 @@ export default function SettingsScreen() {
           <View style={styles.inactiveList}>
             {inactiveHabitsQuery.data.map((habit) => (
               <HabitCard
-                formula={formatHabitFormula(
-                  habit.cue,
-                  habit.tiny_action,
-                )}
+                formula={formatHabitFormula(habit.cue, habit.tiny_action)}
                 key={habit.id}
                 metaText="Archived habit"
                 name={habit.title}
@@ -98,38 +96,16 @@ export default function SettingsScreen() {
             title="No archived habits"
           />
         )}
-      </View>
-      <View style={styles.card}>
-        <Text selectable style={styles.title}>
-          About
-        </Text>
-        <View style={styles.aboutRow}>
-          <Text selectable style={styles.aboutLabel}>
-            Version
-          </Text>
-          <Text selectable style={styles.aboutValue}>
-            {appVersion}
-          </Text>
-        </View>
-        <View style={styles.aboutRow}>
-          <Text selectable style={styles.aboutLabelMuted}>
-            Privacy Policy
-          </Text>
-          <Text selectable style={styles.aboutValueMuted}>
-            Coming soon
-          </Text>
-        </View>
-        <View style={styles.aboutRow}>
-          <Text selectable style={styles.aboutLabelMuted}>
-            Terms of Service
-          </Text>
-          <Text selectable style={styles.aboutValueMuted}>
-            Coming soon
-          </Text>
-        </View>
-      </View>
-      <PrimaryButton
-        disabled={isSigningOut}
+      </ZenCard>
+
+      <ZenCard>
+        <Eyebrow label="About" />
+        <RowLV label="Version" value={appVersion} />
+        <RowLV label="Privacy Policy" value="Coming soon" />
+        <RowLV label="Terms of Service" value="Coming soon" />
+      </ZenCard>
+
+      <TertiaryButton
         label={isSigningOut ? "Signing out..." : "Sign Out"}
         onPress={handleSignOut}
       />
@@ -138,44 +114,20 @@ export default function SettingsScreen() {
 }
 
 const styles = StyleSheet.create({
-  aboutLabel: {
-    color: colors.text,
-    fontSize: 15,
-    flex: 1,
-  },
-  aboutLabelMuted: {
-    color: colors.textMuted,
-    fontSize: 15,
-    flex: 1,
-  },
-  aboutRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  aboutValue: {
-    color: colors.text,
-    fontSize: 15,
-  },
-  aboutValueMuted: {
-    color: colors.textMuted,
-    fontSize: 15,
-  },
-  body: {
-    color: colors.textMuted,
-    fontSize: 16,
-    lineHeight: 24,
-  },
-  card: {
-    backgroundColor: colors.surface,
-    borderColor: 'transparent',
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    gap: spacing.sm,
-    padding: spacing.xl,
-  },
   content: {
     gap: spacing.xl,
     padding: spacing.xl,
+  },
+  email: {
+    color: colors.text,
+    fontFamily: fontFamilies.body,
+    fontSize: typography.bodyLg,
+  },
+  helper: {
+    color: colors.textMuted,
+    fontFamily: fontFamilies.body,
+    fontSize: typography.bodyMd,
+    lineHeight: 22,
   },
   inactiveList: {
     gap: spacing.lg,
@@ -186,11 +138,8 @@ const styles = StyleSheet.create({
   },
   statusLabel: {
     color: colors.textMuted,
-    fontSize: 14,
-  },
-  title: {
-    color: colors.text,
-    fontSize: 20,
-    fontWeight: "700",
+    fontFamily: fontFamilies.body,
+    fontSize: typography.bodyMd,
+    fontStyle: "italic",
   },
 });

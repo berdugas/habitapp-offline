@@ -114,7 +114,7 @@ describe("SettingsScreen", () => {
 
   it("uses updated heading and helper text for archived habits section", () => {
     render(<SettingsScreen />);
-    expect(screen.getByText("Your archived habits")).toBeTruthy();
+    expect(screen.getByText("YOUR ARCHIVED HABITS")).toBeTruthy();
     expect(
       screen.getByText("Pause and resume habits without losing their history."),
     ).toBeTruthy();
