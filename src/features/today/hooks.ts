@@ -49,7 +49,7 @@ export function getHabitLogsRangeQueryKey(
   fromDate: string,
   toDate: string,
 ) {
-  return ["habit_logs", "range", habitId, fromDate, toDate];
+  return ["habit-logs", "range", habitId, fromDate, toDate];
 }
 
 export function useHabitLogsForRange(habitId: string | undefined, days: number) {
@@ -194,7 +194,7 @@ export function useUpsertTodayHabitStatusMutation() {
 
       // Invalidate the habit-specific range query so the heatmap re-renders.
       await queryClient.invalidateQueries({
-        queryKey: ["habit_logs", "range", variables.habitId],
+        queryKey: ["habit-logs", "range", variables.habitId],
       });
     },
     onError: (error, variables) => {

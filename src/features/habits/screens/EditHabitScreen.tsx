@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 
 import { PrimaryButton } from "@/components/buttons/PrimaryButton";
@@ -48,15 +48,19 @@ function getRewriteRequestSuggestionType(
 }
 
 export default function EditHabitScreen() {
-  const { habitId, suggestionType } = useLocalSearchParams<{
+  const { habitId, suggestionType, from } = useLocalSearchParams<{
     habitId?: string | string[];
     suggestionType?: string | string[];
+    from?: string | string[];
   }>();
+  const fromRecovery =
+    (Array.isArray(from) ? from[0] : from) === "recovery";
   const ownedHabitQuery = useOwnedHabitQuery(habitId);
   const updateHabitMutation = useUpdateHabitMutation();
   const generateRewriteMutation = useGenerateHabitRewriteMutation();
   const hasHydratedFormRef = useRef(false);
   const submitLockRef = useRef(false);
+  const tinyActionRef = useRef<TextInput>(null);
   const normalizedSuggestionType =
     normalizeHabitAdjustmentSuggestionType(suggestionType);
   const suggestionGuidance = getHabitSuggestionEditGuidance(suggestionType);
@@ -112,7 +116,14 @@ export default function EditHabitScreen() {
     setMinimumViableAction(ownedHabitQuery.data.minimum_viable_action ?? "");
     setPreferredTimeWindow(ownedHabitQuery.data.preferred_time_window ?? "");
     hasHydratedFormRef.current = true;
-  }, [ownedHabitQuery.data]);
+
+    if (fromRecovery) {
+      // Give the layout a tick to settle before pulling up the keyboard.
+      setTimeout(() => {
+        tinyActionRef.current?.focus();
+      }, 0);
+    }
+  }, [ownedHabitQuery.data, fromRecovery]);
 
   async function handleSave() {
     if (
@@ -339,6 +350,7 @@ export default function EditHabitScreen() {
           value={cue}
         />
         <TextField
+          ref={tinyActionRef}
           error={validationErrors.tinyAction}
           label="Tiny action"
           onChangeText={setTinyAction}

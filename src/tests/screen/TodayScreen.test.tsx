@@ -1,4 +1,6 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import React from "react";
 
 import TodayScreen from "@/features/today/screens/TodayScreen";
 import { resetClockForTesting, setNowForTesting } from "@/utils/clock";
@@ -17,6 +19,19 @@ jest.mock("@/features/today/hooks", () => ({
   useUpsertTodayHabitStatusMutation: jest.fn(),
 }));
 
+jest.mock("@/features/habits/hooks", () => ({
+  useArchiveHabitMutation: jest.fn(),
+}));
+
+jest.mock("@/features/recovery/hooks", () => ({
+  useRecoveryCheck: jest.fn(),
+  useSingleMissBanner: jest.fn(),
+}));
+
+jest.mock("@/lib/db/repositories/preferences", () => ({
+  setPreference: jest.fn().mockResolvedValue(undefined),
+}));
+
 const {
   useHabitLogsForRange,
   useTodayHabits,
@@ -26,6 +41,14 @@ const {
   useTodayHabits: jest.Mock;
   useUpsertTodayHabitStatusMutation: jest.Mock;
 };
+
+const { useArchiveHabitMutation } = jest.requireMock(
+  "@/features/habits/hooks",
+) as { useArchiveHabitMutation: jest.Mock };
+
+const { useRecoveryCheck, useSingleMissBanner } = jest.requireMock(
+  "@/features/recovery/hooks",
+) as { useRecoveryCheck: jest.Mock; useSingleMissBanner: jest.Mock };
 
 function buildFocusHabit(overrides = {}) {
   return {
@@ -47,6 +70,13 @@ function buildFocusHabit(overrides = {}) {
   };
 }
 
+function renderWithClient(ui: React.ReactElement) {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
+  return render(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
+}
+
 describe("TodayScreen", () => {
   const mockMutateAsync = jest.fn();
 
@@ -60,6 +90,17 @@ describe("TodayScreen", () => {
     });
     useHabitLogsForRange.mockReturnValue({ data: [] });
     mockMutateAsync.mockResolvedValue(undefined);
+    useArchiveHabitMutation.mockReturnValue({
+      error: null,
+      isPending: false,
+      mutateAsync: jest.fn().mockResolvedValue(undefined),
+    });
+    useRecoveryCheck.mockReturnValue({
+      shouldShowModal: false,
+      breakRunStartDate: null,
+      logs: [],
+    });
+    useSingleMissBanner.mockReturnValue({ showBanner: false, missDate: null });
   });
 
   afterEach(() => {
@@ -74,7 +115,7 @@ describe("TodayScreen", () => {
       upcomingHabits: [],
     });
 
-    render(<TodayScreen />);
+    renderWithClient(<TodayScreen />);
 
     expect(screen.getByText("Loading your Today view...")).toBeTruthy();
     expect(screen.queryByText("No active habits yet")).toBeNull();
@@ -88,7 +129,7 @@ describe("TodayScreen", () => {
       upcomingHabits: [],
     });
 
-    render(<TodayScreen />);
+    renderWithClient(<TodayScreen />);
 
     expect(
       screen.getByText("We couldn't load your habits right now. Try again."),
@@ -104,7 +145,7 @@ describe("TodayScreen", () => {
       upcomingHabits: [],
     });
 
-    render(<TodayScreen />);
+    renderWithClient(<TodayScreen />);
 
     expect(screen.getByText("No active habits yet")).toBeTruthy();
     expect(
@@ -123,7 +164,7 @@ describe("TodayScreen", () => {
       upcomingHabits: [],
     });
 
-    render(<TodayScreen />);
+    renderWithClient(<TodayScreen />);
 
     fireEvent.press(screen.getByText("Create your first habit"));
 
@@ -145,7 +186,7 @@ describe("TodayScreen", () => {
       upcomingHabits: [],
     });
 
-    render(<TodayScreen />);
+    renderWithClient(<TodayScreen />);
 
     fireEvent.press(screen.getByText("Done"));
     fireEvent.press(screen.getByText("Done"));

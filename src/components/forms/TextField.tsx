@@ -1,3 +1,4 @@
+import { forwardRef } from "react";
 import { StyleSheet, Text, TextInput, View } from "react-native";
 
 import { colors } from "@/theme/colors";
@@ -15,39 +16,45 @@ type TextFieldProps = {
   value: string;
 };
 
-export function TextField({
-  autoCapitalize = "sentences",
-  error,
-  label,
-  multiline = false,
-  onChangeText,
-  placeholder,
-  secureTextEntry = false,
-  value,
-}: TextFieldProps) {
-  return (
-    <View style={styles.wrapper}>
-      <Text selectable style={styles.label}>
-        {label}
-      </Text>
-      <TextInput
-        autoCapitalize={autoCapitalize}
-        multiline={multiline}
-        onChangeText={onChangeText}
-        placeholder={placeholder}
-        placeholderTextColor={colors.textMuted}
-        secureTextEntry={secureTextEntry}
-        style={[styles.input, multiline && styles.inputMultiline]}
-        value={value}
-      />
-      {error ? (
-        <Text selectable style={styles.error}>
-          {error}
+export const TextField = forwardRef<TextInput, TextFieldProps>(
+  function TextField(
+    {
+      autoCapitalize = "sentences",
+      error,
+      label,
+      multiline = false,
+      onChangeText,
+      placeholder,
+      secureTextEntry = false,
+      value,
+    },
+    ref,
+  ) {
+    return (
+      <View style={styles.wrapper}>
+        <Text selectable style={styles.label}>
+          {label}
         </Text>
-      ) : null}
-    </View>
-  );
-}
+        <TextInput
+          ref={ref}
+          autoCapitalize={autoCapitalize}
+          multiline={multiline}
+          onChangeText={onChangeText}
+          placeholder={placeholder}
+          placeholderTextColor={colors.textMuted}
+          secureTextEntry={secureTextEntry}
+          style={[styles.input, multiline && styles.inputMultiline]}
+          value={value}
+        />
+        {error ? (
+          <Text selectable style={styles.error}>
+            {error}
+          </Text>
+        ) : null}
+      </View>
+    );
+  },
+);
 
 const styles = StyleSheet.create({
   error: {
