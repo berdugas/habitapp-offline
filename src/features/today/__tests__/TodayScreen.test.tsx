@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react-native";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 import TodayScreen from "@/features/today/screens/TodayScreen";
@@ -48,6 +48,14 @@ const { useArchiveHabitMutation } = jest.requireMock(
 const { useRecoveryCheck, useSingleMissBanner } = jest.requireMock(
   "@/features/recovery/hooks",
 ) as { useRecoveryCheck: jest.Mock; useSingleMissBanner: jest.Mock };
+
+const { setPreference } = jest.requireMock(
+  "@/lib/db/repositories/preferences",
+) as { setPreference: jest.Mock };
+
+const { router } = jest.requireMock("expo-router") as {
+  router: { push: jest.Mock };
+};
 
 function renderWithClient(ui: React.ReactElement) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -282,5 +290,115 @@ describe("TodayScreen", () => {
     });
     renderWithClient(<TodayScreen />);
     expect(screen.queryByText("Restart as-is")).toBeNull();
+  });
+
+  // --- Recovery action-handler tests ---
+
+  function renderModalOpen() {
+    useTodayHabits.mockReturnValue({
+      error: null,
+      habits: [makeHabit()],
+      isLoading: false,
+      upcomingHabits: [],
+    });
+    useRecoveryCheck.mockReturnValue({
+      shouldShowModal: true,
+      breakRunStartDate: "2026-04-28",
+      logs: [],
+    });
+    renderWithClient(<TodayScreen />);
+  }
+
+  it("tapping Restart as-is calls setPreference with the modal-shown key", async () => {
+    renderModalOpen();
+    fireEvent.press(screen.getByText("Restart as-is"));
+    await waitFor(() => {
+      expect(setPreference).toHaveBeenCalledWith(
+        "recovery-modal-shown-habit-1-2026-04-28",
+        "true",
+      );
+    });
+  });
+
+  it("tapping Just close calls setPreference with the modal-shown key", async () => {
+    renderModalOpen();
+    fireEvent.press(screen.getByText("Just close"));
+    await waitFor(() => {
+      expect(setPreference).toHaveBeenCalledWith(
+        "recovery-modal-shown-habit-1-2026-04-28",
+        "true",
+      );
+    });
+  });
+
+  it("tapping Make it smaller calls setPreference and routes to edit with from=recovery", async () => {
+    renderModalOpen();
+    fireEvent.press(screen.getByText("Make it smaller"));
+    await waitFor(() => {
+      expect(setPreference).toHaveBeenCalledWith(
+        "recovery-modal-shown-habit-1-2026-04-28",
+        "true",
+      );
+      expect(router.push).toHaveBeenCalledWith({
+        pathname: "/(app)/habits/[habitId]/edit",
+        params: { habitId: "habit-1", from: "recovery" },
+      });
+    });
+  });
+
+  it("tapping Pause for now archives the habit then calls setPreference", async () => {
+    const mutateAsync = jest.fn().mockResolvedValue(undefined);
+    useArchiveHabitMutation.mockReturnValue({
+      error: null,
+      isPending: false,
+      mutateAsync,
+    });
+    renderModalOpen();
+    fireEvent.press(screen.getByText("Pause for now"));
+    await waitFor(() => {
+      expect(mutateAsync).toHaveBeenCalledWith({ habitId: "habit-1" });
+      expect(setPreference).toHaveBeenCalledWith(
+        "recovery-modal-shown-habit-1-2026-04-28",
+        "true",
+      );
+    });
+  });
+
+  it("double-tapping Pause for now fires archive only once (lock guard)", async () => {
+    const mutateAsync = jest.fn().mockImplementation(
+      () => new Promise((r) => setTimeout(r, 50)),
+    );
+    useArchiveHabitMutation.mockReturnValue({
+      error: null,
+      isPending: false,
+      mutateAsync,
+    });
+    renderModalOpen();
+    fireEvent.press(screen.getByText("Pause for now"));
+    fireEvent.press(screen.getByText("Pause for now"));
+    await waitFor(() => {
+      expect(mutateAsync).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it("tapping × on the banner calls setPreference with the banner-dismissed key", async () => {
+    useTodayHabits.mockReturnValue({
+      error: null,
+      habits: [makeHabit()],
+      isLoading: false,
+      upcomingHabits: [],
+    });
+    useSingleMissBanner.mockReturnValue({
+      showBanner: true,
+      missDate: "2026-04-29",
+    });
+    renderWithClient(<TodayScreen />);
+    fireEvent.press(screen.getByText("×"));
+    await waitFor(() => {
+      expect(setPreference).toHaveBeenCalledWith(
+        "single-miss-banner-dismissed-habit-1-2026-04-29",
+        "true",
+      );
+    });
   });
 });
