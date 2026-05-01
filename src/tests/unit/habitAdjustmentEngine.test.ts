@@ -1,4 +1,4 @@
-import { getHabitAdjustmentSuggestion } from "@/features/recommendations/habitAdjustmentEngine";
+import { getHabitAdjustmentSuggestions } from "@/features/recommendations/habitAdjustmentEngine";
 
 import type { HabitRecord } from "@/features/habits/types";
 import type { WeeklyReviewRecord } from "@/features/reviews/types";
@@ -42,122 +42,81 @@ const stableProgress = {
   streak: 4,
 };
 
-function getSuggestion({
+function getSuggestions({
   progress = stableProgress,
   review = baseReview,
 }: {
-  progress?: {
-    consistencyRate: number;
-    skipCount: number;
-    streak: number;
-  };
+  progress?: { consistencyRate: number; skipCount: number; streak: number };
   review?: WeeklyReviewRecord;
 } = {}) {
-  return getHabitAdjustmentSuggestion({
+  return getHabitAdjustmentSuggestions({
     habit: baseHabit,
     latestReview: review,
     progress,
   });
 }
 
-describe("getHabitAdjustmentSuggestion", () => {
-  it("suggests making the tiny action smaller when it was too hard", () => {
-    const suggestion = getSuggestion({
-      review: {
-        ...baseReview,
-        tiny_action_too_hard: true,
-      },
+describe("getHabitAdjustmentSuggestions", () => {
+  it("returns [make_tiny_action_smaller] when tiny action is too hard", () => {
+    const suggestions = getSuggestions({
+      review: { ...baseReview, tiny_action_too_hard: true },
     });
 
-    expect(suggestion).toEqual({
-      body: "Your tiny action may still be too hard. Try making it so small that it feels almost effortless for one week.",
-      reason: "You answered that the tiny action was too hard.",
-      title: "Make it smaller next week",
-      type: "make_tiny_action_smaller",
-    });
+    expect(suggestions).toHaveLength(1);
+    expect(suggestions[0].type).toBe("make_tiny_action_smaller");
   });
 
-  it("suggests adjusting both fields when the trigger failed and the tiny action was too hard", () => {
-    const suggestion = getSuggestion({
-      review: {
-        ...baseReview,
-        tiny_action_too_hard: true,
-        trigger_worked: false,
-      },
+  it("returns [change_trigger] when trigger did not work", () => {
+    const suggestions = getSuggestions({
+      review: { ...baseReview, trigger_worked: false },
     });
 
-    expect(suggestion).toEqual({
-      body: "Your trigger did not work, and the tiny action felt too hard. Try making both parts easier for next week.",
-      reason:
-        "You answered that the trigger did not work and the tiny action was too hard.",
-      title: "Adjust trigger and action",
-      type: "fix_trigger_and_tiny_action",
-    });
+    expect(suggestions).toHaveLength(1);
+    expect(suggestions[0].type).toBe("change_trigger");
   });
 
-  it("suggests changing the trigger when the trigger did not work", () => {
-    const suggestion = getSuggestion({
-      review: {
-        ...baseReview,
-        trigger_worked: false,
-      },
+  it("returns [make_tiny_action_smaller, change_trigger] when both flags fire (action-fix first)", () => {
+    const suggestions = getSuggestions({
+      review: { ...baseReview, tiny_action_too_hard: true, trigger_worked: false },
     });
 
-    expect(suggestion.type).toBe("change_trigger");
-    expect(suggestion.title).toBe("Adjust your trigger");
-    expect(suggestion.reason).toBe("You answered that the trigger did not work.");
+    expect(suggestions).toHaveLength(2);
+    expect(suggestions[0].type).toBe("make_tiny_action_smaller");
+    expect(suggestions[1].type).toBe("change_trigger");
   });
 
-  it("suggests reducing friction when consistency is low", () => {
-    const suggestion = getSuggestion({
-      progress: {
-        consistencyRate: 0.49,
-        skipCount: 0,
-        streak: 0,
-      },
+  it("returns [reduce_friction] when consistency is low", () => {
+    const suggestions = getSuggestions({
+      progress: { consistencyRate: 0.49, skipCount: 0, streak: 0 },
     });
 
-    expect(suggestion.type).toBe("reduce_friction");
-    expect(suggestion.title).toBe("Reduce the friction");
-    expect(suggestion.reason).toBe(
-      "An easier setup may help with your recent consistency or skip pattern.",
-    );
+    expect(suggestions).toHaveLength(1);
+    expect(suggestions[0].type).toBe("reduce_friction");
   });
 
-  it("suggests reducing friction when skip count is high", () => {
-    const suggestion = getSuggestion({
-      progress: {
-        consistencyRate: 1,
-        skipCount: 3,
-        streak: 0,
-      },
+  it("returns [reduce_friction] when skip count is high", () => {
+    const suggestions = getSuggestions({
+      progress: { consistencyRate: 1, skipCount: 3, streak: 0 },
     });
 
-    expect(suggestion.type).toBe("reduce_friction");
-    expect(suggestion.reason).toBe(
-      "An easier setup may help with your recent consistency or skip pattern.",
-    );
+    expect(suggestions).toHaveLength(1);
+    expect(suggestions[0].type).toBe("reduce_friction");
   });
 
-  it("suggests planning around the hard part when the review names an obstacle", () => {
-    const suggestion = getSuggestion({
-      review: {
-        ...baseReview,
-        was_hard: "   I kept forgetting after breakfast   ",
-      },
+  it("returns [plan_for_obstacle] when review names a hard obstacle", () => {
+    const suggestions = getSuggestions({
+      review: { ...baseReview, was_hard: "   I kept forgetting after breakfast   " },
     });
 
-    expect(suggestion.type).toBe("plan_for_obstacle");
-    expect(suggestion.title).toBe("Plan around the hard part");
-    expect(suggestion.reason).toBe(
-      "You wrote about something that made the habit hard this week.",
-    );
+    expect(suggestions).toHaveLength(1);
+    expect(suggestions[0].type).toBe("plan_for_obstacle");
   });
 
-  it("suggests keeping the habit stable when no issue rule matches", () => {
-    const suggestion = getSuggestion();
+  it("returns [keep_going] when no issue rule matches", () => {
+    const suggestions = getSuggestions();
 
-    expect(suggestion).toEqual({
+    expect(suggestions).toHaveLength(1);
+    expect(suggestions[0]).toEqual({
       body: "This habit seems workable. Keep the same trigger and tiny action for another week before making changes.",
       reason: "Your review does not point to a major change yet.",
       title: "Keep it stable",
@@ -165,21 +124,40 @@ describe("getHabitAdjustmentSuggestion", () => {
     });
   });
 
-  it("respects rule priority when multiple signals match", () => {
-    const suggestion = getSuggestion({
-      progress: {
-        consistencyRate: 0.1,
-        skipCount: 5,
-        streak: 0,
+  it("never returns an empty array (keep_going is always the fallback)", () => {
+    // Base review with no flags set should still return at least one suggestion.
+    const suggestions = getSuggestions();
+    expect(suggestions.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("never returns more than 2 suggestions", () => {
+    const allCombinations = [
+      { review: baseReview, progress: stableProgress },
+      { review: { ...baseReview, tiny_action_too_hard: true }, progress: stableProgress },
+      { review: { ...baseReview, trigger_worked: false }, progress: stableProgress },
+      {
+        review: { ...baseReview, tiny_action_too_hard: true, trigger_worked: false },
+        progress: stableProgress,
       },
-      review: {
-        ...baseReview,
-        tiny_action_too_hard: true,
-        trigger_worked: false,
-        was_hard: "I was too tired",
+      {
+        review: { ...baseReview, was_hard: "tired" },
+        progress: { consistencyRate: 0.1, skipCount: 5, streak: 0 },
       },
+    ];
+
+    for (const input of allCombinations) {
+      const suggestions = getSuggestions(input);
+      expect(suggestions.length).toBeLessThanOrEqual(2);
+    }
+  });
+
+  it("never returns the removed fix_trigger_and_tiny_action type", () => {
+    const suggestions = getSuggestions({
+      review: { ...baseReview, tiny_action_too_hard: true, trigger_worked: false },
     });
 
-    expect(suggestion.type).toBe("fix_trigger_and_tiny_action");
+    for (const s of suggestions) {
+      expect(s.type).not.toBe("fix_trigger_and_tiny_action");
+    }
   });
 });
