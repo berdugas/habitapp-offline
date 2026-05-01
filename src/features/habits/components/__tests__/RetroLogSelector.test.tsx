@@ -66,4 +66,26 @@ describe("RetroLogSelector", () => {
     render(<RetroLogSelector {...makeProps({ isVisible: false })} />);
     expect(screen.queryByText("Done")).toBeNull();
   });
+
+  it("shows 'Reconnect to log on this day.' when canEdit=false and readOnlyReason='app'", () => {
+    render(
+      <RetroLogSelector
+        {...makeProps({ canEdit: false, readOnlyReason: "app" })}
+      />,
+    );
+    expect(screen.getByText("Reconnect to log on this day.")).toBeTruthy();
+    expect(screen.queryByText("Done")).toBeNull();
+    expect(screen.queryByText("Skip")).toBeNull();
+  });
+
+  it("shows the 48-hour locked message when canEdit=false and readOnlyReason='window'", () => {
+    render(
+      <RetroLogSelector
+        {...makeProps({ canEdit: false, readOnlyReason: "window" })}
+      />,
+    );
+    expect(
+      screen.getByText("This day is locked. Logs older than 48 hours can't be changed."),
+    ).toBeTruthy();
+  });
 });

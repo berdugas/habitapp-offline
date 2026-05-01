@@ -4,6 +4,7 @@ import { router, useLocalSearchParams } from "expo-router";
 
 import { PrimaryButton } from "@/components/buttons/PrimaryButton";
 import { SecondaryButton } from "@/components/buttons/SecondaryButton";
+import { ReadOnlyBanner } from "@/components/ReadOnlyBanner";
 import { FEATURE_FLAGS } from "@/config/featureFlags";
 import { ErrorState } from "@/components/feedback/ErrorState";
 import { LoadingState } from "@/components/feedback/LoadingState";
@@ -24,6 +25,7 @@ import {
 } from "@/features/habits/validators";
 import { getHabitSuggestionEditGuidance } from "@/features/recommendations/editGuidance";
 import { useGenerateHabitRewriteMutation } from "@/features/recommendations/hooks";
+import { useTrialValidation } from "@/features/trial/hooks";
 import {
   normalizeHabitAdjustmentSuggestionType,
 } from "@/features/recommendations/types";
@@ -42,9 +44,7 @@ import type { HabitAdjustmentSuggestionType } from "@/features/recommendations/t
 function getRewriteRequestSuggestionType(
   suggestionType: HabitAdjustmentSuggestionType,
 ) {
-  return suggestionType === "fix_trigger_and_tiny_action"
-    ? "make_tiny_action_smaller"
-    : suggestionType;
+  return suggestionType;
 }
 
 export default function EditHabitScreen() {
@@ -58,6 +58,8 @@ export default function EditHabitScreen() {
   const ownedHabitQuery = useOwnedHabitQuery(habitId);
   const updateHabitMutation = useUpdateHabitMutation();
   const generateRewriteMutation = useGenerateHabitRewriteMutation();
+  const { accessMode, isValidating, refresh } = useTrialValidation();
+  const isReadOnly = accessMode === "read_only";
   const hasHydratedFormRef = useRef(false);
   const submitLockRef = useRef(false);
   const tinyActionRef = useRef<TextInput>(null);
@@ -235,6 +237,12 @@ export default function EditHabitScreen() {
       contentInsetAdjustmentBehavior="automatic"
       style={styles.screen}
     >
+      {isReadOnly ? (
+        <ReadOnlyBanner
+          isReconnecting={isValidating}
+          onReconnect={() => void refresh()}
+        />
+      ) : null}
       <Text selectable style={styles.title}>
         Edit Habit
       </Text>
@@ -383,10 +391,15 @@ export default function EditHabitScreen() {
       </View>
 
       <PrimaryButton
-        disabled={updateHabitMutation.isPending}
+        disabled={updateHabitMutation.isPending || isReadOnly}
         label={updateHabitMutation.isPending ? "Saving changes..." : "Save changes"}
         onPress={() => void handleSave()}
       />
+      {isReadOnly ? (
+        <Text selectable style={styles.readOnlyHelper}>
+          Reconnect to edit habits.
+        </Text>
+      ) : null}
     </ScrollView>
   );
 }
@@ -515,5 +528,11 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 28,
     fontWeight: "800",
+  },
+  readOnlyHelper: {
+    color: colors.textMuted,
+    fontSize: 14,
+    lineHeight: 20,
+    textAlign: "center",
   },
 });

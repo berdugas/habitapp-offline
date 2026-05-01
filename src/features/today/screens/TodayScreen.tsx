@@ -5,6 +5,7 @@ import { useQueryClient } from "@tanstack/react-query";
 
 import { Heatmap } from "@/components/Heatmap";
 import { IdentityStreakDisplay } from "@/components/IdentityStreakDisplay";
+import { ReadOnlyBanner } from "@/components/ReadOnlyBanner";
 import { RecoveryModal } from "@/components/RecoveryModal";
 import { PrimaryButton } from "@/components/buttons/PrimaryButton";
 import { SecondaryButton } from "@/components/buttons/SecondaryButton";
@@ -26,6 +27,7 @@ import {
   recoveryModalPreferenceKey,
   singleMissBannerPreferenceKey,
 } from "@/features/recovery/api";
+import { useTrialValidation } from "@/features/trial/hooks";
 import { setPreference } from "@/lib/db/repositories/preferences";
 import { colors } from "@/theme/colors";
 import { radius } from "@/theme/radius";
@@ -56,6 +58,7 @@ function SubtleDateHeader() {
 
 type FocusCardProps = {
   habit: TodayHabitCardData;
+  isReadOnly: boolean;
   mutation: ReturnType<typeof useUpsertTodayHabitStatusMutation>;
   onLog: (habitId: string, status: HabitLogStatus) => void;
   showBanner: boolean;
@@ -64,6 +67,7 @@ type FocusCardProps = {
 
 function FocusCard({
   habit,
+  isReadOnly,
   mutation,
   onLog,
   showBanner,
@@ -120,12 +124,12 @@ function FocusCard({
 
       <View style={styles.actionsRow}>
         <PrimaryButton
-          disabled={mutation.isPending}
+          disabled={mutation.isPending || isReadOnly}
           label={habit.todayStatus === "done" ? "Done ✓" : "Done"}
           onPress={() => onLog(habit.id, "done")}
         />
         <SecondaryButton
-          disabled={mutation.isPending}
+          disabled={mutation.isPending || isReadOnly}
           label={habit.todayStatus === "skipped" ? "Skipped ✓" : "Skip"}
           onPress={() => onLog(habit.id, "skipped")}
         />
@@ -143,6 +147,8 @@ export default function TodayScreen() {
   const archiveHabitMutation = useArchiveHabitMutation();
   const statusSubmitLockRef = useRef(false);
   const recoveryActionLockRef = useRef(false);
+  const { accessMode, isValidating, refresh } = useTrialValidation();
+  const isReadOnly = accessMode === "read_only";
 
   const focusHabit = habits.find((h) => h.habitState === "focus") ?? null;
 
@@ -268,11 +274,18 @@ export default function TodayScreen() {
       style={styles.screen}
     >
       <SubtleDateHeader />
+      {isReadOnly ? (
+        <ReadOnlyBanner
+          isReconnecting={isValidating}
+          onReconnect={() => void refresh()}
+        />
+      ) : null}
       {upsertTodayHabitStatusMutation.error ? (
         <ErrorState message={getSaveTodayStatusErrorMessage()} />
       ) : null}
       <FocusCard
         habit={focusHabit}
+        isReadOnly={isReadOnly}
         mutation={upsertTodayHabitStatusMutation}
         onDismissBanner={() => void handleBannerDismiss()}
         onLog={handleStatusPress}

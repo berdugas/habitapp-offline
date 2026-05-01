@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c/Users/daddy/appium-test/**)",
+      "Bash(git commit -m ' *)",
+      "Bash(adb -s emulator-5554 shell \"run-as com.berdugas.habits find /data/data/com.berdugas.habits -name '*.db' 2>/dev/null; find /data/user/0/com.berdugas.habits -name '*.db' 2>/dev/null\")",
+      "Bash(gh pr create --title 'feat\\(s6\\): Habit Detail redesign + 48h retro logging' --body ' *)",
+      "Bash(grep -v \"//.*habit_logs\")",
+      "Bash(gh pr create --title 'Sprint 8 — Trial validation, Settings refresh, Bug #2 fix' --body ' *)",
+      "Bash(git log *)",
+      "Bash(adb reverse *)",
+      "PowerShell(Select-String -Path \"C:\\\\Users\\\\daddy\\\\appium-test\\\\s8-smoke-failure-1777624915041.xml\" -Pattern 'text=\"[^\"]{2,}\"' | ForEach-Object { $_.Matches } | ForEach-Object { $_.Value } | Sort-Object -Unique | Select-Object -First 60)"
+    ],
+    "additionalDirectories": [
+      "C:\\Users\\daddy\\appium-test"
+    ]
+  }
+}

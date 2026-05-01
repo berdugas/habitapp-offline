@@ -1,7 +1,7 @@
 # Habits App — Core v1 Sprint Plan
 
 > **Status:** Active sequencing document for Core v1 build.
-> **Date:** April 29, 2026
+> **Date:** May 1, 2026 (S9 visual design sprint inserted; Phase B–D renumbered)
 > **Owner:** Tech Lead
 > **Companion documents:** `product-strategy.md` (the why), `core-v1-requirements.md` (the what), `tech-handoff-core-v1.md` (the how), `PROJECT_BRAIN.md` (developer reference)
 
@@ -25,18 +25,18 @@ Five rules govern how this plan is shaped. Every deviation from this plan should
 
 ## 2. Phase structure
 
-Twenty-one sprints grouped into four phases. The phase grouping is for progress reporting and stakeholder communication; sprints are the unit of execution.
+Twenty-three sprints grouped into four phases. The phase grouping is for progress reporting and stakeholder communication; sprints are the unit of execution.
 
 | Phase | Sprints | Calendar | Outcome |
 |---|---|---|---|
 | A — Foundation | S0–S2 | ~1 week | Server cleaned, local DB rails laid, streak algorithm tested. No user-visible work. |
-| B — Private Beta surface | S3–S9 | ~3 weeks | Onboarding → log → streak → recover. TestFlight build with invited testers. |
-| C — Full Core v1 features | S10–S18 | ~3 weeks | Graduation, Library, Supporting, Backlog, Reminders, Account, Export. |
-| D — Polish & ship | S19–S21 | ~1 week | Bug fixes, empty states, analytics, store submission. |
+| B — Private Beta surface | S3–S10 | ~3.5 weeks | Onboarding → log → streak → recover → visual pass. TestFlight build with invited testers. |
+| C — Full Core v1 features | S11–S19 | ~3 weeks | Graduation, Library, Supporting, Backlog, Reminders, Account, Export. |
+| D — Polish & ship | S20–S22 | ~1 week | Bug fixes, empty states, analytics, store submission. |
 
-**Total estimate:** ~52 working days ≈ 7–8 calendar weeks for solo dev to "submitted." Add 1–2 weeks for App Store / Play Store review before "live."
+**Total estimate:** ~58 working days ≈ 8–9 calendar weeks for solo dev to "submitted." Add 1–2 weeks for App Store / Play Store review before "live."
 
-**Stage 1 (Private Beta) ends at the close of S9.** Stage 2 (Full Core v1) covers S10–S21.
+**Stage 1 (Private Beta) ends at the close of S10.** Stage 2 (Full Core v1) covers S11–S22.
 
 ## 3. Sprint format
 
@@ -293,7 +293,7 @@ Tickets are derived from deliverables. Aim for 3–8 tickets per sprint.
   - Email display
   - Sign out
   - App version
-  - Privacy policy + Terms placeholders (real links wired in S19)
+  - Privacy policy + Terms placeholders (real links wired in S20)
 - Bug #2 fix: dual suggestion display now shows both suggestions when adjustment engine returns two
 - Tests:
   - Grace period boundary (6 days, 7 days, 8 days offline)
@@ -308,7 +308,44 @@ Tickets are derived from deliverables. Aim for 3–8 tickets per sprint.
 
 ---
 
-### Sprint 9 — Beta build + tester seeding
+### Sprint 9 — Visual design implementation
+
+**Goal.** Beta testers' first impression matches the brand voice. The app reads as a finished, distinctive product on first launch — not a polished prototype.
+
+**Deliverables.**
+- Theme system expansion implementing the design direction document — new tokens, variants, and semantic naming as the design requires (e.g., `surface-resting` vs `surface-elevated`, motion tokens if animation is in scope, refined color treatments)
+- Visual implementation across week-1 surfaces — the surfaces a wedge-user tester encounters in their first seven days:
+  - App launch / loading state
+  - Sign-in / sign-up
+  - Onboarding screens 1–6 (full visual pass)
+  - Today screen — Focus card layout, identity streak treatment, heatmap visual refinement, Done/Skip button treatment
+  - Habit Detail — Become header, identity streak, 90-day heatmap, consistency block, recent history list, action buttons
+  - Edit Habit — form layout, field treatment, save/cancel
+  - Retro-log selector — modal card, button row, locked-state treatment
+  - Recovery modal (S7 deliverable) — visual refinement to brand voice
+  - Single-miss banner (S7 deliverable) — visual refinement
+  - Settings basic shell — list rows, sign-out treatment
+  - Bottom navigation — Today / Library placeholder / Settings
+- Component-level refinements — `PrimaryButton`, `SecondaryButton`, `ErrorState`, `LoadingState`, `IdentityStreakDisplay`, `Heatmap` (the most-touched components)
+- Visual QA pass on real device (iOS + Android) — verify spacing, typography, color treatments render correctly across screen sizes
+- No functional regressions — full test suite green; existing screen tests pass; assertions on copy or accessibility labels updated only where copy actually changes
+- Theme token reference in PROJECT_BRAIN updated if structure changes
+
+**Depends on.** S8 closed. **AND** the product-lead design direction document is locked before the sprint starts. The dev team cannot implement a direction that hasn't been decided — this is the gating dependency, not engineering capacity.
+
+**Done means.** All week-1 surfaces match the design direction document. Internal design review passes (product lead signs off on visual quality before tester invitations go out in S10). Functional test suite green. Theme tokens stable — no expected churn during Phase C.
+
+**Risks.** Three.
+
+1. **Scope creep.** "While we're at it" is the primary risk. Surfaces not on the week-1 list (Library tab, Backlog UI, Reminders settings, account deletion, anything in Phase C/D) stay deferred to S20 — the existing polish sprint already absorbs non-week-1 polish work. Strict scope discipline.
+2. **Design direction not actually locked.** If the document is fuzzy when the sprint starts, engineering burns time guessing. Mitigation: the gating dependency above. The sprint does not start until the document is signed off.
+3. **Theme token churn cascading into Phase C.** Tokens that change again during S11–S19 produce visual debt and rework. Mitigation: treat tokens as stable after this sprint; accept exceptions only as deliberate, documented decisions during Phase C.
+
+**Estimate.** 5–7 days. Larger than typical 2–3 day sprints because the work is parallel-shallow — many small surfaces, not a few load-bearing changes. Acceptable scope for one sprint; splitting it would create coordination overhead without reducing risk.
+
+---
+
+### Sprint 10 — Beta build + tester seeding
 
 **Goal.** Ship Stage 1 to invited testers.
 
@@ -320,11 +357,11 @@ Tickets are derived from deliverables. Aim for 3–8 tickets per sprint.
 - Feedback channel set up (form, email, or Discord — pick one)
 - Welcome message for testers explaining what the beta is and isn't (no AI yet, no Library yet, no reminders yet)
 
-**Depends on.** S8.
+**Depends on.** S9.
 
 **Done means.** First tester opens the app, completes onboarding, and successfully logs Day 1 of their first Focus habit.
 
-**Risks.** Beta tester recruitment is product work, not engineering — start lining up testers during S6 or S7, not waiting for S9. Build store provisioning (TestFlight, Internal Testing) early — Apple's approval for TestFlight can take 24+ hours the first time.
+**Risks.** Beta tester recruitment is product work, not engineering — start lining up testers during S6 or S7, not waiting for S10. Build store provisioning (TestFlight, Internal Testing) early — Apple's approval for TestFlight can take 24+ hours the first time.
 
 ---
 
@@ -332,7 +369,7 @@ Tickets are derived from deliverables. Aim for 3–8 tickets per sprint.
 
 Phase C builds on Stage 1 learnings. Sprint contents stay as planned unless beta feedback materially shifts priorities — in which case **the plan changes**, not the sprint sizes.
 
-### Sprint 10 — SRHI repo + eligibility check
+### Sprint 11 — SRHI repo + eligibility check
 
 **Goal.** The data and logic layer for graduation, ahead of the UI.
 
@@ -349,13 +386,13 @@ Phase C builds on Stage 1 learnings. Sprint contents stay as planned unless beta
   - 60 days + 75% → eligible
   - 90 days + 80% with skipped days mixed in → consistency calc correct
 
-**Depends on.** S9 closed (beta in flight).
+**Depends on.** S10 closed (beta in flight).
 
 **Done means.** Calling `checkEligibility(habitId)` returns correct `eligible` and metrics across 8+ test fixtures.
 
 ---
 
-### Sprint 11 — Graduation ceremony
+### Sprint 12 — Graduation ceremony
 
 **Goal.** The user can complete the SRHI ceremony and graduate a Focus habit to Automatic.
 
@@ -379,13 +416,13 @@ Phase C builds on Stage 1 learnings. Sprint contents stay as planned unless beta
   - Average ≥ 4.0 → graduated, state changes
   - Average < 4.0 → no state change, retry timer set
 
-**Depends on.** S10.
+**Depends on.** S11.
 
 **Done means.** A test habit with crafted logs (60+ days, 80% consistency) opens the ceremony on next app launch. Submitting all 5s graduates it. Submitting all 3s leaves it in Focus and re-triggers in 14 days.
 
 ---
 
-### Sprint 12 — Automatic Library
+### Sprint 13 — Automatic Library
 
 **Goal.** Graduated habits live in the Library tab — a growing record of who the user has become.
 
@@ -408,13 +445,13 @@ Phase C builds on Stage 1 learnings. Sprint contents stay as planned unless beta
   - Preserves all log history
 - Logging from Library: tapping a card from Library can log Done for today (continues lifetime tracking)
 
-**Depends on.** S11.
+**Depends on.** S12.
 
 **Done means.** Manually graduate a test habit, switch to Library tab, see the card. Promote it back to Focus and confirm it appears on Today with reset 60-day clock but preserved heatmap.
 
 ---
 
-### Sprint 13 — Supporting habits
+### Sprint 14 — Supporting habits
 
 **Goal.** Users can add up to 2 Supporting habits alongside their Focus, with the 3-active cap enforced.
 
@@ -437,13 +474,13 @@ Phase C builds on Stage 1 learnings. Sprint contents stay as planned unless beta
   - Supporting worst-day "no" answer blocks creation
   - Focus worst-day "no" allows creation with gentle note
 
-**Depends on.** S12. (Library tab provides infrastructure that makes Today's reduced-prominence Supporting cards make sense.)
+**Depends on.** S13. (Library tab provides infrastructure that makes Today's reduced-prominence Supporting cards make sense.)
 
 **Done means.** User has 1 Focus + 2 Supporting on Today; 4th attempt prompts replacement/backlog choice; Supporting cards render compactly and don't show streak.
 
 ---
 
-### Sprint 14 — Backlog
+### Sprint 15 — Backlog
 
 **Goal.** Backlog is a real surface — habit ideas can be saved, reviewed, and promoted when slots open.
 
@@ -455,20 +492,20 @@ Phase C builds on Stage 1 learnings. Sprint contents stay as planned unless beta
   - Promote → Supporting (slot available **and** passes worst-day gate)
   - Cap-blocked promotion shows the "replace existing" / "save again" choice
 - Backlog delete (any backlog habit)
-- "Save to backlog" wired up from S13's cap-exceeded flow
+- "Save to backlog" wired up from S14's cap-exceeded flow
 - Backlog habits never appear on Today, never logged, never counted in streak
 - Tests:
   - Backlog → Focus promotion succeeds when slot open
   - Backlog → Supporting fails worst-day gate with helpful error
   - Cap-exceeded prompt offers backlog as a real option
 
-**Depends on.** S13.
+**Depends on.** S14.
 
 **Done means.** Create a 4th habit, choose "Save to backlog," see it in Settings → Habit Management → Backlog. Delete an active habit, then promote the backlog habit to Focus. Verify it appears on Today.
 
 ---
 
-### Sprint 15 — Reminders foundation
+### Sprint 16 — Reminders foundation
 
 **Goal.** The local-notification machinery — schedule, cancel, lifecycle — is in place, decoupled from the UI.
 
@@ -487,7 +524,7 @@ Phase C builds on Stage 1 learnings. Sprint contents stay as planned unless beta
 - `src/features/reminders/copy.ts` — approved copy templates per requirements §14.4 (no streak-loss language allowed)
 - `FEATURE_FLAGS.remindersEnabled` confirmed `true`
 
-**Depends on.** S14.
+**Depends on.** S15.
 
 **Done means.** From a developer console / dev-only screen, scheduling a reminder for a habit fires a real local notification at the chosen time. Archiving the habit cancels it.
 
@@ -495,7 +532,7 @@ Phase C builds on Stage 1 learnings. Sprint contents stay as planned unless beta
 
 ---
 
-### Sprint 16 — Reminders settings UI + snooze
+### Sprint 17 — Reminders settings UI + snooze
 
 **Goal.** Users can configure reminders per habit and act on notifications when they fire.
 
@@ -515,18 +552,18 @@ Phase C builds on Stage 1 learnings. Sprint contents stay as planned unless beta
   - Daily reminder fires regardless of log status
   - Snooze rescheduling
 
-**Depends on.** S15.
+**Depends on.** S16.
 
 **Done means.** From a habit detail screen, enable backup reminder at 8:30 AM. Don't log the habit. At 8:30 AM the next morning, notification fires with approved copy. Tap "Snooze" → it reappears at 9:30 AM. Tap "Disable for today" → it does not reappear today.
 
 ---
 
-### Sprint 17 — Data export
+### Sprint 18 — Data export
 
 **Goal.** Users can export everything they've put in the app, all locally, no server roundtrip.
 
 **Deliverables.**
-- `src/features/account/` module scaffolded (export + delete in S18)
+- `src/features/account/` module scaffolded (export + delete in S19)
 - Export logic:
   - Read all rows from every `local_*` table for the current user
   - Serialize to a single JSON file with version + schema metadata
@@ -537,13 +574,13 @@ Phase C builds on Stage 1 learnings. Sprint contents stay as planned unless beta
   - Round-trip: export → parse → verify all habits, logs, SRHI, weekly reviews, reminders, preferences are present
   - No data uploaded to server during export (network-mock test)
 
-**Depends on.** S16.
+**Depends on.** S17.
 
 **Done means.** From Settings, tap Export My Data → save to device → open the JSON → confirm structure matches local DB.
 
 ---
 
-### Sprint 18 — Account deletion
+### Sprint 19 — Account deletion
 
 **Goal.** Users can permanently delete their account: server data and local data both wiped.
 
@@ -564,7 +601,7 @@ Phase C builds on Stage 1 learnings. Sprint contents stay as planned unless beta
   - Server delete failure does not orphan local data — fail loud, don't proceed
   - Successful delete sequence: server first, then local
 
-**Depends on.** S17.
+**Depends on.** S18.
 
 **Done means.** Test account: create some data, request deletion, two-step confirm. Email arrives. Server records gone. App lands on Welcome with empty state. Re-sign-in attempt fails gracefully.
 
@@ -574,7 +611,7 @@ Phase C builds on Stage 1 learnings. Sprint contents stay as planned unless beta
 
 ## 7. Phase D — Polish & ship
 
-### Sprint 19 — Bug #3 + empty states + privacy/terms
+### Sprint 20 — Bug #3 + empty states + privacy/terms
 
 **Goal.** Clean up the rough edges before submission.
 
@@ -589,13 +626,13 @@ Phase C builds on Stage 1 learnings. Sprint contents stay as planned unless beta
 - Privacy policy + Terms of service hosted somewhere stable (likely a simple static page); links wired into Settings
 - Acknowledgments page (open-source attributions for `expo-sqlite`, `expo-notifications`, etc.)
 
-**Depends on.** S18.
+**Depends on.** S19.
 
 **Done means.** Every empty state shows calm, hopeful copy. Privacy + Terms links open real documents. Time picker replaces text in habit creation.
 
 ---
 
-### Sprint 20 — Anonymous analytics instrumentation
+### Sprint 21 — Anonymous analytics instrumentation
 
 **Goal.** Lightweight event analytics for product-improvement signal, with strict allowlist.
 
@@ -608,7 +645,7 @@ Phase C builds on Stage 1 learnings. Sprint contents stay as planned unless beta
 - Settings → Privacy → Anonymous analytics toggle (on by default)
 - Test: payload with free-text field is stripped/rejected before transmission
 
-**Depends on.** S19.
+**Depends on.** S20.
 
 **Done means.** All events from §23.1 fire from their respective interaction points. No habit name, identity phrase, cue, action, note, or weekly-review free-text ever appears in transmitted payloads — verified by network capture in dev.
 
@@ -616,7 +653,7 @@ Phase C builds on Stage 1 learnings. Sprint contents stay as planned unless beta
 
 ---
 
-### Sprint 21 — Store submission
+### Sprint 22 — Store submission
 
 **Goal.** App submitted to App Store and Play Store.
 
@@ -627,7 +664,7 @@ Phase C builds on Stage 1 learnings. Sprint contents stay as planned unless beta
 - Final QA pass on production builds
 - Submit
 
-**Depends on.** S20.
+**Depends on.** S21.
 
 **Done means.** Submission accepted into review on both stores.
 
@@ -641,8 +678,8 @@ Phase C builds on Stage 1 learnings. Sprint contents stay as planned unless beta
 
 - **Unit tests** ride with each sprint that introduces logic. No "test sprint" at the end — that always slips.
 - **Integration tests** introduced in S2 and added each time a new repository or DB-touching feature lands.
-- **Screen tests** introduced in S5 (Today), S7 (Recovery), S11 (Graduation), S16 (Reminder Settings).
-- **Manual QA passes** at S9 (pre-beta) and S21 (pre-submission). Each pass walks the acceptance criteria in `core-v1-requirements.md` §24.
+- **Screen tests** introduced in S5 (Today), S7 (Recovery), S12 (Graduation), S17 (Reminder Settings).
+- **Manual QA passes** at S10 (pre-beta) and S22 (pre-submission). Each pass walks the acceptance criteria in `core-v1-requirements.md` §24.
 
 ### 8.2 Beta tester recruitment timeline
 
@@ -651,20 +688,20 @@ Tester recruitment is product work that runs in parallel with engineering:
 - **By S6:** define invitation criteria (psychographic match per strategy doc §3) and draft the invitation message
 - **By S7:** identify 50–75 candidate testers (over-recruit; not all will engage)
 - **By S8:** send save-the-date and feedback-channel invite
-- **S9:** send TestFlight / Internal Testing invites
+- **S10:** send TestFlight / Internal Testing invites
 
 ### 8.3 Store provisioning
 
 - **By S5:** App Store Connect and Play Console accounts created and verified
 - **By S7:** TestFlight Internal Testing group provisioned (24+ hour Apple approval the first time)
-- **S9:** First TestFlight build uploaded
-- **S21:** Production submission
+- **S10:** First TestFlight build uploaded
+- **S22:** Production submission
 
 ### 8.4 What changes if Stage 1 reveals a problem
 
 If Private Beta surfaces issues that change the product (becoming-bridge fails, retention is poor, copy is wrong), Phase C re-plans before starting. The sprint structure absorbs change well; the phase boundaries are the natural replan checkpoints.
 
-If Private Beta surfaces issues that don't change the product (bugs, polish gaps), they slot into Phase D's S19 or earlier — don't let them invade S10–S18 feature work.
+If Private Beta surfaces issues that don't change the product (bugs, polish gaps), they slot into Phase D's S20 or earlier — don't let them invade S11–S19 feature work.
 
 ### 8.5 Branching convention
 
@@ -693,7 +730,7 @@ The flow:
 
 Why this rather than ticket PRs straight to `main`:
 - `main` stays demo-ready throughout a sprint. A ticket that lands the wider repo in a half-finished state (DEV-S2-01 leaves TS errors until DEV-S2-06 closes) doesn't pollute `main`.
-- The sprint can be evaluated cumulatively before it touches `main`. This matters most for high-risk sprints (S2 engine swap, S7 recovery flow, S15-16 reminders).
+- The sprint can be evaluated cumulatively before it touches `main`. This matters most for high-risk sprints (S2 engine swap, S7 recovery flow, S16-17 reminders).
 - If a sprint reveals a thesis problem and needs replan, the sprint branch can be paused or unwound without disturbing `main`.
 
 Per-ticket PRs stay small and reviewable — they just target the sprint branch instead of `main`.
@@ -709,11 +746,12 @@ Per-ticket PRs stay small and reviewable — they just target the sprint branch 
 | 3 | Identity-noun extraction misses real phrasing | S5 | Clear fallback copy; log misses for post-launch tuning |
 | 4 | Day-boundary / time-zone bugs in retro logging | S6 | Anchor to device-local-day; test near midnight |
 | 5 | Recovery modal triggers repeatedly | S7 | Track "last shown for break ending date X" in preferences |
-| 6 | iOS notification permission first-prompt UX | S15 | Soft pre-prompt screen explaining why, before system prompt |
-| 7 | Server-side `deleteUser` requires admin role | S18 | Plan a Supabase Edge Function with service role for deletion |
-| 8 | Free-text leak in anonymous analytics | S20 | Allowlist + payload validation + code review every call site |
-| 9 | App Store review delay | S21 | Submit with 1–2 weeks of launch buffer; have rollback plan |
-| 10 | Beta tester recruitment slow | S9 | Start in S6; over-recruit by 50% |
+| 6 | iOS notification permission first-prompt UX | S16 | Soft pre-prompt screen explaining why, before system prompt |
+| 7 | Server-side `deleteUser` requires admin role | S19 | Plan a Supabase Edge Function with service role for deletion |
+| 8 | Free-text leak in anonymous analytics | S21 | Allowlist + payload validation + code review every call site |
+| 9 | App Store review delay | S22 | Submit with 1–2 weeks of launch buffer; have rollback plan |
+| 10 | Beta tester recruitment slow | S10 | Start in S6; over-recruit by 50% |
+| 11 | S9 visual sprint starts before design direction is locked | S9 | Gating dependency: sprint does not start until product-lead design direction document is signed off |
 
 ## 10. Status tracking convention
 
