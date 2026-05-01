@@ -45,7 +45,7 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: colors.surface,
-    borderColor: colors.border,
+    borderColor: 'transparent',
     borderRadius: radius.lg,
     borderWidth: 1,
     boxShadow: shadows.card,
@@ -54,7 +54,7 @@ const styles = StyleSheet.create({
   },
   question: {
     color: colors.text,
-    fontSize: typography.heading,
+    fontSize: typography.headlineMd,
     fontWeight: "700",
     lineHeight: 30,
   },

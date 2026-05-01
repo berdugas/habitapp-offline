@@ -105,7 +105,7 @@ export function RecoveryModal({
 const styles = StyleSheet.create({
   actionButton: {
     backgroundColor: colors.surface,
-    borderColor: colors.border,
+    borderColor: 'transparent',
     borderRadius: radius.md,
     borderWidth: 1,
     gap: spacing.xs,
@@ -129,7 +129,7 @@ const styles = StyleSheet.create({
   },
   body: {
     color: colors.text,
-    fontSize: typography.body,
+    fontSize: typography.bodyLg,
     lineHeight: 24,
   },
   closeLink: {
@@ -138,7 +138,7 @@ const styles = StyleSheet.create({
   },
   closeLinkText: {
     color: colors.textMuted,
-    fontSize: typography.body,
+    fontSize: typography.bodyLg,
   },
   habitTitle: {
     color: colors.textMuted,
@@ -154,11 +154,11 @@ const styles = StyleSheet.create({
   },
   prompt: {
     color: colors.text,
-    fontSize: typography.body,
+    fontSize: typography.bodyLg,
     fontWeight: "600",
   },
   sheet: {
-    backgroundColor: colors.background,
+    backgroundColor: colors.bg,
     borderTopLeftRadius: radius.lg,
     borderTopRightRadius: radius.lg,
     gap: spacing.lg,

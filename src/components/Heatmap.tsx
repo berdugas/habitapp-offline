@@ -84,9 +84,9 @@ export function Heatmap({ days, logs, onCellPress }: HeatmapProps) {
 }
 
 function getCellColor(status: HabitLogStatus | null): string {
-  if (status === "done") return colors.heatmapDone;
-  if (status === "skipped") return colors.heatmapSkipped;
-  return colors.heatmapMissed;
+  if (status === "done") return colors.heatDone;
+  if (status === "skipped") return colors.heatSkipped;
+  return colors.heatMissed;
 }
 
 function getCellAccessibilityLabel(
@@ -110,7 +110,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
   },
   todayOutline: {
-    borderColor: colors.heatmapTodayOutline,
     borderWidth: 2,
   },
 });

@@ -310,7 +310,7 @@ const styles = StyleSheet.create({
   },
   becomingHeader: {
     color: colors.text,
-    fontSize: typography.heading,
+    fontSize: typography.headlineMd,
     fontWeight: "700",
   },
   card: {
@@ -325,19 +325,19 @@ const styles = StyleSheet.create({
   },
   cueAction: {
     color: colors.textMuted,
-    fontSize: typography.body,
+    fontSize: typography.bodyLg,
     lineHeight: 24,
   },
   dateHeader: {
     color: colors.textMuted,
-    fontSize: typography.body,
+    fontSize: typography.bodyLg,
   },
   emptySection: {
     gap: spacing.lg,
   },
   firstDayCopy: {
     color: colors.text,
-    fontSize: typography.body,
+    fontSize: typography.bodyLg,
     fontStyle: "italic",
     lineHeight: 24,
   },
@@ -365,7 +365,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   screen: {
-    backgroundColor: colors.background,
+    backgroundColor: colors.bg,
     flex: 1,
   },
 });

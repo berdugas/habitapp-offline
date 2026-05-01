@@ -347,7 +347,7 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: colors.surface,
-    borderColor: colors.border,
+    borderColor: 'transparent',
     borderRadius: radius.lg,
     borderWidth: 1,
     gap: spacing.lg,
@@ -366,7 +366,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   screen: {
-    backgroundColor: colors.background,
+    backgroundColor: colors.bg,
     flex: 1,
   },
   segmentedControl: {
@@ -399,7 +399,7 @@ const styles = StyleSheet.create({
   },
   suggestionCard: {
     backgroundColor: colors.surface,
-    borderColor: colors.border,
+    borderColor: 'transparent',
     borderRadius: radius.lg,
     borderWidth: 1,
     gap: spacing.sm,
@@ -427,8 +427,8 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   segmentButton: {
-    backgroundColor: colors.background,
-    borderColor: colors.border,
+    backgroundColor: colors.bg,
+    borderColor: 'transparent',
     borderRadius: radius.pill,
     borderWidth: 1,
     paddingHorizontal: spacing.md,
@@ -440,11 +440,11 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   segmentButtonLabelSelected: {
-    color: colors.white,
+    color: colors.surfaceCard,
   },
   segmentButtonSelected: {
-    backgroundColor: colors.accent,
-    borderColor: colors.accent,
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   title: {
     color: colors.text,

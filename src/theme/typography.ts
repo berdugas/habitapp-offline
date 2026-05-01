@@ -1,8 +1,11 @@
 export const typography = {
-  title: 28,
-  heading: 22,
-  subheading: 18,
-  body: 16,
-  caption: 14,
-  micro: 12,
+  displayLg: 36,
+  headlineLg: 28,
+  headlineMd: 22,
+  titleLg: 20,
+  titleMd: 18,
+  bodyLg: 16,
+  bodyMd: 14,
+  labelMd: 13,
+  micro: 11,
 };

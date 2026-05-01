@@ -65,7 +65,7 @@ export default function DailyActionScreen() {
 const styles = StyleSheet.create({
   card: {
     backgroundColor: colors.surface,
-    borderColor: colors.border,
+    borderColor: 'transparent',
     borderRadius: radius.lg,
     borderWidth: 1,
     boxShadow: shadows.card,
@@ -80,32 +80,32 @@ const styles = StyleSheet.create({
   },
   header: {
     color: colors.text,
-    fontSize: typography.title,
+    fontSize: typography.headlineLg,
     fontWeight: "800",
     lineHeight: 36,
   },
   helper: {
     color: colors.textMuted,
-    fontSize: typography.body,
+    fontSize: typography.bodyLg,
     lineHeight: 24,
   },
   input: {
-    borderColor: colors.border,
+    borderColor: 'transparent',
     borderRadius: radius.lg,
     borderWidth: 1,
     color: colors.text,
-    fontSize: typography.body,
+    fontSize: typography.bodyLg,
     lineHeight: 24,
     minHeight: 80,
     padding: spacing.md,
   },
   reflection: {
     color: colors.textMuted,
-    fontSize: typography.caption,
+    fontSize: typography.bodyMd,
     fontStyle: "italic",
   },
   screen: {
-    backgroundColor: colors.background,
+    backgroundColor: colors.bg,
     flex: 1,
   },
 });

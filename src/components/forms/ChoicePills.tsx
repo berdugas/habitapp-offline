@@ -70,8 +70,8 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   pill: {
-    backgroundColor: colors.white,
-    borderColor: colors.border,
+    backgroundColor: colors.surfaceCard,
+    borderColor: 'transparent',
     borderRadius: radius.pill,
     borderWidth: 1,
     paddingHorizontal: spacing.lg,
@@ -83,7 +83,7 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   pillLabelSelected: {
-    color: colors.white,
+    color: colors.surfaceCard,
   },
   pillPressed: {
     opacity: 0.86,
@@ -94,8 +94,8 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   pillSelected: {
-    backgroundColor: colors.accent,
-    borderColor: colors.accent,
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   wrapper: {
     gap: spacing.sm,

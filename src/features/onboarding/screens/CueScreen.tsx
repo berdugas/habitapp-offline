@@ -103,7 +103,7 @@ export default function CueScreen() {
 const styles = StyleSheet.create({
   card: {
     backgroundColor: colors.surface,
-    borderColor: colors.border,
+    borderColor: 'transparent',
     borderRadius: radius.lg,
     borderWidth: 1,
     boxShadow: shadows.card,
@@ -112,7 +112,7 @@ const styles = StyleSheet.create({
   },
   coaching: {
     color: colors.textMuted,
-    fontSize: typography.body,
+    fontSize: typography.bodyLg,
     lineHeight: 24,
   },
   content: {
@@ -123,7 +123,7 @@ const styles = StyleSheet.create({
   },
   exampleItem: {
     color: colors.textMuted,
-    fontSize: typography.body,
+    fontSize: typography.bodyLg,
     lineHeight: 24,
   },
   examples: {
@@ -131,7 +131,7 @@ const styles = StyleSheet.create({
   },
   examplesLabel: {
     color: colors.text,
-    fontSize: typography.body,
+    fontSize: typography.bodyLg,
     fontWeight: "600",
   },
   field: {
@@ -139,27 +139,27 @@ const styles = StyleSheet.create({
   },
   header: {
     color: colors.text,
-    fontSize: typography.title,
+    fontSize: typography.headlineLg,
     fontWeight: "800",
     lineHeight: 36,
   },
   input: {
-    borderColor: colors.border,
+    borderColor: 'transparent',
     borderRadius: radius.lg,
     borderWidth: 1,
     color: colors.text,
-    fontSize: typography.body,
+    fontSize: typography.bodyLg,
     lineHeight: 24,
     minHeight: 80,
     padding: spacing.md,
   },
   label: {
     color: colors.text,
-    fontSize: typography.body,
+    fontSize: typography.bodyLg,
     fontWeight: "600",
   },
   screen: {
-    backgroundColor: colors.background,
+    backgroundColor: colors.bg,
     flex: 1,
   },
 });

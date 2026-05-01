@@ -55,7 +55,7 @@ export default function RootLayout() {
           <StatusBar style="dark" />
           <Stack
             screenOptions={{
-              contentStyle: { backgroundColor: colors.background },
+              contentStyle: { backgroundColor: colors.bg },
               headerBackButtonDisplayMode: "minimal",
             }}
           >

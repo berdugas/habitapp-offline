@@ -1,7 +1,7 @@
 # Habits App — Project Brain
 
 > Single source of truth for anyone picking up this project.
-> Last updated: May 1, 2026 (post-S8 close)
+> Last updated: May 1, 2026 (post-S8 close + design direction doc + app name locked as Habitapp)
 
 ---
 
@@ -339,6 +339,7 @@ Source-of-truth docs live directly in `docs/`. Sprint planning and per-sprint de
 | Product Strategy | .md | `docs/product-strategy.md` | **Current — the why** |
 | Core v1 Requirements | .md | `docs/core-v1-requirements.md` | **Current — the what** |
 | Technical Handoff Core v1 | .md | `docs/tech-handoff-core-v1.md` | **Current — the how** |
+| Design Direction | .md | `docs/design-direction.md` | **Current — the how it looks (visual language for Core v1, paired with `design/habitapp/habit-screens.jsx`)** |
 | Project Brain | .md | `docs/PROJECT_BRAIN.md` | **Current — this document** |
 | Sprint Plan | .md | `docs/sprint_tickets/sprint-plan.md` | **Current — the when (23-sprint roadmap, 4 phases; S9 visual design sprint inserted post-S7)** |
 | Sprint Tickets | .md | `docs/sprint_tickets/sprint-N-tickets.md` | **Current — per-sprint dev ticket packages (S1–S8 closed; S9+ to come)** |
@@ -370,7 +371,7 @@ Live status of the Core v1 build. For the full 21-sprint plan, see `docs/sprint_
 
 ### Up next: S9 — Visual design implementation sprint
 
-**Note on sprint plan revision (May 1 2026):** S9 is a visual design pass on the existing Core v1 screens, gated on a product-lead design direction document. Beta build is S10. Phase C is S11–S19, Phase D is S20–S22. Total 23 sprints. See `sprint-plan.md` for the full revised structure.
+**Note on sprint plan revision (May 1 2026):** S9 is a visual design pass on the existing Core v1 screens, gated on a product-lead design direction document. Design direction document drafted at `docs/design-direction.md` (May 1 2026, rev 2) — locks the visual language ("The Mindful Canvas") with six OPEN decisions still pending before specific S9 tickets land (multi-habit Today, Weekly Review beta scope, Backlog UI, retro-log affordance, ReadOnlyBanner styling, logo asset). The app is officially named **Habitapp** (single coined word, capital H only) — locked at S9 kickoff per `sprint-9-tickets.md` (D7). `app.json` `expo.name` and `package.json` `name` update in S9-01; `expo.slug` (`habit-builder`) and bundle ID (`com.berdugas.habits`) stay unchanged because they are sticky identifiers tied to EAS / store registrations. Beta build is S10. Phase C is S11–S19, Phase D is S20–S22. Total 23 sprints. See `sprint-plan.md` for the full revised structure.
 
 ### Transitional state to be aware of
 
@@ -418,6 +419,7 @@ Live status of the Core v1 build. For the full 21-sprint plan, see `docs/sprint_
 | Add a screen | Create in `app/` (route) + `src/features/*/screens/` (component) |
 | Add a shared component | `src/components/` |
 | Add theme tokens | `src/theme/` |
+| Understand visual design intent / language | `docs/design-direction.md` (paired with `design/habitapp/habit-screens.jsx` as visual oracle) |
 | Weekly review due logic | `src/features/reviews/due.ts` |
 | Onboarding flow (planned) | `src/features/onboarding/screens/` |
 | Library (planned) | `src/features/library/screens/LibraryScreen.tsx` |

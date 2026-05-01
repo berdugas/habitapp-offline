@@ -34,7 +34,7 @@ function getStreakCopy(streak: number, identityNoun: string | null): string {
 const styles = StyleSheet.create({
   text: {
     color: colors.text,
-    fontSize: typography.body,
+    fontSize: typography.bodyLg,
     fontStyle: "italic",
     lineHeight: 24,
   },

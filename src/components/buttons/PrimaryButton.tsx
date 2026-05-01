@@ -37,7 +37,7 @@ export function PrimaryButton({
 const styles = StyleSheet.create({
   button: {
     alignItems: "center",
-    backgroundColor: colors.accent,
+    backgroundColor: colors.primary,
     borderRadius: radius.pill,
     boxShadow: shadows.button,
     paddingHorizontal: spacing.lg,
@@ -50,7 +50,7 @@ const styles = StyleSheet.create({
     opacity: 0.92,
   },
   label: {
-    color: colors.white,
+    color: colors.primaryText,
     fontSize: 16,
     fontWeight: "700",
   },

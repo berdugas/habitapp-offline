@@ -508,7 +508,7 @@ const styles = StyleSheet.create({
   },
   actionHelperCard: {
     backgroundColor: colors.surface,
-    borderColor: colors.border,
+    borderColor: 'transparent',
     borderRadius: radius.lg,
     borderWidth: 1,
     gap: spacing.xs,
@@ -524,7 +524,7 @@ const styles = StyleSheet.create({
   },
   becomingHeader: {
     color: colors.text,
-    fontSize: typography.heading,
+    fontSize: typography.headlineMd,
     fontWeight: "700",
     lineHeight: 30,
   },
@@ -546,13 +546,13 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   infoCard: {
-    backgroundColor: colors.accentSoft,
+    backgroundColor: colors.primarySoft,
     borderRadius: radius.lg,
     gap: spacing.sm,
     padding: spacing.xl,
   },
   infoTitle: {
-    color: colors.accent,
+    color: colors.primary,
     fontSize: 16,
     fontWeight: "700",
   },
@@ -568,7 +568,7 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   logRow: {
-    borderColor: colors.border,
+    borderColor: 'transparent',
     borderTopWidth: 1,
     gap: spacing.xs,
     paddingTop: spacing.md,
@@ -614,12 +614,12 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   screen: {
-    backgroundColor: colors.background,
+    backgroundColor: colors.bg,
     flex: 1,
   },
   sectionCard: {
     backgroundColor: colors.surface,
-    borderColor: colors.border,
+    borderColor: 'transparent',
     borderRadius: radius.lg,
     borderWidth: 1,
     gap: spacing.md,
@@ -642,7 +642,7 @@ const styles = StyleSheet.create({
   },
   suggestionCard: {
     backgroundColor: colors.surface,
-    borderColor: colors.border,
+    borderColor: 'transparent',
     borderRadius: radius.lg,
     borderWidth: 1,
     gap: spacing.sm,

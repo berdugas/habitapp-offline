@@ -130,17 +130,17 @@ const styles = StyleSheet.create({
   },
   dateLabel: {
     color: colors.text,
-    fontSize: typography.title,
+    fontSize: typography.headlineLg,
     fontWeight: "700",
   },
   lockedText: {
     color: colors.textMuted,
-    fontSize: typography.body,
+    fontSize: typography.bodyLg,
     lineHeight: 22,
   },
   statusLabel: {
     color: colors.textMuted,
-    fontSize: typography.body,
+    fontSize: typography.bodyLg,
     fontStyle: "italic",
   },
 });

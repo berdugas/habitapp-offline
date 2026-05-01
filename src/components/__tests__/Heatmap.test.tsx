@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
 
 import { Heatmap } from "@/components/Heatmap";
+import { colors } from "@/theme/colors";
 import { resetClockForTesting, setNowForTesting } from "@/utils/clock";
 
 describe("Heatmap", () => {
@@ -27,7 +28,7 @@ describe("Heatmap", () => {
     const cell = screen.getByLabelText("2026-04-29, done");
     expect(cell.props.style).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ backgroundColor: "#3f7d4d" }),
+        expect.objectContaining({ backgroundColor: colors.heatDone }),
       ]),
     );
   });

@@ -85,7 +85,7 @@ export default function ConfirmationScreen() {
 const styles = StyleSheet.create({
   card: {
     backgroundColor: colors.surface,
-    borderColor: colors.border,
+    borderColor: 'transparent',
     borderRadius: radius.lg,
     borderWidth: 1,
     boxShadow: shadows.card,
@@ -100,7 +100,7 @@ const styles = StyleSheet.create({
   },
   error: {
     color: colors.danger,
-    fontSize: typography.body,
+    fontSize: typography.bodyLg,
     lineHeight: 22,
   },
   field: {
@@ -108,17 +108,17 @@ const styles = StyleSheet.create({
   },
   label: {
     color: colors.textMuted,
-    fontSize: typography.caption,
+    fontSize: typography.bodyMd,
     fontWeight: "600",
     letterSpacing: 0.4,
   },
   screen: {
-    backgroundColor: colors.background,
+    backgroundColor: colors.bg,
     flex: 1,
   },
   value: {
     color: colors.text,
-    fontSize: typography.body,
+    fontSize: typography.bodyLg,
     lineHeight: 26,
   },
 });

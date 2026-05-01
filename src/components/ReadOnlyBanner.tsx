@@ -32,7 +32,7 @@ export function ReadOnlyBanner({ isReconnecting, onReconnect }: ReadOnlyBannerPr
 const styles = StyleSheet.create({
   banner: {
     backgroundColor: colors.surface,
-    borderColor: colors.accent,
+    borderColor: colors.primary,
     borderRadius: radius.lg,
     borderWidth: 1,
     gap: spacing.md,

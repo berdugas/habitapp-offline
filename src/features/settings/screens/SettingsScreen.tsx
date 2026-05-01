@@ -167,7 +167,7 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: colors.surface,
-    borderColor: colors.border,
+    borderColor: 'transparent',
     borderRadius: radius.lg,
     borderWidth: 1,
     gap: spacing.sm,
@@ -181,7 +181,7 @@ const styles = StyleSheet.create({
     gap: spacing.lg,
   },
   screen: {
-    backgroundColor: colors.background,
+    backgroundColor: colors.bg,
     flex: 1,
   },
   statusLabel: {

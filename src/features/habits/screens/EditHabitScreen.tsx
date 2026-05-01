@@ -410,7 +410,7 @@ const styles = StyleSheet.create({
     padding: spacing.xl,
   },
   aiRewriteCard: {
-    backgroundColor: colors.accentSoft,
+    backgroundColor: colors.primarySoft,
     borderRadius: radius.md,
     gap: spacing.sm,
     padding: spacing.lg,
@@ -427,7 +427,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   aiRewriteLabel: {
-    color: colors.accent,
+    color: colors.primary,
     fontSize: 12,
     fontWeight: "700",
     textTransform: "uppercase",
@@ -449,20 +449,20 @@ const styles = StyleSheet.create({
   },
   formCard: {
     backgroundColor: colors.surface,
-    borderColor: colors.border,
+    borderColor: 'transparent',
     borderRadius: radius.lg,
     borderWidth: 1,
     gap: spacing.lg,
     padding: spacing.xl,
   },
   previewCard: {
-    backgroundColor: colors.accentSoft,
+    backgroundColor: colors.primarySoft,
     borderRadius: radius.lg,
     gap: spacing.sm,
     padding: spacing.xl,
   },
   previewLabel: {
-    color: colors.accent,
+    color: colors.primary,
     fontSize: 13,
     fontWeight: "700",
     textTransform: "uppercase",
@@ -474,7 +474,7 @@ const styles = StyleSheet.create({
     lineHeight: 26,
   },
   screen: {
-    backgroundColor: colors.background,
+    backgroundColor: colors.bg,
     flex: 1,
   },
   suggestionBody: {
@@ -484,7 +484,7 @@ const styles = StyleSheet.create({
   },
   suggestionCard: {
     backgroundColor: colors.surface,
-    borderColor: colors.border,
+    borderColor: 'transparent',
     borderRadius: radius.lg,
     borderWidth: 1,
     gap: spacing.sm,

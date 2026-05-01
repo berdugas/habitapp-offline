@@ -12,7 +12,7 @@ export function LoadingState({
 }: LoadingStateProps) {
   return (
     <View style={styles.container}>
-      <ActivityIndicator color={colors.accent} size="large" />
+      <ActivityIndicator color={colors.primary} size="large" />
       <Text selectable style={styles.message}>
         {message}
       </Text>

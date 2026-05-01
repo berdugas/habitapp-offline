@@ -62,8 +62,8 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
   input: {
-    backgroundColor: colors.white,
-    borderColor: colors.border,
+    backgroundColor: colors.surfaceCard,
+    borderColor: 'transparent',
     borderRadius: radius.md,
     borderWidth: 1,
     color: colors.text,

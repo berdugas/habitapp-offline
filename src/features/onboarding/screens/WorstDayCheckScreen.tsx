@@ -54,18 +54,18 @@ const styles = StyleSheet.create({
   },
   contextLabel: {
     color: colors.textMuted,
-    fontSize: typography.caption,
+    fontSize: typography.bodyMd,
     fontWeight: "600",
     letterSpacing: 0.4,
   },
   contextValue: {
     color: colors.text,
-    fontSize: typography.body,
+    fontSize: typography.bodyLg,
     fontStyle: "italic",
     lineHeight: 24,
   },
   screen: {
-    backgroundColor: colors.background,
+    backgroundColor: colors.bg,
     flex: 1,
   },
 });

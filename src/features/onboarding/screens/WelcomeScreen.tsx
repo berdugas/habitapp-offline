@@ -41,7 +41,7 @@ export default function WelcomeScreen() {
 const styles = StyleSheet.create({
   body: {
     color: colors.textMuted,
-    fontSize: typography.body,
+    fontSize: typography.bodyLg,
     lineHeight: 24,
   },
   content: {
@@ -52,7 +52,7 @@ const styles = StyleSheet.create({
   },
   heroCard: {
     backgroundColor: colors.surface,
-    borderColor: colors.border,
+    borderColor: 'transparent',
     borderRadius: radius.lg,
     borderWidth: 1,
     boxShadow: shadows.card,
@@ -60,12 +60,12 @@ const styles = StyleSheet.create({
     padding: spacing.xxl,
   },
   screen: {
-    backgroundColor: colors.background,
+    backgroundColor: colors.bg,
     flex: 1,
   },
   title: {
     color: colors.text,
-    fontSize: typography.title,
+    fontSize: typography.headlineLg,
     fontWeight: "800",
     lineHeight: 36,
   },
