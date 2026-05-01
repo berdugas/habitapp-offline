@@ -1,9 +1,12 @@
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { ScrollView, StyleSheet, Text } from "react-native";
 import { router } from "expo-router";
 
+import { ZenCard } from "@/components/cards/ZenCard";
+import { Eyebrow } from "@/components/text/Eyebrow";
 import { WorstDayCheck } from "@/features/onboarding/components/WorstDayCheck";
 import { useOnboarding } from "@/features/onboarding/OnboardingProvider";
 import { colors } from "@/theme/colors";
+import { fontFamilies } from "@/theme/fontFamilies";
 import { spacing } from "@/theme/spacing";
 import { typography } from "@/theme/typography";
 
@@ -28,14 +31,12 @@ export default function WorstDayCheckScreen() {
       contentInsetAdjustmentBehavior="automatic"
       style={styles.screen}
     >
-      <View style={styles.context}>
-        <Text selectable style={styles.contextLabel}>
-          Your habit
-        </Text>
+      <ZenCard>
+        <Eyebrow label="Your habit" />
         <Text selectable style={styles.contextValue}>
           After I {draft.cueExisting}, I will {draft.tinyAction}
         </Text>
-      </View>
+      </ZenCard>
 
       <WorstDayCheck onPass={handlePass} onFail={handleFail} />
     </ScrollView>
@@ -49,17 +50,9 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     padding: spacing.xl,
   },
-  context: {
-    gap: spacing.sm,
-  },
-  contextLabel: {
-    color: colors.textMuted,
-    fontSize: typography.bodyMd,
-    fontWeight: "600",
-    letterSpacing: 0.4,
-  },
   contextValue: {
     color: colors.text,
+    fontFamily: fontFamilies.body,
     fontSize: typography.bodyLg,
     fontStyle: "italic",
     lineHeight: 24,
