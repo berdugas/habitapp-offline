@@ -117,7 +117,7 @@ describe("EditHabitScreen", () => {
     render(<EditHabitScreen />);
 
     expect(mockUseOwnedHabitQuery).toHaveBeenCalledWith("habit-1");
-    expect(screen.queryByText("Suggested adjustment")).toBeNull();
+    expect(screen.queryByText("SUGGESTED ADJUSTMENT")).toBeNull();
     expect(screen.getByDisplayValue("Reading")).toBeTruthy();
     expect(screen.getByDisplayValue("Become a reader")).toBeTruthy();
     expect(screen.getByDisplayValue("After I brush my teeth")).toBeTruthy();
@@ -135,7 +135,7 @@ describe("EditHabitScreen", () => {
 
     render(<EditHabitScreen />);
 
-    expect(screen.getByText("Suggested adjustment")).toBeTruthy();
+    expect(screen.getByText("SUGGESTED ADJUSTMENT")).toBeTruthy();
     expect(screen.getByText("Make the action smaller")).toBeTruthy();
     expect(screen.getByText("Why this suggestion")).toBeTruthy();
     expect(screen.getByText("Suggested draft")).toBeTruthy();
@@ -169,7 +169,7 @@ describe("EditHabitScreen", () => {
 
     render(<EditHabitScreen />);
 
-    expect(screen.getByText("Suggested adjustment")).toBeTruthy();
+    expect(screen.getByText("SUGGESTED ADJUSTMENT")).toBeTruthy();
     expect(screen.getByText("Choose a clearer trigger")).toBeTruthy();
     expect(screen.getByText("Why this suggestion")).toBeTruthy();
     expect(screen.getByText("Suggested draft")).toBeTruthy();
@@ -201,7 +201,7 @@ describe("EditHabitScreen", () => {
 
     render(<EditHabitScreen />);
 
-    expect(screen.getByText("Suggested adjustment")).toBeTruthy();
+    expect(screen.getByText("SUGGESTED ADJUSTMENT")).toBeTruthy();
     expect(screen.getByText("Make the action smaller")).toBeTruthy();
     expect(
       screen.getByText(
@@ -223,7 +223,7 @@ describe("EditHabitScreen", () => {
 
     render(<EditHabitScreen />);
 
-    expect(screen.queryByText("Suggested adjustment")).toBeNull();
+    expect(screen.queryByText("SUGGESTED ADJUSTMENT")).toBeNull();
     expect(screen.queryByText("Make the action smaller")).toBeNull();
     expect(screen.queryByText("Why this suggestion")).toBeNull();
     expect(screen.queryByText("Suggested draft")).toBeNull();

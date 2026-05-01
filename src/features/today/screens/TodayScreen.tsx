@@ -9,7 +9,7 @@ import { ReadOnlyBanner } from "@/components/ReadOnlyBanner";
 import { RecoveryModal } from "@/components/RecoveryModal";
 import { PrimaryButton } from "@/components/buttons/PrimaryButton";
 import { SecondaryButton } from "@/components/buttons/SecondaryButton";
-import { EmptyState } from "@/components/feedback/EmptyState";
+import { ZenCard } from "@/components/cards/ZenCard";
 import { ErrorState } from "@/components/feedback/ErrorState";
 import { LoadingState } from "@/components/feedback/LoadingState";
 import { extractIdentityNoun } from "@/features/onboarding/identityNoun";
@@ -30,6 +30,7 @@ import {
 import { useTrialValidation } from "@/features/trial/hooks";
 import { setPreference } from "@/lib/db/repositories/preferences";
 import { colors } from "@/theme/colors";
+import { fontFamilies } from "@/theme/fontFamilies";
 import { radius } from "@/theme/radius";
 import { spacing } from "@/theme/spacing";
 import { typography } from "@/theme/typography";
@@ -253,16 +254,18 @@ export default function TodayScreen() {
         style={styles.screen}
       >
         <SubtleDateHeader />
-        <View style={styles.emptySection}>
-          <EmptyState
-            body="Start with one Focus habit. Small, repeatable, sized to your worst day."
-            title="No active habits yet"
-          />
+        <ZenCard>
+          <Text selectable style={styles.emptyTitle}>
+            No active habits yet
+          </Text>
+          <Text selectable style={styles.emptyBody}>
+            Start with one Focus habit. Small, repeatable, sized to your worst day.
+          </Text>
           <PrimaryButton
             label="Create your first habit"
             onPress={() => router.push("/(app)/habits/create")}
           />
-        </View>
+        </ZenCard>
       </ScrollView>
     );
   }
@@ -330,10 +333,19 @@ const styles = StyleSheet.create({
   },
   dateHeader: {
     color: colors.textMuted,
+    fontFamily: fontFamilies.body,
     fontSize: typography.bodyLg,
   },
-  emptySection: {
-    gap: spacing.lg,
+  emptyBody: {
+    color: colors.textMuted,
+    fontFamily: fontFamilies.body,
+    fontSize: typography.bodyLg,
+    lineHeight: 24,
+  },
+  emptyTitle: {
+    color: colors.text,
+    fontFamily: fontFamilies.displaySemi,
+    fontSize: typography.headlineLg,
   },
   firstDayCopy: {
     color: colors.text,

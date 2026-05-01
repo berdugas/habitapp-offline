@@ -7,9 +7,12 @@ import type { HeatmapLog } from "@/components/Heatmap";
 import { IdentityStreakDisplay } from "@/components/IdentityStreakDisplay";
 import { ReadOnlyBanner } from "@/components/ReadOnlyBanner";
 import { SecondaryButton } from "@/components/buttons/SecondaryButton";
+import { ZenCard } from "@/components/cards/ZenCard";
+import { RowLV } from "@/components/cards/RowLV";
 import { EmptyState } from "@/components/feedback/EmptyState";
 import { ErrorState } from "@/components/feedback/ErrorState";
 import { LoadingState } from "@/components/feedback/LoadingState";
+import { Eyebrow } from "@/components/text/Eyebrow";
 import {
   HABIT_LOG_STATUS_LABELS,
 } from "@/features/habits/contract";
@@ -26,7 +29,7 @@ import { useTrialValidation } from "@/features/trial/hooks";
 import { useHabitLogsForRange } from "@/features/today/hooks";
 import { now } from "@/utils/clock";
 import { colors } from "@/theme/colors";
-import { radius } from "@/theme/radius";
+import { fontFamilies } from "@/theme/fontFamilies";
 import { spacing } from "@/theme/spacing";
 import { typography } from "@/theme/typography";
 import {
@@ -221,98 +224,56 @@ export default function HabitDetailScreen() {
       </View>
 
       {isUpcoming ? (
-        <View style={styles.infoCard}>
+        <ZenCard>
           <Text selectable style={styles.infoTitle}>
             Starts on {formatDateLabel(habit.start_date)}
           </Text>
           <Text selectable style={styles.infoBody}>
             {getUpcomingHabitMessage()}
           </Text>
-        </View>
+        </ZenCard>
       ) : null}
 
-      <View style={styles.sectionCard}>
-        <Text selectable style={styles.sectionTitle}>
-          Setup
-        </Text>
+      <ZenCard>
+        <Eyebrow label="Setup" />
         {habit.identity_phrase ? (
-          <View style={styles.row}>
-            <Text selectable style={styles.label}>
-              Identity
-            </Text>
-            <Text selectable style={styles.value}>
-              {habit.identity_phrase}
-            </Text>
-          </View>
+          <RowLV label="Identity" value={habit.identity_phrase} />
         ) : null}
-        <View style={styles.row}>
-          <Text selectable style={styles.label}>
-            Formula
-          </Text>
-          <Text selectable style={styles.value}>
-            {formula}
-          </Text>
-        </View>
+        <RowLV label="Formula" value={formula} />
         {habit.preferred_time_window ? (
-          <View style={styles.row}>
-            <Text selectable style={styles.label}>
-              Preferred time
-            </Text>
-            <Text selectable style={styles.value}>
-              {habit.preferred_time_window}
-            </Text>
-          </View>
+          <RowLV label="Preferred time" value={habit.preferred_time_window} />
         ) : null}
         {/* TODO(S15): reminder settings row */}
-      </View>
+      </ZenCard>
 
       {!isUpcoming ? (
-        <View style={styles.sectionCard}>
+        <ZenCard>
           <HabitDetailHeatmap logs={heatmapLogs} onCellPress={handleCellPress} />
-        </View>
+        </ZenCard>
       ) : null}
 
-      <View style={styles.sectionCard}>
-        <Text selectable style={styles.sectionTitle}>
-          Today
-        </Text>
+      <ZenCard>
+        <Eyebrow label="Today" />
         <Text selectable style={styles.statusText}>
           {formatTodayStatus(progress.todayStatus)}
         </Text>
-      </View>
+      </ZenCard>
 
-      <View style={styles.sectionCard}>
-        <Text selectable style={styles.sectionTitle}>
-          Progress
-        </Text>
+      <ZenCard>
+        <Eyebrow label="Progress" />
         <IdentityStreakDisplay
           identityNoun={extractIdentityNoun(habit.identity_phrase ?? "")}
           streak={progress.streak}
         />
-        <View style={styles.progressGrid}>
-          <View style={styles.progressItem}>
-            <Text selectable style={styles.progressLabel}>
-              30-day skips
-            </Text>
-            <Text selectable style={styles.progressValue}>
-              {progress.skipCount}
-            </Text>
-          </View>
-          <View style={styles.progressItem}>
-            <Text selectable style={styles.progressLabel}>
-              Consistency
-            </Text>
-            <Text selectable style={styles.progressValue}>
-              {formatConsistency(progress.consistencyRate)} over the last 30 days
-            </Text>
-          </View>
-        </View>
-      </View>
+        <RowLV label="30-day skips" value={String(progress.skipCount)} />
+        <RowLV
+          label="Consistency"
+          value={`${formatConsistency(progress.consistencyRate)} over the last 30 days`}
+        />
+      </ZenCard>
 
-      <View style={styles.sectionCard}>
-        <Text selectable style={styles.sectionTitle}>
-          Recent history
-        </Text>
+      <ZenCard>
+        <Eyebrow label="Recent history" />
         {recentLogs.length === 0 ? (
           <EmptyState
             body="This habit has no recent logs yet."
@@ -320,79 +281,42 @@ export default function HabitDetailScreen() {
           />
         ) : (
           recentLogs.map((log) => (
-            <View key={log.id} style={styles.logRow}>
-              <Text selectable style={styles.logPrimary}>
-                {formatDateLabel(log.log_date)} -{" "}
-                {HABIT_LOG_STATUS_LABELS[log.status]}
-              </Text>
+            <View key={log.id}>
+              <RowLV
+                label={formatDateLabel(log.log_date)}
+                value={HABIT_LOG_STATUS_LABELS[log.status]}
+              />
               {log.note ? (
-                <Text selectable style={styles.logSecondary}>
+                <Text selectable style={styles.logNote}>
                   {log.note}
                 </Text>
               ) : null}
             </View>
           ))
         )}
-      </View>
+      </ZenCard>
 
-      <View style={styles.sectionCard}>
-        <Text selectable style={styles.sectionTitle}>
-          {latestReview ? "Latest weekly review" : "Weekly review"}
-        </Text>
+      <ZenCard>
+        <Eyebrow label={latestReview ? "Latest weekly review" : "Weekly review"} />
         {latestReview ? (
           <View style={styles.reviewContent}>
             <Text selectable style={styles.reviewWeek}>
               {formatWeekLabel(latestReview.week_start)}
             </Text>
             {latestReview.went_well ? (
-              <View style={styles.row}>
-                <Text selectable style={styles.label}>
-                  What went well
-                </Text>
-                <Text selectable style={styles.value}>
-                  {latestReview.went_well}
-                </Text>
-              </View>
+              <RowLV label="What went well" value={latestReview.went_well} />
             ) : null}
             {latestReview.was_hard ? (
-              <View style={styles.row}>
-                <Text selectable style={styles.label}>
-                  What was hard
-                </Text>
-                <Text selectable style={styles.value}>
-                  {latestReview.was_hard}
-                </Text>
-              </View>
+              <RowLV label="What was hard" value={latestReview.was_hard} />
             ) : null}
-            <View style={styles.row}>
-              <Text selectable style={styles.label}>
-                Trigger worked
-              </Text>
-              <Text selectable style={styles.value}>
-                {formatBooleanAnswer(latestReview.trigger_worked)}
-              </Text>
-            </View>
-            <View style={styles.row}>
-              <Text selectable style={styles.label}>
-                Tiny action too hard
-              </Text>
-              <Text selectable style={styles.value}>
-                {formatBooleanAnswer(latestReview.tiny_action_too_hard)}
-              </Text>
-            </View>
+            <RowLV label="Trigger worked" value={formatBooleanAnswer(latestReview.trigger_worked)} />
+            <RowLV label="Tiny action too hard" value={formatBooleanAnswer(latestReview.tiny_action_too_hard)} />
             {latestReview.adjustment_note ? (
-              <View style={styles.row}>
-                <Text selectable style={styles.label}>
-                  Adjustment
-                </Text>
-                <Text selectable style={styles.value}>
-                  {latestReview.adjustment_note}
-                </Text>
-              </View>
+              <RowLV label="Adjustment" value={latestReview.adjustment_note} />
             ) : null}
           </View>
         ) : (
-          <Text selectable style={styles.value}>
+          <Text selectable style={styles.reviewPlaceholder}>
             Reflect on what worked and what to adjust for this habit.
           </Text>
         )}
@@ -400,13 +324,11 @@ export default function HabitDetailScreen() {
           label={latestReview ? "Update weekly review" : "Start weekly review"}
           onPress={() => router.push(`/(app)/reviews/${habit.id}`)}
         />
-      </View>
+      </ZenCard>
 
       {adjustmentSuggestions.map((suggestion) => (
-        <View key={suggestion.type} style={styles.suggestionCard}>
-          <Text selectable style={styles.suggestionEyebrow}>
-            Suggested adjustment
-          </Text>
+        <ZenCard key={suggestion.type} gap={spacing.sm}>
+          <Eyebrow label="Suggested adjustment" />
           <Text selectable style={styles.suggestionTitle}>
             {suggestion.title}
           </Text>
@@ -431,7 +353,7 @@ export default function HabitDetailScreen() {
               })
             }
           />
-        </View>
+        </ZenCard>
       ))}
 
       <View style={styles.actions}>
@@ -503,29 +425,30 @@ function HabitDetailHeatmap({
 const styles = StyleSheet.create({
   actionHelperBody: {
     color: colors.textMuted,
+    fontFamily: fontFamilies.body,
     fontSize: 14,
     lineHeight: 20,
   },
   actionHelperCard: {
     backgroundColor: colors.surface,
     borderColor: 'transparent',
-    borderRadius: radius.lg,
+    borderRadius: 12,
     borderWidth: 1,
     gap: spacing.xs,
     padding: spacing.lg,
   },
   actionHelperTitle: {
     color: colors.text,
+    fontFamily: fontFamilies.bodySemi,
     fontSize: 16,
-    fontWeight: "700",
   },
   actions: {
     gap: spacing.md,
   },
   becomingHeader: {
     color: colors.text,
+    fontFamily: fontFamilies.bodySemi,
     fontSize: typography.headlineMd,
-    fontWeight: "700",
     lineHeight: 30,
   },
   content: {
@@ -534,6 +457,7 @@ const styles = StyleSheet.create({
   },
   formula: {
     color: colors.textMuted,
+    fontFamily: fontFamilies.body,
     fontSize: 16,
     lineHeight: 24,
   },
@@ -542,141 +466,69 @@ const styles = StyleSheet.create({
   },
   infoBody: {
     color: colors.textMuted,
+    fontFamily: fontFamilies.body,
     fontSize: 15,
     lineHeight: 22,
   },
-  infoCard: {
-    backgroundColor: colors.primarySoft,
-    borderRadius: radius.lg,
-    gap: spacing.sm,
-    padding: spacing.xl,
-  },
   infoTitle: {
-    color: colors.primary,
-    fontSize: 16,
-    fontWeight: "700",
-  },
-  label: {
-    color: colors.textMuted,
-    fontSize: 13,
-    fontWeight: "700",
-    textTransform: "uppercase",
-  },
-  logPrimary: {
     color: colors.text,
-    fontSize: 16,
-    fontWeight: "600",
+    fontFamily: fontFamilies.bodySemi,
+    fontSize: typography.bodyLg,
   },
-  logRow: {
-    borderColor: 'transparent',
-    borderTopWidth: 1,
-    gap: spacing.xs,
-    paddingTop: spacing.md,
-  },
-  logSecondary: {
+  logNote: {
     color: colors.textMuted,
+    fontFamily: fontFamilies.body,
     fontSize: 14,
     lineHeight: 20,
-  },
-  progressGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: spacing.sm,
-  },
-  progressItem: {
-    backgroundColor: colors.surfaceMuted,
-    borderRadius: radius.md,
-    gap: spacing.xs,
-    minWidth: 96,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-  },
-  progressLabel: {
-    color: colors.textMuted,
-    fontSize: 12,
-    fontWeight: "600",
-    textTransform: "uppercase",
-  },
-  progressValue: {
-    color: colors.text,
-    fontSize: 18,
-    fontWeight: "700",
-  },
-  row: {
-    gap: spacing.xs,
   },
   reviewContent: {
     gap: spacing.md,
   },
+  reviewPlaceholder: {
+    color: colors.text,
+    fontFamily: fontFamilies.body,
+    fontSize: 16,
+    lineHeight: 24,
+  },
   reviewWeek: {
     color: colors.textMuted,
+    fontFamily: fontFamilies.bodySemi,
     fontSize: 14,
-    fontWeight: "600",
   },
   screen: {
     backgroundColor: colors.bg,
     flex: 1,
   },
-  sectionCard: {
-    backgroundColor: colors.surface,
-    borderColor: 'transparent',
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    gap: spacing.md,
-    padding: spacing.xl,
-  },
-  sectionTitle: {
-    color: colors.text,
-    fontSize: 18,
-    fontWeight: "700",
-  },
   statusText: {
     color: colors.text,
+    fontFamily: fontFamilies.body,
     fontSize: 18,
-    fontWeight: "600",
   },
   suggestionBody: {
     color: colors.textMuted,
+    fontFamily: fontFamilies.body,
     fontSize: 14,
     lineHeight: 20,
   },
-  suggestionCard: {
-    backgroundColor: colors.surface,
-    borderColor: 'transparent',
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    gap: spacing.sm,
-    padding: spacing.xl,
-  },
-  suggestionEyebrow: {
-    color: colors.textMuted,
-    fontSize: 12,
-    fontWeight: "700",
-    textTransform: "uppercase",
-  },
   suggestionReason: {
     color: colors.textMuted,
+    fontFamily: fontFamilies.body,
     fontSize: 14,
     lineHeight: 20,
   },
   suggestionReasonLabel: {
     color: colors.text,
+    fontFamily: fontFamilies.bodySemi,
     fontSize: 13,
-    fontWeight: "700",
   },
   suggestionTitle: {
     color: colors.text,
-    fontSize: 18,
-    fontWeight: "700",
+    fontFamily: fontFamilies.displaySemi,
+    fontSize: typography.titleMd,
   },
   title: {
     color: colors.text,
-    fontSize: 28,
-    fontWeight: "800",
-  },
-  value: {
-    color: colors.text,
-    fontSize: 16,
-    lineHeight: 24,
+    fontFamily: fontFamilies.displayBold,
+    fontSize: typography.headlineLg,
   },
 });
