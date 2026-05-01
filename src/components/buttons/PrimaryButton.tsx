@@ -1,9 +1,12 @@
+import { LinearGradient } from "expo-linear-gradient";
 import { Pressable, StyleSheet, Text } from "react-native";
 
 import { colors } from "@/theme/colors";
+import { fontFamilies } from "@/theme/fontFamilies";
 import { radius } from "@/theme/radius";
 import { shadows } from "@/theme/shadows";
 import { spacing } from "@/theme/spacing";
+import { typography } from "@/theme/typography";
 
 type PrimaryButtonProps = {
   disabled?: boolean;
@@ -27,21 +30,23 @@ export function PrimaryButton({
         pressed && !disabled && styles.buttonPressed,
       ]}
     >
-      <Text selectable style={styles.label}>
-        {label}
-      </Text>
+      <LinearGradient
+        colors={[colors.primary, colors.primaryGradientEnd]}
+        end={{ x: 1, y: 1 }}
+        start={{ x: 0, y: 0 }}
+        style={styles.gradient}
+      >
+        <Text style={styles.label}>{label}</Text>
+      </LinearGradient>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   button: {
-    alignItems: "center",
-    backgroundColor: colors.primary,
     borderRadius: radius.pill,
     boxShadow: shadows.button,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
+    overflow: "hidden",
   },
   buttonDisabled: {
     opacity: 0.55,
@@ -49,9 +54,15 @@ const styles = StyleSheet.create({
   buttonPressed: {
     opacity: 0.92,
   },
+  gradient: {
+    alignItems: "center",
+    paddingHorizontal: spacing.xxl,
+    paddingVertical: spacing.lg + 2,
+  },
   label: {
     color: colors.primaryText,
-    fontSize: 16,
-    fontWeight: "700",
+    fontFamily: fontFamilies.bodyBold,
+    fontSize: typography.bodyLg,
+    letterSpacing: 0.16,
   },
 });

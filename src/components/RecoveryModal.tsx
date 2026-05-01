@@ -1,7 +1,11 @@
+import { BlurView } from "expo-blur";
 import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
 
+import { TertiaryButton } from "@/components/buttons/TertiaryButton";
 import { colors } from "@/theme/colors";
+import { fontFamilies } from "@/theme/fontFamilies";
 import { radius } from "@/theme/radius";
+import { shadows } from "@/theme/shadows";
 import { spacing } from "@/theme/spacing";
 import { typography } from "@/theme/typography";
 
@@ -14,6 +18,24 @@ type RecoveryModalProps = {
   onClose: () => void;
 };
 
+const ACTIONS = [
+  {
+    key: "restart",
+    label: "Restart as-is",
+    hint: "Continue with the same habit. Streak resets to 0.",
+  },
+  {
+    key: "smaller",
+    label: "Make it smaller",
+    hint: "Edit the tiny action to something easier.",
+  },
+  {
+    key: "pause",
+    label: "Pause for now",
+    hint: "Archive the habit. History is preserved.",
+  },
+] as const;
+
 export function RecoveryModal({
   visible,
   habitTitle,
@@ -22,148 +44,106 @@ export function RecoveryModal({
   onPauseForNow,
   onClose,
 }: RecoveryModalProps) {
+  const handlers: Record<string, () => void> = {
+    restart: onRestart,
+    smaller: onMakeItSmaller,
+    pause: onPauseForNow,
+  };
+
   return (
-    <Modal animationType="fade" transparent visible={visible}>
+    <Modal animationType="slide" transparent visible={visible}>
       <View style={styles.overlay}>
-        <View style={styles.sheet}>
-          <Text selectable style={styles.habitTitle}>
-            {habitTitle}
-          </Text>
-          <Text selectable style={styles.body}>
-            The habit lost some momentum. That happens to everyone — what
-            matters now is what you do next.
-          </Text>
-          <Text selectable style={styles.prompt}>
-            What would you like to do?
-          </Text>
-
-          <View style={styles.actions}>
-            <Pressable
-              accessibilityRole="button"
-              onPress={onRestart}
-              style={({ pressed }) => [
-                styles.actionButton,
-                pressed && styles.actionButtonPressed,
-              ]}
-            >
-              <Text selectable style={styles.actionLabel}>
-                Restart as-is
-              </Text>
-              <Text selectable style={styles.actionHint}>
-                Continue with the same habit. Streak resets to 0.
-              </Text>
-            </Pressable>
-
-            <Pressable
-              accessibilityRole="button"
-              onPress={onMakeItSmaller}
-              style={({ pressed }) => [
-                styles.actionButton,
-                pressed && styles.actionButtonPressed,
-              ]}
-            >
-              <Text selectable style={styles.actionLabel}>
-                Make it smaller
-              </Text>
-              <Text selectable style={styles.actionHint}>
-                Edit the tiny action to something easier.
-              </Text>
-            </Pressable>
-
-            <Pressable
-              accessibilityRole="button"
-              onPress={onPauseForNow}
-              style={({ pressed }) => [
-                styles.actionButton,
-                pressed && styles.actionButtonPressed,
-              ]}
-            >
-              <Text selectable style={styles.actionLabel}>
-                Pause for now
-              </Text>
-              <Text selectable style={styles.actionHint}>
-                Archive the habit. History is preserved.
-              </Text>
-            </Pressable>
-          </View>
-
-          <Pressable
-            accessibilityRole="button"
-            onPress={onClose}
-            style={styles.closeLink}
-          >
-            <Text selectable style={styles.closeLinkText}>
-              Just close
+        <BlurView intensity={80} style={styles.blurContainer} tint="light">
+          <View style={styles.sheet}>
+            <Text selectable style={styles.eyebrow}>
+              {habitTitle.toUpperCase()}
             </Text>
-          </Pressable>
-        </View>
+            <Text selectable style={styles.body}>
+              The habit lost some momentum. That happens to everyone — what
+              matters now is what you do next.
+            </Text>
+
+            <View style={styles.actions}>
+              {ACTIONS.map((action) => (
+                <Pressable
+                  accessibilityRole="button"
+                  key={action.key}
+                  onPress={handlers[action.key]}
+                  style={({ pressed }) => [
+                    styles.actionCard,
+                    pressed && styles.actionCardPressed,
+                  ]}
+                >
+                  <Text selectable style={styles.actionLabel}>
+                    {action.label}
+                  </Text>
+                  <Text selectable style={styles.actionHint}>
+                    {action.hint}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+
+            <TertiaryButton label="Just close" onPress={onClose} />
+          </View>
+        </BlurView>
       </View>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  actionButton: {
-    backgroundColor: colors.surface,
-    borderColor: 'transparent',
+  actionCard: {
+    backgroundColor: colors.surfaceCard,
     borderRadius: radius.md,
-    borderWidth: 1,
+    boxShadow: shadows.lift,
     gap: spacing.xs,
     padding: spacing.lg,
   },
-  actionButtonPressed: {
-    backgroundColor: colors.surfaceMuted,
+  actionCardPressed: {
+    opacity: 0.88,
   },
   actionHint: {
     color: colors.textMuted,
-    fontSize: 13,
+    fontFamily: fontFamilies.body,
+    fontSize: typography.bodyMd,
     lineHeight: 18,
   },
   actionLabel: {
     color: colors.text,
-    fontSize: 16,
-    fontWeight: "600",
+    fontFamily: fontFamilies.bodySemi,
+    fontSize: typography.bodyLg,
   },
   actions: {
     gap: spacing.sm,
   },
+  blurContainer: {
+    borderTopLeftRadius: radius.lg,
+    borderTopRightRadius: radius.lg,
+    overflow: "hidden",
+    width: "100%",
+  },
   body: {
     color: colors.text,
+    fontFamily: fontFamilies.body,
     fontSize: typography.bodyLg,
     lineHeight: 24,
   },
-  closeLink: {
-    alignItems: "center",
-    paddingVertical: spacing.sm,
-  },
-  closeLinkText: {
+  eyebrow: {
     color: colors.textMuted,
-    fontSize: typography.bodyLg,
-  },
-  habitTitle: {
-    color: colors.textMuted,
-    fontSize: 13,
-    fontWeight: "700",
-    textTransform: "uppercase",
+    fontFamily: fontFamilies.bodyBold,
+    fontSize: typography.micro,
+    letterSpacing: 1,
   },
   overlay: {
-    alignItems: "center",
-    backgroundColor: "rgba(0,0,0,0.4)",
     flex: 1,
     justifyContent: "flex-end",
-  },
-  prompt: {
-    color: colors.text,
-    fontSize: typography.bodyLg,
-    fontWeight: "600",
+    backgroundColor: "rgba(0,0,0,0.3)",
   },
   sheet: {
-    backgroundColor: colors.bg,
-    borderTopLeftRadius: radius.lg,
-    borderTopRightRadius: radius.lg,
+    backgroundColor: "rgba(251, 249, 245, 0.9)",
     gap: spacing.lg,
     padding: spacing.xl,
-    paddingBottom: spacing.xxl ?? spacing.xl,
-    width: "100%",
+    paddingBottom: spacing.xxl,
   },
 });

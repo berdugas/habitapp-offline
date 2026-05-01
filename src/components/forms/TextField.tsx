@@ -1,9 +1,20 @@
-import { forwardRef } from "react";
-import { StyleSheet, Text, TextInput, View } from "react-native";
+import { forwardRef, useRef } from "react";
+import {
+  Animated,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
 
 import { colors } from "@/theme/colors";
+import { fontFamilies } from "@/theme/fontFamilies";
 import { radius } from "@/theme/radius";
+import { shadows } from "@/theme/shadows";
 import { spacing } from "@/theme/spacing";
+import { typography } from "@/theme/typography";
+
+const DURATION = 180;
 
 type TextFieldProps = {
   autoCapitalize?: "none" | "sentences" | "words" | "characters";
@@ -30,22 +41,67 @@ export const TextField = forwardRef<TextInput, TextFieldProps>(
     },
     ref,
   ) {
+    const focusAnim = useRef(new Animated.Value(0)).current;
+
+    const handleFocus = () => {
+      Animated.timing(focusAnim, {
+        duration: DURATION,
+        toValue: 1,
+        useNativeDriver: false,
+      }).start();
+    };
+
+    const handleBlur = () => {
+      Animated.timing(focusAnim, {
+        duration: DURATION,
+        toValue: 0,
+        useNativeDriver: false,
+      }).start();
+    };
+
+    const animatedBg = focusAnim.interpolate({
+      inputRange: [0, 1],
+      outputRange: [colors.surface, colors.surfaceCard],
+    });
+
+    const animatedBorder = focusAnim.interpolate({
+      inputRange: [0, 1],
+      outputRange: ["transparent", colors.primary],
+    });
+
+    const animatedLabelColor = focusAnim.interpolate({
+      inputRange: [0, 1],
+      outputRange: [colors.textMuted, colors.primary],
+    });
+
     return (
       <View style={styles.wrapper}>
-        <Text selectable style={styles.label}>
+        <Animated.Text style={[styles.label, { color: animatedLabelColor }]}>
           {label}
-        </Text>
-        <TextInput
-          ref={ref}
-          autoCapitalize={autoCapitalize}
-          multiline={multiline}
-          onChangeText={onChangeText}
-          placeholder={placeholder}
-          placeholderTextColor={colors.textMuted}
-          secureTextEntry={secureTextEntry}
-          style={[styles.input, multiline && styles.inputMultiline]}
-          value={value}
-        />
+        </Animated.Text>
+        <Animated.View
+          style={[
+            styles.inputContainer,
+            {
+              backgroundColor: animatedBg,
+              borderColor: animatedBorder,
+            },
+          ]}
+        >
+          <TextInput
+            ref={ref}
+            autoCapitalize={autoCapitalize}
+            multiline={multiline}
+            onBlur={handleBlur}
+            onChangeText={onChangeText}
+            onFocus={handleFocus}
+            placeholder={placeholder}
+            placeholderTextColor={colors.textFaint}
+            secureTextEntry={secureTextEntry}
+            style={[styles.input, multiline && styles.inputMultiline]}
+            value={value}
+          />
+        </Animated.View>
         {error ? (
           <Text selectable style={styles.error}>
             {error}
@@ -59,26 +115,29 @@ export const TextField = forwardRef<TextInput, TextFieldProps>(
 const styles = StyleSheet.create({
   error: {
     color: colors.danger,
-    fontSize: 13,
+    fontFamily: fontFamilies.body,
+    fontSize: typography.labelMd,
   },
   input: {
-    backgroundColor: colors.surfaceCard,
-    borderColor: 'transparent',
-    borderRadius: radius.md,
-    borderWidth: 1,
     color: colors.text,
-    fontSize: 16,
+    fontFamily: fontFamilies.body,
+    fontSize: typography.bodyLg,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
+  },
+  inputContainer: {
+    borderRadius: radius.sm,
+    borderWidth: 1.5,
+    boxShadow: shadows.lift,
+    overflow: "hidden",
   },
   inputMultiline: {
     minHeight: 100,
     textAlignVertical: "top",
   },
   label: {
-    color: colors.text,
-    fontSize: 14,
-    fontWeight: "600",
+    fontFamily: fontFamilies.bodySemi,
+    fontSize: typography.bodyMd,
   },
   wrapper: {
     gap: spacing.sm,

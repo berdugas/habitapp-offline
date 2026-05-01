@@ -2,8 +2,10 @@ import { StyleSheet, Text, View } from "react-native";
 
 import { PrimaryButton } from "@/components/buttons/PrimaryButton";
 import { colors } from "@/theme/colors";
+import { fontFamilies } from "@/theme/fontFamilies";
 import { radius } from "@/theme/radius";
 import { spacing } from "@/theme/spacing";
+import { typography } from "@/theme/typography";
 
 type ReadOnlyBannerProps = {
   isReconnecting: boolean;
@@ -32,20 +34,19 @@ export function ReadOnlyBanner({ isReconnecting, onReconnect }: ReadOnlyBannerPr
 const styles = StyleSheet.create({
   banner: {
     backgroundColor: colors.surface,
-    borderColor: colors.primary,
-    borderRadius: radius.lg,
-    borderWidth: 1,
+    borderRadius: radius.sm,
     gap: spacing.md,
     padding: spacing.xl,
   },
   body: {
     color: colors.textMuted,
-    fontSize: 15,
+    fontFamily: fontFamilies.body,
+    fontSize: typography.bodyMd,
     lineHeight: 22,
   },
   heading: {
     color: colors.text,
-    fontSize: 16,
-    fontWeight: "700",
+    fontFamily: fontFamilies.bodyBold,
+    fontSize: typography.bodyLg,
   },
 });

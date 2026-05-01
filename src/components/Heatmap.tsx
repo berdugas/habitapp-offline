@@ -51,11 +51,20 @@ export function Heatmap({ days, logs, onCellPress }: HeatmapProps) {
             const date = dates[cellIdx];
             const status = statusByDate.get(date) ?? null;
             const isToday = date === today;
+            const isUnlogged = status === null;
 
             const cellStyle = [
               styles.cell,
-              { width: cellSize, height: cellSize, backgroundColor: getCellColor(status) },
-              isToday && status === null ? styles.todayOutline : null,
+              {
+                width: cellSize,
+                height: cellSize,
+                backgroundColor: getCellColor(status),
+                opacity: isUnlogged ? 0.6 : 1,
+              },
+              // Inset border for today's unlogged cell — keeps cell size identical to siblings.
+              isToday && isUnlogged
+                ? { boxShadow: `inset 0 0 0 2px ${colors.primary}`, opacity: 1 }
+                : null,
             ];
 
             if (onCellPress) {
@@ -108,8 +117,5 @@ const styles = StyleSheet.create({
   },
   row: {
     flexDirection: "row",
-  },
-  todayOutline: {
-    borderWidth: 2,
   },
 });

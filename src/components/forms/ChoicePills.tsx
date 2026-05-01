@@ -1,8 +1,12 @@
+import { LinearGradient } from "expo-linear-gradient";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { colors } from "@/theme/colors";
+import { fontFamilies } from "@/theme/fontFamilies";
 import { radius } from "@/theme/radius";
+import { shadows } from "@/theme/shadows";
 import { spacing } from "@/theme/spacing";
+import { typography } from "@/theme/typography";
 
 type ChoicePillOption = {
   label: string;
@@ -50,11 +54,22 @@ export function ChoicePills({
                 pressed && styles.pillPressed,
               ]}
             >
-              <Text
-                style={[styles.pillLabel, isSelected && styles.pillLabelSelected]}
-              >
-                {option.label}
-              </Text>
+              {isSelected ? (
+                <LinearGradient
+                  colors={[colors.primary, colors.primaryGradientEnd]}
+                  end={{ x: 1, y: 1 }}
+                  start={{ x: 0, y: 0 }}
+                  style={styles.pillGradient}
+                >
+                  <Text style={[styles.pillLabel, styles.pillLabelSelected]}>
+                    {option.label}
+                  </Text>
+                </LinearGradient>
+              ) : (
+                <View style={styles.pillInner}>
+                  <Text style={styles.pillLabel}>{option.label}</Text>
+                </View>
+              )}
             </Pressable>
           );
         })}
@@ -66,24 +81,30 @@ export function ChoicePills({
 const styles = StyleSheet.create({
   label: {
     color: colors.text,
-    fontSize: 14,
-    fontWeight: "600",
+    fontFamily: fontFamilies.bodySemi,
+    fontSize: typography.bodyMd,
   },
   pill: {
-    backgroundColor: colors.surfaceCard,
-    borderColor: 'transparent',
     borderRadius: radius.pill,
-    borderWidth: 1,
+    overflow: "hidden",
+  },
+  pillGradient: {
+    boxShadow: shadows.lift,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+  },
+  pillInner: {
+    backgroundColor: colors.surface,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,
   },
   pillLabel: {
     color: colors.text,
-    fontSize: 14,
-    fontWeight: "600",
+    fontFamily: fontFamilies.bodySemi,
+    fontSize: typography.bodyMd,
   },
   pillLabelSelected: {
-    color: colors.surfaceCard,
+    color: colors.primaryText,
   },
   pillPressed: {
     opacity: 0.86,
@@ -94,8 +115,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   pillSelected: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
+    boxShadow: shadows.lift,
   },
   wrapper: {
     gap: spacing.sm,

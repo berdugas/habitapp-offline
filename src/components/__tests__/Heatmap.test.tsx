@@ -33,21 +33,28 @@ describe("Heatmap", () => {
     );
   });
 
-  it("outlines today when unlogged", () => {
+  it("outlines today when unlogged with inset box-shadow", () => {
     render(<Heatmap logs={[]} days={30} />);
     const todayCell = screen.getByLabelText("Today, not logged");
-    expect(todayCell.props.style).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ borderWidth: 2 }),
-      ]),
-    );
+    const styleArr = (todayCell.props.style as Array<object>).flat().filter(Boolean);
+    expect(
+      styleArr.some(
+        (s: { boxShadow?: string }) =>
+          typeof s.boxShadow === "string" && s.boxShadow.includes("inset"),
+      ),
+    ).toBe(true);
   });
 
   it("does not outline today when it has a log", () => {
     render(<Heatmap logs={[{ log_date: "2026-04-30", status: "done" }]} days={30} />);
     const todayCell = screen.getByLabelText("Today, done");
-    const styles = (todayCell.props.style as Array<object>).flat().filter(Boolean);
-    expect(styles.some((s: { borderWidth?: number }) => s.borderWidth === 2)).toBe(false);
+    const styleArr = (todayCell.props.style as Array<object>).flat().filter(Boolean);
+    expect(
+      styleArr.some(
+        (s: { boxShadow?: string }) =>
+          typeof s.boxShadow === "string" && s.boxShadow.includes("inset"),
+      ),
+    ).toBe(false);
   });
 
   it("calls onCellPress with the date when a cell is tapped", () => {
