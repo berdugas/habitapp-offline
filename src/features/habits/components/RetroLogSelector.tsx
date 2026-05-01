@@ -21,6 +21,7 @@ type RetroLogSelectorProps = {
   isPending: boolean;
   onClose: () => void;
   onSubmit: (status: HabitLogStatus) => Promise<void>;
+  readOnlyReason?: "window" | "app";
 };
 
 export function RetroLogSelector({
@@ -31,6 +32,7 @@ export function RetroLogSelector({
   isPending,
   onClose,
   onSubmit,
+  readOnlyReason,
 }: RetroLogSelectorProps) {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -86,7 +88,9 @@ export function RetroLogSelector({
             </View>
           ) : (
             <Text selectable style={styles.lockedText}>
-              This day is locked. Logs older than 48 hours can't be changed.
+              {readOnlyReason === "app"
+                ? "Reconnect to log on this day."
+                : "This day is locked. Logs older than 48 hours can't be changed."}
             </Text>
           )}
           <SecondaryButton label="Close" onPress={handleClose} />

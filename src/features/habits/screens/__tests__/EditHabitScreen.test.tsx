@@ -1,3 +1,16 @@
+jest.mock("@/features/trial/hooks", () => ({
+  useTrialValidation: jest.fn(() => ({
+    isBootstrapping: false,
+    isValidating: false,
+    accessMode: "full",
+    entitlementStatus: "trial",
+    trialStartedAt: null,
+    trialEndsAt: null,
+    lastValidatedAt: null,
+    refresh: jest.fn().mockResolvedValue(undefined),
+  })),
+}));
+
 import { render, waitFor } from "@testing-library/react-native";
 import React from "react";
 

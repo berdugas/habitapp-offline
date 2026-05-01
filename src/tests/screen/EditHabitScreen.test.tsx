@@ -1,3 +1,16 @@
+jest.mock("@/features/trial/hooks", () => ({
+  useTrialValidation: jest.fn(() => ({
+    isBootstrapping: false,
+    isValidating: false,
+    accessMode: "full",
+    entitlementStatus: "trial",
+    trialStartedAt: null,
+    trialEndsAt: null,
+    lastValidatedAt: null,
+    refresh: jest.fn().mockResolvedValue(undefined),
+  })),
+}));
+
 import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 
 import EditHabitScreen from "@/features/habits/screens/EditHabitScreen";

@@ -1,7 +1,7 @@
 # Habits App — Project Brain
 
 > Single source of truth for anyone picking up this project.
-> Last updated: April 30, 2026
+> Last updated: May 1, 2026
 
 ---
 
@@ -307,8 +307,8 @@ Bug #2 (dual suggestion display) needs fixing during recommendations work.
 | # | Bug | Location | Status |
 |---|-----|----------|--------|
 | 1 | Reduce friction logic ↔ AI rewrite contradiction | `habitAdjustmentEngine.ts` + AI prompt | **Deferred** (AI off for Core v1) |
-| 2 | Dual suggestion shows only one | Suggestion display logic | **In scope** for Core v1 Sprint 2 |
-| 3 | Preferred time should be picker, not text | `CreateHabitScreen.tsx` | **In scope** for Core v1 Sprint 7 |
+| 2 | Dual suggestion shows only one | Suggestion display logic | **In scope** for Core v1 Sprint 8 |
+| 3 | Preferred time should be picker, not text | `CreateHabitScreen.tsx` | **In scope** for Core v1 Sprint 20 |
 | 4 | AI rewrite prompt needs guidelines | `generate-habit-rewrite/index.ts` | **Deferred** (AI off for Core v1) |
 
 ---
@@ -339,8 +339,8 @@ Source-of-truth docs live directly in `docs/`. Sprint planning and per-sprint de
 | Core v1 Requirements | .md | `docs/core-v1-requirements.md` | **Current — the what** |
 | Technical Handoff Core v1 | .md | `docs/tech-handoff-core-v1.md` | **Current — the how** |
 | Project Brain | .md | `docs/PROJECT_BRAIN.md` | **Current — this document** |
-| Sprint Plan | .md | `docs/sprint_tickets/sprint-plan.md` | **Current — the when (21-sprint roadmap, 4 phases)** |
-| Sprint Tickets | .md | `docs/sprint_tickets/sprint-N-tickets.md` | **Current — per-sprint dev ticket packages (S1–S5 closed; S6+ to come)** |
+| Sprint Plan | .md | `docs/sprint_tickets/sprint-plan.md` | **Current — the when (23-sprint roadmap, 4 phases; S9 visual design sprint inserted post-S7)** |
+| Sprint Tickets | .md | `docs/sprint_tickets/sprint-N-tickets.md` | **Current — per-sprint dev ticket packages (S1–S7 closed; S8+ to come)** |
 | Sprint Follow-ups | .md | `docs/sprint_tickets/sprint-N-followups.md` | **Current — per-sprint deferred items / cleanup notes** |
 | PRD Monetization | .docx | `docs/habits-app-prd-monetization.docx` | Reference for post-Core-v1 monetization |
 | User Flow | .html | `docs/habits-app-user-flow.html` | Stale — regenerate post-Core-v1 |
@@ -363,9 +363,11 @@ Live status of the Core v1 build. For the full 21-sprint plan, see `docs/sprint_
 - **S5** — TodayScreen redesigned around the Focus habit card. New components: `Heatmap` (`src/components/Heatmap.tsx`, 30/90-day grid, display-only with optional `onCellPress` stub for S6), `IdentityStreakDisplay` (`src/components/IdentityStreakDisplay.tsx`), and `extractIdentityNoun` (`src/features/onboarding/identityNoun.ts`). First-day copy ("Your first day. Start small.") renders on Day 1 before any log; standard streak copy takes over after first Done/Skip. Library tab placeholder added; bottom nav is now Today | Library | Settings. `useHabitLogsForRange` hook and `listLogsForHabitInRange` repo function added in `features/today/hooks.ts` and `lib/db/repositories/habit_logs.ts` — both reusable for S6's 90-day heatmap on Habit Detail. 8-item Appium smoke checklist passed (April 30 2026). 43 new tests (42 feature tests + migration-count assertion corrected in close-out); 355 passing, all suites green.
 - **S6** — Habit Detail redesigned and retro-log interaction complete. `HabitDetailScreen` updated: "Become [identity_phrase]" eyebrow header, `IdentityStreakDisplay` replacing raw streak number, 90-day `Heatmap` between Setup and Today (display-only in DEV-S6-01; `onCellPress` wired in DEV-S6-02), and consistency copy aligned with §10.2 ("N% over the last 30 days"). New: `RetroLogSelector` component (`src/features/habits/components/RetroLogSelector.tsx`) — Modal-based, editable/read-only modes keyed on the 48-hour window; `useUpsertHabitLogMutation` hook (`src/features/habits/hooks.ts`) — general-purpose retro log with three-key invalidation (heatmap, today aggregate, habit detail); `getRetroLogErrorMessage` dispatcher and four reason-specific functions added to `utils/userFacingErrors.ts`; `isWithinRetroWindow` exported from `features/habits/api.ts` for parent `canEdit` derivation. The 48-hour window is enforced by the existing `RetroLogError` from S2 — S6 surfaces it in the UI without re-implementing it. Test gap closures: F3 (TodayScreen load/save error paths) and F4 (heatmap refresh round-trip integration test) from S5 followups. `Heatmap.onCellPress` is now consumed on Habit Detail; Today stays display-only. 25 new tests; 380 passing, all suites green.
 
-- **S7** — Recovery flow + single-miss reframing. S7-01 cleanup: F6 query key naming inconsistency resolved (all range-log keys now use hyphens uniformly); F7 double-fetch on Habit Detail eliminated (single `useHabitLogsForRange` call at screen level, `logs` passed as prop to `HabitDetailHeatmap`). Core feature: streak-break detection in `src/features/recovery/api.ts` — mirrors `progress.ts` day-synthesis pattern (walks newest-first, synthesizes missed for unlogged past days, today included only if logged), §8.3 skip-filter, miss-prefix detection keyed on `breakRunStartDate` (oldest miss in run, not newest — prevents re-triggering the modal every morning during a slump). Two precondition guards: no Done in history → not broken; single-miss banner requires missDate === yesterday. `RecoveryModal` (`src/components/RecoveryModal.tsx`) shows calm §11.1 copy with Restart as-is / Make it smaller / Pause for now / Just close. "Make it smaller" routes to EditHabitScreen with `?from=recovery`; on mount, EditHabitScreen focuses the `tiny_action` TextInput. "Pause for now" guarded by `recoveryActionLockRef` to prevent double-archive. `TextField` adds `forwardRef`. Single-miss banner renders inside FocusCard between streak display and logging buttons; dismissed via setPreference + query invalidation. 29 new tests (18 detection unit tests + 7 RecoveryModal component tests + 4 TodayScreen integration tests); 409 passing, all suites green (2 pre-existing flaky integration tests excluded).
+- **S7** — Recovery flow + single-miss reframing. S7-01 cleanup: F6 query key naming inconsistency resolved (all range-log keys now use hyphens uniformly); F7 double-fetch on Habit Detail eliminated (single `useHabitLogsForRange` call at screen level, `logs` passed as prop to `HabitDetailHeatmap`). Core feature: streak-break detection in `src/features/recovery/api.ts` — mirrors `progress.ts` day-synthesis pattern (walks newest-first, synthesizes missed for unlogged past days, today included only if logged), §8.3 skip-filter, miss-prefix detection keyed on `breakRunStartDate` (oldest miss in run, not newest — prevents re-triggering the modal every morning during a slump). Two precondition guards: no Done in history → not broken; single-miss banner requires missDate === yesterday. `RecoveryModal` (`src/components/RecoveryModal.tsx`) shows calm §11.1 copy with Restart as-is / Make it smaller / Pause for now / Just close. "Make it smaller" routes to EditHabitScreen with `?from=recovery`; on mount, EditHabitScreen focuses the `tiny_action` TextInput. "Pause for now" guarded by `recoveryActionLockRef` to prevent double-archive. `TextField` adds `forwardRef`. Single-miss banner renders inside FocusCard between streak display and logging buttons; dismissed via setPreference + query invalidation. 35 new tests (18 detection unit tests + 7 RecoveryModal component tests + 10 TodayScreen integration tests, including 6 action-handler tests covering each modal action's setPreference call, the `from=recovery` router.push, the archive-then-mark order on Pause for now, the lock guard against double-archive, and the banner × dismissal); 415 passing, all suites green (2 pre-existing flaky integration tests excluded).
 
 ### Up next: S8 — Trial validation + basic Settings + Bug #2
+
+**Note on sprint plan revision (May 1 2026):** A new S9 — Visual design implementation sprint was inserted between S8 and the beta build. Beta build is now S10; everything in Phase C and D shifted +1 (Phase C now S11–S19, Phase D now S20–S22). Total 23 sprints, ~58 working days to "submitted." The visual sprint is gated on a product-lead design direction document being locked before it starts — design thinking happens during S7 close and S8; implementation runs during S9. See `sprint-plan.md` for the full revised structure.
 
 ### Transitional state to be aware of
 
@@ -416,7 +418,7 @@ Live status of the Core v1 build. For the full 21-sprint plan, see `docs/sprint_
 | Onboarding flow (planned) | `src/features/onboarding/screens/` |
 | Library (planned) | `src/features/library/screens/LibraryScreen.tsx` |
 | Graduation eligibility (planned) | `src/features/graduation/eligibility.ts` |
-| Recovery modal (planned) | `src/features/recovery/screens/RecoveryModalScreen.tsx` |
+| Recovery modal | `src/components/RecoveryModal.tsx` (component) + `src/features/recovery/api.ts` + `src/features/recovery/hooks.ts` (logic + hooks) |
 | Reminder scheduling (planned) | `src/features/reminders/notifications.ts` |
 | Account deletion (planned) | `src/features/account/api.ts` |
 
@@ -431,11 +433,12 @@ Per tech handoff Section 9. Status as of S5 close.
 - `src/components/Heatmap.tsx` — 30-day and 90-day variants (S5; 90-day variant supported but not yet rendered — lights up on Habit Detail in S6)
 - `src/components/IdentityStreakDisplay.tsx` — identity-flavored streak rendering (S5)
 - `src/features/onboarding/components/WorstDayCheck.tsx` — reusable check; originally for onboarding, slated for reuse in Supporting habit creation (S4)
+- `src/components/RecoveryModal.tsx` — post-streak-break recovery modal with 4 actions and submit-lock on Pause (S7)
+- `src/features/habits/components/RetroLogSelector.tsx` — modal-based retro-log selector with editable/read-only modes (S6)
 
 ### To build
 
 - `LibraryCard.tsx` — Automatic Library card (lights up when graduation ships)
-- `RecoveryModal.tsx` — post-streak-break recovery
 - `SrhiQuestion.tsx` — single SRHI question with Likert input
 - `BacklogList.tsx` — backlog management list
 
