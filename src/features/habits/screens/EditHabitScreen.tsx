@@ -44,9 +44,7 @@ import type { HabitAdjustmentSuggestionType } from "@/features/recommendations/t
 function getRewriteRequestSuggestionType(
   suggestionType: HabitAdjustmentSuggestionType,
 ) {
-  return suggestionType === "fix_trigger_and_tiny_action"
-    ? "make_tiny_action_smaller"
-    : suggestionType;
+  return suggestionType;
 }
 
 export default function EditHabitScreen() {

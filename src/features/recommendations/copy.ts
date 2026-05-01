@@ -7,12 +7,6 @@ export const HABIT_ADJUSTMENT_SUGGESTIONS: Record<
   HabitAdjustmentSuggestionType,
   HabitAdjustmentSuggestion
 > = {
-  fix_trigger_and_tiny_action: {
-    body: "Your trigger did not work, and the tiny action felt too hard. Try making both parts easier for next week.",
-    reason: "You answered that the trigger did not work and the tiny action was too hard.",
-    title: "Adjust trigger and action",
-    type: "fix_trigger_and_tiny_action",
-  },
   change_trigger: {
     body: "Your trigger may not be reliable yet. Try attaching this habit to a clearer moment that already happens every day.",
     reason: "You answered that the trigger did not work.",

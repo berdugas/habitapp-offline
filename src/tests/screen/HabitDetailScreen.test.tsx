@@ -342,7 +342,7 @@ describe("HabitDetailScreen", () => {
     ).toBeTruthy();
   });
 
-  it("shows a combined suggestion when trigger and tiny action both need work", () => {
+  it("shows two separate suggestion cards when both flags fire (action-fix first)", () => {
     mockUseHabitDetail.mockReturnValue({
       error: null,
       formula: "After breakfast, I will Read 1 page.",
@@ -368,21 +368,21 @@ describe("HabitDetailScreen", () => {
 
     render(<HabitDetailScreen />);
 
-    expect(screen.getByText("Suggested adjustment")).toBeTruthy();
-    expect(screen.getByText("Adjust trigger and action")).toBeTruthy();
-    expect(
-      screen.getByText(
-        "You answered that the trigger did not work and the tiny action was too hard.",
-      ),
-    ).toBeTruthy();
+    // Two separate suggestion cards — one per suggestion type.
+    const eyebrows = screen.getAllByText("Suggested adjustment");
+    expect(eyebrows).toHaveLength(2);
+    expect(screen.getByText("Make it smaller next week")).toBeTruthy();
+    expect(screen.getByText("Adjust your trigger")).toBeTruthy();
 
-    fireEvent.press(screen.getByText("Review suggestion"));
+    // "Review suggestion" buttons: first one routes to make_tiny_action_smaller.
+    const reviewButtons = screen.getAllByText("Review suggestion");
+    fireEvent.press(reviewButtons[0]);
 
     expect(mockPush).toHaveBeenCalledWith({
       pathname: "/(app)/habits/[habitId]/edit",
       params: {
         habitId: "habit-1",
-        suggestionType: "fix_trigger_and_tiny_action",
+        suggestionType: "make_tiny_action_smaller",
       },
     });
   });

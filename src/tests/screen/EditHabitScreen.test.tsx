@@ -193,34 +193,25 @@ describe("EditHabitScreen", () => {
     expect(screen.getByDisplayValue("After I brush my teeth")).toBeTruthy();
   });
 
-  it("shows combined suggestion guidance when trigger and tiny action both need work", () => {
+  it("shows action-shrink suggestion guidance when navigated with make_tiny_action_smaller", () => {
     mockUseLocalSearchParams.mockReturnValue({
       habitId: "habit-1",
-      suggestionType: "fix_trigger_and_tiny_action",
+      suggestionType: "make_tiny_action_smaller",
     });
 
     render(<EditHabitScreen />);
 
     expect(screen.getByText("Suggested adjustment")).toBeTruthy();
-    expect(screen.getByText("Adjust trigger and action")).toBeTruthy();
+    expect(screen.getByText("Make the action smaller")).toBeTruthy();
     expect(
       screen.getByText(
-        "Try making the cue clearer and the action smaller for one week.",
+        "Try choosing a tiny action that feels almost effortless for one week.",
       ),
     ).toBeTruthy();
     expect(
-      screen.getByText(
-        "Look at both fields. Choose a specific daily moment for Stack trigger, then make the Tiny action small enough to start in under two minutes.",
-      ),
-    ).toBeTruthy();
-    expect(
-      screen.getByText(
-        "You answered that the trigger did not work and the tiny action was too hard.",
-      ),
+      screen.getByText("You answered that the tiny action was too hard."),
     ).toBeTruthy();
     expect(screen.queryByText("Generate rewrite")).toBeNull();
-    expect(screen.queryByText("Try again")).toBeNull();
-    expect(screen.queryByText("Generate another rewrite")).toBeNull();
     expect(mockGenerateRewriteMutateAsync).not.toHaveBeenCalled();
   });
 

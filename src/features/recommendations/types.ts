@@ -2,7 +2,6 @@ import type { HabitRecord } from "@/features/habits/types";
 import type { WeeklyReviewRecord } from "@/features/reviews/types";
 
 export type HabitAdjustmentSuggestionType =
-  | "fix_trigger_and_tiny_action"
   | "make_tiny_action_smaller"
   | "change_trigger"
   | "reduce_friction"
@@ -10,7 +9,6 @@ export type HabitAdjustmentSuggestionType =
   | "keep_going";
 
 export const HABIT_ADJUSTMENT_SUGGESTION_TYPES: HabitAdjustmentSuggestionType[] = [
-  "fix_trigger_and_tiny_action",
   "make_tiny_action_smaller",
   "change_trigger",
   "reduce_friction",

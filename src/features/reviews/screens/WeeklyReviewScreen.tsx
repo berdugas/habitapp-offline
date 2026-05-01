@@ -7,7 +7,7 @@ import { ErrorState } from "@/components/feedback/ErrorState";
 import { LoadingState } from "@/components/feedback/LoadingState";
 import { TextField } from "@/components/forms/TextField";
 import { useHabitDetail } from "@/features/habits/hooks";
-import { getHabitAdjustmentSuggestion } from "@/features/recommendations/habitAdjustmentEngine";
+import { getHabitAdjustmentSuggestions } from "@/features/recommendations/habitAdjustmentEngine";
 import {
   useCurrentWeeklyReviewQuery,
   useUpsertWeeklyReviewMutation,
@@ -179,13 +179,12 @@ export default function WeeklyReviewScreen() {
         weekStart,
         wentWell: wentWell.trim(),
       });
-      setAdjustmentSuggestion(
-        getHabitAdjustmentSuggestion({
-          habit: habitDetail.habit,
-          latestReview: savedReview,
-          progress: habitDetail.progress,
-        }),
-      );
+      const suggestions = getHabitAdjustmentSuggestions({
+        habit: habitDetail.habit,
+        latestReview: savedReview,
+        progress: habitDetail.progress,
+      });
+      setAdjustmentSuggestion(suggestions[0] ?? null);
       setReviewSaved(true);
 
       const destination =

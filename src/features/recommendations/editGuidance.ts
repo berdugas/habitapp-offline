@@ -15,12 +15,6 @@ const HABIT_SUGGESTION_EDIT_GUIDANCE_COPY: Record<
   HabitAdjustmentSuggestionType,
   Omit<HabitSuggestionEditGuidance, "reason">
 > = {
-  fix_trigger_and_tiny_action: {
-    body: "Try making the cue clearer and the action smaller for one week.",
-    draftBody: "Look at both fields. Choose a specific daily moment for Stack trigger, then make the Tiny action small enough to start in under two minutes.",
-    draftTitle: "Suggested draft",
-    title: "Adjust trigger and action",
-  },
   change_trigger: {
     body: "Try attaching this habit to a specific moment that already happens every day.",
     draftBody: "Look at your Stack trigger field and make it more specific. Try a clear moment like after breakfast or after brushing your teeth.",
@@ -57,10 +51,6 @@ export const HABIT_SUGGESTION_EDIT_GUIDANCE: Record<
   HabitAdjustmentSuggestionType,
   HabitSuggestionEditGuidance
 > = {
-  fix_trigger_and_tiny_action: {
-    ...HABIT_SUGGESTION_EDIT_GUIDANCE_COPY.fix_trigger_and_tiny_action,
-    reason: HABIT_ADJUSTMENT_SUGGESTIONS.fix_trigger_and_tiny_action.reason,
-  },
   change_trigger: {
     ...HABIT_SUGGESTION_EDIT_GUIDANCE_COPY.change_trigger,
     reason: HABIT_ADJUSTMENT_SUGGESTIONS.change_trigger.reason,

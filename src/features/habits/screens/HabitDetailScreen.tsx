@@ -20,7 +20,7 @@ import {
   useUpsertHabitLogMutation,
 } from "@/features/habits/hooks";
 import { extractIdentityNoun } from "@/features/onboarding/identityNoun";
-import { getHabitAdjustmentSuggestion } from "@/features/recommendations/habitAdjustmentEngine";
+import { getHabitAdjustmentSuggestions } from "@/features/recommendations/habitAdjustmentEngine";
 import { useTrialValidation } from "@/features/trial/hooks";
 import { useHabitLogsForRange } from "@/features/today/hooks";
 import { now } from "@/utils/clock";
@@ -186,13 +186,13 @@ export default function HabitDetailScreen() {
     );
   }
 
-  const adjustmentSuggestion = latestReview
-    ? getHabitAdjustmentSuggestion({
+  const adjustmentSuggestions = latestReview
+    ? getHabitAdjustmentSuggestions({
         habit,
         latestReview,
         progress,
       })
-    : null;
+    : [];
 
   return (
     <ScrollView
@@ -402,22 +402,22 @@ export default function HabitDetailScreen() {
         />
       </View>
 
-      {adjustmentSuggestion ? (
-        <View style={styles.suggestionCard}>
+      {adjustmentSuggestions.map((suggestion) => (
+        <View key={suggestion.type} style={styles.suggestionCard}>
           <Text selectable style={styles.suggestionEyebrow}>
             Suggested adjustment
           </Text>
           <Text selectable style={styles.suggestionTitle}>
-            {adjustmentSuggestion.title}
+            {suggestion.title}
           </Text>
           <Text selectable style={styles.suggestionBody}>
-            {adjustmentSuggestion.body}
+            {suggestion.body}
           </Text>
           <Text selectable style={styles.suggestionReasonLabel}>
             Why this suggestion
           </Text>
           <Text selectable style={styles.suggestionReason}>
-            {adjustmentSuggestion.reason}
+            {suggestion.reason}
           </Text>
           <SecondaryButton
             label="Review suggestion"
@@ -426,13 +426,13 @@ export default function HabitDetailScreen() {
                 pathname: "/(app)/habits/[habitId]/edit",
                 params: {
                   habitId: habit.id,
-                  suggestionType: adjustmentSuggestion.type,
+                  suggestionType: suggestion.type,
                 },
               })
             }
           />
         </View>
-      ) : null}
+      ))}
 
       <View style={styles.actions}>
         {archiveHabitMutation.error ? (
