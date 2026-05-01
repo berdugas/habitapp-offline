@@ -4,13 +4,15 @@ import { router } from "expo-router";
 
 import { PrimaryButton } from "@/components/buttons/PrimaryButton";
 import { SecondaryButton } from "@/components/buttons/SecondaryButton";
+import { ZenCard } from "@/components/cards/ZenCard";
 import { ErrorState } from "@/components/feedback/ErrorState";
 import { TextField } from "@/components/forms/TextField";
 import { signInWithPassword } from "@/features/auth/api";
 import { logger } from "@/services/logger";
 import { colors } from "@/theme/colors";
-import { radius } from "@/theme/radius";
+import { fontFamilies } from "@/theme/fontFamilies";
 import { spacing } from "@/theme/spacing";
+import { typography } from "@/theme/typography";
 import {
   isBlank,
   isLikelyEmail,
@@ -88,16 +90,16 @@ export default function SignInScreen() {
       contentInsetAdjustmentBehavior="automatic"
       style={styles.screen}
     >
-      <View style={styles.copy}>
-        <Text selectable style={styles.title}>
-          Welcome back
+      <View style={styles.header}>
+        <Text selectable style={styles.headline}>
+          Welcome back.
         </Text>
-        <Text selectable style={styles.body}>
+        <Text selectable style={styles.subhead}>
           Sign in to keep working on your habit foundation.
         </Text>
       </View>
 
-      <View style={styles.formCard}>
+      <ZenCard padding="xxl">
         {error ? <ErrorState message={error} /> : null}
         <TextField
           autoCapitalize="none"
@@ -124,39 +126,32 @@ export default function SignInScreen() {
           label="Create an account"
           onPress={() => router.push("/(auth)/sign-up")}
         />
-      </View>
+      </ZenCard>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  body: {
-    color: colors.textMuted,
-    fontSize: 16,
-    lineHeight: 24,
-  },
   content: {
     gap: spacing.xl,
     padding: spacing.xl,
   },
-  copy: {
+  header: {
     gap: spacing.sm,
   },
-  formCard: {
-    backgroundColor: colors.surface,
-    borderColor: 'transparent',
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    gap: spacing.lg,
-    padding: spacing.xl,
+  headline: {
+    color: colors.text,
+    fontFamily: fontFamilies.displayBold,
+    fontSize: typography.displayLg,
   },
   screen: {
     backgroundColor: colors.bg,
     flex: 1,
   },
-  title: {
-    color: colors.text,
-    fontSize: 28,
-    fontWeight: "800",
+  subhead: {
+    color: colors.textMuted,
+    fontFamily: fontFamilies.body,
+    fontSize: typography.bodyLg,
+    lineHeight: 24,
   },
 });
