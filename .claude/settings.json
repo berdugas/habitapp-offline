@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c/Users/daddy/appium-test/**)",
+      "Bash(git commit -m ' *)",
+      "Bash(adb -s emulator-5554 shell \"run-as com.berdugas.habits find /data/data/com.berdugas.habits -name '*.db' 2>/dev/null; find /data/user/0/com.berdugas.habits -name '*.db' 2>/dev/null\")",
+      "Bash(gh pr create --title 'feat\\(s6\\): Habit Detail redesign + 48h retro logging' --body ' *)",
+      "Bash(grep -v \"//.*habit_logs\")"
+    ],
+    "additionalDirectories": [
+      "C:\\Users\\daddy\\appium-test"
+    ]
+  }
+}

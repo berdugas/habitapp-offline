@@ -12,6 +12,8 @@ import { ChoicePills } from "@/components/forms/ChoicePills";
 import { TextField } from "@/components/forms/TextField";
 import { useAuthSession } from "@/features/auth/hooks";
 import { listEligibleHabitsForToday } from "@/features/habits/api";
+import { ReadOnlyBanner } from "@/components/ReadOnlyBanner";
+import { useTrialValidation } from "@/features/trial/hooks";
 import {
   getEligibleHabitsQueryKey,
   useCreateHabitMutation,
@@ -45,6 +47,8 @@ export default function CreateHabitScreen() {
   const { user } = useAuthSession();
   const queryClient = useQueryClient();
   const createHabitMutation = useCreateHabitMutation();
+  const { accessMode, isValidating, refresh } = useTrialValidation();
+  const isReadOnly = accessMode === "read_only";
   const inactiveHabitsQuery = useInactiveHabitsQuery();
 
   const formPayload = {
@@ -122,6 +126,12 @@ export default function CreateHabitScreen() {
       contentInsetAdjustmentBehavior="automatic"
       style={styles.screen}
     >
+      {isReadOnly ? (
+        <ReadOnlyBanner
+          isReconnecting={isValidating}
+          onReconnect={() => void refresh()}
+        />
+      ) : null}
       <View style={styles.header}>
         <Text selectable style={styles.title}>
           {inactiveHabitsQuery.data?.length
@@ -216,10 +226,15 @@ export default function CreateHabitScreen() {
       </View>
 
       <PrimaryButton
-        disabled={createHabitMutation.isPending}
+        disabled={createHabitMutation.isPending || isReadOnly}
         label={createHabitMutation.isPending ? "Saving habit..." : "Save Habit"}
         onPress={handleSave}
       />
+      {isReadOnly ? (
+        <Text selectable style={styles.readOnlyHelper}>
+          Reconnect to create new habits.
+        </Text>
+      ) : null}
     </ScrollView>
   );
 }
@@ -274,5 +289,11 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 28,
     fontWeight: "800",
+  },
+  readOnlyHelper: {
+    color: colors.textMuted,
+    fontSize: 14,
+    lineHeight: 20,
+    textAlign: "center",
   },
 });

@@ -72,3 +72,24 @@ table. Error silently swallowed; no product effect; pure console noise.
 
 **Action:** when weekly reviews migrates to local SQLite, delete the
 `latestReviewQueries` block as part of that migration PR. Do not touch before then.
+
+---
+
+## F6 — Query key naming inconsistency (P3, S7 cleanup)
+
+The codebase has two related range-query key shapes:
+
+- `["habit-logs", userId, startDate, endDate]` (hyphenated) — used by `getUserHabitLogsRangeQueryKey` and `getHabitDetailLogsQueryKey`
+- `["habit_logs", "range", habitId, fromDate, toDate]` (underscored) — used by `getHabitLogsRangeQueryKey`
+
+Pre-existing from S5; S6 propagated the inconsistency by correctly invalidating both during retro-log mutations. Functionally correct but cognitively confusing for the next dev grepping for log-related queries.
+
+**Action:** S7 cleanup. Pick one convention (recommend hyphens to match the existing majority) and rename the underscored key + all its consumers in a single small commit. No behavior change; pure rename.
+
+---
+
+## F7 — Double fetch of heatmap data on Habit Detail (P3, S7 cleanup)
+
+`HabitDetailScreen` calls `useHabitLogsForRange(habit?.id, 90)` at the screen level (used by `handleCellPress` to look up the current status of the tapped cell), and the `HabitDetailHeatmap` subcomponent independently calls the same hook to render the grid. React Query dedupes on identical query keys so it works correctly, but it's two subscriptions to the same data — two render passes on invalidation.
+
+**Action:** S7 cleanup. Fetch once at the screen level, pass `logs` as a prop to `HabitDetailHeatmap`. Tiny refactor; no behavior change.

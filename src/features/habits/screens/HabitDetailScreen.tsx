@@ -21,6 +21,7 @@ import {
 } from "@/features/habits/hooks";
 import { extractIdentityNoun } from "@/features/onboarding/identityNoun";
 import { getHabitAdjustmentSuggestion } from "@/features/recommendations/habitAdjustmentEngine";
+import { useTrialValidation } from "@/features/trial/hooks";
 import { useHabitLogsForRange } from "@/features/today/hooks";
 import { now } from "@/utils/clock";
 import { colors } from "@/theme/colors";
@@ -31,6 +32,7 @@ import {
   getLoadHabitDetailErrorMessage,
   getUpdateHabitActiveStateErrorMessage,
 } from "@/utils/userFacingErrors";
+import { ReadOnlyBanner } from "@/components/ReadOnlyBanner";
 
 import type { HabitLogStatus } from "@/features/habits/types";
 
@@ -96,16 +98,32 @@ export default function HabitDetailScreen() {
     date: string;
     currentStatus: HabitLogStatus | null;
     canEdit: boolean;
+    readOnlyReason?: "window" | "app";
   } | null>(null);
   const heatmapLogs = useHabitLogsForRange(habit?.id, 90).data ?? [];
+  const { accessMode, isValidating, refresh } = useTrialValidation();
+  const isReadOnly = accessMode === "read_only";
 
   function handleCellPress(date: string) {
     if (!habit) return;
     if (date < habit.start_date) return;
     const existing = heatmapLogs.find((log) => log.log_date === date);
     const currentStatus = existing?.status ?? null;
-    const canEdit = isWithinRetroWindow(date, now());
-    setSelectorState({ visible: true, date, currentStatus, canEdit });
+    const withinWindow = isWithinRetroWindow(date, now());
+    // Window-beats-app: reconnecting won't unlock an out-of-window day.
+    let canEdit: boolean;
+    let readOnlyReason: "window" | "app" | undefined;
+    if (!withinWindow) {
+      canEdit = false;
+      readOnlyReason = "window";
+    } else if (isReadOnly) {
+      canEdit = false;
+      readOnlyReason = "app";
+    } else {
+      canEdit = true;
+      readOnlyReason = undefined;
+    }
+    setSelectorState({ visible: true, date, currentStatus, canEdit, readOnlyReason });
   }
 
   async function handleSelectorSubmit(status: HabitLogStatus) {
@@ -182,6 +200,12 @@ export default function HabitDetailScreen() {
       contentInsetAdjustmentBehavior="automatic"
       style={styles.screen}
     >
+      {isReadOnly ? (
+        <ReadOnlyBanner
+          isReconnecting={isValidating}
+          onReconnect={() => void refresh()}
+        />
+      ) : null}
       <View style={styles.header}>
         {habit.identity_phrase ? (
           <Text selectable style={styles.becomingHeader}>
@@ -425,7 +449,7 @@ export default function HabitDetailScreen() {
               </Text>
             </View>
             <SecondaryButton
-              disabled={archiveHabitMutation.isPending}
+              disabled={archiveHabitMutation.isPending || isReadOnly}
               label="Archive habit"
               onPress={() => void handleArchivePress()}
             />
@@ -441,6 +465,7 @@ export default function HabitDetailScreen() {
           </View>
         )}
         <SecondaryButton
+          disabled={isReadOnly}
           label="Edit habit"
           onPress={() => router.push(`/(app)/habits/${habit.id}/edit`)}
         />
@@ -458,6 +483,7 @@ export default function HabitDetailScreen() {
           isPending={upsertHabitLogMutation.isPending}
           onClose={handleSelectorClose}
           onSubmit={handleSelectorSubmit}
+          readOnlyReason={selectorState.readOnlyReason}
         />
       ) : null}
     </ScrollView>
