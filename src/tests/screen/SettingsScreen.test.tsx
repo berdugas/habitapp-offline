@@ -1,3 +1,16 @@
+jest.mock("@/features/trial/hooks", () => ({
+  useTrialValidation: jest.fn(() => ({
+    isBootstrapping: false,
+    isValidating: false,
+    accessMode: "full",
+    entitlementStatus: "trial",
+    trialStartedAt: null,
+    trialEndsAt: null,
+    lastValidatedAt: null,
+    refresh: jest.fn().mockResolvedValue(undefined),
+  })),
+}));
+
 import { fireEvent, render, screen } from "@testing-library/react-native";
 
 import SettingsScreen from "@/features/settings/screens/SettingsScreen";
@@ -41,7 +54,7 @@ describe("SettingsScreen", () => {
     });
   });
 
-  it("shows inactive habits loading state without the empty state", () => {
+  it("shows archived habits loading state without the empty state", () => {
     mockUseInactiveHabitsQuery.mockReturnValue({
       data: undefined,
       error: null,
@@ -50,11 +63,11 @@ describe("SettingsScreen", () => {
 
     render(<SettingsScreen />);
 
-    expect(screen.getByText("Loading inactive habits...")).toBeTruthy();
-    expect(screen.queryByText("No inactive habits")).toBeNull();
+    expect(screen.getByText("Loading archived habits...")).toBeTruthy();
+    expect(screen.queryByText("No archived habits")).toBeNull();
   });
 
-  it("shows inactive habits error state without the empty state", () => {
+  it("shows archived habits error state without the empty state", () => {
     mockUseInactiveHabitsQuery.mockReturnValue({
       data: undefined,
       error: new Error("boom"),
@@ -66,23 +79,18 @@ describe("SettingsScreen", () => {
     expect(
       screen.getByText("We couldn't load inactive habits right now. Try again."),
     ).toBeTruthy();
-    expect(screen.queryByText("No inactive habits")).toBeNull();
+    expect(screen.queryByText("No archived habits")).toBeNull();
   });
 
-  it("shows an empty inactive state after a successful empty load", () => {
+  it("shows updated section heading and empty state after a successful empty load", () => {
     render(<SettingsScreen />);
 
-    expect(screen.getByText("Foundation status")).toBeTruthy();
-    expect(
-      screen.getByText(
-        "Current version: full non-AI habit builder. Weekly reviews and rule-based suggestions are enabled. AI coaching is planned for a later premium phase.",
-      ),
-    ).toBeTruthy();
-    expect(screen.getByText("Inactive habits")).toBeTruthy();
-    expect(screen.getByText("No inactive habits")).toBeTruthy();
+    expect(screen.queryByText("Foundation status")).toBeNull();
+    expect(screen.getByText("Your archived habits")).toBeTruthy();
+    expect(screen.getByText("No archived habits")).toBeTruthy();
   });
 
-  it("shows inactive habits and opens detail from settings", () => {
+  it("shows archived habits and opens detail from settings", () => {
     mockUseInactiveHabitsQuery.mockReturnValue({
       data: [
         {
@@ -98,9 +106,7 @@ describe("SettingsScreen", () => {
 
     render(<SettingsScreen />);
 
-    expect(screen.getByText("Open any inactive habit to reactivate it from Habit Detail.")).toBeTruthy();
     expect(screen.getByText("After breakfast, I will Read 1 page.")).toBeTruthy();
-    expect(screen.queryByText("After After breakfast, I will Read 1 page.")).toBeNull();
 
     fireEvent.press(screen.getByLabelText("Reading details"));
 

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { router } from "expo-router";
+import Constants from "expo-constants";
 
 import { PrimaryButton } from "@/components/buttons/PrimaryButton";
 import { HabitCard } from "@/components/cards/HabitCard";
@@ -11,15 +12,33 @@ import { useAuthSession } from "@/features/auth/hooks";
 import { formatHabitFormula } from "@/features/habits/formatters";
 import { useInactiveHabitsQuery } from "@/features/habits/hooks";
 import { signOut } from "@/features/auth/api";
+import { useTrialValidation } from "@/features/trial/hooks";
 import { colors } from "@/theme/colors";
 import { radius } from "@/theme/radius";
 import { spacing } from "@/theme/spacing";
 import { getLoadInactiveHabitsErrorMessage } from "@/utils/userFacingErrors";
 
+import type { TrialEntitlementStatus } from "@/features/trial/types";
+
+function formatEntitlementStatus(status: TrialEntitlementStatus | null): string | null {
+  if (!status) return null;
+  switch (status) {
+    case "trial": return "Trial";
+    case "active": return "Active";
+    case "expired": return "Trial ended";
+    case "paid": return "Paid";
+    case "cancelled": return "Cancelled";
+  }
+}
+
 export default function SettingsScreen() {
   const { user } = useAuthSession();
   const inactiveHabitsQuery = useInactiveHabitsQuery();
+  const { entitlementStatus } = useTrialValidation();
   const [isSigningOut, setIsSigningOut] = useState(false);
+
+  const statusLabel = formatEntitlementStatus(entitlementStatus);
+  const appVersion = Constants.expoConfig?.version ?? "—";
 
   async function handleSignOut() {
     setIsSigningOut(true);
@@ -41,30 +60,25 @@ export default function SettingsScreen() {
         <Text selectable style={styles.body}>
           {user?.email ?? "Signed in"}
         </Text>
+        {statusLabel ? (
+          <Text selectable style={styles.statusLabel}>
+            {statusLabel}
+          </Text>
+        ) : null}
       </View>
       <View style={styles.card}>
         <Text selectable style={styles.title}>
-          Foundation status
+          Your archived habits
         </Text>
         <Text selectable style={styles.body}>
-          Current version: full non-AI habit builder. Weekly reviews and
-          rule-based suggestions are enabled. AI coaching is planned for a later
-          premium phase.
-        </Text>
-      </View>
-      <View style={styles.card}>
-        <Text selectable style={styles.title}>
-          Inactive habits
+          Pause and resume habits without losing their history.
         </Text>
         {inactiveHabitsQuery.isLoading ? (
-          <LoadingState message="Loading inactive habits..." />
+          <LoadingState message="Loading archived habits..." />
         ) : inactiveHabitsQuery.error ? (
           <ErrorState message={getLoadInactiveHabitsErrorMessage()} />
         ) : inactiveHabitsQuery.data?.length ? (
           <View style={styles.inactiveList}>
-            <Text selectable style={styles.body}>
-              Open any inactive habit to reactivate it from Habit Detail.
-            </Text>
             {inactiveHabitsQuery.data.map((habit) => (
               <HabitCard
                 formula={formatHabitFormula(
@@ -72,7 +86,7 @@ export default function SettingsScreen() {
                   habit.tiny_action,
                 )}
                 key={habit.id}
-                metaText="Inactive habit"
+                metaText="Archived habit"
                 name={habit.title}
                 onPress={() => router.push(`/(app)/habits/${habit.id}`)}
               />
@@ -80,10 +94,39 @@ export default function SettingsScreen() {
           </View>
         ) : (
           <EmptyState
-            body="Deactivated habits will appear here so you can inspect or reactivate them."
-            title="No inactive habits"
+            body="Habits you've paused will appear here so you can come back to them."
+            title="No archived habits"
           />
         )}
+      </View>
+      <View style={styles.card}>
+        <Text selectable style={styles.title}>
+          About
+        </Text>
+        <View style={styles.aboutRow}>
+          <Text selectable style={styles.aboutLabel}>
+            Version
+          </Text>
+          <Text selectable style={styles.aboutValue}>
+            {appVersion}
+          </Text>
+        </View>
+        <View style={styles.aboutRow}>
+          <Text selectable style={styles.aboutLabelMuted}>
+            Privacy Policy
+          </Text>
+          <Text selectable style={styles.aboutValueMuted}>
+            Coming soon
+          </Text>
+        </View>
+        <View style={styles.aboutRow}>
+          <Text selectable style={styles.aboutLabelMuted}>
+            Terms of Service
+          </Text>
+          <Text selectable style={styles.aboutValueMuted}>
+            Coming soon
+          </Text>
+        </View>
       </View>
       <PrimaryButton
         disabled={isSigningOut}
@@ -95,6 +138,28 @@ export default function SettingsScreen() {
 }
 
 const styles = StyleSheet.create({
+  aboutLabel: {
+    color: colors.text,
+    fontSize: 15,
+    flex: 1,
+  },
+  aboutLabelMuted: {
+    color: colors.textMuted,
+    fontSize: 15,
+    flex: 1,
+  },
+  aboutRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  aboutValue: {
+    color: colors.text,
+    fontSize: 15,
+  },
+  aboutValueMuted: {
+    color: colors.textMuted,
+    fontSize: 15,
+  },
   body: {
     color: colors.textMuted,
     fontSize: 16,
@@ -118,6 +183,10 @@ const styles = StyleSheet.create({
   screen: {
     backgroundColor: colors.background,
     flex: 1,
+  },
+  statusLabel: {
+    color: colors.textMuted,
+    fontSize: 14,
   },
   title: {
     color: colors.text,
