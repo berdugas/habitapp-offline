@@ -1,6 +1,7 @@
 import { StyleSheet, Text } from "react-native";
 
 import { colors } from "@/theme/colors";
+import { fontFamilies } from "@/theme/fontFamilies";
 import { typography } from "@/theme/typography";
 
 type IdentityStreakDisplayProps = {
@@ -33,8 +34,9 @@ function getStreakCopy(streak: number, identityNoun: string | null): string {
 
 const styles = StyleSheet.create({
   text: {
-    color: colors.text,
-    fontSize: typography.body,
+    color: colors.textMuted,
+    fontFamily: fontFamilies.body,
+    fontSize: typography.bodyLg,
     fontStyle: "italic",
     lineHeight: 24,
   },

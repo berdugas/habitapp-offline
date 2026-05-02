@@ -26,7 +26,7 @@ export default function LibraryScreen() {
 const styles = StyleSheet.create({
   body: {
     color: colors.textMuted,
-    fontSize: typography.body,
+    fontSize: typography.bodyLg,
     lineHeight: 24,
   },
   content: {
@@ -38,12 +38,12 @@ const styles = StyleSheet.create({
     gap: spacing.lg,
   },
   screen: {
-    backgroundColor: colors.background,
+    backgroundColor: colors.bg,
     flex: 1,
   },
   title: {
     color: colors.text,
-    fontSize: typography.title,
+    fontSize: typography.headlineLg,
     fontWeight: "800",
   },
 });

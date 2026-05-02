@@ -6,7 +6,9 @@ import { useQueryClient } from "@tanstack/react-query";
 import { PrimaryButton } from "@/components/buttons/PrimaryButton";
 import { SecondaryButton } from "@/components/buttons/SecondaryButton";
 import { HabitCard } from "@/components/cards/HabitCard";
+import { ZenCard } from "@/components/cards/ZenCard";
 import { EmptyState } from "@/components/feedback/EmptyState";
+import { Eyebrow } from "@/components/text/Eyebrow";
 import { ErrorState } from "@/components/feedback/ErrorState";
 import { ChoicePills } from "@/components/forms/ChoicePills";
 import { TextField } from "@/components/forms/TextField";
@@ -27,8 +29,9 @@ import {
   validateHabitSetupPayload,
 } from "@/features/habits/validators";
 import { colors } from "@/theme/colors";
-import { radius } from "@/theme/radius";
+import { fontFamilies } from "@/theme/fontFamilies";
 import { spacing } from "@/theme/spacing";
+import { typography } from "@/theme/typography";
 import { toDeviceDateString } from "@/utils/dates";
 import {
   getCreateHabitErrorMessage,
@@ -170,7 +173,7 @@ export default function CreateHabitScreen() {
         </View>
       ) : null}
 
-      <View style={styles.formCard}>
+      <ZenCard gap={spacing.lg}>
         {formError ? <ErrorState message={formError} /> : null}
         <TextField
           error={validationErrors.title}
@@ -214,16 +217,14 @@ export default function CreateHabitScreen() {
           value={preferredTimeWindow}
         />
         {/* TODO(S15): reminder settings */}
-      </View>
+      </ZenCard>
 
-      <View style={styles.previewCard}>
-        <Text selectable style={styles.previewLabel}>
-          Preview
-        </Text>
+      <ZenCard>
+        <Eyebrow label="Preview" tone="primary" />
         <Text selectable style={styles.previewText}>
           {preview}
         </Text>
-      </View>
+      </ZenCard>
 
       <PrimaryButton
         disabled={createHabitMutation.isPending || isReadOnly}
@@ -242,19 +243,12 @@ export default function CreateHabitScreen() {
 const styles = StyleSheet.create({
   body: {
     color: colors.textMuted,
+    fontFamily: fontFamilies.body,
     fontSize: 16,
     lineHeight: 24,
   },
   content: {
     gap: spacing.xl,
-    padding: spacing.xl,
-  },
-  formCard: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    gap: spacing.lg,
     padding: spacing.xl,
   },
   header: {
@@ -263,35 +257,24 @@ const styles = StyleSheet.create({
   inactiveSection: {
     gap: spacing.lg,
   },
-  previewCard: {
-    backgroundColor: colors.accentSoft,
-    borderRadius: radius.lg,
-    gap: spacing.sm,
-    padding: spacing.xl,
-  },
-  previewLabel: {
-    color: colors.accent,
-    fontSize: 13,
-    fontWeight: "700",
-    textTransform: "uppercase",
-  },
   previewText: {
     color: colors.text,
+    fontFamily: fontFamilies.bodySemi,
     fontSize: 18,
-    fontWeight: "600",
     lineHeight: 26,
   },
   screen: {
-    backgroundColor: colors.background,
+    backgroundColor: colors.bg,
     flex: 1,
   },
   title: {
     color: colors.text,
-    fontSize: 28,
-    fontWeight: "800",
+    fontFamily: fontFamilies.displayBold,
+    fontSize: typography.headlineLg,
   },
   readOnlyHelper: {
     color: colors.textMuted,
+    fontFamily: fontFamilies.body,
     fontSize: 14,
     lineHeight: 20,
     textAlign: "center",

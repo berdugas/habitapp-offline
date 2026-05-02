@@ -23,8 +23,8 @@ export function ErrorState({ message }: ErrorStateProps) {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: "#fff2f0",
-    borderColor: "#efc1bb",
+    backgroundColor: colors.dangerSoft,
+    borderColor: colors.dangerSubtle,
     borderRadius: radius.md,
     borderWidth: 1,
     gap: spacing.sm,

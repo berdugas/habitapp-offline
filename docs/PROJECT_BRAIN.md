@@ -1,7 +1,7 @@
 # Habits App — Project Brain
 
 > Single source of truth for anyone picking up this project.
-> Last updated: May 1, 2026 (post-S8 close)
+> Last updated: May 2, 2026 (post-S9 close — The Mindful Canvas visual language applied)
 
 ---
 
@@ -339,6 +339,7 @@ Source-of-truth docs live directly in `docs/`. Sprint planning and per-sprint de
 | Product Strategy | .md | `docs/product-strategy.md` | **Current — the why** |
 | Core v1 Requirements | .md | `docs/core-v1-requirements.md` | **Current — the what** |
 | Technical Handoff Core v1 | .md | `docs/tech-handoff-core-v1.md` | **Current — the how** |
+| Design Direction | .md | `docs/design-direction.md` | **Current — the how it looks (visual language for Core v1, paired with `design/habitapp/habit-screens.jsx`)** |
 | Project Brain | .md | `docs/PROJECT_BRAIN.md` | **Current — this document** |
 | Sprint Plan | .md | `docs/sprint_tickets/sprint-plan.md` | **Current — the when (23-sprint roadmap, 4 phases; S9 visual design sprint inserted post-S7)** |
 | Sprint Tickets | .md | `docs/sprint_tickets/sprint-N-tickets.md` | **Current — per-sprint dev ticket packages (S1–S8 closed; S9+ to come)** |
@@ -368,9 +369,11 @@ Live status of the Core v1 build. For the full 21-sprint plan, see `docs/sprint_
 
 - **S8** — Trial validation + basic Settings + Bug #2. Three independent deliverables. (1) Trial validation: new `src/features/trial/` module (types, grace-period math, AsyncStorage cache, Supabase fetch); `TrialValidationBootstrap` provider inserted between `AuthBootstrap` and children; `useTrialValidation()` hook exposes `accessMode` / `entitlementStatus` / `refresh()`; 7-day offline grace period, 60-minute foreground re-validation. `ReadOnlyBanner` component added (`src/components/ReadOnlyBanner.tsx`) — PrimaryButton reconnect CTA, calm non-dismissible styling with `colors.accent` border. Read-only applied to Today (Done/Skip greyed), HabitDetail (Archive/Edit/RetroLog disabled), Create/Edit Habit (Save disabled + helper text). `RetroLogSelector` extended with `readOnlyReason?: 'window' | 'app'` — window-beats-app tiebreak in HabitDetailScreen's `handleCellPress` so "Reconnect to log on this day." only shows when reconnecting would actually help. Recovery modal and onboarding not gated. (2) Settings refresh: Foundation status card removed; trial status sub-line under email (status word only, no countdown: Trial / Active / Trial ended / Paid / Cancelled); archived habits section copy refreshed (heading "Your archived habits", helper "Pause and resume habits without losing their history.", new empty state copy); About card with `expo-constants` app version and Privacy/Terms placeholder rows. (3) Bug #2: `getHabitAdjustmentSuggestions` (plural) now returns `HabitAdjustmentSuggestion[]`; when both `tiny_action_too_hard` and `trigger_worked === false`, returns `[make_tiny_action_smaller, change_trigger]` in priority order; `fix_trigger_and_tiny_action` type removed from types/copy/editGuidance/EditHabitScreen; `HabitDetailScreen` maps over array (one card per suggestion); fix is inert in production until reviews migrates to local SQLite. Also closes S7-F2: `EditHabitScreen` `?from=recovery` focus path now has Jest coverage. Key `accessMode` rule: derived from offline-grace exhaustion (`lastValidatedAt` age vs 7-day window) only — never from `entitlement_status` (trial expiry not gated in Core v1 per §16.4). 40 new tests across 6 new test files; 453 passing, all suites green (2 pre-existing flaky integration tests excluded). Note: `ReadOnlyBanner` uses `PrimaryButton` per ticket spec (Secondary would be calmer but deviates from spec without product sign-off).
 
-### Up next: S9 — Visual design implementation sprint
+- **S9** — Visual design implementation: The Mindful Canvas. Pure visual sprint — no behavior changes, no schema changes. Brand rebrand from terracotta (`#bb6c3f`) to sage (`#446655`). App renamed from "Habit Builder" to **Habitapp** (`app.json` `expo.name`; slug and bundle ID unchanged). Theme tokens overhauled: 20 colors (sage-based, `primaryGradientEnd`, `dangerSoft`/`dangerSubtle` added), 9 typography sizes, 7 spacing steps, 5 radii, 3 primary-tinted shadows. Full enumeration in `docs/design-direction.md`. Fonts loaded via `expo-font`: Plus Jakarta Sans (display, 700+800) + Manrope (body, 400–800); helper at `src/theme/fontFamilies.ts`; splash holds until both fonts + DB ready. New atoms: `TertiaryButton`, `ZenCard`, `Eyebrow`, `RowLV`, `MissBanner`, `NullableBooleanField` (19 tests). Existing atoms re-skinned: `PrimaryButton` (LinearGradient gradient pill), `SecondaryButton` (surfaceCard + SHADOW_LIFT), `TextField` (animated focus state 180ms), `ChoicePills` (gradient selected), `Heatmap` (inset boxShadow ring on today cell, 0.6 opacity for unlogged), `IdentityStreakDisplay` (Manrope italic), `RecoveryModal` (BlurView glassmorphism), `ReadOnlyBanner` (surface bg, radius.sm), `TabBar` (BlurView glassmorphism via tabBarBackground). Reskin coverage: Auth (2 screens), Onboarding (7 screens), Settings, Habit Detail, Create Habit, Edit Habit, Today (empty state). AI rewrite UI fully removed from EditHabitScreen JSX (flag definition and backing hook remain; no screen renders it). Deferred: Today (populated — OPEN: multi-habit layout), Weekly Review (OPEN: beta scope), Backlog UI, retro-log affordance, replace-or-backlog modal, ReadOnlyBanner refinement, logo asset, account deletion, data export, SRHI, Library, reminder setup. Dead code left intentionally: `latestReviewQueries` block in `useTodayHabits`, `weekly_reviews` query, Bug #2 inert engine fix. 19 new tests (new atoms); 472 passing (474 total; 2 pre-existing TodayScreen integration failures excluded).
 
-**Note on sprint plan revision (May 1 2026):** S9 is a visual design pass on the existing Core v1 screens, gated on a product-lead design direction document. Beta build is S10. Phase C is S11–S19, Phase D is S20–S22. Total 23 sprints. See `sprint-plan.md` for the full revised structure.
+### Up next: S10 — Beta build
+
+S10 is gated on the OPEN-list resolutions from S9, especially OPEN #1 (multi-habit Today layout — the load-bearing surface for beta). Once those resolve, S10 (beta build) can begin. See `docs/sprint_tickets/sprint-9-followups.md` for the full deferred item list (F1–F10).
 
 ### Transitional state to be aware of
 
@@ -418,6 +421,7 @@ Live status of the Core v1 build. For the full 21-sprint plan, see `docs/sprint_
 | Add a screen | Create in `app/` (route) + `src/features/*/screens/` (component) |
 | Add a shared component | `src/components/` |
 | Add theme tokens | `src/theme/` |
+| Understand visual design intent / language | `docs/design-direction.md` (paired with `design/habitapp/habit-screens.jsx` as visual oracle) |
 | Weekly review due logic | `src/features/reviews/due.ts` |
 | Onboarding flow (planned) | `src/features/onboarding/screens/` |
 | Library (planned) | `src/features/library/screens/LibraryScreen.tsx` |

@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Habit Tracker — Design Canvas</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@700;800&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+  <script type="text/babel" src="design-canvas.jsx"></script>
+  <script type="text/babel" src="ios-frame.jsx"></script>
+  <script type="text/babel" src="tweaks-panel.jsx"></script>
+  <script type="text/babel" src="habit-screens.jsx"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body, #root { width: 100%; height: 100%; overflow: hidden; }
+    body { background: #2e2a24; font-family: 'Manrope', system-ui, sans-serif; }
+    input, textarea, button { font-family: inherit; }
+    ::placeholder { color: #a8917e; opacity: 1; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState } = React;
+
+    const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+      "darkDevice": false,
+      "showAIHints": true
+    }/*EDITMODE-END*/;
+
+    function App() {
+      const [tweaks, setTweak] = useTweaks(TWEAK_DEFAULTS);
+      const dark = tweaks.darkDevice;
+      const screenProps = { tweaks: { showAIHints: tweaks.showAIHints } };
+
+      return (
+        <>
+          <DesignCanvas title="Habit Tracker · All Screens">
+
+            {/* ── AUTH ── */}
+            <DCSection id="auth" title="Auth">
+
+              <DCArtboard id="sign-in" label="Sign In" width={390} height={844}>
+                <IOSDevice dark={dark}>
+                  <SignInScreen />
+                </IOSDevice>
+              </DCArtboard>
+
+              <DCArtboard id="sign-up" label="Sign Up" width={390} height={844}>
+                <IOSDevice dark={dark}>
+                  <SignUpScreen />
+                </IOSDevice>
+              </DCArtboard>
+
+            </DCSection>
+
+            {/* ── ONBOARDING ── */}
+            <DCSection id="onboarding" title="Onboarding Flow">
+
+              <DCArtboard id="onb-welcome" label="01 Welcome" width={390} height={844}>
+                <IOSDevice dark={dark}>
+                  <OnboardingWelcomeScreen />
+                </IOSDevice>
+              </DCArtboard>
+
+              <DCArtboard id="onb-becoming" label="02 Becoming" width={390} height={844}>
+                <IOSDevice dark={dark}>
+                  <OnboardingBecomingScreen />
+                </IOSDevice>
+              </DCArtboard>
+
+              <DCArtboard id="onb-daily" label="03 Daily Action" width={390} height={844}>
+                <IOSDevice dark={dark}>
+                  <OnboardingDailyActionScreen />
+                </IOSDevice>
+              </DCArtboard>
+
+              <DCArtboard id="onb-shrink" label="04 Shrink" width={390} height={844}>
+                <IOSDevice dark={dark}>
+                  <OnboardingShrinkScreen />
+                </IOSDevice>
+              </DCArtboard>
+
+              <DCArtboard id="onb-worstday" label="05 Worst Day" width={390} height={844}>
+                <IOSDevice dark={dark}>
+                  <OnboardingWorstDayScreen />
+                </IOSDevice>
+              </DCArtboard>
+
+              <DCArtboard id="onb-cue" label="06 Cue &amp; Action" width={390} height={844}>
+                <IOSDevice dark={dark}>
+                  <OnboardingCueScreen />
+                </IOSDevice>
+              </DCArtboard>
+
+              <DCArtboard id="onb-confirm" label="07 Confirmation" width={390} height={844}>
+                <IOSDevice dark={dark}>
+                  <OnboardingConfirmationScreen />
+                </IOSDevice>
+              </DCArtboard>
+
+            </DCSection>
+
+            {/* ── CORE APP ── */}
+            <DCSection id="core" title="Core App Screens">
+
+              <DCArtboard id="today" label="Today (Focus)" width={390} height={844}>
+                <IOSDevice dark={dark}>
+                  <TodayScreen {...screenProps} />
+                </IOSDevice>
+              </DCArtboard>
+
+              <DCArtboard id="today-empty" label="Today (Empty)" width={390} height={844}>
+                <IOSDevice dark={dark}>
+                  <TodayEmptyScreen />
+                </IOSDevice>
+              </DCArtboard>
+
+              <DCArtboard id="library" label="Library" width={390} height={844}>
+                <IOSDevice dark={dark}>
+                  <LibraryScreen />
+                </IOSDevice>
+              </DCArtboard>
+
+              <DCArtboard id="settings" label="Settings" width={390} height={844}>
+                <IOSDevice dark={dark}>
+                  <SettingsScreen />
+                </IOSDevice>
+              </DCArtboard>
+
+            </DCSection>
+
+            {/* ── HABIT MANAGEMENT ── */}
+            <DCSection id="habits" title="Habit Management">
+
+              <DCArtboard id="create" label="Create Habit" width={390} height={844}>
+                <IOSDevice dark={dark}>
+                  <CreateHabitScreen />
+                </IOSDevice>
+              </DCArtboard>
+
+              <DCArtboard id="detail" label="Habit Detail" width={390} height={844}>
+                <IOSDevice dark={dark}>
+                  <HabitDetailScreen />
+                </IOSDevice>
+              </DCArtboard>
+
+              <DCArtboard id="edit" label="Edit Habit" width={390} height={844}>
+                <IOSDevice dark={dark}>
+                  <EditHabitScreen />
+                </IOSDevice>
+              </DCArtboard>
+
+              <DCArtboard id="review" label="Weekly Review" width={390} height={844}>
+                <IOSDevice dark={dark}>
+                  <WeeklyReviewScreen />
+                </IOSDevice>
+              </DCArtboard>
+
+            </DCSection>
+
+            {/* ── MODALS ── */}
+            <DCSection id="modals" title="Modals &amp; Overlays">
+
+              <DCArtboard id="recovery" label="Recovery Modal" width={390} height={844}>
+                <IOSDevice dark={dark}>
+                  <RecoveryModalScreen />
+                </IOSDevice>
+              </DCArtboard>
+
+            </DCSection>
+
+            {/* ── BRAND ── */}
+            <DCSection id="brand" title="App Icon">
+
+              <DCArtboard id="icon-1024" label="App Icon 1024×1024" width={1024} height={1024}>
+                <AppIconLarge />
+              </DCArtboard>
+
+              <DCArtboard id="icon-60" label="App Icon 60×60" width={180} height={180}>
+                <AppIconSmall />
+              </DCArtboard>
+
+            </DCSection>
+
+          </DesignCanvas>
+
+          <TweaksPanel>
+            <TweakSection title="Device">
+              <TweakToggle id="darkDevice" label="Dark bezel" subtitle="Black device shell" />
+            </TweakSection>
+            <TweakSection title="Content">
+              <TweakToggle id="showAIHints" label="Show AI hints" subtitle="Insight card on Today" />
+            </TweakSection>
+          </TweaksPanel>
+        </>
+      );
+    }
+
+    function AppIconLarge() {
+      return (
+        <div style={{ width: 1024, height: 1024, background: '#fffdf8', borderRadius: 192, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 40px 80px rgba(0,0,0,0.12)' }}>
+          <img src="uploads/logo-filled-v2.png" style={{ width: 820, height: 820, objectFit: 'contain' }} />
+        </div>
+      );
+    }
+
+    function AppIconSmall() {
+      return (
+        <div style={{ width: 180, height: 180, background: '#fffdf8', borderRadius: 40, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 16px rgba(0,0,0,0.12)' }}>
+          <img src="uploads/logo-filled-v2.png" style={{ width: 144, height: 144, objectFit: 'contain' }} />
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>

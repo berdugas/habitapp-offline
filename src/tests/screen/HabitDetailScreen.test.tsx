@@ -175,12 +175,12 @@ describe("HabitDetailScreen", () => {
     expect(
       screen.getByText("This removes the habit from Today, but keeps its history."),
     ).toBeTruthy();
-    expect(screen.getByText("Weekly review")).toBeTruthy();
+    expect(screen.getByText("WEEKLY REVIEW")).toBeTruthy();
     expect(
       screen.getByText("Reflect on what worked and what to adjust for this habit."),
     ).toBeTruthy();
     expect(screen.getByText("Start weekly review")).toBeTruthy();
-    expect(screen.queryByText("Suggested adjustment")).toBeNull();
+    expect(screen.queryByText("SUGGESTED ADJUSTMENT")).toBeNull();
     expect(screen.queryByText("Delete habit")).toBeNull();
     expect(screen.queryByText("Pause habit")).toBeNull();
 
@@ -215,13 +215,13 @@ describe("HabitDetailScreen", () => {
 
     render(<HabitDetailScreen />);
 
-    expect(screen.getByText("Latest weekly review")).toBeTruthy();
+    expect(screen.getByText("LATEST WEEKLY REVIEW")).toBeTruthy();
     expect(screen.getByText("Breakfast cue worked")).toBeTruthy();
     expect(screen.getByText("Rushed mornings")).toBeTruthy();
     expect(screen.getByText("Move the book to the table")).toBeTruthy();
     expect(screen.getByText("Yes")).toBeTruthy();
     expect(screen.getByText("No")).toBeTruthy();
-    expect(screen.getByText("Suggested adjustment")).toBeTruthy();
+    expect(screen.getByText("SUGGESTED ADJUSTMENT")).toBeTruthy();
     expect(screen.getByText("Reduce the friction")).toBeTruthy();
     expect(screen.getByText("Why this suggestion")).toBeTruthy();
     expect(
@@ -262,7 +262,7 @@ describe("HabitDetailScreen", () => {
 
     render(<HabitDetailScreen />);
 
-    expect(screen.getByText("Suggested adjustment")).toBeTruthy();
+    expect(screen.getByText("SUGGESTED ADJUSTMENT")).toBeTruthy();
     expect(screen.getByText("Make it smaller next week")).toBeTruthy();
     expect(screen.getByText("Why this suggestion")).toBeTruthy();
     expect(
@@ -334,7 +334,7 @@ describe("HabitDetailScreen", () => {
 
     render(<HabitDetailScreen />);
 
-    expect(screen.getByText("Suggested adjustment")).toBeTruthy();
+    expect(screen.getByText("SUGGESTED ADJUSTMENT")).toBeTruthy();
     expect(screen.getByText("Adjust your trigger")).toBeTruthy();
     expect(screen.getByText("Why this suggestion")).toBeTruthy();
     expect(
@@ -369,7 +369,7 @@ describe("HabitDetailScreen", () => {
     render(<HabitDetailScreen />);
 
     // Two separate suggestion cards — one per suggestion type.
-    const eyebrows = screen.getAllByText("Suggested adjustment");
+    const eyebrows = screen.getAllByText("SUGGESTED ADJUSTMENT");
     expect(eyebrows).toHaveLength(2);
     expect(screen.getByText("Make it smaller next week")).toBeTruthy();
     expect(screen.getByText("Adjust your trigger")).toBeTruthy();

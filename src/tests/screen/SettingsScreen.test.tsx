@@ -86,7 +86,7 @@ describe("SettingsScreen", () => {
     render(<SettingsScreen />);
 
     expect(screen.queryByText("Foundation status")).toBeNull();
-    expect(screen.getByText("Your archived habits")).toBeTruthy();
+    expect(screen.getByText("YOUR ARCHIVED HABITS")).toBeTruthy();
     expect(screen.getByText("No archived habits")).toBeTruthy();
   });
 

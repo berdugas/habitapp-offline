@@ -2,10 +2,10 @@ import { ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { router } from "expo-router";
 
 import { PrimaryButton } from "@/components/buttons/PrimaryButton";
+import { ZenCard } from "@/components/cards/ZenCard";
 import { useOnboarding } from "@/features/onboarding/OnboardingProvider";
 import { colors } from "@/theme/colors";
-import { radius } from "@/theme/radius";
-import { shadows } from "@/theme/shadows";
+import { fontFamilies } from "@/theme/fontFamilies";
 import { spacing } from "@/theme/spacing";
 import { typography } from "@/theme/typography";
 
@@ -32,7 +32,7 @@ export default function BecomingScreen() {
       keyboardShouldPersistTaps="handled"
       style={styles.screen}
     >
-      <View style={styles.card}>
+      <ZenCard padding="xxl">
         <Text selectable style={styles.header}>
           Who do you want to become?
         </Text>
@@ -41,7 +41,7 @@ export default function BecomingScreen() {
           multiline
           onChangeText={(text) => update({ becomingPhrase: text })}
           placeholder="Describe who you are becoming..."
-          placeholderTextColor={colors.textMuted}
+          placeholderTextColor={colors.textFaint}
           style={styles.input}
           value={draft.becomingPhrase}
         />
@@ -55,7 +55,7 @@ export default function BecomingScreen() {
             </Text>
           ))}
         </View>
-      </View>
+      </ZenCard>
 
       <PrimaryButton
         disabled={draft.becomingPhrase.trim().length === 0}
@@ -67,15 +67,6 @@ export default function BecomingScreen() {
 }
 
 const styles = StyleSheet.create({
-  card: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    boxShadow: shadows.card,
-    gap: spacing.lg,
-    padding: spacing.xxl,
-  },
   content: {
     flexGrow: 1,
     gap: spacing.xxl,
@@ -84,7 +75,8 @@ const styles = StyleSheet.create({
   },
   exampleItem: {
     color: colors.textMuted,
-    fontSize: typography.body,
+    fontFamily: fontFamilies.body,
+    fontSize: typography.bodyLg,
     lineHeight: 24,
   },
   examples: {
@@ -92,27 +84,25 @@ const styles = StyleSheet.create({
   },
   examplesLabel: {
     color: colors.text,
-    fontSize: typography.body,
-    fontWeight: "600",
+    fontFamily: fontFamilies.bodySemi,
+    fontSize: typography.bodyLg,
   },
   header: {
     color: colors.text,
-    fontSize: typography.title,
-    fontWeight: "800",
+    fontFamily: fontFamilies.displayBold,
+    fontSize: typography.headlineLg,
     lineHeight: 36,
   },
   input: {
-    borderColor: colors.border,
-    borderRadius: radius.lg,
-    borderWidth: 1,
+    backgroundColor: colors.surface,
     color: colors.text,
-    fontSize: typography.body,
+    fontSize: typography.bodyLg,
     lineHeight: 24,
     minHeight: 80,
     padding: spacing.md,
   },
   screen: {
-    backgroundColor: colors.background,
+    backgroundColor: colors.bg,
     flex: 1,
   },
 });

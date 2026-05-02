@@ -4,13 +4,15 @@ import { router } from "expo-router";
 
 import { PrimaryButton } from "@/components/buttons/PrimaryButton";
 import { SecondaryButton } from "@/components/buttons/SecondaryButton";
+import { ZenCard } from "@/components/cards/ZenCard";
 import { ErrorState } from "@/components/feedback/ErrorState";
 import { TextField } from "@/components/forms/TextField";
 import { signUpWithPassword } from "@/features/auth/api";
 import { logger } from "@/services/logger";
 import { colors } from "@/theme/colors";
-import { radius } from "@/theme/radius";
+import { fontFamilies } from "@/theme/fontFamilies";
 import { spacing } from "@/theme/spacing";
+import { typography } from "@/theme/typography";
 import {
   isBlank,
   isLikelyEmail,
@@ -98,17 +100,16 @@ export default function SignUpScreen() {
       contentInsetAdjustmentBehavior="automatic"
       style={styles.screen}
     >
-      <View style={styles.copy}>
-        <Text selectable style={styles.title}>
-          Create your account
+      <View style={styles.header}>
+        <Text selectable style={styles.headline}>
+          Become someone different.
         </Text>
-        <Text selectable style={styles.body}>
-          We will use this foundation to create your first habit and land you in
-          Today.
+        <Text selectable style={styles.subhead}>
+          Start with one habit. Build from there.
         </Text>
       </View>
 
-      <View style={styles.formCard}>
+      <ZenCard padding="xxl">
         {error ? <ErrorState message={error} /> : null}
         <TextField
           autoCapitalize="none"
@@ -135,39 +136,32 @@ export default function SignUpScreen() {
           label="I already have an account"
           onPress={() => router.push("/(auth)/sign-in")}
         />
-      </View>
+      </ZenCard>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  body: {
-    color: colors.textMuted,
-    fontSize: 16,
-    lineHeight: 24,
-  },
   content: {
     gap: spacing.xl,
     padding: spacing.xl,
   },
-  copy: {
+  header: {
     gap: spacing.sm,
   },
-  formCard: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    gap: spacing.lg,
-    padding: spacing.xl,
+  headline: {
+    color: colors.text,
+    fontFamily: fontFamilies.displayBold,
+    fontSize: typography.displayLg,
   },
   screen: {
-    backgroundColor: colors.background,
+    backgroundColor: colors.bg,
     flex: 1,
   },
-  title: {
-    color: colors.text,
-    fontSize: 28,
-    fontWeight: "800",
+  subhead: {
+    color: colors.textMuted,
+    fontFamily: fontFamilies.body,
+    fontSize: typography.bodyLg,
+    lineHeight: 24,
   },
 });

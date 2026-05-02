@@ -2,10 +2,10 @@ import { ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { router } from "expo-router";
 
 import { PrimaryButton } from "@/components/buttons/PrimaryButton";
+import { ZenCard } from "@/components/cards/ZenCard";
 import { useOnboarding } from "@/features/onboarding/OnboardingProvider";
 import { colors } from "@/theme/colors";
-import { radius } from "@/theme/radius";
-import { shadows } from "@/theme/shadows";
+import { fontFamilies } from "@/theme/fontFamilies";
 import { spacing } from "@/theme/spacing";
 import { typography } from "@/theme/typography";
 
@@ -40,7 +40,7 @@ export default function CueScreen() {
       keyboardShouldPersistTaps="handled"
       style={styles.screen}
     >
-      <View style={styles.card}>
+      <ZenCard padding="xxl">
         <Text selectable style={styles.header}>
           What will trigger it?
         </Text>
@@ -54,7 +54,7 @@ export default function CueScreen() {
             multiline
             onChangeText={(text) => update({ cueExisting: text })}
             placeholder="my morning coffee"
-            placeholderTextColor={colors.textMuted}
+            placeholderTextColor={colors.textFaint}
             style={styles.input}
             value={draft.cueExisting}
           />
@@ -69,7 +69,7 @@ export default function CueScreen() {
             multiline
             onChangeText={(text) => update({ tinyAction: text })}
             placeholder=""
-            placeholderTextColor={colors.textMuted}
+            placeholderTextColor={colors.textFaint}
             style={styles.input}
             value={draft.tinyAction}
           />
@@ -89,7 +89,7 @@ export default function CueScreen() {
             </Text>
           ))}
         </View>
-      </View>
+      </ZenCard>
 
       <PrimaryButton
         disabled={!canContinue}
@@ -101,18 +101,10 @@ export default function CueScreen() {
 }
 
 const styles = StyleSheet.create({
-  card: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    boxShadow: shadows.card,
-    gap: spacing.lg,
-    padding: spacing.xxl,
-  },
   coaching: {
     color: colors.textMuted,
-    fontSize: typography.body,
+    fontFamily: fontFamilies.body,
+    fontSize: typography.bodyLg,
     lineHeight: 24,
   },
   content: {
@@ -123,7 +115,8 @@ const styles = StyleSheet.create({
   },
   exampleItem: {
     color: colors.textMuted,
-    fontSize: typography.body,
+    fontFamily: fontFamilies.body,
+    fontSize: typography.bodyLg,
     lineHeight: 24,
   },
   examples: {
@@ -131,35 +124,33 @@ const styles = StyleSheet.create({
   },
   examplesLabel: {
     color: colors.text,
-    fontSize: typography.body,
-    fontWeight: "600",
+    fontFamily: fontFamilies.bodySemi,
+    fontSize: typography.bodyLg,
   },
   field: {
     gap: spacing.sm,
   },
   header: {
     color: colors.text,
-    fontSize: typography.title,
-    fontWeight: "800",
+    fontFamily: fontFamilies.displayBold,
+    fontSize: typography.headlineLg,
     lineHeight: 36,
   },
   input: {
-    borderColor: colors.border,
-    borderRadius: radius.lg,
-    borderWidth: 1,
+    backgroundColor: colors.surface,
     color: colors.text,
-    fontSize: typography.body,
+    fontSize: typography.bodyLg,
     lineHeight: 24,
     minHeight: 80,
     padding: spacing.md,
   },
   label: {
     color: colors.text,
-    fontSize: typography.body,
-    fontWeight: "600",
+    fontFamily: fontFamilies.bodySemi,
+    fontSize: typography.bodyLg,
   },
   screen: {
-    backgroundColor: colors.background,
+    backgroundColor: colors.bg,
     flex: 1,
   },
 });

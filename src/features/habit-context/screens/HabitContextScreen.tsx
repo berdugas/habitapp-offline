@@ -31,7 +31,7 @@ const styles = StyleSheet.create({
     padding: spacing.xl,
   },
   screen: {
-    backgroundColor: colors.background,
+    backgroundColor: colors.bg,
     flex: 1,
   },
   title: {

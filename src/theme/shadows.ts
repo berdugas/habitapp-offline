@@ -1,4 +1,5 @@
 export const shadows = {
-  card: "0 12px 30px rgba(47, 36, 29, 0.08)",
-  button: "0 8px 16px rgba(187, 108, 63, 0.18)",
+  card: '0 8px 32px rgba(68, 102, 85, 0.08)',
+  lift: '0 2px 12px rgba(68, 102, 85, 0.06)',
+  button: '0 4px 20px rgba(68, 102, 85, 0.22)',
 };

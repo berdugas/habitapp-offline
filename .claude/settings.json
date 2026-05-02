@@ -9,7 +9,8 @@
       "Bash(gh pr create --title 'Sprint 8 — Trial validation, Settings refresh, Bug #2 fix' --body ' *)",
       "Bash(git log *)",
       "Bash(adb reverse *)",
-      "PowerShell(Select-String -Path \"C:\\\\Users\\\\daddy\\\\appium-test\\\\s8-smoke-failure-1777624915041.xml\" -Pattern 'text=\"[^\"]{2,}\"' | ForEach-Object { $_.Matches } | ForEach-Object { $_.Value } | Sort-Object -Unique | Select-Object -First 60)"
+      "PowerShell(Select-String -Path \"C:\\\\Users\\\\daddy\\\\appium-test\\\\s8-smoke-failure-1777624915041.xml\" -Pattern 'text=\"[^\"]{2,}\"' | ForEach-Object { $_.Matches } | ForEach-Object { $_.Value } | Sort-Object -Unique | Select-Object -First 60)",
+      "WebFetch(domain:api.anthropic.com)"
     ],
     "additionalDirectories": [
       "C:\\Users\\daddy\\appium-test"

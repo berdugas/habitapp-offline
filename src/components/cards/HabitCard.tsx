@@ -60,7 +60,7 @@ export function HabitCard({
 const styles = StyleSheet.create({
   card: {
     backgroundColor: colors.surface,
-    borderColor: colors.border,
+    borderColor: 'transparent',
     borderRadius: radius.lg,
     borderWidth: 1,
     boxShadow: shadows.card,
@@ -76,14 +76,14 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   metaRow: {
-    backgroundColor: colors.accentSoft,
+    backgroundColor: colors.primarySoft,
     borderRadius: radius.pill,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     alignSelf: "flex-start",
   },
   metaText: {
-    color: colors.accent,
+    color: colors.primary,
     fontSize: 13,
     fontWeight: "600",
   },

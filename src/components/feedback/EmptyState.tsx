@@ -31,7 +31,7 @@ const styles = StyleSheet.create({
   },
   container: {
     backgroundColor: colors.surface,
-    borderColor: colors.border,
+    borderColor: 'transparent',
     borderRadius: radius.lg,
     borderWidth: 1,
     gap: spacing.sm,

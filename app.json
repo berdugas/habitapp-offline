@@ -1,9 +1,9 @@
 {
   "expo": {
-    "name": "Habit Builder",
+    "name": "Habitapp",
     "slug": "habit-builder",
     "version": "1.0.0",
-    "scheme": "habits",
+    "scheme": "habitapp",
     "orientation": "portrait",
     "icon": "./assets/icons/icon.png",
     "userInterfaceStyle": "light",
@@ -17,7 +17,7 @@
     "splash": {
       "image": "./assets/icons/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#f8f4ec"
+      "backgroundColor": "#fbf9f5"
     },
     "ios": {
       "supportsTablet": true,
@@ -27,7 +27,7 @@
       "package": "com.berdugas.habits",
       "adaptiveIcon": {
         "foregroundImage": "./assets/icons/adaptive-icon.png",
-        "backgroundColor": "#f8f4ec"
+        "backgroundColor": "#fbf9f5"
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false

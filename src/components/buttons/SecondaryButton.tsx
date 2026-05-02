@@ -1,8 +1,11 @@
 import { Pressable, StyleSheet, Text } from "react-native";
 
 import { colors } from "@/theme/colors";
+import { fontFamilies } from "@/theme/fontFamilies";
 import { radius } from "@/theme/radius";
+import { shadows } from "@/theme/shadows";
 import { spacing } from "@/theme/spacing";
+import { typography } from "@/theme/typography";
 
 type SecondaryButtonProps = {
   disabled?: boolean;
@@ -26,9 +29,7 @@ export function SecondaryButton({
         pressed && !disabled && styles.buttonPressed,
       ]}
     >
-      <Text selectable style={styles.label}>
-        {label}
-      </Text>
+      <Text style={styles.label}>{label}</Text>
     </Pressable>
   );
 }
@@ -36,12 +37,11 @@ export function SecondaryButton({
 const styles = StyleSheet.create({
   button: {
     alignItems: "center",
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
+    backgroundColor: colors.surfaceCard,
     borderRadius: radius.pill,
-    borderWidth: 1,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
+    boxShadow: shadows.lift,
+    paddingHorizontal: spacing.xxl,
+    paddingVertical: spacing.lg + 2,
   },
   buttonDisabled: {
     opacity: 0.55,
@@ -51,7 +51,7 @@ const styles = StyleSheet.create({
   },
   label: {
     color: colors.text,
-    fontSize: 16,
-    fontWeight: "600",
+    fontFamily: fontFamilies.bodySemi,
+    fontSize: typography.bodyLg,
   },
 });

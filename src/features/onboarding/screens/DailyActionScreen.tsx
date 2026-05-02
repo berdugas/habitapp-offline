@@ -1,13 +1,13 @@
-import { ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { ScrollView, StyleSheet, Text, TextInput } from "react-native";
 import { router } from "expo-router";
 
 import { PrimaryButton } from "@/components/buttons/PrimaryButton";
+import { ZenCard } from "@/components/cards/ZenCard";
 import { useOnboarding } from "@/features/onboarding/OnboardingProvider";
 import { getDailyActionPlaceholder } from "@/features/onboarding/dailyActionPlaceholder";
 import type { OnboardingDraft } from "@/features/onboarding/types";
 import { colors } from "@/theme/colors";
-import { radius } from "@/theme/radius";
-import { shadows } from "@/theme/shadows";
+import { fontFamilies } from "@/theme/fontFamilies";
 import { spacing } from "@/theme/spacing";
 import { typography } from "@/theme/typography";
 
@@ -30,7 +30,7 @@ export default function DailyActionScreen() {
       keyboardShouldPersistTaps="handled"
       style={styles.screen}
     >
-      <View style={styles.card}>
+      <ZenCard padding="xxl">
         <Text selectable style={styles.header}>
           What does that person do every day?
         </Text>
@@ -44,14 +44,14 @@ export default function DailyActionScreen() {
           multiline
           onChangeText={(text) => update({ dailyAction: text })}
           placeholder={getDailyActionPlaceholder(draft.becomingPhrase)}
-          placeholderTextColor={colors.textMuted}
+          placeholderTextColor={colors.textFaint}
           style={styles.input}
           value={draft.dailyAction}
         />
         <Text selectable style={styles.helper}>
           Even one minute counts. We'll make it smaller in the next step.
         </Text>
-      </View>
+      </ZenCard>
 
       <PrimaryButton
         disabled={draft.dailyAction.trim().length === 0}
@@ -63,15 +63,6 @@ export default function DailyActionScreen() {
 }
 
 const styles = StyleSheet.create({
-  card: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    boxShadow: shadows.card,
-    gap: spacing.lg,
-    padding: spacing.xxl,
-  },
   content: {
     flexGrow: 1,
     gap: spacing.xxl,
@@ -80,32 +71,32 @@ const styles = StyleSheet.create({
   },
   header: {
     color: colors.text,
-    fontSize: typography.title,
-    fontWeight: "800",
+    fontFamily: fontFamilies.displayBold,
+    fontSize: typography.headlineLg,
     lineHeight: 36,
   },
   helper: {
     color: colors.textMuted,
-    fontSize: typography.body,
+    fontFamily: fontFamilies.body,
+    fontSize: typography.bodyLg,
     lineHeight: 24,
   },
   input: {
-    borderColor: colors.border,
-    borderRadius: radius.lg,
-    borderWidth: 1,
+    backgroundColor: colors.surface,
     color: colors.text,
-    fontSize: typography.body,
+    fontSize: typography.bodyLg,
     lineHeight: 24,
     minHeight: 80,
     padding: spacing.md,
   },
   reflection: {
     color: colors.textMuted,
-    fontSize: typography.caption,
+    fontFamily: fontFamilies.body,
+    fontSize: typography.bodyMd,
     fontStyle: "italic",
   },
   screen: {
-    backgroundColor: colors.background,
+    backgroundColor: colors.bg,
     flex: 1,
   },
 });

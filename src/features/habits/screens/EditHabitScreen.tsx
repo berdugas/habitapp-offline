@@ -1,51 +1,35 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { ScrollView, StyleSheet, Text, TextInput } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 
 import { PrimaryButton } from "@/components/buttons/PrimaryButton";
-import { SecondaryButton } from "@/components/buttons/SecondaryButton";
 import { ReadOnlyBanner } from "@/components/ReadOnlyBanner";
-import { FEATURE_FLAGS } from "@/config/featureFlags";
+import { ZenCard } from "@/components/cards/ZenCard";
 import { ErrorState } from "@/components/feedback/ErrorState";
 import { LoadingState } from "@/components/feedback/LoadingState";
 import { ChoicePills } from "@/components/forms/ChoicePills";
 import { TextField } from "@/components/forms/TextField";
+import { Eyebrow } from "@/components/text/Eyebrow";
 import {
   useOwnedHabitQuery,
   useUpdateHabitMutation,
 } from "@/features/habits/hooks";
-import {
-  formatHabitFormula,
-  stripLeadingAfter,
-} from "@/features/habits/formatters";
+import { formatHabitFormula } from "@/features/habits/formatters";
 import { PREFERRED_TIME_WINDOW_OPTIONS } from "@/features/habits/preferredTimeWindows";
 import {
   normalizeHabitSetupPayload,
   validateHabitSetupPayload,
 } from "@/features/habits/validators";
 import { getHabitSuggestionEditGuidance } from "@/features/recommendations/editGuidance";
-import { useGenerateHabitRewriteMutation } from "@/features/recommendations/hooks";
 import { useTrialValidation } from "@/features/trial/hooks";
-import {
-  normalizeHabitAdjustmentSuggestionType,
-} from "@/features/recommendations/types";
 import { colors } from "@/theme/colors";
-import { radius } from "@/theme/radius";
+import { fontFamilies } from "@/theme/fontFamilies";
 import { spacing } from "@/theme/spacing";
+import { typography } from "@/theme/typography";
 import {
-  getGenerateHabitRewriteErrorMessage,
   getLoadHabitDetailErrorMessage,
   getUpdateHabitErrorMessage,
 } from "@/utils/userFacingErrors";
-
-import type { GenerateHabitRewriteResponse } from "@/features/recommendations/aiRewriteApi";
-import type { HabitAdjustmentSuggestionType } from "@/features/recommendations/types";
-
-function getRewriteRequestSuggestionType(
-  suggestionType: HabitAdjustmentSuggestionType,
-) {
-  return suggestionType;
-}
 
 export default function EditHabitScreen() {
   const { habitId, suggestionType, from } = useLocalSearchParams<{
@@ -57,14 +41,11 @@ export default function EditHabitScreen() {
     (Array.isArray(from) ? from[0] : from) === "recovery";
   const ownedHabitQuery = useOwnedHabitQuery(habitId);
   const updateHabitMutation = useUpdateHabitMutation();
-  const generateRewriteMutation = useGenerateHabitRewriteMutation();
   const { accessMode, isValidating, refresh } = useTrialValidation();
   const isReadOnly = accessMode === "read_only";
   const hasHydratedFormRef = useRef(false);
   const submitLockRef = useRef(false);
   const tinyActionRef = useRef<TextInput>(null);
-  const normalizedSuggestionType =
-    normalizeHabitAdjustmentSuggestionType(suggestionType);
   const suggestionGuidance = getHabitSuggestionEditGuidance(suggestionType);
 
   const [title, setTitle] = useState("");
@@ -74,23 +55,6 @@ export default function EditHabitScreen() {
   const [minimumViableAction, setMinimumViableAction] = useState("");
   const [preferredTimeWindow, setPreferredTimeWindow] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
-  const [rewriteDraft, setRewriteDraft] =
-    useState<GenerateHabitRewriteResponse | null>(null);
-  const [rewriteError, setRewriteError] = useState<string | null>(null);
-  const [rewriteCopyMessage, setRewriteCopyMessage] = useState<string | null>(
-    null,
-  );
-  const hasGeneratedRewrite = Boolean(rewriteDraft);
-  const hasRewriteFieldChanges = Boolean(
-    rewriteDraft?.suggestedStackTrigger || rewriteDraft?.suggestedTinyAction,
-  );
-  const rewriteButtonLabel = generateRewriteMutation.isPending
-    ? "Generating rewrite..."
-    : rewriteError
-      ? "Try again"
-      : hasGeneratedRewrite
-        ? "Generate another rewrite"
-        : "Generate rewrite";
 
   const formPayload = {
     title,
@@ -158,55 +122,6 @@ export default function EditHabitScreen() {
     }
   }
 
-  async function handleGenerateRewrite() {
-    if (
-      !FEATURE_FLAGS.aiRewrite ||
-      generateRewriteMutation.isPending ||
-      !ownedHabitQuery.data ||
-      !normalizedSuggestionType
-    ) {
-      return;
-    }
-
-    setRewriteDraft(null);
-    setRewriteError(null);
-    setRewriteCopyMessage(null);
-
-    try {
-      const response = await generateRewriteMutation.mutateAsync({
-        habitId: ownedHabitQuery.data.id,
-        suggestionType: getRewriteRequestSuggestionType(normalizedSuggestionType),
-      });
-      setRewriteDraft(response);
-    } catch {
-      setRewriteError(getGenerateHabitRewriteErrorMessage());
-    }
-  }
-
-  function handleCopyRewriteIntoFields() {
-    if (!rewriteDraft) {
-      return;
-    }
-
-    let copiedAnyField = false;
-
-    if (rewriteDraft.suggestedStackTrigger) {
-      setCue(stripLeadingAfter(rewriteDraft.suggestedStackTrigger));
-      copiedAnyField = true;
-    }
-
-    if (rewriteDraft.suggestedTinyAction) {
-      setTinyAction(rewriteDraft.suggestedTinyAction);
-      copiedAnyField = true;
-    }
-
-    setRewriteCopyMessage(
-      copiedAnyField
-        ? "Rewrite copied into the form. Review it before saving."
-        : "No field changes were suggested.",
-    );
-  }
-
   const preview = formatHabitFormula(
     normalizedPayload.cue,
     normalizedPayload.tinyAction,
@@ -248,10 +163,8 @@ export default function EditHabitScreen() {
       </Text>
 
       {suggestionGuidance ? (
-        <View style={styles.suggestionCard}>
-          <Text style={styles.suggestionEyebrow}>
-            Suggested adjustment
-          </Text>
+        <ZenCard gap={spacing.sm}>
+          <Eyebrow label="Suggested adjustment" />
           <Text style={styles.suggestionTitle}>
             {suggestionGuidance.title}
           </Text>
@@ -270,71 +183,10 @@ export default function EditHabitScreen() {
           <Text style={styles.suggestionReason}>
             {suggestionGuidance.reason}
           </Text>
-          {FEATURE_FLAGS.aiRewrite ? (
-            <>
-              <Text style={styles.aiRewriteHelper}>
-                AI can suggest a rewrite, but you stay in control. It will not
-                change your habit unless you edit and save it.
-              </Text>
-              <SecondaryButton
-                disabled={generateRewriteMutation.isPending}
-                label={rewriteButtonLabel}
-                onPress={() => void handleGenerateRewrite()}
-              />
-              {rewriteError ? <ErrorState message={rewriteError} /> : null}
-              {rewriteDraft ? (
-                <View style={styles.aiRewriteCard}>
-                  <Text selectable style={styles.aiRewriteTitle}>
-                    AI rewrite idea
-                  </Text>
-                  <Text selectable style={styles.aiRewriteLabel}>
-                    Trigger
-                  </Text>
-                  <Text selectable style={styles.aiRewriteValue}>
-                    {rewriteDraft.suggestedStackTrigger ??
-                      "No trigger change suggested"}
-                  </Text>
-                  <Text selectable style={styles.aiRewriteLabel}>
-                    Tiny action
-                  </Text>
-                  <Text selectable style={styles.aiRewriteValue}>
-                    {rewriteDraft.suggestedTinyAction ??
-                      "No tiny action change suggested"}
-                  </Text>
-                  <Text selectable style={styles.aiRewriteLabel}>
-                    Why
-                  </Text>
-                  <Text selectable style={styles.aiRewriteValue}>
-                    {rewriteDraft.explanation}
-                  </Text>
-                  <Text selectable style={styles.aiRewriteNote}>
-                    Use this as inspiration. To use it, manually update the
-                    fields below and save.
-                  </Text>
-                  {hasRewriteFieldChanges ? (
-                    <SecondaryButton
-                      disabled={generateRewriteMutation.isPending}
-                      label="Copy into fields"
-                      onPress={handleCopyRewriteIntoFields}
-                    />
-                  ) : (
-                    <Text selectable style={styles.aiRewriteCopyMessage}>
-                      No field changes to copy.
-                    </Text>
-                  )}
-                  {rewriteCopyMessage ? (
-                    <Text selectable style={styles.aiRewriteCopyMessage}>
-                      {rewriteCopyMessage}
-                    </Text>
-                  ) : null}
-                </View>
-              ) : null}
-            </>
-          ) : null}
-        </View>
+        </ZenCard>
       ) : null}
 
-      <View style={styles.formCard}>
+      <ZenCard gap={spacing.lg}>
         {formError ? <ErrorState message={formError} /> : null}
         <TextField
           error={validationErrors.title}
@@ -379,16 +231,14 @@ export default function EditHabitScreen() {
           value={preferredTimeWindow}
         />
         {/* TODO(S15): reminder settings */}
-      </View>
+      </ZenCard>
 
-      <View style={styles.previewCard}>
-        <Text selectable style={styles.previewLabel}>
-          Preview
-        </Text>
+      <ZenCard gap={spacing.sm}>
+        <Eyebrow label="Preview" tone="primary" />
         <Text selectable style={styles.previewText}>
           {preview}
         </Text>
-      </View>
+      </ZenCard>
 
       <PrimaryButton
         disabled={updateHabitMutation.isPending || isReadOnly}
@@ -409,128 +259,60 @@ const styles = StyleSheet.create({
     gap: spacing.xl,
     padding: spacing.xl,
   },
-  aiRewriteCard: {
-    backgroundColor: colors.accentSoft,
-    borderRadius: radius.md,
-    gap: spacing.sm,
-    padding: spacing.lg,
-  },
-  aiRewriteCopyMessage: {
-    color: colors.text,
-    fontSize: 13,
-    fontWeight: "600",
-    lineHeight: 19,
-  },
-  aiRewriteHelper: {
-    color: colors.textMuted,
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  aiRewriteLabel: {
-    color: colors.accent,
-    fontSize: 12,
-    fontWeight: "700",
-    textTransform: "uppercase",
-  },
-  aiRewriteNote: {
-    color: colors.textMuted,
-    fontSize: 13,
-    lineHeight: 19,
-  },
-  aiRewriteTitle: {
-    color: colors.text,
-    fontSize: 16,
-    fontWeight: "700",
-  },
-  aiRewriteValue: {
-    color: colors.text,
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  formCard: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    gap: spacing.lg,
-    padding: spacing.xl,
-  },
-  previewCard: {
-    backgroundColor: colors.accentSoft,
-    borderRadius: radius.lg,
-    gap: spacing.sm,
-    padding: spacing.xl,
-  },
-  previewLabel: {
-    color: colors.accent,
-    fontSize: 13,
-    fontWeight: "700",
-    textTransform: "uppercase",
-  },
   previewText: {
     color: colors.text,
+    fontFamily: fontFamilies.bodySemi,
     fontSize: 18,
-    fontWeight: "600",
     lineHeight: 26,
   },
   screen: {
-    backgroundColor: colors.background,
+    backgroundColor: colors.bg,
     flex: 1,
   },
   suggestionBody: {
     color: colors.textMuted,
+    fontFamily: fontFamilies.body,
     fontSize: 14,
     lineHeight: 20,
   },
-  suggestionCard: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    gap: spacing.sm,
-    padding: spacing.xl,
-  },
-  suggestionEyebrow: {
-    color: colors.textMuted,
-    fontSize: 12,
-    fontWeight: "700",
-    textTransform: "uppercase",
-  },
   suggestionDraftBody: {
     color: colors.textMuted,
+    fontFamily: fontFamilies.body,
     fontSize: 14,
     lineHeight: 20,
   },
   suggestionDraftLabel: {
     color: colors.text,
+    fontFamily: fontFamilies.bodySemi,
     fontSize: 13,
-    fontWeight: "700",
     lineHeight: 20,
   },
   suggestionReason: {
     color: colors.textMuted,
+    fontFamily: fontFamilies.body,
     fontSize: 14,
     lineHeight: 24,
     marginBottom: spacing.xs,
   },
   suggestionReasonLabel: {
     color: colors.text,
+    fontFamily: fontFamilies.bodySemi,
     fontSize: 13,
-    fontWeight: "700",
     lineHeight: 22,
   },
   suggestionTitle: {
     color: colors.text,
-    fontSize: 18,
-    fontWeight: "700",
+    fontFamily: fontFamilies.displaySemi,
+    fontSize: typography.headlineMd,
   },
   title: {
     color: colors.text,
-    fontSize: 28,
-    fontWeight: "800",
+    fontFamily: fontFamilies.displaySemi,
+    fontSize: typography.headlineMd,
   },
   readOnlyHelper: {
     color: colors.textMuted,
+    fontFamily: fontFamilies.body,
     fontSize: 14,
     lineHeight: 20,
     textAlign: "center",
