@@ -70,7 +70,13 @@ export default function PersonalizeScreen() {
   return (
     <OnboardingLayout footer={footer}>
       {phase === "personalize" && (
-        <OnboardingHeader currentStep={5} />
+        <OnboardingHeader
+          currentStep={5}
+          onBack={() => {
+            update({ step: "cue" });
+            router.back();
+          }}
+        />
       )}
 
       {phase === "personalize" && (

@@ -34,7 +34,13 @@ export default function ShrinkScreen() {
         />
       }
     >
-      <OnboardingHeader currentStep={3} />
+      <OnboardingHeader
+        currentStep={3}
+        onBack={() => {
+          update({ step: "daily-action" });
+          router.back();
+        }}
+      />
 
       <Text style={styles.headline}>Now make the action laughably small.</Text>
       <Text style={styles.body}>

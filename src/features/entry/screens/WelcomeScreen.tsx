@@ -1,5 +1,6 @@
 import { router } from "expo-router";
 import { StyleSheet, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { AppLogo } from "@/components/branding/AppLogo";
 import { PrimaryButton } from "@/components/buttons/PrimaryButton";
@@ -9,10 +10,11 @@ import { fontFamilies } from "@/theme/fontFamilies";
 import { spacing } from "@/theme/spacing";
 
 export default function WelcomeScreen() {
+  const insets = useSafeAreaInsets();
   return (
     <View style={styles.screen}>
       {/* Header: small logo + app name */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + spacing.sm }]}>
         <AppLogo size={24} />
         <Text style={styles.appName}>Habitapp</Text>
       </View>

@@ -28,7 +28,9 @@
       "Bash(xargs ls *)",
       "Bash(grep -E \"\\\\.ts$|\\\\.tsx$\")",
       "Bash(node -e \"const p = require\\('d:/habits_offline/package.json'\\); const deps = {...p.dependencies,...p.devDependencies}; ['lucide-react-native','react-native-reanimated','react-native-svg','expo-linear-gradient'].forEach\\(k => console.log\\(k+':', deps[k]||'NOT FOUND'\\)\\)\")",
-      "Bash(node -e \"const p = require\\('d:/habits_offline/package.json'\\); console.log\\('react-native:', p.dependencies['react-native']\\); console.log\\('expo:', p.dependencies['expo']\\)\")"
+      "Bash(node -e \"const p = require\\('d:/habits_offline/package.json'\\); console.log\\('react-native:', p.dependencies['react-native']\\); console.log\\('expo:', p.dependencies['expo']\\)\")",
+      "Bash(node -e \"const p = require\\('d:/habits_offline/package.json'\\); console.log\\('safe-area-context:', p.dependencies['react-native-safe-area-context']\\)\")",
+      "Bash(node -e \"const p = require\\('d:/habits_offline/package.json'\\); console.log\\(JSON.stringify\\(p.jest, null, 2\\)\\)\")"
     ],
     "additionalDirectories": [
       "C:\\Users\\daddy\\appium-test"

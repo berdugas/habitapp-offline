@@ -114,6 +114,32 @@ Before starting, have ready:
 
 ---
 
+## TC-04B Today Empty-State Variant — Inactive Habit Recovery
+
+**What it checks:** Empty-state behavior when the account has **zero active habits** but at least one **inactive/archived** habit.
+
+**Precondition:** Signed in account with no active habits and at least one inactive habit.
+
+**Steps:**
+1. Land on Today (or restart app if needed).
+2. If app routes to Create Habit directly, continue; otherwise navigate to Create Habit.
+3. Observe the top helper area above the form.
+4. Verify inactive-habit card/list content and action.
+
+**Expected:**
+- The flow may land directly on **Create Habit** instead of showing the classic "No active habits yet" Today card.
+- Create Habit headline can be "Create a habit".
+- Inactive helper block is present with:
+  - "You already have inactive habits"
+  - explanatory copy about inactive habits staying out of Today
+  - an "Open Settings" action
+- At least one inactive habit card can be shown (e.g., "run for 2 minutes" with "Inactive habit" badge).
+- This variant is valid and should be treated as passing empty-state behavior.
+
+**Result:** ☐ iOS ☐ Android
+
+---
+
 ## TC-05 Today — Populated State (S8-era layout, atoms reskinned)
 
 **What it checks:** That the populated Today works and looks correctly "halfway reskinned" — atoms are sage but the FocusCard layout is S8-era.
@@ -394,6 +420,7 @@ Paste into the `sprint-9 → main` PR description once all items are verified.
 | TC-02 | Sign Up + 7 onboarding screens | ☐ | ☐ |
 | TC-03 | Sign In — focus animation, error state | ☐ | ☐ |
 | TC-04 | Today empty state | ☐ | ☐ |
+| TC-04B | Empty-state variant — inactive habit recovery | ☐ | ☐ |
 | TC-05 | Today populated (S8-era layout, atoms reskinned) | ☐ | ☐ |
 | TC-06 | Habit Detail — all sections | ☐ | ☐ |
 | TC-07 | Create Habit — form, ChoicePills, preview | ☐ | ☐ |

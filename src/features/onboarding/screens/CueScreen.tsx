@@ -35,7 +35,13 @@ export default function CueScreen() {
         />
       }
     >
-      <OnboardingHeader currentStep={4} />
+      <OnboardingHeader
+        currentStep={4}
+        onBack={() => {
+          update({ step: "shrink" });
+          router.back();
+        }}
+      />
 
       <Text style={styles.eyebrow}>
         Attach it to something you already do — no willpower needed.

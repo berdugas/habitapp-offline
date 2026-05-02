@@ -44,7 +44,13 @@ export default function BecomingScreen() {
         />
       }
     >
-      <OnboardingHeader currentStep={1} />
+      <OnboardingHeader
+        currentStep={1}
+        onBack={() => {
+          update({ step: "welcome" });
+          router.back();
+        }}
+      />
 
       <Text style={styles.eyebrow}>
         Habits stick when they connect to who you want to be.

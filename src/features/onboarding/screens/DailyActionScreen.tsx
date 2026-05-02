@@ -36,7 +36,13 @@ export default function DailyActionScreen() {
         />
       }
     >
-      <OnboardingHeader currentStep={2} />
+      <OnboardingHeader
+        currentStep={2}
+        onBack={() => {
+          update({ step: "becoming" });
+          router.back();
+        }}
+      />
 
       <Text style={styles.headline}>
         What action will you take to become who you want to be?

@@ -1,5 +1,6 @@
 import React from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
@@ -15,6 +16,8 @@ export function OnboardingLayout({
   footer,
   keyboardAware = false,
 }: OnboardingLayoutProps) {
+  const insets = useSafeAreaInsets();
+
   const inner = (
     <View style={styles.root}>
       <ScrollView
@@ -22,9 +25,13 @@ export function OnboardingLayout({
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.body}>{children}</View>
+        <View style={[styles.body, { paddingTop: insets.top + spacing.lg }]}>
+          {children}
+        </View>
       </ScrollView>
-      <View style={styles.footer}>{footer}</View>
+      <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom + spacing.lg, spacing.xxxl) }]}>
+        {footer}
+      </View>
     </View>
   );
 
@@ -46,6 +53,6 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   root: { flex: 1, backgroundColor: colors.bg },
   scrollContent: { flexGrow: 1 },
-  body: { flex: 1, paddingHorizontal: spacing.xl, paddingTop: spacing.xl },
-  footer: { paddingHorizontal: spacing.xl, paddingBottom: spacing.xxxl },
+  body: { flex: 1, paddingHorizontal: spacing.xl },
+  footer: { paddingHorizontal: spacing.xl },
 });
