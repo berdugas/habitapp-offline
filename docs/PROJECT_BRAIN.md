@@ -1,7 +1,7 @@
 # Habits App — Project Brain
 
 > Single source of truth for anyone picking up this project.
-> Last updated: May 2, 2026 (post-S9 close — The Mindful Canvas visual language applied)
+> Last updated: May 2, 2026 (post-S9c — Today screen redesign + icon set locked; NEXT: remaining screen designs, then S10 beta build)
 
 ---
 
@@ -340,6 +340,7 @@ Source-of-truth docs live directly in `docs/`. Sprint planning and per-sprint de
 | Core v1 Requirements | .md | `docs/core-v1-requirements.md` | **Current — the what** |
 | Technical Handoff Core v1 | .md | `docs/tech-handoff-core-v1.md` | **Current — the how** |
 | Design Direction | .md | `docs/design-direction.md` | **Current — the how it looks (visual language for Core v1, paired with `design/habitapp/habit-screens.jsx`)** |
+| Icon Set | .md | `docs/icon-set.md` | **Current — curated Lucide icon set (60 icons, 8 categories, rendering rules)** |
 | Project Brain | .md | `docs/PROJECT_BRAIN.md` | **Current — this document** |
 | Sprint Plan | .md | `docs/sprint_tickets/sprint-plan.md` | **Current — the when (23-sprint roadmap, 4 phases; S9 visual design sprint inserted post-S7)** |
 | Sprint Tickets | .md | `docs/sprint_tickets/sprint-N-tickets.md` | **Current — per-sprint dev ticket packages (S1–S8 closed; S9+ to come)** |
@@ -370,6 +371,70 @@ Live status of the Core v1 build. For the full 21-sprint plan, see `docs/sprint_
 - **S8** — Trial validation + basic Settings + Bug #2. Three independent deliverables. (1) Trial validation: new `src/features/trial/` module (types, grace-period math, AsyncStorage cache, Supabase fetch); `TrialValidationBootstrap` provider inserted between `AuthBootstrap` and children; `useTrialValidation()` hook exposes `accessMode` / `entitlementStatus` / `refresh()`; 7-day offline grace period, 60-minute foreground re-validation. `ReadOnlyBanner` component added (`src/components/ReadOnlyBanner.tsx`) — PrimaryButton reconnect CTA, calm non-dismissible styling with `colors.accent` border. Read-only applied to Today (Done/Skip greyed), HabitDetail (Archive/Edit/RetroLog disabled), Create/Edit Habit (Save disabled + helper text). `RetroLogSelector` extended with `readOnlyReason?: 'window' | 'app'` — window-beats-app tiebreak in HabitDetailScreen's `handleCellPress` so "Reconnect to log on this day." only shows when reconnecting would actually help. Recovery modal and onboarding not gated. (2) Settings refresh: Foundation status card removed; trial status sub-line under email (status word only, no countdown: Trial / Active / Trial ended / Paid / Cancelled); archived habits section copy refreshed (heading "Your archived habits", helper "Pause and resume habits without losing their history.", new empty state copy); About card with `expo-constants` app version and Privacy/Terms placeholder rows. (3) Bug #2: `getHabitAdjustmentSuggestions` (plural) now returns `HabitAdjustmentSuggestion[]`; when both `tiny_action_too_hard` and `trigger_worked === false`, returns `[make_tiny_action_smaller, change_trigger]` in priority order; `fix_trigger_and_tiny_action` type removed from types/copy/editGuidance/EditHabitScreen; `HabitDetailScreen` maps over array (one card per suggestion); fix is inert in production until reviews migrates to local SQLite. Also closes S7-F2: `EditHabitScreen` `?from=recovery` focus path now has Jest coverage. Key `accessMode` rule: derived from offline-grace exhaustion (`lastValidatedAt` age vs 7-day window) only — never from `entitlement_status` (trial expiry not gated in Core v1 per §16.4). 40 new tests across 6 new test files; 453 passing, all suites green (2 pre-existing flaky integration tests excluded). Note: `ReadOnlyBanner` uses `PrimaryButton` per ticket spec (Secondary would be calmer but deviates from spec without product sign-off).
 
 - **S9** — Visual design implementation: The Mindful Canvas. Pure visual sprint — no behavior changes, no schema changes. Brand rebrand from terracotta (`#bb6c3f`) to sage (`#446655`). App renamed from "Habit Builder" to **Habitapp** (`app.json` `expo.name`; slug and bundle ID unchanged). Theme tokens overhauled: 20 colors (sage-based, `primaryGradientEnd`, `dangerSoft`/`dangerSubtle` added), 9 typography sizes, 7 spacing steps, 5 radii, 3 primary-tinted shadows. Full enumeration in `docs/design-direction.md`. Fonts loaded via `expo-font`: Plus Jakarta Sans (display, 700+800) + Manrope (body, 400–800); helper at `src/theme/fontFamilies.ts`; splash holds until both fonts + DB ready. New atoms: `TertiaryButton`, `ZenCard`, `Eyebrow`, `RowLV`, `MissBanner`, `NullableBooleanField` (19 tests). Existing atoms re-skinned: `PrimaryButton` (LinearGradient gradient pill), `SecondaryButton` (surfaceCard + SHADOW_LIFT), `TextField` (animated focus state 180ms), `ChoicePills` (gradient selected), `Heatmap` (inset boxShadow ring on today cell, 0.6 opacity for unlogged), `IdentityStreakDisplay` (Manrope italic), `RecoveryModal` (BlurView glassmorphism), `ReadOnlyBanner` (surface bg, radius.sm), `TabBar` (BlurView glassmorphism via tabBarBackground). Reskin coverage: Auth (2 screens), Onboarding (7 screens), Settings, Habit Detail, Create Habit, Edit Habit, Today (empty state). AI rewrite UI fully removed from EditHabitScreen JSX (flag definition and backing hook remain; no screen renders it). Deferred: Today (populated — OPEN: multi-habit layout), Weekly Review (OPEN: beta scope), Backlog UI, retro-log affordance, replace-or-backlog modal, ReadOnlyBanner refinement, logo asset, account deletion, data export, SRHI, Library, reminder setup. Dead code left intentionally: `latestReviewQueries` block in `useTodayHabits`, `weekly_reviews` query, Bug #2 inert engine fix. 19 new tests (new atoms); 472 passing (474 total; 2 pre-existing TodayScreen integration failures excluded).
+
+### S9b — Onboarding copy & UX review (May 2, 2026)
+
+Product-lead review of all onboarding screens with design system alignment. Copy decisions and new UX patterns documented below. HTML mockups saved externally for reference.
+
+**Copy decisions (locked):**
+- Welcome: "Small actions. Real habits." headline, "Takes less than a minute to start" with stopwatch icon
+- Sign Up: "The person you want to be starts here." / "One habit at a time."
+- Onboarding Intro: logo centered upper-third, "Let's build your first habit." / "We'll walk you through it — step by step."
+- Becoming: context line "Habits stick when they connect to who you want to be." / "Who do you want to become?" / chip suggestions: a runner, someone who reads daily, a calmer person, a better partner, someone who saves consistently, a writer, a present parent
+- Daily Action: "What action will you take to become who you want to be?" / "Write a concrete action — something small and repeatable you can track." / guidance card with good/bad examples per identity (reader: ✓ Read 10 min / ✗ Read more books; fitness: ✓ Exercise 15 min / ✗ Be healthier)
+- Shrink: "Now make the action laughably small." / "The goal is showing up, not achieving. Start so small you can't say no." / before→after examples (Run 10 min → Put on shoes; Read 30 min → Read one page; Meditate 20 min → One breath)
+- Cue: "Attach it to something you already do — no willpower needed." / "What will trigger it?" / "After I / I will" compound card / guidance with trigger/action labels
+- Worst-Day: two-phase screen — Phase 1: "Personalize your habit" (name + emoji icon picker), Phase 2: "One last check." / "Most people start too big and quit. This check helps you set a habit you'll actually keep." / "Could you still do this on your worst day?" / "Imagine a low-energy day. Would this still feel doable?"
+- Confirmation: "Your first habit is ready." / "Everything you need to start becoming who you want to be — one small action at a time." / full habit summary card / "Let's go" button
+
+**New UX patterns:**
+- Emoji icon picker: 12 curated emojis for habit identity (🏃📖🧘💰✍️💪🎸🥗💤🌱🎨❤️), stored with habit
+- Habit naming: added to onboarding worst-day screen, name + icon personalize the habit before feasibility check
+- Two-phase worst-day screen: personalize → lock → feasibility question (single screen, progressive reveal)
+- Disabled→active button pattern: greyed (#d3d1c7) until valid input, then Signature Gradient
+- "Your action" / "Your answer" / "Your tiny version" input labels with pencil icon in white elevated fields
+- Breadcrumb progress bars (5 steps) with back button, no "Step N of N" text
+- No dynamic identity linking in suggestions (abandoned — user free-text makes specific suggestions unreliable)
+- "Log in" button: secondary pill (surface-container-highest bg), not text-only
+- Avoided "daily" language in copy to prevent frequency pressure (Core v1 is daily-only but copy doesn't say so)
+
+**Design system enforcement notes:**
+- All bordered cards → tonal shifts (No-Line Rule)
+- All flat buttons → Signature Gradient pills
+- All boxed inputs → Invisible Input pattern (tonal bg, no borders)
+- Header bars with borders → back-button circle + breadcrumb bars
+
+### S9c — Today screen redesign + icon set (May 2, 2026)
+
+Product-lead review of Today screen. Current screen rejected — flat, empty, no visual hierarchy, heatmap confusing, identity line buried.
+
+**Today screen design decisions (locked):**
+- Identity (goal) is the card anchor, not individual habits. Card headline = "Become someone who runs daily" (the transformation), habits are actionable rows nested inside
+- Goal-level metrics shown on card: consistency % + streak count (sage, quiet)
+- Per-habit metrics live on detail screen only (accessed via chevron)
+- Habit rows: check circle + Lucide SVG icon + habit name + chevron. Tap circle = Done. Tap row = detail.
+- Done state: filled gradient circle + strikethrough + reduced opacity. Pending state: empty circle with sage border + Done/Skip compact pill buttons
+- No heatmap on Today card (moved to detail view)
+- No Focus/Supporting eyebrow labels on Today — visual distinction via button weight only
+- Supporting habit Done button is white with subtle shadow (vs Focus gradient + strong shadow)
+- Screen header: logo (top-left) + date (top-right), "Today" headline (Plus Jakarta 800, 28px) + one muted subline
+
+**Icon system decisions (locked):**
+- Emoji picker from S9b **replaced** with Lucide SVG line icons
+- Package: `lucide-react-native` (v1.14.0+, ISC license, tree-shakable)
+- 60 curated icons across 8 categories. Full list in `docs/icon-set.md`
+- Categories: Fitness & movement (10), Mind & wellness (8), Reading & learning (7), Food & drink (8), Creative (7), Home & routine (8), Social & connection (6), Nature & outdoors (6)
+- Rendering: stroke color `colors.primary` (#446655), strokeWidth 1.8, size 20px in rows / 24px in picker
+- Stored in `local_habits` as Lucide component name string (e.g., "BookOpen")
+- Icon picker: 4-column grid grouped by category headers, selected state = `primarySoft` bg circle
+
+**Logo orientation (locked):**
+- 4-quadrant mark: 3 outlined rounded squares + 1 filled circle
+- Filled circle position: **top-right** (not bottom-right)
+- Stroke style matching tab bar icon weight
+
+**Architecture implication flagged:**
+- Current data model has no "goal" entity — habits are standalone with `habit_state`. Today screen groups habits under the Focus habit's `identityPhrase` visually. No schema change needed for Core v1 beta (1 goal only). Post-v1: consider a `goals` table if multi-goal support ships.
 
 ### Up next: S10 — Beta build
 

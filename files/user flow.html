@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Habit Builder — Current User Journey Visual Diagram</title>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+  <style>
+    :root {
+      --bg: #faf9f6;
+      --surface: #ffffff;
+      --surface-2: #f3f1eb;
+      --ink: #1f1f1d;
+      --muted: #6f6b62;
+      --soft: #9a9488;
+      --line: #e3dfd5;
+      --accent: #3b3a36;
+      --purple: #6657c8;
+      --blue: #236fbb;
+      --green: #1f8a5f;
+      --orange: #c35b2b;
+      --red: #b93b32;
+      --yellow: #b98213;
+      --sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      font-family: var(--sans);
+      background:
+        radial-gradient(circle at top left, rgba(102,87,200,.08), transparent 32rem),
+        radial-gradient(circle at top right, rgba(31,138,95,.07), transparent 28rem),
+        var(--bg);
+      color: var(--ink);
+      line-height: 1.55;
+    }
+    header { max-width: 1180px; margin: 0 auto; padding: 44px 22px 22px; text-align: center; }
+    .eyebrow { color: var(--soft); font-size: 12px; letter-spacing: .14em; font-weight: 800; text-transform: uppercase; margin-bottom: 8px; }
+    h1 { margin: 0; font-size: clamp(30px, 4vw, 54px); line-height: 1.02; letter-spacing: -.055em; }
+    .subtitle { max-width: 780px; margin: 16px auto 0; color: var(--muted); font-size: 16px; }
+    .meta-row { margin-top: 18px; display: flex; justify-content: center; flex-wrap: wrap; gap: 8px; }
+    .pill { border: 1px solid var(--line); background: rgba(255,255,255,.75); border-radius: 999px; padding: 7px 12px; font-size: 12px; font-weight: 700; color: var(--muted); }
+    main { max-width: 1240px; margin: 0 auto; padding: 0 22px 70px; }
+    .nav { position: sticky; top: 0; z-index: 20; margin: 10px auto 24px; background: rgba(250,249,246,.84); backdrop-filter: blur(12px); border: 1px solid var(--line); border-radius: 18px; padding: 10px; display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; box-shadow: 0 10px 28px rgba(44,39,28,.06); }
+    .nav a { text-decoration: none; color: var(--muted); font-size: 12px; font-weight: 800; padding: 8px 12px; border-radius: 12px; background: white; border: 1px solid transparent; }
+    .nav a:hover { color: var(--ink); border-color: var(--line); }
+    .section { margin: 28px 0; scroll-margin-top: 92px; }
+    .card { background: rgba(255,255,255,.92); border: 1px solid var(--line); border-radius: 26px; box-shadow: 0 18px 48px rgba(44,39,28,.08); overflow: hidden; }
+    .card-header { padding: 22px 26px; border-bottom: 1px solid var(--line); display: flex; gap: 16px; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; }
+    .card-header h2 { margin: 0; font-size: 22px; letter-spacing: -.03em; }
+    .card-header p { margin: 6px 0 0; color: var(--muted); max-width: 760px; font-size: 14px; }
+    .flow-container { padding: 20px; overflow-x: auto; }
+    .mermaid { min-width: 920px; font-family: var(--sans) !important; }
+    .legend { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; padding: 18px 22px 22px; border-top: 1px solid var(--line); background: #fffefa; }
+    .legend-item { display: flex; gap: 10px; align-items: center; font-size: 13px; color: var(--muted); font-weight: 700; }
+    .swatch { width: 14px; height: 14px; border-radius: 4px; flex: 0 0 auto; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin-top: 18px; }
+    .note { background: rgba(255,255,255,.9); border: 1px solid var(--line); border-radius: 20px; padding: 18px; }
+    .note h3 { margin: 0 0 8px; font-size: 16px; }
+    .note p, .note li { color: var(--muted); font-size: 14px; margin: 0; }
+    ul { padding-left: 20px; margin: 8px 0 0; }
+    .tag { display: inline-block; padding: 3px 8px; border-radius: 999px; font-size: 11px; font-weight: 900; letter-spacing: .04em; text-transform: uppercase; margin-bottom: 8px; }
+    .tag.good { background: #e8f7ef; color: var(--green); }
+    .tag.warn { background: #fff5dc; color: var(--yellow); }
+    .tag.risk { background: #fff0ef; color: var(--red); }
+    .tag.info { background: #e9f3ff; color: var(--blue); }
+    .route-table { width: 100%; border-collapse: collapse; font-size: 13px; background: white; border-radius: 18px; overflow: hidden; border: 1px solid var(--line); }
+    .route-table th { text-align: left; background: var(--accent); color: white; padding: 12px 14px; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; }
+    .route-table td { border-top: 1px solid var(--line); padding: 11px 14px; vertical-align: top; color: var(--muted); }
+    .route-table td:first-child { color: var(--ink); font-family: var(--mono); font-size: 12px; white-space: nowrap; }
+    .status { font-weight: 900; border-radius: 999px; padding: 3px 8px; font-size: 11px; display: inline-block; }
+    .implemented { background: #e8f7ef; color: var(--green); }
+    .partial { background: #fff5dc; color: var(--yellow); }
+    .scaffold { background: #fff0ef; color: var(--red); }
+    .callout { margin-top: 16px; border-left: 5px solid var(--orange); background: #fff0e8; padding: 15px 18px; border-radius: 16px; color: #6f3215; font-size: 14px; }
+    footer { max-width: 1180px; margin: 24px auto 0; padding: 20px 22px 42px; color: var(--soft); font-size: 12px; text-align: center; }
+    @media print { .nav { display: none; } .card { box-shadow: none; break-inside: avoid; } .section { break-inside: avoid; } body { background: white; } .mermaid { min-width: 760px; } }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="eyebrow">Habit Builder · Current implementation map</div>
+    <h1>Current User Journey Visual Diagram</h1>
+    <p class="subtitle">A diagram-first view of how users currently move through the app: boot, authentication, onboarding, daily logging, recovery, review, editing, settings, and read-only access.</p>
+    <div class="meta-row">
+      <span class="pill">Repo: berdugas/habitapp-offline</span>
+      <span class="pill">Branch inspected: main</span>
+      <span class="pill">Remote sprint-9 branch not visible</span>
+      <span class="pill">Expo Router</span>
+      <span class="pill">Local-first SQLite + Supabase auth/trial validation</span>
+    </div>
+  </header>
+
+  <main>
+    <nav class="nav">
+      <a href="#overview">Overview</a>
+      <a href="#onboarding">Onboarding</a>
+      <a href="#daily">Daily Loop</a>
+      <a href="#recovery">Recovery</a>
+      <a href="#review">Review & Edit</a>
+      <a href="#settings">Settings</a>
+      <a href="#routes">Route Map</a>
+      <a href="#gaps">Gaps</a>
+    </nav>
+
+    <section id="overview" class="section card">
+      <div class="card-header"><div><h2>1. Full user journey overview</h2><p>The main routing logic starts at app boot, checks session state, checks whether habits exist, then sends the user into Welcome, Onboarding, Create Habit, or Today.</p></div></div>
+      <div class="flow-container">
+        <pre class="mermaid">
+flowchart TD
+  Start((App Boot)):::system --> Init[Init SQLite DB<br/>Load app providers]:::system
+  Init --> Root{Root Entry<br/>Session?}:::decision
+
+  Root -- No session --> MarketingWelcome[Entry Welcome Screen]:::screen
+  MarketingWelcome --> SignUp[Sign Up]:::screen
+  MarketingWelcome --> SignIn[Sign In]:::screen
+  SignUp --> Root
+  SignIn --> Root
+
+  Root -- Session exists --> LoadState[Load eligible habits<br/>upcoming habits<br/>onboarding completed flag]:::system
+  LoadState --> HasHabits{Any active / upcoming<br/>habits?}:::decision
+
+  HasHabits -- Yes --> Today[Today Tab]:::daily
+  HasHabits -- No --> OnboardingDone{Onboarding<br/>completed?}:::decision
+  OnboardingDone -- No --> OnboardingIndex[Onboarding Index<br/>resume saved draft step]:::onboard
+  OnboardingDone -- Yes --> CreateHabit[Manual Create Habit]:::screen
+
+  OnboardingIndex --> OBWelcome[Onboarding Welcome]:::onboard
+  OBWelcome --> Becoming[Becoming]:::onboard
+  Becoming --> DailyAction[Daily Action]:::onboard
+  DailyAction --> Shrink[Shrink to Tiny Action]:::onboard
+  Shrink --> Cue[Cue / Formula]:::onboard
+  Cue --> WorstDay{Worst-Day Check}:::decision
+  WorstDay -- Probably not --> Shrink
+  WorstDay -- Yes, I could --> Confirm[Confirmation]:::onboard
+  Confirm --> SaveHabit[Create Focus habit<br/>mark onboarding complete<br/>clear draft]:::system
+  SaveHabit --> Today
+
+  CreateHabit --> Today
+  Today --> Tabs{Bottom Tabs}:::decision
+  Tabs --> Today
+  Tabs --> Library[Library<br/>placeholder]:::screen
+  Tabs --> Settings[Settings]:::screen
+
+  Today --> LogToday[Done / Skip<br/>log today]:::daily
+  LogToday --> Today
+  Today --> SingleMiss[Single-miss banner<br/>dismissable]:::recovery
+  Today --> RecoveryModal[Recovery modal<br/>after momentum break]:::recovery
+  RecoveryModal --> Restart[Restart as-is]:::recovery
+  RecoveryModal --> Smaller[Make it smaller]:::recovery
+  RecoveryModal --> Pause[Pause for now<br/>archive habit]:::recovery
+  Smaller --> EditHabit[Edit Habit]:::screen
+  Pause --> Settings
+
+  Today -. current gap .-> Detail[Habit Detail]:::screen
+  Settings --> ArchivedDetail[Open archived habit detail]:::screen
+  Detail --> RetroLog[Tap heatmap cell<br/>retro log selector]:::daily
+  RetroLog --> Detail
+  Detail --> WeeklyReview[Weekly Review]:::review
+  WeeklyReview --> Suggestions[Rule-based adjustment<br/>suggestions]:::review
+  Suggestions --> Detail
+  Detail --> EditHabit
+  EditHabit --> Detail
+  Detail --> Context[Habit Context<br/>scaffold]:::screen
+
+  classDef system fill:#3b3a36,color:#fff,stroke:#3b3a36,stroke-width:1px;
+  classDef decision fill:#fff0e8,color:#5d2d16,stroke:#c35b2b,stroke-width:2px;
+  classDef screen fill:#e9f3ff,color:#103b61,stroke:#236fbb,stroke-width:1.5px;
+  classDef onboard fill:#efecff,color:#342971,stroke:#6657c8,stroke-width:1.5px;
+  classDef daily fill:#e8f7ef,color:#0d5138,stroke:#1f8a5f,stroke-width:1.5px;
+  classDef recovery fill:#fff5dc,color:#684206,stroke:#b98213,stroke-width:1.5px;
+  classDef review fill:#f0ecff,color:#3b2877,stroke:#7b5ce1,stroke-width:1.5px;
+        </pre>
+      </div>
+      <div class="legend">
+        <div class="legend-item"><span class="swatch" style="background:var(--accent)"></span> System / state loading</div>
+        <div class="legend-item"><span class="swatch" style="background:var(--orange)"></span> Decision gate</div>
+        <div class="legend-item"><span class="swatch" style="background:var(--purple)"></span> Onboarding</div>
+        <div class="legend-item"><span class="swatch" style="background:var(--green)"></span> Daily loop</div>
+        <div class="legend-item"><span class="swatch" style="background:var(--yellow)"></span> Recovery</div>
+        <div class="legend-item"><span class="swatch" style="background:var(--blue)"></span> Screen / route</div>
+      </div>
+    </section>
+
+    <section id="onboarding" class="section card">
+      <div class="card-header"><div><h2>2. Guided onboarding flow</h2><p>The app helps the user create the first Focus habit by moving from identity, to daily action, to tiny action, to cue, to worst-day validation.</p></div></div>
+      <div class="flow-container"><pre class="mermaid">
+flowchart LR
+  A[Welcome<br/>This is a tool for becoming]:::onboard --> B[Becoming<br/>Who do you want to become?]:::onboard
+  B --> C[Daily Action<br/>What does that person do every day?]:::onboard
+  C --> D[Shrink<br/>Make it laughably small]:::onboard
+  D --> E[Cue<br/>After I ___, I will ___]:::onboard
+  E --> F{Worst day?<br/>Could you still do this?}:::decision
+  F -- Probably not --> D2[Shrink again<br/>What would survive a hard day?]:::onboard
+  D2 --> E
+  F -- Yes, I could --> G[Confirmation<br/>Review becoming + habit]:::onboard
+  G --> H[(Local DB transaction<br/>habit + completion mark<br/>clear draft)]:::system
+  H --> I[Today]:::daily
+
+  classDef system fill:#3b3a36,color:#fff,stroke:#3b3a36;
+  classDef decision fill:#fff0e8,color:#5d2d16,stroke:#c35b2b,stroke-width:2px;
+  classDef onboard fill:#efecff,color:#342971,stroke:#6657c8,stroke-width:1.5px;
+  classDef daily fill:#e8f7ef,color:#0d5138,stroke:#1f8a5f,stroke-width:1.5px;
+      </pre></div>
+    </section>
+
+    <section id="daily" class="section card">
+      <div class="card-header"><div><h2>3. Daily loop</h2><p>The main daily screen shows one Focus habit, identity framing, the cue/action formula, Done/Skip actions, miss recovery messaging, and a 30-day heatmap.</p></div></div>
+      <div class="flow-container"><pre class="mermaid">
+flowchart TD
+  TodayStart[Open Today]:::daily --> Loading{Habits loaded?}:::decision
+  Loading -- Loading --> Spinner[Loading Today view]:::system
+  Loading -- Error --> Error[Load habits error]:::risk
+  Loading -- Success --> Focus{Focus habit exists?}:::decision
+  Focus -- No --> Empty[No active habits yet<br/>Create your first habit]:::screen
+  Empty --> Create[Create Habit]:::screen
+  Create --> TodayStart
+
+  Focus -- Yes --> Card[Focus habit card<br/>Become identity<br/>After cue, tiny action<br/>streak or first-day copy]:::daily
+  Card --> ReadOnly{Read-only?}:::decision
+  ReadOnly -- Yes --> Banner[Read-only banner<br/>Reconnect button<br/>actions disabled]:::risk
+  ReadOnly -- No --> Actions[Done / Skip buttons]:::daily
+  Banner --> ActionsDisabled[Done / Skip disabled]:::risk
+  Actions --> Upsert[(Upsert local habit log<br/>today + status)]:::system
+  Upsert --> Refresh[Refresh logs + heatmap]:::system
+  Refresh --> Card
+
+  Card --> SingleMiss{Single missed day?}:::decision
+  SingleMiss -- Yes --> MissBanner[Dismissable message:<br/>Yesterday was a miss.<br/>Keep going.]:::recovery
+  MissBanner --> Card
+
+  Card --> BreakRun{Momentum break?}:::decision
+  BreakRun -- Yes --> Recovery[Recovery modal]:::recovery
+  Recovery --> Card
+
+  classDef system fill:#3b3a36,color:#fff,stroke:#3b3a36;
+  classDef decision fill:#fff0e8,color:#5d2d16,stroke:#c35b2b,stroke-width:2px;
+  classDef screen fill:#e9f3ff,color:#103b61,stroke:#236fbb,stroke-width:1.5px;
+  classDef daily fill:#e8f7ef,color:#0d5138,stroke:#1f8a5f,stroke-width:1.5px;
+  classDef recovery fill:#fff5dc,color:#684206,stroke:#b98213,stroke-width:1.5px;
+  classDef risk fill:#fff0ef,color:#7a241e,stroke:#b93b32,stroke-width:1.5px;
+      </pre></div>
+    </section>
+
+    <section id="recovery" class="section card">
+      <div class="card-header"><div><h2>4. Recovery flow after missed momentum</h2><p>When the app detects a break in momentum, it opens a recovery modal with three paths: restart, make smaller, or pause.</p></div></div>
+      <div class="flow-container"><pre class="mermaid">
+flowchart LR
+  Break[Momentum break detected]:::decision --> Modal[Recovery modal<br/>What would you like to do?]:::recovery
+  Modal --> Restart[Restart as-is]:::recovery
+  Restart --> MarkShown[Mark modal shown<br/>habit remains active]:::system
+  MarkShown --> Today[Return to Today]:::daily
+
+  Modal --> Smaller[Make it smaller]:::recovery
+  Smaller --> MarkShown2[Mark modal shown]:::system
+  MarkShown2 --> Edit[Edit Habit<br/>tiny action field focused]:::screen
+  Edit --> Save[Save changes]:::screen
+  Save --> Detail[Habit Detail]:::screen
+
+  Modal --> Pause[Pause for now]:::recovery
+  Pause --> Archive[(Archive habit<br/>history preserved)]:::system
+  Archive --> TodayEmpty[Today may become empty<br/>if no Focus habit]:::daily
+  TodayEmpty --> Settings[Archived habits visible<br/>in Settings]:::screen
+
+  Modal --> Close[Just close]:::recovery
+  Close --> MarkShown3[Mark modal shown]:::system
+  MarkShown3 --> Today
+
+  classDef system fill:#3b3a36,color:#fff,stroke:#3b3a36;
+  classDef decision fill:#fff0e8,color:#5d2d16,stroke:#c35b2b,stroke-width:2px;
+  classDef screen fill:#e9f3ff,color:#103b61,stroke:#236fbb,stroke-width:1.5px;
+  classDef daily fill:#e8f7ef,color:#0d5138,stroke:#1f8a5f,stroke-width:1.5px;
+  classDef recovery fill:#fff5dc,color:#684206,stroke:#b98213,stroke-width:1.5px;
+      </pre></div>
+    </section>
+
+    <section id="review" class="section card">
+      <div class="card-header"><div><h2>5. Habit detail, weekly review, and edit loop</h2><p>Habit Detail is the gateway to detailed progress, retro logging, weekly review, suggestions, edit, archive, and context. Current issue: Today does not clearly navigate to Habit Detail from the Focus card.</p></div></div>
+      <div class="flow-container"><pre class="mermaid">
+flowchart TD
+  Detail[Habit Detail]:::screen --> Setup[Setup section<br/>identity + formula + preferred time]:::screen
+  Detail --> Heatmap[90-day heatmap]:::daily
+  Heatmap --> Cell{Tap cell}:::decision
+  Cell -- within 48h + not read-only --> Retro[Retro selector<br/>Done / Skip]:::daily
+  Cell -- outside 48h --> Locked[Locked day message]:::risk
+  Cell -- read-only --> ReadOnly[Reconnect to edit logs]:::risk
+  Retro --> Detail
+
+  Detail --> Progress[Progress<br/>streak, skips, consistency]:::daily
+  Detail --> History[Recent history]:::daily
+  Detail --> ReviewCard[Weekly review card]:::review
+  ReviewCard --> Review[Weekly Review screen]:::review
+
+  Review --> Inputs[Went well<br/>Was hard<br/>Trigger worked?<br/>Tiny action too hard?<br/>Adjustment note]:::review
+  Inputs --> SaveReview[(Save current week review)]:::system
+  SaveReview --> Suggest[Rule-based suggestion<br/>may show immediately]:::review
+  Suggest --> Detail
+
+  Detail --> SuggestCards[Suggested adjustment cards]:::review
+  SuggestCards --> EditSuggestion[Edit Habit<br/>with guidance]:::screen
+  Detail --> Edit[Edit Habit]:::screen
+  Edit --> SaveEdit[(Update habit fields)]:::system
+  SaveEdit --> Detail
+
+  Detail --> Archive[Archive habit]:::screen
+  Archive --> Archived[(Status archived)]:::system
+  Archived --> Settings[Settings archived list]:::screen
+
+  Detail --> Context[Habit Context<br/>route scaffolded]:::risk
+
+  classDef system fill:#3b3a36,color:#fff,stroke:#3b3a36;
+  classDef decision fill:#fff0e8,color:#5d2d16,stroke:#c35b2b,stroke-width:2px;
+  classDef screen fill:#e9f3ff,color:#103b61,stroke:#236fbb,stroke-width:1.5px;
+  classDef daily fill:#e8f7ef,color:#0d5138,stroke:#1f8a5f,stroke-width:1.5px;
+  classDef review fill:#f0ecff,color:#3b2877,stroke:#7b5ce1,stroke-width:1.5px;
+  classDef risk fill:#fff0ef,color:#7a241e,stroke:#b93b32,stroke-width:1.5px;
+      </pre></div>
+    </section>
+
+    <section id="settings" class="section card">
+      <div class="card-header"><div><h2>6. Settings, archived habits, and account state</h2><p>Settings exposes account email, entitlement status, archived habits, app version, privacy/terms placeholders, and sign out.</p></div></div>
+      <div class="flow-container"><pre class="mermaid">
+flowchart LR
+  Settings[Settings tab]:::screen --> Account[Account card<br/>email + entitlement status]:::screen
+  Settings --> Archived[Archived habits list]:::screen
+  Archived --> HasArchived{Archived habits?}:::decision
+  HasArchived -- Yes --> HabitCard[Archived habit card]:::screen
+  HabitCard --> Detail[Habit Detail<br/>archived state]:::screen
+  HasArchived -- No --> Empty[No archived habits]:::screen
+
+  Settings --> About[About card<br/>version<br/>Privacy Policy coming soon<br/>Terms coming soon]:::screen
+  Settings --> SignOut[Sign Out]:::screen
+  SignOut --> Welcome[Entry Welcome]:::screen
+
+  classDef decision fill:#fff0e8,color:#5d2d16,stroke:#c35b2b,stroke-width:2px;
+  classDef screen fill:#e9f3ff,color:#103b61,stroke:#236fbb,stroke-width:1.5px;
+      </pre></div>
+    </section>
+
+    <section id="routes" class="section"><div class="card"><div class="card-header"><div><h2>7. Current route map</h2><p>Practical route inventory for QA, Appium test planning, and product review.</p></div></div><div style="padding: 20px; overflow-x:auto;">
+      <table class="route-table"><thead><tr><th>Route</th><th>User-facing screen</th><th>Status</th><th>Main user action</th></tr></thead><tbody>
+        <tr><td>/</td><td>Root Entry</td><td><span class="status implemented">Implemented</span></td><td>Branches to Welcome, Onboarding, Create Habit, or Today based on session, habits, and onboarding completion.</td></tr>
+        <tr><td>/(auth)/sign-up</td><td>Sign Up</td><td><span class="status implemented">Implemented</span></td><td>Create account with email/password, then return to root.</td></tr>
+        <tr><td>/(auth)/sign-in</td><td>Sign In</td><td><span class="status implemented">Implemented</span></td><td>Sign in with email/password, then return to root.</td></tr>
+        <tr><td>/(onboarding)</td><td>Onboarding Index</td><td><span class="status implemented">Implemented</span></td><td>Loads saved draft and redirects to the current onboarding step.</td></tr>
+        <tr><td>/(onboarding)/welcome</td><td>Onboarding Welcome</td><td><span class="status implemented">Implemented</span></td><td>Begin identity-based onboarding.</td></tr>
+        <tr><td>/(onboarding)/becoming</td><td>Becoming</td><td><span class="status implemented">Implemented</span></td><td>Enter who the user wants to become.</td></tr>
+        <tr><td>/(onboarding)/daily-action</td><td>Daily Action</td><td><span class="status implemented">Implemented</span></td><td>Enter what that person does every day.</td></tr>
+        <tr><td>/(onboarding)/shrink</td><td>Shrink</td><td><span class="status implemented">Implemented</span></td><td>Reduce the habit to a tiny action; repeats after worst-day failure.</td></tr>
+        <tr><td>/(onboarding)/cue</td><td>Cue</td><td><span class="status implemented">Implemented</span></td><td>Define “After I ___, I will ___.”</td></tr>
+        <tr><td>/(onboarding)/worst-day</td><td>Worst-Day Check</td><td><span class="status implemented">Implemented</span></td><td>Pass to confirmation or fail back to Shrink.</td></tr>
+        <tr><td>/(onboarding)/confirmation</td><td>Confirmation</td><td><span class="status implemented">Implemented</span></td><td>Create first Focus habit and land on Today.</td></tr>
+        <tr><td>/(app)/(tabs)/today</td><td>Today</td><td><span class="status implemented">Implemented</span></td><td>Log Done/Skip, see heatmap, read-only banner, recovery modal.</td></tr>
+        <tr><td>/(app)/(tabs)/library</td><td>Library</td><td><span class="status scaffold">Placeholder</span></td><td>Currently only empty copy about habits becoming part of identity.</td></tr>
+        <tr><td>/(app)/(tabs)/settings</td><td>Settings</td><td><span class="status partial">Partial</span></td><td>See account, entitlement, archived habits, version, sign out.</td></tr>
+        <tr><td>/(app)/habits/create</td><td>Create Habit</td><td><span class="status implemented">Implemented</span></td><td>Create a Focus habit manually; disabled when read-only.</td></tr>
+        <tr><td>/(app)/habits/[habitId]</td><td>Habit Detail</td><td><span class="status implemented">Implemented</span></td><td>View setup, heatmap, progress, recent history, review, suggestions, edit/archive.</td></tr>
+        <tr><td>/(app)/habits/[habitId]/edit</td><td>Edit Habit</td><td><span class="status implemented">Implemented</span></td><td>Edit habit setup; can receive suggestion/recovery parameters.</td></tr>
+        <tr><td>/(app)/habits/[habitId]/context</td><td>Habit Context</td><td><span class="status scaffold">Scaffold</span></td><td>Route exists, content says optional context comes later.</td></tr>
+        <tr><td>/(app)/reviews/[habitId]</td><td>Weekly Review</td><td><span class="status implemented">Implemented</span></td><td>Save weekly reflection and generate rule-based adjustment suggestion.</td></tr>
+      </tbody></table>
+    </div></div></section>
+
+    <section id="gaps" class="section">
+      <div class="grid">
+        <div class="note"><span class="tag risk">P0 Navigation gap</span><h3>Today → Habit Detail is not obvious</h3><p>The Habit Detail route is rich, but Today’s FocusCard is rendered as a View with Done/Skip buttons and no visible detail CTA. Add “View details” or make the card pressable.</p></div>
+        <div class="note"><span class="tag warn">P1 Product gap</span><h3>Library is still placeholder</h3><p>The Library tab describes future identity progress but does not yet show automatic, completed, or identity-strengthened habits.</p></div>
+        <div class="note"><span class="tag warn">P1 Copy mismatch</span><h3>Archived habit reactivation is unclear</h3><p>Settings says pause and resume habits, while Habit Detail says reactivation is coming in a future release. Align this behavior and copy.</p></div>
+        <div class="note"><span class="tag info">Implemented strength</span><h3>First-principles onboarding is strong</h3><p>The flow uses identity, tiny action sizing, routine cueing, and worst-day validation before creating the first habit.</p></div>
+        <div class="note"><span class="tag good">Implemented strength</span><h3>Recovery loop is aligned with habit science</h3><p>The app treats misses as recoverable, provides a make-it-smaller path, and avoids all-or-nothing streak punishment.</p></div>
+        <div class="note"><span class="tag warn">P2 Future opportunity</span><h3>Weekly Review entry is buried</h3><p>Weekly Review is available from Habit Detail, but not surfaced clearly in Today. Add a Today CTA when review is due.</p></div>
+      </div>
+      <div class="callout"><strong>Branch note:</strong> I could not see a remote branch named <code>sprint-9</code>, <code>sprint 9</code>, or a branch containing <code>9</code>. This diagram reflects the current pushed <code>main</code> branch available through GitHub.</div>
+    </section>
+  </main>
+
+  <footer>Generated as a visual HTML diagram for Habit Builder user journey review. Open in a browser, zoom, or print to PDF.</footer>
+
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: "base",
+      flowchart: { curve: "basis", htmlLabels: true, nodeSpacing: 52, rankSpacing: 58 },
+      themeVariables: {
+        fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif",
+        primaryColor: "#ffffff",
+        primaryTextColor: "#1f1f1d",
+        primaryBorderColor: "#e3dfd5",
+        lineColor: "#8c867b",
+        tertiaryColor: "#faf9f6"
+      }
+    });
+  </script>
+</body>
+</html>

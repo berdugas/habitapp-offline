@@ -1,9 +1,9 @@
-# Design System Document: The Mindful Canvas
+# Design System Document: Habitapp
 
 ## 1. Overview & Creative North Star
 The objective of this design system is to transform habit tracking from a chore into a ritual. Most productivity apps create "checklist anxiety" through dense grids and high-contrast borders. We are moving in the opposite direction.
 
-**Creative North Star: The Mindful Canvas.**
+**Creative North Star: Habitapp.**
 This system treats the mobile screen as an editorial layout—think high-end wellness periodicals. It rejects the "app-y" look of boxes and buttons in favor of organic flow, intentional asymmetry, and extreme breathing room. We prioritize the "Single Primary Action" (SPA) philosophy: every screen exists to serve one breath, one thought, or one action.
 
 By leveraging sophisticated tonal layering and a dual-typeface system, we create an experience that feels quiet, premium, and low-pressure.

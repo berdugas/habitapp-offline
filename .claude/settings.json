@@ -10,7 +10,16 @@
       "Bash(git log *)",
       "Bash(adb reverse *)",
       "PowerShell(Select-String -Path \"C:\\\\Users\\\\daddy\\\\appium-test\\\\s8-smoke-failure-1777624915041.xml\" -Pattern 'text=\"[^\"]{2,}\"' | ForEach-Object { $_.Matches } | ForEach-Object { $_.Value } | Sort-Object -Unique | Select-Object -First 60)",
-      "WebFetch(domain:api.anthropic.com)"
+      "WebFetch(domain:api.anthropic.com)",
+      "Bash(npx expo *)",
+      "Bash(git commit -m 'feat\\(s9-03\\): re-skin existing atoms to Mindful Canvas *)",
+      "Bash(git commit -m 'feat\\(s9-05\\): re-skin Auth screens \\(Sign In + Sign Up\\) *)",
+      "Bash(git commit -m 'feat\\(s9-06\\): re-skin Onboarding \\(7 screens\\) *)",
+      "Bash(git commit -m 'feat\\(s9-07\\): re-skin Settings screen *)",
+      "Bash(git commit -m 'feat\\(s9-08\\): re-skin Habit management + Today empty; remove AI rewrite block *)",
+      "Bash(git commit -m 'chore\\(s9-09\\): PROJECT_BRAIN S9 closure + sprint-9-followups.md *)",
+      "Bash(git commit -m 'chore\\(s9-09\\): add sprint-9-smoke-test.md — 15 structured manual test cases *)",
+      "Read(//c/Users/appium-test/**)"
     ],
     "additionalDirectories": [
       "C:\\Users\\daddy\\appium-test"
