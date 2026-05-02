@@ -14,6 +14,7 @@ export type Habit = {
   tiny_action: string;
   minimum_viable_action: string | null;
   preferred_time_window: string | null;
+  icon: string | null;
   habit_state: HabitState;
   status: HabitStatus;
   start_date: string;
@@ -34,9 +35,11 @@ export type CreateHabitInput = Omit<
   | "backlog_at"
   | "habit_state"
   | "status"
+  | "icon"
 > & {
   habit_state?: HabitState;
   status?: HabitStatus;
+  icon?: string | null;
 };
 
 export type UpdateHabitPatch = Partial<
@@ -48,6 +51,7 @@ export type UpdateHabitPatch = Partial<
     | "tiny_action"
     | "minimum_viable_action"
     | "preferred_time_window"
+    | "icon"
     | "habit_state"
     | "status"
     | "automated_at"
@@ -69,9 +73,9 @@ export async function createHabit(input: CreateHabitInput): Promise<Habit> {
   await db.runAsync(
     `INSERT INTO local_habits (
       id, user_id, title, identity_phrase, cue, tiny_action,
-      minimum_viable_action, preferred_time_window, habit_state, status,
+      minimum_viable_action, preferred_time_window, icon, habit_state, status,
       start_date, created_at, updated_at, archived_at, automated_at, backlog_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, NULL)`,
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, NULL)`,
     id,
     input.user_id,
     input.title,
@@ -80,6 +84,7 @@ export async function createHabit(input: CreateHabitInput): Promise<Habit> {
     input.tiny_action,
     input.minimum_viable_action ?? null,
     input.preferred_time_window ?? null,
+    input.icon ?? null,
     input.habit_state ?? "focus",
     input.status ?? "active",
     input.start_date,
@@ -107,6 +112,7 @@ export async function updateHabit(
     "tiny_action",
     "minimum_viable_action",
     "preferred_time_window",
+    "icon",
     "habit_state",
     "status",
     "automated_at",

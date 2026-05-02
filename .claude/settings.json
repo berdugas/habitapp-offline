@@ -19,7 +19,16 @@
       "Bash(git commit -m 'feat\\(s9-08\\): re-skin Habit management + Today empty; remove AI rewrite block *)",
       "Bash(git commit -m 'chore\\(s9-09\\): PROJECT_BRAIN S9 closure + sprint-9-followups.md *)",
       "Bash(git commit -m 'chore\\(s9-09\\): add sprint-9-smoke-test.md — 15 structured manual test cases *)",
-      "Read(//c/Users/appium-test/**)"
+      "Read(//c/Users/appium-test/**)",
+      "Bash(Get-ChildItem -Path \"d:\\\\habits_offline\\\\design\\\\html screens\\\\\" -Force | Sort-Object LastWriteTime -Descending)",
+      "Bash(Get-ChildItem -Path \"d:\\\\habits_offline\\\\components\\\\\" -Recurse | Sort-Object LastWriteTime -Descending | Select-Object -First 20)",
+      "PowerShell(Get-ChildItem -Path \"d:\\\\habits_offline\\\\app\" -Recurse -Directory | ForEach-Object { $_.FullName } | Sort-Object)",
+      "PowerShell(Get-ChildItem -Path \"d:\\\\habits_offline\\\\design\\\\html screens\\\\\" | Select-Object Name, @{Name='ModifiedTime'; Expression={$_.LastWriteTime.ToString\\('yyyy-MM-dd HH:mm'\\)}}, @{Name='Size'; Expression={$_.Length}})",
+      "PowerShell(Get-ChildItem -Path \"d:\\\\habits_offline\\\\design\\\\html screens\\\\\" | ForEach-Object { Write-Output \"$\\($_.Name\\) \\($\\($_.Length\\) bytes, modified $\\(\\($_.LastWriteTime\\).ToString\\('yyyy-MM-dd HH:mm'\\)\\)\\)\" } | Sort-Object)",
+      "Bash(xargs ls *)",
+      "Bash(grep -E \"\\\\.ts$|\\\\.tsx$\")",
+      "Bash(node -e \"const p = require\\('d:/habits_offline/package.json'\\); const deps = {...p.dependencies,...p.devDependencies}; ['lucide-react-native','react-native-reanimated','react-native-svg','expo-linear-gradient'].forEach\\(k => console.log\\(k+':', deps[k]||'NOT FOUND'\\)\\)\")",
+      "Bash(node -e \"const p = require\\('d:/habits_offline/package.json'\\); console.log\\('react-native:', p.dependencies['react-native']\\); console.log\\('expo:', p.dependencies['expo']\\)\")"
     ],
     "additionalDirectories": [
       "C:\\Users\\daddy\\appium-test"

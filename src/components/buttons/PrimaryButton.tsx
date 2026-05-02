@@ -1,5 +1,6 @@
 import { LinearGradient } from "expo-linear-gradient";
-import { Pressable, StyleSheet, Text } from "react-native";
+import { ArrowRight } from "lucide-react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { colors } from "@/theme/colors";
 import { fontFamilies } from "@/theme/fontFamilies";
@@ -12,12 +13,14 @@ type PrimaryButtonProps = {
   disabled?: boolean;
   label: string;
   onPress: () => void;
+  showArrow?: boolean;
 };
 
 export function PrimaryButton({
   disabled = false,
   label,
   onPress,
+  showArrow = false,
 }: PrimaryButtonProps) {
   return (
     <Pressable
@@ -26,18 +29,30 @@ export function PrimaryButton({
       onPress={onPress}
       style={({ pressed }) => [
         styles.button,
-        disabled && styles.buttonDisabled,
+        disabled ? styles.buttonDisabled : styles.buttonEnabled,
         pressed && !disabled && styles.buttonPressed,
       ]}
     >
-      <LinearGradient
-        colors={[colors.primary, colors.primaryGradientEnd]}
-        end={{ x: 1, y: 1 }}
-        start={{ x: 0, y: 0 }}
-        style={styles.gradient}
-      >
-        <Text style={styles.label}>{label}</Text>
-      </LinearGradient>
+      {disabled ? (
+        <View style={styles.inner}>
+          <Text style={[styles.label, styles.labelDisabled]}>{label}</Text>
+          {showArrow && (
+            <ArrowRight color={colors.textFaint} size={16} strokeWidth={2} />
+          )}
+        </View>
+      ) : (
+        <LinearGradient
+          colors={[colors.primary, colors.primaryGradientEnd]}
+          end={{ x: 1, y: 1 }}
+          start={{ x: 0, y: 0 }}
+          style={styles.inner}
+        >
+          <Text style={styles.label}>{label}</Text>
+          {showArrow && (
+            <ArrowRight color={colors.primaryText} size={16} strokeWidth={2} />
+          )}
+        </LinearGradient>
+      )}
     </Pressable>
   );
 }
@@ -45,24 +60,32 @@ export function PrimaryButton({
 const styles = StyleSheet.create({
   button: {
     borderRadius: radius.pill,
-    boxShadow: shadows.button,
     overflow: "hidden",
   },
+  buttonEnabled: {
+    boxShadow: shadows.button,
+  },
   buttonDisabled: {
-    opacity: 0.55,
+    backgroundColor: colors.surfaceHigh,
   },
   buttonPressed: {
     opacity: 0.92,
   },
-  gradient: {
+  inner: {
     alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "center",
     paddingHorizontal: spacing.xxl,
     paddingVertical: spacing.lg + 2,
+    gap: 10,
   },
   label: {
     color: colors.primaryText,
     fontFamily: fontFamilies.bodyBold,
     fontSize: typography.bodyLg,
     letterSpacing: 0.16,
+  },
+  labelDisabled: {
+    color: colors.textFaint,
   },
 });

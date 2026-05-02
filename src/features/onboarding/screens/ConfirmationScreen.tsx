@@ -1,14 +1,17 @@
-import { ScrollView, StyleSheet, Text } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 
+import { AppLogo } from "@/components/branding/AppLogo";
 import { PrimaryButton } from "@/components/buttons/PrimaryButton";
-import { RowLV } from "@/components/cards/RowLV";
-import { ZenCard } from "@/components/cards/ZenCard";
+import { OnboardingLayout } from "@/components/layouts/OnboardingLayout";
 import { OnboardingFinalizationError } from "@/features/onboarding/completion";
 import { useFinalizeOnboardingMutation } from "@/features/onboarding/hooks";
+import { LucideIcon } from "@/features/onboarding/components/LucideIconPicker";
 import { useOnboarding } from "@/features/onboarding/OnboardingProvider";
 import { colors } from "@/theme/colors";
+import { fontFamilies } from "@/theme/fontFamilies";
+import { radius } from "@/theme/radius";
+import { shadows } from "@/theme/shadows";
 import { spacing } from "@/theme/spacing";
-import { typography } from "@/theme/typography";
 
 function getFinalizeErrorMessage(error: unknown): string {
   if (error instanceof OnboardingFinalizationError) {
@@ -20,6 +23,15 @@ function getFinalizeErrorMessage(error: unknown): string {
   return "Something went wrong. Please try again.";
 }
 
+function SummaryField({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={styles.summaryField}>
+      <Text style={styles.summaryLabel}>{label}</Text>
+      <Text style={styles.summaryValue}>{value}</Text>
+    </View>
+  );
+}
+
 export default function ConfirmationScreen() {
   const { draft } = useOnboarding();
   const finalizeMutation = useFinalizeOnboardingMutation(draft);
@@ -28,54 +40,152 @@ export default function ConfirmationScreen() {
     finalizeMutation.mutate();
   };
 
-  const buttonLabel = finalizeMutation.isPending
-    ? "Starting..."
-    : "Start showing up.";
+  const buttonLabel = finalizeMutation.isPending ? "Starting..." : "Let's go";
 
   return (
-    <ScrollView
-      contentContainerStyle={styles.content}
-      contentInsetAdjustmentBehavior="automatic"
-      style={styles.screen}
+    <OnboardingLayout
+      footer={
+        <>
+          {finalizeMutation.isError && (
+            <Text style={styles.error}>
+              {getFinalizeErrorMessage(finalizeMutation.error)}
+            </Text>
+          )}
+          <PrimaryButton
+            disabled={finalizeMutation.isPending}
+            label={buttonLabel}
+            showArrow
+            onPress={handleStart}
+          />
+        </>
+      }
     >
-      <ZenCard padding="xxl">
-        <RowLV label="Your becoming" value={draft.becomingPhrase} />
-        <RowLV
-          label="Your habit"
-          value={`After I ${draft.cueExisting}, I will ${draft.tinyAction}`}
-        />
-        <RowLV label="Starts" value="today" />
-      </ZenCard>
+      <View style={styles.centeredContent}>
+        {/* Header */}
+        <View style={styles.header}>
+          <AppLogo size={56} style={styles.logo} />
+          <Text style={styles.headline}>Your first habit is ready.</Text>
+          <Text style={styles.subhead}>
+            Everything you need to start becoming who you want to be — one small action at a time.
+          </Text>
+        </View>
 
-      {finalizeMutation.isError && (
-        <Text selectable style={styles.error}>
-          {getFinalizeErrorMessage(finalizeMutation.error)}
-        </Text>
-      )}
+        {/* Summary card */}
+        <View style={styles.summaryCard}>
+          {/* Icon + name */}
+          <View style={styles.summaryCardHeader}>
+            <View style={styles.iconBubble}>
+              {draft.habitIcon ? (
+                <LucideIcon name={draft.habitIcon} size={20} color={colors.primary} strokeWidth={1.8} />
+              ) : (
+                <LucideIcon name="Sparkles" size={20} color={colors.primary} strokeWidth={1.8} />
+              )}
+            </View>
+            <View>
+              <Text style={styles.habitNameHint}>Habit name</Text>
+              <Text style={styles.habitName}>{draft.habitName || draft.tinyAction}</Text>
+            </View>
+          </View>
 
-      <PrimaryButton
-        disabled={finalizeMutation.isPending}
-        label={buttonLabel}
-        onPress={handleStart}
-      />
-    </ScrollView>
+          <View style={styles.summaryDivider} />
+
+          <SummaryField label="BECOMING" value={draft.becomingPhrase} />
+          <SummaryField
+            label="YOUR FORMULA"
+            value={`After I ${draft.cueExisting}, I will ${draft.tinyAction}`}
+          />
+          <SummaryField label="STARTS" value="Today" />
+        </View>
+      </View>
+    </OnboardingLayout>
   );
 }
 
 const styles = StyleSheet.create({
-  content: {
-    flexGrow: 1,
-    gap: spacing.xxl,
+  centeredContent: {
+    flex: 1,
     justifyContent: "center",
+    paddingVertical: spacing.xl,
+  },
+  header: {
+    alignItems: "center",
+    marginBottom: spacing.xl,
+  },
+  logo: {
+    marginBottom: 20,
+  },
+  headline: {
+    fontFamily: fontFamilies.displayBold,
+    fontSize: 28,
+    lineHeight: 33,
+    color: colors.text,
+    textAlign: "center",
+    marginBottom: 10,
+  },
+  subhead: {
+    fontFamily: fontFamilies.body,
+    fontSize: 15,
+    lineHeight: 23,
+    color: colors.textMuted,
+    textAlign: "center",
+  },
+  summaryCard: {
+    backgroundColor: colors.surfaceCard,
+    borderRadius: radius.lg,
     padding: spacing.xl,
+    boxShadow: shadows.cardFloat,
+    gap: spacing.lg,
+  },
+  summaryCardHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  iconBubble: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.primaryLight,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  habitNameHint: {
+    fontFamily: fontFamilies.body,
+    fontSize: 11,
+    color: colors.textFaint,
+    marginBottom: 1,
+  },
+  habitName: {
+    fontFamily: fontFamilies.displayBold,
+    fontSize: 17,
+    color: colors.text,
+  },
+  summaryDivider: {
+    height: 1,
+    backgroundColor: colors.surfaceHigh,
+    marginVertical: 2,
+  },
+  summaryField: {
+    gap: 3,
+  },
+  summaryLabel: {
+    fontFamily: fontFamilies.bodyMedium,
+    fontSize: 11,
+    color: colors.primary,
+    letterSpacing: 0.66,
+    textTransform: "uppercase",
+  },
+  summaryValue: {
+    fontFamily: fontFamilies.body,
+    fontSize: 15,
+    lineHeight: 21.75,
+    color: colors.text,
   },
   error: {
+    fontFamily: fontFamilies.body,
+    fontSize: 14,
     color: colors.danger,
-    fontSize: typography.bodyLg,
-    lineHeight: 22,
-  },
-  screen: {
-    backgroundColor: colors.bg,
-    flex: 1,
+    textAlign: "center",
+    marginBottom: spacing.md,
   },
 });

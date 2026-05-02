@@ -1,25 +1,18 @@
-import { ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { router } from "expo-router";
+import { CheckCircle } from "lucide-react-native";
+import { StyleSheet, Text, View } from "react-native";
 
 import { PrimaryButton } from "@/components/buttons/PrimaryButton";
-import { ZenCard } from "@/components/cards/ZenCard";
+import { GuidanceCard } from "@/components/cards/GuidanceCard";
+import { GuidanceExample } from "@/components/cards/GuidanceExample";
+import { OnboardingInput } from "@/components/forms/OnboardingInput";
+import { OnboardingLayout } from "@/components/layouts/OnboardingLayout";
+import { OnboardingHeader } from "@/components/navigation/OnboardingHeader";
 import { useOnboarding } from "@/features/onboarding/OnboardingProvider";
 import { colors } from "@/theme/colors";
 import { fontFamilies } from "@/theme/fontFamilies";
+import { radius } from "@/theme/radius";
 import { spacing } from "@/theme/spacing";
-import { typography } from "@/theme/typography";
-
-const COACHING_PARAGRAPH =
-  "Habits form through repetition, not intensity. The smaller the action, " +
-  "the more reliable it becomes. Most people start too big and quit. " +
-  "Start absurdly small. You can always do more on the day. The goal is " +
-  "showing up, not achieving.";
-
-const EXAMPLES = [
-  "Run for 2 minutes",
-  "Read one page",
-  "Sit quietly for one breath",
-];
 
 export default function ShrinkScreen() {
   const { draft, update } = useOnboarding();
@@ -29,98 +22,95 @@ export default function ShrinkScreen() {
     router.push("/(onboarding)/cue");
   };
 
-  const headerCopy =
-    draft.worstDayPassed === false
-      ? "Let's make it smaller. What would survive a hard day?"
-      : "That's a great direction. Now let's make it laughably small for tomorrow.";
-
   return (
-    <ScrollView
-      contentContainerStyle={styles.content}
-      contentInsetAdjustmentBehavior="automatic"
-      keyboardShouldPersistTaps="handled"
-      style={styles.screen}
-    >
-      <ZenCard padding="xxl">
-        <Text selectable style={styles.header}>
-          {headerCopy}
-        </Text>
-        <TextInput
-          autoCorrect
-          multiline
-          onChangeText={(text) => update({ tinyAction: text })}
-          placeholder=""
-          placeholderTextColor={colors.textFaint}
-          style={styles.input}
-          value={draft.tinyAction}
+    <OnboardingLayout
+      keyboardAware
+      footer={
+        <PrimaryButton
+          disabled={draft.tinyAction.trim().length < 2}
+          label="Continue"
+          showArrow
+          onPress={handleContinue}
         />
-        <Text selectable style={styles.coaching}>
-          {COACHING_PARAGRAPH}
-        </Text>
-        <View style={styles.examples}>
-          <Text selectable style={styles.examplesLabel}>
-            For example:
-          </Text>
-          {EXAMPLES.map((example) => (
-            <Text key={example} selectable style={styles.exampleItem}>
-              {example}
-            </Text>
-          ))}
-        </View>
-      </ZenCard>
+      }
+    >
+      <OnboardingHeader currentStep={3} />
 
-      <PrimaryButton
-        disabled={draft.tinyAction.trim().length === 0}
-        label="Continue"
-        onPress={handleContinue}
+      <Text style={styles.headline}>Now make the action laughably small.</Text>
+      <Text style={styles.body}>
+        The goal is showing up, not achieving. Start so small you can't say no.
+      </Text>
+
+      {draft.dailyAction.trim().length > 0 && (
+        <View style={styles.contextChip}>
+          <CheckCircle color={colors.primary} size={16} strokeWidth={1.8} />
+          <Text style={styles.contextText}>
+            Your action:{" "}
+            <Text style={styles.contextBold}>{draft.dailyAction}</Text>
+          </Text>
+        </View>
+      )}
+
+      <OnboardingInput
+        label="Your tiny version"
+        placeholder="Make it even smaller..."
+        value={draft.tinyAction}
+        onChangeText={(text) => update({ tinyAction: text })}
       />
-    </ScrollView>
+
+      <GuidanceCard
+        title="How small is small enough?"
+        body="Shrink it until you could do it on your worst, most exhausting day — and still say 'I showed up.'"
+      >
+        <GuidanceExample
+          before="Run for 10 minutes →"
+          after="Put on my running shoes"
+        />
+        <GuidanceExample
+          before="Read for 30 minutes →"
+          after="Read one page"
+        />
+        <GuidanceExample
+          before="Meditate for 20 minutes →"
+          after="Sit quietly for one breath"
+        />
+      </GuidanceCard>
+    </OnboardingLayout>
   );
 }
 
 const styles = StyleSheet.create({
-  coaching: {
-    color: colors.textMuted,
-    fontFamily: fontFamilies.body,
-    fontSize: typography.bodyLg,
-    lineHeight: 24,
-  },
-  content: {
-    flexGrow: 1,
-    gap: spacing.xxl,
-    justifyContent: "center",
-    padding: spacing.xl,
-  },
-  exampleItem: {
-    color: colors.textMuted,
-    fontFamily: fontFamilies.body,
-    fontSize: typography.bodyLg,
-    lineHeight: 24,
-  },
-  examples: {
-    gap: spacing.md,
-  },
-  examplesLabel: {
-    color: colors.text,
-    fontFamily: fontFamilies.bodySemi,
-    fontSize: typography.bodyLg,
-  },
-  header: {
-    color: colors.text,
+  headline: {
     fontFamily: fontFamilies.displayBold,
-    fontSize: typography.headlineLg,
-    lineHeight: 36,
-  },
-  input: {
-    backgroundColor: colors.surface,
+    fontSize: 28,
+    lineHeight: 33,
     color: colors.text,
-    fontSize: typography.bodyLg,
-    lineHeight: 24,
-    minHeight: 80,
-    padding: spacing.md,
+    marginBottom: 12,
   },
-  screen: {
-    backgroundColor: colors.bg,
+  body: {
+    fontFamily: fontFamilies.body,
+    fontSize: 15,
+    lineHeight: 23,
+    color: colors.textMuted,
+    marginBottom: 16,
+  },
+  contextChip: {
+    backgroundColor: colors.surface,
+    borderRadius: 16,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginBottom: 16,
+  },
+  contextText: {
+    fontFamily: fontFamilies.body,
+    fontSize: 14,
+    color: colors.text,
     flex: 1,
+  },
+  contextBold: {
+    fontFamily: fontFamilies.bodySemi,
   },
 });

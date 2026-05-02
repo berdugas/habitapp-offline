@@ -25,6 +25,7 @@ type TextFieldProps = {
   placeholder?: string;
   secureTextEntry?: boolean;
   value: string;
+  variant?: "default" | "onboarding";
 };
 
 export const TextField = forwardRef<TextInput, TextFieldProps>(
@@ -38,6 +39,7 @@ export const TextField = forwardRef<TextInput, TextFieldProps>(
       placeholder,
       secureTextEntry = false,
       value,
+      variant = "default",
     },
     ref,
   ) {
@@ -73,6 +75,32 @@ export const TextField = forwardRef<TextInput, TextFieldProps>(
       inputRange: [0, 1],
       outputRange: [colors.textMuted, colors.primary],
     });
+
+    if (variant === "onboarding") {
+      return (
+        <View style={styles.wrapper}>
+          <Text style={styles.labelOnboarding}>{label}</Text>
+          <View style={styles.inputContainerOnboarding}>
+            <TextInput
+              ref={ref}
+              autoCapitalize={autoCapitalize}
+              multiline={multiline}
+              onChangeText={onChangeText}
+              placeholder={placeholder}
+              placeholderTextColor={colors.textFaint}
+              secureTextEntry={secureTextEntry}
+              style={[styles.inputOnboarding, multiline && styles.inputMultiline]}
+              value={value}
+            />
+          </View>
+          {error ? (
+            <Text selectable style={styles.error}>
+              {error}
+            </Text>
+          ) : null}
+        </View>
+      );
+    }
 
     return (
       <View style={styles.wrapper}>
@@ -131,6 +159,18 @@ const styles = StyleSheet.create({
     boxShadow: shadows.lift,
     overflow: "hidden",
   },
+  inputContainerOnboarding: {
+    backgroundColor: colors.surfaceHigh,
+    borderRadius: radius.md,
+    overflow: "hidden",
+  },
+  inputOnboarding: {
+    color: colors.text,
+    fontFamily: fontFamilies.body,
+    fontSize: typography.bodyLg,
+    paddingHorizontal: 18,
+    paddingVertical: 14,
+  },
   inputMultiline: {
     minHeight: 100,
     textAlignVertical: "top",
@@ -138,6 +178,11 @@ const styles = StyleSheet.create({
   label: {
     fontFamily: fontFamilies.bodySemi,
     fontSize: typography.bodyMd,
+  },
+  labelOnboarding: {
+    fontFamily: fontFamilies.bodyMedium,
+    fontSize: typography.labelMd,
+    color: colors.textMuted,
   },
   wrapper: {
     gap: spacing.sm,

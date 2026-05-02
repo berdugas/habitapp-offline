@@ -51,12 +51,13 @@ export async function finalizeOnboarding(
     await db.withTransactionAsync(async () => {
       createdHabit = await createHabitRepo({
         user_id: userId,
-        title: draft.tinyAction.trim(),
+        title: draft.habitName.trim() || draft.tinyAction.trim(),
         identity_phrase: draft.becomingPhrase.trim() || null,
         cue: draft.cueExisting.trim(),
         tiny_action: draft.tinyAction.trim(),
         minimum_viable_action: null,
         preferred_time_window: null,
+        icon: draft.habitIcon ?? null,
         habit_state: "focus",
         status: "active",
         start_date: today,

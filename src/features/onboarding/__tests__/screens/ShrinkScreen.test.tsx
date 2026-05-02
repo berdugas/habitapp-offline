@@ -4,6 +4,7 @@ import ShrinkScreen from "@/features/onboarding/screens/ShrinkScreen";
 
 jest.mock("expo-router", () => ({
   router: { push: jest.fn(), replace: jest.fn() },
+  useRouter: jest.fn(() => ({ back: jest.fn() })),
 }));
 
 jest.mock("@/features/onboarding/OnboardingProvider", () => ({
@@ -26,6 +27,8 @@ function makeDraft(overrides: object = {}) {
     tinyAction: "",
     cueExisting: "",
     worstDayPassed: null,
+    habitName: "",
+    habitIcon: null,
     ...overrides,
   };
 }
@@ -35,44 +38,37 @@ describe("ShrinkScreen", () => {
     jest.clearAllMocks();
   });
 
-  it("renders the default header when worstDayPassed is null", () => {
+  it("renders the headline", () => {
     const mockUpdate = jest.fn();
     useOnboarding.mockReturnValue({ draft: makeDraft(), update: mockUpdate });
 
     render(<ShrinkScreen />);
 
     expect(
-      screen.getByText(
-        "That's a great direction. Now let's make it laughably small for tomorrow.",
-      ),
+      screen.getByText("Now make the action laughably small."),
     ).toBeTruthy();
   });
 
-  it("renders the alternate header when worstDayPassed is false", () => {
+  it("shows the daily action context chip when dailyAction is set", () => {
     const mockUpdate = jest.fn();
     useOnboarding.mockReturnValue({
-      draft: makeDraft({ worstDayPassed: false }),
+      draft: makeDraft({ dailyAction: "Run for 30 minutes" }),
       update: mockUpdate,
     });
 
     render(<ShrinkScreen />);
 
-    expect(
-      screen.getByText("Let's make it smaller. What would survive a hard day?"),
-    ).toBeTruthy();
+    expect(screen.getByText(/Run for 30 minutes/)).toBeTruthy();
   });
 
-  it("Continue button is disabled when tinyAction is empty and enabled when populated", () => {
+  it("Continue button is disabled when tinyAction is empty", () => {
     const mockUpdate = jest.fn();
     useOnboarding.mockReturnValue({ draft: makeDraft(), update: mockUpdate });
 
     render(<ShrinkScreen />);
 
-    const button = screen.getByText("Continue");
-    expect(button).toBeTruthy();
-
-    // Disabled when empty — pressing it should not call update or router.push.
-    fireEvent.press(button);
+    // Disabled when empty — pressing should not call update or router.push.
+    fireEvent.press(screen.getByText("Continue"));
     expect(mockUpdate).not.toHaveBeenCalled();
     expect(router.push).not.toHaveBeenCalled();
   });

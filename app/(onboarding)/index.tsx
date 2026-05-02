@@ -10,7 +10,7 @@ const STEP_TO_HREF: Record<OnboardingStep, string> = {
   "daily-action": "/(onboarding)/daily-action",
   "shrink": "/(onboarding)/shrink",
   "cue": "/(onboarding)/cue",
-  "worst-day": "/(onboarding)/worst-day",
+  "personalize": "/(onboarding)/personalize",
   "confirmation": "/(onboarding)/confirmation",
 };
 

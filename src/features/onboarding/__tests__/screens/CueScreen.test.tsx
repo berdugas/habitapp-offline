@@ -4,6 +4,7 @@ import CueScreen from "@/features/onboarding/screens/CueScreen";
 
 jest.mock("expo-router", () => ({
   router: { push: jest.fn(), replace: jest.fn() },
+  useRouter: jest.fn(() => ({ back: jest.fn() })),
 }));
 
 jest.mock("@/features/onboarding/OnboardingProvider", () => ({
@@ -26,6 +27,8 @@ function makeDraft(overrides: object = {}) {
     tinyAction: "Run for 2 minutes",
     cueExisting: "",
     worstDayPassed: null,
+    habitName: "",
+    habitIcon: null,
     ...overrides,
   };
 }
@@ -35,7 +38,7 @@ describe("CueScreen", () => {
     jest.clearAllMocks();
   });
 
-  it("renders both input fields with values from the draft", () => {
+  it("renders the After-I input and readonly I-will display", () => {
     const mockUpdate = jest.fn();
     useOnboarding.mockReturnValue({
       draft: makeDraft({ cueExisting: "morning coffee" }),
@@ -44,15 +47,14 @@ describe("CueScreen", () => {
 
     render(<CueScreen />);
 
-    // The "I will" field shows tinyAction from draft.
-    expect(screen.getByDisplayValue("Run for 2 minutes")).toBeTruthy();
-    // The "After I" field shows cueExisting from draft.
+    // The "I will" display shows tinyAction from draft (read-only Text, not TextInput).
+    expect(screen.getByText("Run for 2 minutes")).toBeTruthy();
+    // The "After I" field is an editable input.
     expect(screen.getByDisplayValue("morning coffee")).toBeTruthy();
   });
 
-  it("Continue is disabled when cueExisting is empty, enabled when both fields are filled", () => {
+  it("Continue is disabled when cueExisting is empty", () => {
     const mockUpdate = jest.fn();
-    // cueExisting empty → canContinue is false.
     useOnboarding.mockReturnValue({ draft: makeDraft(), update: mockUpdate });
 
     render(<CueScreen />);
@@ -62,7 +64,7 @@ describe("CueScreen", () => {
     expect(router.push).not.toHaveBeenCalled();
   });
 
-  it("Continue calls update and router.push when both fields are filled", () => {
+  it("Continue calls update and navigates to personalize when cueExisting is filled", () => {
     const mockUpdate = jest.fn();
     useOnboarding.mockReturnValue({
       draft: makeDraft({ cueExisting: "morning coffee" }),
@@ -73,8 +75,8 @@ describe("CueScreen", () => {
 
     fireEvent.press(screen.getByText("Continue"));
 
-    expect(mockUpdate).toHaveBeenCalledWith({ step: "worst-day" });
-    expect(router.push).toHaveBeenCalledWith("/(onboarding)/worst-day");
+    expect(mockUpdate).toHaveBeenCalledWith({ step: "personalize" });
+    expect(router.push).toHaveBeenCalledWith("/(onboarding)/personalize");
   });
 
   it("typing in the After-I field calls update with cueExisting", () => {
@@ -83,31 +85,11 @@ describe("CueScreen", () => {
 
     render(<CueScreen />);
 
-    // The placeholder identifies the After-I input.
     fireEvent.changeText(
-      screen.getByPlaceholderText("my morning coffee"),
+      screen.getByPlaceholderText("something you already do..."),
       "after my run",
     );
 
     expect(mockUpdate).toHaveBeenCalledWith({ cueExisting: "after my run" });
-  });
-
-  it("typing in the I-will field calls update with tinyAction, not cueAction", () => {
-    const mockUpdate = jest.fn();
-    useOnboarding.mockReturnValue({ draft: makeDraft(), update: mockUpdate });
-
-    render(<CueScreen />);
-
-    // The "I will" input has no placeholder — find it by display value.
-    fireEvent.changeText(
-      screen.getByDisplayValue("Run for 2 minutes"),
-      "Put on running shoes",
-    );
-
-    expect(mockUpdate).toHaveBeenCalledWith({ tinyAction: "Put on running shoes" });
-    // Confirm no call was made with cueAction (the removed field).
-    expect(mockUpdate).not.toHaveBeenCalledWith(
-      expect.objectContaining({ cueAction: expect.anything() }),
-    );
   });
 });

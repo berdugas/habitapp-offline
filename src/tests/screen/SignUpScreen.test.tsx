@@ -4,6 +4,7 @@ import SignUpScreen from "@/features/auth/screens/SignUpScreen";
 
 const mockPush = jest.fn();
 const mockReplace = jest.fn();
+const mockBack = jest.fn();
 const mockSignUpWithPassword = jest.fn();
 
 jest.mock("expo-router", () => ({
@@ -11,6 +12,7 @@ jest.mock("expo-router", () => ({
     push: (...args: unknown[]) => mockPush(...args),
     replace: (...args: unknown[]) => mockReplace(...args),
   },
+  useRouter: jest.fn(() => ({ back: mockBack })),
 }));
 
 jest.mock("@/features/auth/api", () => ({
@@ -54,7 +56,7 @@ describe("SignUpScreen", () => {
       screen.getByPlaceholderText("Choose a password"),
       "password-123",
     );
-    fireEvent.press(screen.getByText("Sign Up"));
+    fireEvent.press(screen.getByText("Sign up"));
 
     await waitFor(() => {
       expect(mockSignUpWithPassword).toHaveBeenCalledWith(
@@ -86,7 +88,7 @@ describe("SignUpScreen", () => {
       screen.getByPlaceholderText("Choose a password"),
       "password-123",
     );
-    fireEvent.press(screen.getByText("Sign Up"));
+    fireEvent.press(screen.getByText("Sign up"));
 
     await waitFor(() => {
       expect(screen.getByText(/email confirmation must be off/i)).toBeTruthy();
@@ -116,7 +118,7 @@ describe("SignUpScreen", () => {
       screen.getByPlaceholderText("Choose a password"),
       "password-123",
     );
-    fireEvent.press(screen.getByText("Sign Up"));
+    fireEvent.press(screen.getByText("Sign up"));
 
     await waitFor(() => {
       expect(
@@ -131,7 +133,7 @@ describe("SignUpScreen", () => {
   it("blocks blank input before calling Supabase", () => {
     render(<SignUpScreen />);
 
-    fireEvent.press(screen.getByText("Sign Up"));
+    fireEvent.press(screen.getByText("Sign up"));
 
     expect(screen.getByText("Email is required.")).toBeTruthy();
     expect(mockSignUpWithPassword).not.toHaveBeenCalled();

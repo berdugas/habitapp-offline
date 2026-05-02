@@ -1,20 +1,23 @@
-import { ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { router } from "expo-router";
+import { StyleSheet, Text } from "react-native";
 
 import { PrimaryButton } from "@/components/buttons/PrimaryButton";
-import { ZenCard } from "@/components/cards/ZenCard";
+import { ChipSelector } from "@/components/forms/ChipSelector";
+import { OnboardingInput } from "@/components/forms/OnboardingInput";
+import { OnboardingLayout } from "@/components/layouts/OnboardingLayout";
+import { OnboardingHeader } from "@/components/navigation/OnboardingHeader";
 import { useOnboarding } from "@/features/onboarding/OnboardingProvider";
 import { colors } from "@/theme/colors";
 import { fontFamilies } from "@/theme/fontFamilies";
-import { spacing } from "@/theme/spacing";
-import { typography } from "@/theme/typography";
 
-const EXAMPLES = [
+const CHIP_OPTIONS = [
   "a runner",
   "someone who reads daily",
   "a calmer person",
+  "a better partner",
+  "someone who saves consistently",
   "a writer",
-  "someone who sleeps well",
+  "a present parent",
 ];
 
 export default function BecomingScreen() {
@@ -25,84 +28,66 @@ export default function BecomingScreen() {
     router.push("/(onboarding)/daily-action");
   };
 
-  return (
-    <ScrollView
-      contentContainerStyle={styles.content}
-      contentInsetAdjustmentBehavior="automatic"
-      keyboardShouldPersistTaps="handled"
-      style={styles.screen}
-    >
-      <ZenCard padding="xxl">
-        <Text selectable style={styles.header}>
-          Who do you want to become?
-        </Text>
-        <TextInput
-          autoCorrect
-          multiline
-          onChangeText={(text) => update({ becomingPhrase: text })}
-          placeholder="Describe who you are becoming..."
-          placeholderTextColor={colors.textFaint}
-          style={styles.input}
-          value={draft.becomingPhrase}
-        />
-        <View style={styles.examples}>
-          <Text selectable style={styles.examplesLabel}>
-            For example:
-          </Text>
-          {EXAMPLES.map((example) => (
-            <Text key={example} selectable style={styles.exampleItem}>
-              {example}
-            </Text>
-          ))}
-        </View>
-      </ZenCard>
+  const handleChipSelect = (value: string) => {
+    update({ becomingPhrase: value });
+  };
 
-      <PrimaryButton
-        disabled={draft.becomingPhrase.trim().length === 0}
-        label="Continue"
-        onPress={handleContinue}
+  return (
+    <OnboardingLayout
+      keyboardAware
+      footer={
+        <PrimaryButton
+          disabled={draft.becomingPhrase.trim().length < 2}
+          label="Continue"
+          showArrow
+          onPress={handleContinue}
+        />
+      }
+    >
+      <OnboardingHeader currentStep={1} />
+
+      <Text style={styles.eyebrow}>
+        Habits stick when they connect to who you want to be.
+      </Text>
+      <Text style={styles.headline}>Who do you want to become?</Text>
+
+      <OnboardingInput
+        label="Your answer"
+        placeholder="Describe who you are becoming..."
+        value={draft.becomingPhrase}
+        onChangeText={(text) => update({ becomingPhrase: text })}
       />
-    </ScrollView>
+
+      <Text style={styles.chipsLabel}>Try one of these</Text>
+      <ChipSelector
+        options={CHIP_OPTIONS}
+        selectedValue={CHIP_OPTIONS.includes(draft.becomingPhrase) ? draft.becomingPhrase : null}
+        onSelect={handleChipSelect}
+      />
+    </OnboardingLayout>
   );
 }
 
 const styles = StyleSheet.create({
-  content: {
-    flexGrow: 1,
-    gap: spacing.xxl,
-    justifyContent: "center",
-    padding: spacing.xl,
+  eyebrow: {
+    fontFamily: fontFamilies.bodyMedium,
+    fontSize: 14,
+    lineHeight: 21,
+    color: colors.primary,
+    marginBottom: 8,
   },
-  exampleItem: {
-    color: colors.textMuted,
-    fontFamily: fontFamilies.body,
-    fontSize: typography.bodyLg,
-    lineHeight: 24,
-  },
-  examples: {
-    gap: spacing.md,
-  },
-  examplesLabel: {
-    color: colors.text,
-    fontFamily: fontFamilies.bodySemi,
-    fontSize: typography.bodyLg,
-  },
-  header: {
-    color: colors.text,
+  headline: {
     fontFamily: fontFamilies.displayBold,
-    fontSize: typography.headlineLg,
-    lineHeight: 36,
-  },
-  input: {
-    backgroundColor: colors.surface,
+    fontSize: 28,
+    lineHeight: 33,
     color: colors.text,
-    fontSize: typography.bodyLg,
-    lineHeight: 24,
-    minHeight: 80,
-    padding: spacing.md,
+    marginBottom: 20,
   },
-  screen: {
-    backgroundColor: colors.bg,
-    flex: 1,
+  chipsLabel: {
+    fontFamily: fontFamilies.bodyMedium,
+    fontSize: 13,
+    color: colors.textFaint,
+    marginTop: 20,
+    marginBottom: 10,
   },
 });
