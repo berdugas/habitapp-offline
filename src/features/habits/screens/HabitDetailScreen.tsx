@@ -296,35 +296,6 @@ export default function HabitDetailScreen() {
         )}
       </ZenCard>
 
-      <ZenCard>
-        <Eyebrow label={latestReview ? "Latest weekly review" : "Weekly review"} />
-        {latestReview ? (
-          <View style={styles.reviewContent}>
-            <Text selectable style={styles.reviewWeek}>
-              {formatWeekLabel(latestReview.week_start)}
-            </Text>
-            {latestReview.went_well ? (
-              <RowLV label="What went well" value={latestReview.went_well} />
-            ) : null}
-            {latestReview.was_hard ? (
-              <RowLV label="What was hard" value={latestReview.was_hard} />
-            ) : null}
-            <RowLV label="Trigger worked" value={formatBooleanAnswer(latestReview.trigger_worked)} />
-            <RowLV label="Tiny action too hard" value={formatBooleanAnswer(latestReview.tiny_action_too_hard)} />
-            {latestReview.adjustment_note ? (
-              <RowLV label="Adjustment" value={latestReview.adjustment_note} />
-            ) : null}
-          </View>
-        ) : (
-          <Text selectable style={styles.reviewPlaceholder}>
-            Reflect on what worked and what to adjust for this habit.
-          </Text>
-        )}
-        <SecondaryButton
-          label={latestReview ? "Update weekly review" : "Start weekly review"}
-          onPress={() => router.push(`/(app)/reviews/${habit.id}`)}
-        />
-      </ZenCard>
 
       {adjustmentSuggestions.map((suggestion) => (
         <ZenCard key={suggestion.type} gap={spacing.sm}>
