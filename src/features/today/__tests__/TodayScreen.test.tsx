@@ -112,10 +112,11 @@ describe("TodayScreen", () => {
     });
     useRecoveryCheck.mockReturnValue({
       shouldShowModal: false,
+      triggeringHabit: null,
       breakRunStartDate: null,
       logs: [],
     });
-    useSingleMissBanner.mockReturnValue({ showBanner: false, missDate: null });
+    useSingleMissBanner.mockReturnValue({ showBanner: false, missDate: null, missingHabitId: null });
   });
 
   afterEach(() => {
@@ -257,6 +258,7 @@ describe("TodayScreen", () => {
     useSingleMissBanner.mockReturnValue({
       showBanner: true,
       missDate: "2026-04-29",
+      missingHabitId: "habit-1",
     });
     renderWithClient(<TodayScreen />);
     expect(
@@ -284,6 +286,7 @@ describe("TodayScreen", () => {
     });
     useRecoveryCheck.mockReturnValue({
       shouldShowModal: true,
+      triggeringHabit: { id: "habit-1", start_date: "2026-04-01", title: "Run" },
       breakRunStartDate: "2026-04-28",
       logs: [],
     });
@@ -316,6 +319,7 @@ describe("TodayScreen", () => {
     });
     useRecoveryCheck.mockReturnValue({
       shouldShowModal: true,
+      triggeringHabit: { id: "habit-1", start_date: "2026-04-01", title: "Run" },
       breakRunStartDate: "2026-04-28",
       logs: [],
     });
@@ -404,6 +408,7 @@ describe("TodayScreen", () => {
     useSingleMissBanner.mockReturnValue({
       showBanner: true,
       missDate: "2026-04-29",
+      missingHabitId: "habit-1",
     });
     renderWithClient(<TodayScreen />);
     fireEvent.press(screen.getByText("×"));

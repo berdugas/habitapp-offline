@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { getPreference } from "@/lib/db/repositories/preferences";
-import { useHabitLogsForRange } from "@/features/today/hooks";
+import { useHabitLogsForHabitsInRange } from "@/features/today/hooks";
 import { todayDateString } from "@/utils/clock";
 
 import {
@@ -11,45 +11,57 @@ import {
   singleMissBannerPreferenceKey,
 } from "./api";
 
-import type { HabitState } from "@/features/habits/types";
 import type { HabitLog } from "@/lib/db/repositories/habit_logs";
 
-// Minimal habit fields required by recovery detection. Satisfied by both
-// HabitRecord (snake_case) and any inline adapter created from TodayHabitCardData.
 export type RecoveryHabitRef = {
   id: string;
-  habit_state: HabitState;
   start_date: string;
+  title: string;
 };
 
 type RecoveryCheckResult = {
   shouldShowModal: boolean;
+  triggeringHabit: RecoveryHabitRef | null;
   breakRunStartDate: string | null;
   logs: HabitLog[];
 };
 
-// Checks whether the recovery modal should appear for the given Focus habit.
-// Returns logs so TodayScreen can forward them to useSingleMissBanner without
-// a second subscription.
-export function useRecoveryCheck(
-  habit: RecoveryHabitRef | null,
-): RecoveryCheckResult {
-  const isFocusHabit = habit?.habit_state === "focus";
-  const logsQuery = useHabitLogsForRange(
-    isFocusHabit ? habit?.id : undefined,
-    90,
-  );
-  const logs = logsQuery.data ?? [];
+// Checks whether the recovery modal should appear for any active habit.
+// Bulk-fetches 90 days of logs for all habits, then runs detectStreakBreak
+// per habit in plain JS (no hooks-in-loop). Returns logs so TodayScreen
+// can forward them to useSingleMissBanner without a second subscription.
+export function useRecoveryCheck(habits: RecoveryHabitRef[]): RecoveryCheckResult {
+  const habitIds = habits.map((h) => h.id);
   const today = todayDateString();
 
-  const breakResult =
-    habit && isFocusHabit
-      ? detectStreakBreak(logs, habit.start_date, today)
-      : { broken: false as const };
+  const logsQuery = useHabitLogsForHabitsInRange(habitIds, 90);
+  const allLogs = logsQuery.data ?? [];
+
+  // Partition logs by habit_id for per-habit detection.
+  const logsByHabitId = new Map<string, HabitLog[]>();
+  for (const log of allLogs) {
+    const existing = logsByHabitId.get(log.habit_id) ?? [];
+    existing.push(log);
+    logsByHabitId.set(log.habit_id, existing);
+  }
+
+  // Find the first habit with a streak break.
+  let triggeringHabit: RecoveryHabitRef | null = null;
+  let breakRunStartDate: string | null = null;
+
+  for (const habit of habits) {
+    const habitLogs = logsByHabitId.get(habit.id) ?? [];
+    const result = detectStreakBreak(habitLogs, habit.start_date, today);
+    if (result.broken) {
+      triggeringHabit = habit;
+      breakRunStartDate = result.breakRunStartDate;
+      break;
+    }
+  }
 
   const modalShownKey =
-    breakResult.broken && habit
-      ? recoveryModalPreferenceKey(habit.id, breakResult.breakRunStartDate)
+    triggeringHabit && breakRunStartDate
+      ? recoveryModalPreferenceKey(triggeringHabit.id, breakRunStartDate)
       : null;
 
   const preferenceQuery = useQuery({
@@ -59,45 +71,58 @@ export function useRecoveryCheck(
     staleTime: 0,
   });
 
-  // shouldShowModal: broken AND the "shown" preference is absent from the DB.
-  // preferenceQuery.data === null  → key not in DB (modal not yet shown)
-  // preferenceQuery.data === "true" → key in DB (modal was shown; suppress)
-  // preferenceQuery.data === undefined → disabled or still loading; suppress
   const shouldShowModal =
-    breakResult.broken && preferenceQuery.data === null;
+    Boolean(triggeringHabit) && preferenceQuery.data === null;
 
   return {
     shouldShowModal,
-    breakRunStartDate: breakResult.broken
-      ? breakResult.breakRunStartDate
-      : null,
-    logs,
+    triggeringHabit,
+    breakRunStartDate,
+    logs: allLogs,
   };
 }
 
 type SingleMissBannerResult = {
   showBanner: boolean;
   missDate: string | null;
+  missingHabitId: string | null;
 };
 
-// Checks whether the single-miss reframing banner should appear.
-// Accepts logs from useRecoveryCheck to avoid a second subscription.
-// shouldShowModal must be passed in; if the modal is showing, the banner is suppressed.
+// Checks whether the single-miss reframing banner should appear for any habit.
+// Accepts allLogs from useRecoveryCheck to avoid a second DB subscription.
+// If the recovery modal is showing, the banner is suppressed.
 export function useSingleMissBanner(
-  habit: RecoveryHabitRef | null,
-  logs: HabitLog[],
+  habits: RecoveryHabitRef[],
+  allLogs: HabitLog[],
   shouldShowModal: boolean,
 ): SingleMissBannerResult {
   const today = todayDateString();
 
-  const missResult =
-    habit && !shouldShowModal
-      ? detectSingleMiss(logs, habit.start_date, today)
-      : { isSingleMiss: false as const };
+  const logsByHabitId = new Map<string, HabitLog[]>();
+  for (const log of allLogs) {
+    const existing = logsByHabitId.get(log.habit_id) ?? [];
+    existing.push(log);
+    logsByHabitId.set(log.habit_id, existing);
+  }
+
+  let missingHabit: RecoveryHabitRef | null = null;
+  let missDate: string | null = null;
+
+  if (!shouldShowModal) {
+    for (const habit of habits) {
+      const habitLogs = logsByHabitId.get(habit.id) ?? [];
+      const result = detectSingleMiss(habitLogs, habit.start_date, today);
+      if (result.isSingleMiss) {
+        missingHabit = habit;
+        missDate = result.missDate;
+        break;
+      }
+    }
+  }
 
   const bannerDismissedKey =
-    missResult.isSingleMiss && habit
-      ? singleMissBannerPreferenceKey(habit.id, missResult.missDate)
+    missingHabit && missDate
+      ? singleMissBannerPreferenceKey(missingHabit.id, missDate)
       : null;
 
   const preferenceQuery = useQuery({
@@ -107,10 +132,11 @@ export function useSingleMissBanner(
     staleTime: 0,
   });
 
-  const showBanner = missResult.isSingleMiss && preferenceQuery.data === null;
+  const showBanner = Boolean(missingHabit) && preferenceQuery.data === null;
 
   return {
     showBanner,
-    missDate: missResult.isSingleMiss ? missResult.missDate : null,
+    missDate,
+    missingHabitId: missingHabit?.id ?? null,
   };
 }

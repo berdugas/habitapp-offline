@@ -27,7 +27,10 @@ import {
   toDeviceDateString,
 } from "@/utils/dates";
 import { TODAY_PROGRESS_WINDOW_DAYS } from "@/features/today/constants";
-import { listLogsForHabitInRange } from "@/lib/db/repositories/habit_logs";
+import {
+  listLogsForHabitInRange,
+  listLogsForHabitsInRange,
+} from "@/lib/db/repositories/habit_logs";
 import { todayDateString } from "@/utils/clock";
 
 import type { HabitLogRecord, HabitLogStatus } from "@/features/habits/types";
@@ -59,6 +62,17 @@ export function useHabitLogsForRange(habitId: string | undefined, days: number) 
     enabled: Boolean(habitId),
     queryFn: () => listLogsForHabitInRange(habitId!, fromDate, today),
     queryKey: getHabitLogsRangeQueryKey(habitId ?? "none", fromDate, today),
+    staleTime: 30_000,
+  });
+}
+
+export function useHabitLogsForHabitsInRange(habitIds: string[], days: number) {
+  const today = todayDateString();
+  const fromDate = toDeviceDateString(addDeviceDays(new Date(), -(days - 1)));
+  return useQuery({
+    enabled: habitIds.length > 0,
+    queryFn: () => listLogsForHabitsInRange(habitIds, fromDate, today),
+    queryKey: ["habit-logs", "bulk-range", habitIds, fromDate, today],
     staleTime: 30_000,
   });
 }

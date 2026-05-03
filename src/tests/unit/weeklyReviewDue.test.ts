@@ -8,6 +8,7 @@ const baseHabit: Habit = {
   created_at: "2026-04-01T00:00:00.000Z",
   cue: "After breakfast",
   habit_state: "active",
+  icon: null,
   id: "habit-1",
   identity_phrase: null,
   minimum_viable_action: null,
