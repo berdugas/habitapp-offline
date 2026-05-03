@@ -130,7 +130,7 @@ describe("TodayScreen", () => {
     expect(screen.getByText("Create your first habit")).toBeTruthy();
   });
 
-  it("renders GoalContainer with identity phrase, streak copy, and habit name", () => {
+  it("renders GoalContainer with identity phrase, streak copy, and habit row", () => {
     useTodayHabits.mockReturnValue({
       error: null,
       habits: [makeHabit()],
@@ -142,8 +142,7 @@ describe("TodayScreen", () => {
     // streak=12 → 12 % 5 = 2 → "12-day streak. One day at a time."
     expect(screen.getByText("12-day streak. One day at a time.")).toBeTruthy();
     expect(screen.getByText("Run")).toBeTruthy();
-    expect(screen.getByText("Done")).toBeTruthy();
-    expect(screen.getByText("Skip")).toBeTruthy();
+    expect(screen.getByLabelText("Log Run")).toBeTruthy();
   });
 
   it("renders 'Today is a fresh start.' when streak is 0", () => {
@@ -168,7 +167,7 @@ describe("TodayScreen", () => {
     expect(screen.getByText("Day one done. Come back tomorrow.")).toBeTruthy();
   });
 
-  it("calls the mutation with status='done' when Done is tapped", () => {
+  it("tapping the circle calls the mutation with status='done'", () => {
     const mutateAsync = jest.fn().mockResolvedValue(undefined);
     useUpsertTodayHabitStatusMutation.mockReturnValue({
       error: null,
@@ -182,11 +181,11 @@ describe("TodayScreen", () => {
       upcomingHabits: [],
     });
     renderWithClient(<TodayScreen />);
-    fireEvent.press(screen.getByText("Done"));
+    fireEvent.press(screen.getByLabelText("Log Run"));
     expect(mutateAsync).toHaveBeenCalledWith({ habitId: "habit-1", status: "done" });
   });
 
-  it("calls the mutation with status='skipped' when Skip is tapped", () => {
+  it("long-pressing the circle calls the mutation with status='skipped'", () => {
     const mutateAsync = jest.fn().mockResolvedValue(undefined);
     useUpsertTodayHabitStatusMutation.mockReturnValue({
       error: null,
@@ -200,11 +199,37 @@ describe("TodayScreen", () => {
       upcomingHabits: [],
     });
     renderWithClient(<TodayScreen />);
-    fireEvent.press(screen.getByText("Skip"));
+    fireEvent(screen.getByLabelText("Log Run"), "longPress");
     expect(mutateAsync).toHaveBeenCalledWith({ habitId: "habit-1", status: "skipped" });
   });
 
-  it("does not render a Missed button on Today", () => {
+  it("tapping the row navigates to habit detail", () => {
+    useTodayHabits.mockReturnValue({
+      error: null,
+      habits: [makeHabit()],
+      isLoading: false,
+      upcomingHabits: [],
+    });
+    renderWithClient(<TodayScreen />);
+    fireEvent.press(screen.getByLabelText("Open Run"));
+    expect(router.push).toHaveBeenCalledWith({
+      pathname: "/(app)/habits/[habitId]",
+      params: { habitId: "habit-1" },
+    });
+  });
+
+  it("done state shows circle label as 'Run — done'", () => {
+    useTodayHabits.mockReturnValue({
+      error: null,
+      habits: [makeHabit({ todayStatus: "done" })],
+      isLoading: false,
+      upcomingHabits: [],
+    });
+    renderWithClient(<TodayScreen />);
+    expect(screen.getByLabelText("Run — done")).toBeTruthy();
+  });
+
+  it("does not render a Missed action on Today", () => {
     useTodayHabits.mockReturnValue({
       error: null,
       habits: [makeHabit()],

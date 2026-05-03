@@ -199,8 +199,8 @@ describe("TodayScreen", () => {
 
     renderWithClient(<TodayScreen />);
 
-    fireEvent.press(screen.getByText("Done"));
-    fireEvent.press(screen.getByText("Done"));
+    fireEvent.press(screen.getByLabelText("Log Reading"));
+    fireEvent.press(screen.getByLabelText("Log Reading"));
 
     expect(mockMutateAsync).toHaveBeenCalledTimes(1);
 

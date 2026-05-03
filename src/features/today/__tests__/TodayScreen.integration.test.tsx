@@ -58,35 +58,35 @@ describe("TodayScreen integration — log round-trip", () => {
     resetClockForTesting();
   });
 
-  it("shows 'Done ✓' after tapping Done", async () => {
+  it("marks habit as done when circle is tapped", async () => {
     renderWithClient(<TodayScreen />);
 
     await waitFor(() => {
-      expect(screen.getByText("Become a runner")).toBeTruthy();
+      expect(screen.getByLabelText("Log Run")).toBeTruthy();
     });
 
-    fireEvent.press(screen.getByText("Done"));
+    fireEvent.press(screen.getByLabelText("Log Run"));
 
     await waitFor(
       () => {
-        expect(screen.getByText("Done ✓")).toBeTruthy();
+        expect(screen.getByLabelText("Run — done")).toBeTruthy();
       },
       { timeout: 3000 },
     );
   });
 
-  it("shows 'Skipped ✓' after tapping Skip", async () => {
+  it("marks habit as skipped when circle is long-pressed", async () => {
     renderWithClient(<TodayScreen />);
 
     await waitFor(() => {
-      expect(screen.getByText("Become a runner")).toBeTruthy();
+      expect(screen.getByLabelText("Log Run")).toBeTruthy();
     });
 
-    fireEvent.press(screen.getByText("Skip"));
+    fireEvent(screen.getByLabelText("Log Run"), "longPress");
 
     await waitFor(
       () => {
-        expect(screen.getByText("Skipped ✓")).toBeTruthy();
+        expect(screen.getByLabelText("Run — skipped")).toBeTruthy();
       },
       { timeout: 3000 },
     );
