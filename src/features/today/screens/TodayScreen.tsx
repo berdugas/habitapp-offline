@@ -11,6 +11,7 @@ import { ZenCard } from "@/components/cards/ZenCard";
 import { ErrorState } from "@/components/feedback/ErrorState";
 import { LoadingState } from "@/components/feedback/LoadingState";
 import { GoalContainer } from "@/features/today/components/GoalContainer";
+import { HabitRow } from "@/features/today/components/HabitRow";
 import {
   useTodayHabits,
   useUpsertTodayHabitStatusMutation,
@@ -231,12 +232,18 @@ export default function TodayScreen() {
           streak={oldestStreak(group.habits)}
         >
           {group.habits.map((habit) => (
-            <HabitPlaceholderRow
+            <HabitRow
               key={habit.id}
               disabled={upsertTodayHabitStatusMutation.isPending || isReadOnly}
               habit={habit}
-              onDone={() => void handleStatusPress(habit.id, "done")}
-              onSkip={() => void handleStatusPress(habit.id, "skipped")}
+              onDone={(id) => void handleStatusPress(id, "done")}
+              onNavigate={(id) =>
+                router.push({
+                  pathname: "/(app)/habits/[habitId]",
+                  params: { habitId: id },
+                })
+              }
+              onSkip={(id) => void handleStatusPress(id, "skipped")}
             />
           ))}
         </GoalContainer>
@@ -250,40 +257,6 @@ export default function TodayScreen() {
         visible={shouldShowModal}
       />
     </ScrollView>
-  );
-}
-
-type HabitPlaceholderRowProps = {
-  disabled: boolean;
-  habit: TodayHabitCardData;
-  onDone: () => void;
-  onSkip: () => void;
-};
-
-function HabitPlaceholderRow({
-  disabled,
-  habit,
-  onDone,
-  onSkip,
-}: HabitPlaceholderRowProps) {
-  return (
-    <View style={styles.placeholderRow}>
-      <Text selectable style={styles.habitName}>
-        {habit.name}
-      </Text>
-      <View style={styles.placeholderActions}>
-        <PrimaryButton
-          disabled={disabled}
-          label={habit.todayStatus === "done" ? "Done ✓" : "Done"}
-          onPress={onDone}
-        />
-        <PrimaryButton
-          disabled={disabled}
-          label={habit.todayStatus === "skipped" ? "Skipped ✓" : "Skip"}
-          onPress={onSkip}
-        />
-      </View>
-    </View>
   );
 }
 
@@ -308,23 +281,10 @@ const styles = StyleSheet.create({
     fontFamily: fontFamilies.displaySemi,
     fontSize: typography.headlineLg,
   },
-  habitName: {
-    color: colors.text,
-    fontFamily: fontFamilies.bodyMedium,
-    fontSize: typography.bodyLg,
-  },
   header: {
     alignItems: "center",
     flexDirection: "row",
     justifyContent: "space-between",
-  },
-  placeholderActions: {
-    flexDirection: "row",
-    gap: spacing.sm,
-  },
-  placeholderRow: {
-    gap: spacing.sm,
-    padding: spacing.lg,
   },
   screen: {
     backgroundColor: colors.bg,

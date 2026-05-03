@@ -36,6 +36,7 @@ export function GoalContainer({
       </View>
       {banner ?? null}
       <View style={styles.habitsCard}>{children}</View>
+      <Text style={styles.hintText}>Long-press a circle to skip</Text>
     </View>
   );
 }
@@ -66,6 +67,12 @@ const styles = StyleSheet.create({
   header: {
     alignItems: "center",
     flexDirection: "row",
+  },
+  hintText: {
+    color: colors.textFaint,
+    fontFamily: fontFamilies.body,
+    fontSize: typography.micro,
+    paddingHorizontal: 2,
   },
   streakText: {
     color: colors.primary,
