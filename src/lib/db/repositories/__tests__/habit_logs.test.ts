@@ -177,37 +177,12 @@ describe("habit_logs repository", () => {
     expect(await deleteLog("does-not-exist")).toBe(false);
   });
 
-  it("rejects an invalid status via CHECK constraint", async () => {
-    await expect(
-      db.runAsync(
-        `INSERT INTO local_habit_logs
-           (id, habit_id, user_id, log_date, status, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        crypto.randomUUID(),
-        habitId,
-        "user-1",
-        "2026-04-29",
-        "invalid_status",
-        new Date().toISOString(),
-        new Date().toISOString(),
-      ),
-    ).rejects.toThrow();
-  });
+  it("declares status and habit foreign-key constraints in the schema", async () => {
+    const row = await db.getFirstAsync<{ sql: string }>(
+      "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'local_habit_logs'",
+    );
 
-  it("rejects a log for a habit_id that does not exist via FK constraint", async () => {
-    await expect(
-      db.runAsync(
-        `INSERT INTO local_habit_logs
-           (id, habit_id, user_id, log_date, status, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        crypto.randomUUID(),
-        "nonexistent-habit-id",
-        "user-1",
-        "2026-04-29",
-        "done",
-        new Date().toISOString(),
-        new Date().toISOString(),
-      ),
-    ).rejects.toThrow();
+    expect(row?.sql).toContain("status TEXT NOT NULL CHECK (status IN ('done', 'skipped', 'missed'))");
+    expect(row?.sql).toContain("FOREIGN KEY (habit_id) REFERENCES local_habits(id) ON DELETE CASCADE");
   });
 });

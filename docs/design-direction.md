@@ -1,6 +1,6 @@
 # Design Direction — Habits Core v1
 
-**Last updated:** 1 May 2026 (rev 2 — added primaryGradientEnd token; clarified shadow implementation; app name locked as Habitapp)
+**Last updated:** 3 May 2026 (rev 3 — goal-based habit architecture; Today screen redesign locked; Focus/Supporting distinction dissolved)
 **Status:** Living document. Most decisions locked; open items at the bottom.
 **Source-of-truth pairing:** This document plus `design/habitapp/habit-screens.jsx` together define the visual language. When this doc is silent or ambiguous, the screens file is the visual oracle. When the screens diverge from this doc, this doc wins.
 **Audience:** Engineers implementing visual surfaces, and the product lead reviewing those implementations.
@@ -260,9 +260,9 @@ The Focus card is the emotional heart of the daily experience. It's the first th
 
 ### Identity streak
 
-Identity streak copy is **only on Focus habits**, not on Supporting habits. (Supporting habits get a quieter streak indication — exact treatment TBD pending the multi-habit Today decision.)
+Identity streak copy is **per-goal**, displayed inside the goal container below the becoming phrase. The copy is generic (no identity-noun extraction from the phrase) and randomized from 5 variants per render. See §Today screen redesign for the full copy set.
 
-The reason: identity language is high-investment. Saying *"You've been a runner for 12 days"* about a Focus habit lands as affirmation. Saying it about every Supporting habit dilutes it into noise. Reserve the strong language for the central commitment.
+The streak number reflects the oldest active habit's forgiving streak in the goal group.
 
 ### Onboarding
 
@@ -300,9 +300,9 @@ The design canvas keeps the AI surfaces visible (controlled by the `showAIHints`
 
 These are tracked here so they don't go missing. Each is gated to a specific S9 ticket or downstream sprint.
 
-**OPEN — Multi-habit Today.** The Today screen design currently shows one habit. Core v1 supports 1 Focus + up to 2 Supporting. Decision needed before the TodayScreen re-skin ticket. The framing for the decision: *what is the beta primarily testing?* If "becoming-bridge framing works," ship 1 Focus only. If "full Core v1 system works," design for 1 Focus + up to 2 Supporting and answer: how do they stack visually, does Supporting get a heatmap, does the streak treatment differ?
+**LOCKED — Multi-habit Today / Goal-based architecture.** Resolved 3 May 2026. See §Goal-based architecture and §Today screen redesign below.
 
-**OPEN — Weekly Review screen in beta.** Reviews don't migrate to local SQLite until Phase C. Decision needed before WeeklyReviewScreen re-skin ticket. Three options: (a) defer the screen entirely from beta — don't ship, don't link to it; (b) ship UI-only stub with no persistence; (c) accelerate reviews migration into S9 or S10. Recommendation pending: (a), to avoid shipping a non-functional save button to evangelist users.
+**LOCKED — Weekly Review screen in beta.** Resolved 3 May 2026. Option (a): defer entirely. Don't ship UI, don't link to it. Data layer migrates in S11 but screen is gated until post-beta.
 
 **OPEN — Backlog UI.** Backlog (deferred habit ideas, distinct from Archived) has no design treatment yet. The Settings screen shows Archived; Backlog has no surface. Decision needed before any Backlog ticket: where does Backlog live (Settings sub-section? Library tab? separate surface?), and what's its primary action (promote-to-active? edit? delete?).
 
@@ -324,7 +324,86 @@ When something is genuinely not covered by either, **stop and ask the product le
 
 ---
 
+---
+
+## Goal-based habit architecture (locked 3 May 2026)
+
+This section documents a significant product architecture change from role-based habits (Focus/Supporting) to goal-based habits.
+
+### The change
+
+**Before:** Habits had a `habit_state` of `focus`, `supporting`, or `automatic`. One Focus slot, two Supporting slots. Global 3-active hard cap. Focus habits got rich visual treatment (identity streak, heatmap, gradient circle); Supporting habits got reduced treatment (no streak display, smaller card, no identity copy).
+
+**After:** Habits belong to a **goal** (the becoming/identity phrase). All habits under a goal are peers — no Focus/Supporting distinction. The `habit_state` axis simplifies: `active` (in formation) or `automatic` (graduated). A soft cap of 3 habits per goal applies, with a gentle warning if the user tries to add a 4th ("Research suggests more than 3 active habits under one goal can be difficult to sustain. Are you sure?"). The user can proceed — it's guidance, not a block.
+
+### Why
+
+The Focus/Supporting distinction was a mechanism to enforce the "one habit deeply" principle. But it introduced complexity (different visual treatments, different creation flows, different streak rules) that doesn't map to how people think. Nobody thinks "I have one Focus habit and two Supporting habits." They think "I'm becoming a reader, and here are the things I do for that." The goal container makes that relationship explicit and removes artificial distinctions between habits that are fundamentally the same thing — daily practices in service of an identity.
+
+### What stays the same
+
+- **Onboarding** still creates one goal with one habit through the becoming bridge. The user starts with one thing.
+- **Worst-day gate** applies to all habits during onboarding (hard block for the first habit). For habits added post-onboarding, the gate is guidance, not a block.
+- **Graduation** still works per-habit via SRHI. When a habit reaches the threshold, it moves to the Automatic Library.
+- **Recovery flow** triggers for any habit with two consecutive misses. The modal names the specific habit.
+- **3-per-goal soft cap** replaces the 3-active hard cap. The user is warned but not blocked.
+
+### What changes
+
+- **`habit_state`** values change from `focus | supporting | automatic` to `active | automatic`.
+- **All habits in a goal group get equal visual treatment.** Same circle size, same row height, same interaction pattern. No gradient-vs-white circle distinction.
+- **Identity streak copy is per-goal**, not per-habit. "You've been a reader for 12 days" reflects the oldest habit's streak in the goal group.
+- **Consistency donut is per-goal**, calculated as the average consistency across all habits in the goal (done / (done + missed), skipped excluded, last 30 days). Per-habit consistency is on the detail screen.
+- **Multi-goal is architecturally supported** but not built for beta. The goal container pattern stacks naturally. Building the "add new goal" flow is a post-beta feature.
+
+### DB impact
+
+Habits need a grouping key for goals. Options: (a) use `identity_phrase` as the grouping key directly (simplest, already exists on each habit), or (b) introduce a `goals` table with `id`, `identity_phrase`, `user_id`, and habits FK to `goal_id`. Option (b) is cleaner long-term but adds a migration. Decision: use option (a) for beta — group habits by their `identity_phrase`. Migrate to option (b) post-beta if multi-goal ships.
+
+---
+
+## Today screen redesign (locked 3 May 2026)
+
+The Today screen is the most important surface in the app. Its job is to be the becoming bridge, every single day — not to show stats, not to display a checklist.
+
+### Screen structure (top to bottom)
+
+1. **Quiet header** — AppLogo (small, top-left) + date (top-right). No "Today" headline.
+2. **Goal container** — a warm tonal surface (`surface` / `#f3f1eb`, border-radius 20px) that wraps each goal group. Contains:
+   - **Identity anchor** — the becoming phrase (21px, weight 500, `text` color). This is the screen's emotional center.
+   - **Identity streak** — sage italic copy below the becoming phrase. Randomized from 5 variants per render to keep the screen feeling alive:
+     - Active streak (2+ days): "N days and counting" / "Showing up for N days" / "N days strong" / "Day N — keep going" / "N days of building"
+     - Day 1: "Day 1 — it starts here" / "1 day and counting" / "Day 1 — keep going" / "The first day is done" / "1 day of building"
+     - Day 0 (no logs): "Start showing up today" (single variant)
+     - Streak broken: "Start a new streak" (single variant)
+   - **Consistency donut** — 48px SVG donut chart, sage gradient fill on light track, percentage centered inside, "Consistency" label underneath in faint text. Positioned to the right of the identity anchor. Shows average consistency across all habits in the goal.
+   - **Habits card** — white card (`surfaceCard`, border-radius 14px) nested inside the goal container. Contains habit rows.
+3. **Habit rows** inside the card:
+   - All habits are visually equal. Same circle size (38px), same row height, same interaction.
+   - Each row: tap-to-done circle (sage border when pending) + Lucide SVG icon + habit name + cue text below + chevron.
+   - Tap circle = log Done. Tap row = navigate to detail screen.
+   - Done state: filled sage gradient circle with white checkmark + strikethrough name + reduced opacity (0.55).
+   - Rows separated by 0.5px `surface` dividers.
+4. **Skip access** — "Long-press circle to skip" hint text, centered below the card. Skip is not a button competing with Done.
+5. **Post-completion state** — when all habits are logged, the screen shows "You showed up today." in muted text. No celebration, no confetti — just quiet acknowledgment.
+6. **Miss banner** — MissBanner atom appears between goal containers (or inside the goal container above the habits card) when yesterday had a miss on any habit in the goal.
+
+### What's NOT on this screen
+
+- No heatmap (lives on detail screen only)
+- No per-habit consistency or streak numbers (lives on detail screen)
+- No numeric streak counter separate from the identity copy
+- No "create another habit" CTA (that's settings)
+- No weekly review prompt (deferred)
+
+### Multi-goal stacking (future)
+
+When multi-goal ships, goal containers stack vertically with `xl` (24px) gap between them. Each goal group is self-contained — its own identity anchor, donut, streak, and habits card. The scroll is natural. The user sees distinct identity projects, not a flat list of mixed habits.
+
+---
+
 ## Revision log
 
 - **1 May 2026 (rev 1)** — Initial draft. AI hints decision locked; multi-habit Today, Weekly Review beta scope, Backlog UI, RetroLog affordance, ReadOnlyBanner styling, and logo asset marked OPEN.
 - **1 May 2026 (rev 2)** — Pre-S9 review fixes: added `primaryGradientEnd: #5a8a6e` token (PrimaryButton gradient end-stop, previously inline in canvas); clarified shadow implementation (RN 0.78+ native `boxShadow`, not `react-native-shadow-2`); corrected `primaryLight` description to reflect reserved-not-consumed state; locked the app name as **Habitapp** (single coined word, capital H only).
+- **3 May 2026 (rev 3)** — Goal-based architecture locked: dissolved Focus/Supporting distinction, habits grouped by identity/goal, all habits visually equal peers, soft 3-per-goal cap. Today screen redesign locked: identity-anchored goal container with donut consistency chart, habits as equal rows, skip via long-press, quiet post-completion state. Weekly Review beta scope locked (option a: defer). Multi-habit Today OPEN resolved.

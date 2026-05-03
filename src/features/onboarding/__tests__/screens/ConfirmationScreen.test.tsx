@@ -58,11 +58,11 @@ describe("ConfirmationScreen", () => {
 
     render(<ConfirmationScreen />);
 
-    expect(screen.getByText("a runner")).toBeTruthy();
+    expect(screen.getByText("Becoming a runner")).toBeTruthy();
     expect(
-      screen.getByText("After I morning coffee, I will Run for 2 minutes"),
+      screen.getByText("After morning coffee, I will Run for 2 minutes."),
     ).toBeTruthy();
-    expect(screen.getByText("Today")).toBeTruthy();
+    expect(screen.getByText("Running habit")).toBeTruthy();
   });
 
   it("tapping the CTA calls the mutation's mutate function", () => {

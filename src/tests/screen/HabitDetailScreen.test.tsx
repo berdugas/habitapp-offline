@@ -175,11 +175,9 @@ describe("HabitDetailScreen", () => {
     expect(
       screen.getByText("This removes the habit from Today, but keeps its history."),
     ).toBeTruthy();
-    expect(screen.getByText("WEEKLY REVIEW")).toBeTruthy();
-    expect(
-      screen.getByText("Reflect on what worked and what to adjust for this habit."),
-    ).toBeTruthy();
-    expect(screen.getByText("Start weekly review")).toBeTruthy();
+    expect(screen.queryByText("WEEKLY REVIEW")).toBeNull();
+    expect(screen.queryByText("Start weekly review")).toBeNull();
+    expect(screen.queryByText("Update weekly review")).toBeNull();
     expect(screen.queryByText("SUGGESTED ADJUSTMENT")).toBeNull();
     expect(screen.queryByText("Delete habit")).toBeNull();
     expect(screen.queryByText("Pause habit")).toBeNull();
@@ -189,7 +187,7 @@ describe("HabitDetailScreen", () => {
     expect(mockPush).toHaveBeenCalledWith("/(app)/habits/habit-1/edit");
   });
 
-  it("shows the latest weekly review and routes to the review screen", () => {
+  it("uses the latest weekly review only for read-only suggestions", () => {
     mockUseHabitDetail.mockReturnValue({
       error: null,
       formula: "After breakfast, I will Read 1 page.",
@@ -215,12 +213,6 @@ describe("HabitDetailScreen", () => {
 
     render(<HabitDetailScreen />);
 
-    expect(screen.getByText("LATEST WEEKLY REVIEW")).toBeTruthy();
-    expect(screen.getByText("Breakfast cue worked")).toBeTruthy();
-    expect(screen.getByText("Rushed mornings")).toBeTruthy();
-    expect(screen.getByText("Move the book to the table")).toBeTruthy();
-    expect(screen.getByText("Yes")).toBeTruthy();
-    expect(screen.getByText("No")).toBeTruthy();
     expect(screen.getByText("SUGGESTED ADJUSTMENT")).toBeTruthy();
     expect(screen.getByText("Reduce the friction")).toBeTruthy();
     expect(screen.getByText("Why this suggestion")).toBeTruthy();
@@ -230,10 +222,8 @@ describe("HabitDetailScreen", () => {
       ),
     ).toBeTruthy();
     expect(screen.getByText("Review suggestion")).toBeTruthy();
-
-    fireEvent.press(screen.getByText("Update weekly review"));
-
-    expect(mockPush).toHaveBeenCalledWith("/(app)/reviews/habit-1");
+    expect(screen.queryByText("LATEST WEEKLY REVIEW")).toBeNull();
+    expect(screen.queryByText("Update weekly review")).toBeNull();
   });
 
   it("shows the tiny-action suggestion when the latest review says it was too hard", () => {

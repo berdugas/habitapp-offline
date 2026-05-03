@@ -30,7 +30,14 @@
       "Bash(node -e \"const p = require\\('d:/habits_offline/package.json'\\); const deps = {...p.dependencies,...p.devDependencies}; ['lucide-react-native','react-native-reanimated','react-native-svg','expo-linear-gradient'].forEach\\(k => console.log\\(k+':', deps[k]||'NOT FOUND'\\)\\)\")",
       "Bash(node -e \"const p = require\\('d:/habits_offline/package.json'\\); console.log\\('react-native:', p.dependencies['react-native']\\); console.log\\('expo:', p.dependencies['expo']\\)\")",
       "Bash(node -e \"const p = require\\('d:/habits_offline/package.json'\\); console.log\\('safe-area-context:', p.dependencies['react-native-safe-area-context']\\)\")",
-      "Bash(node -e \"const p = require\\('d:/habits_offline/package.json'\\); console.log\\(JSON.stringify\\(p.jest, null, 2\\)\\)\")"
+      "Bash(node -e \"const p = require\\('d:/habits_offline/package.json'\\); console.log\\(JSON.stringify\\(p.jest, null, 2\\)\\)\")",
+      "Bash(Get-ChildItem -Path d:\\\\habits_offline -Directory)",
+      "Bash(Select-Object -First 20)",
+      "Bash(xargs grep *)",
+      "Bash(grep -E \"● .+$\")",
+      "Bash(grep -v \"^$\\\\|DB \")",
+      "Bash(grep -v \"^\\\\s*at\\\\s\\\\|node_modules\\\\|^\\\\s*$\\\\|console.info\\\\|DB \")",
+      "Bash(timeout 90 node -e ' *)"
     ],
     "additionalDirectories": [
       "C:\\Users\\daddy\\appium-test"

@@ -41,7 +41,7 @@ describe("SignInScreen", () => {
 
     fireEvent.changeText(screen.getByPlaceholderText("you@example.com"), "user@example.com");
     fireEvent.changeText(screen.getByPlaceholderText("Your password"), "password-123");
-    fireEvent.press(screen.getByText("Sign In"));
+    fireEvent.press(screen.getByText("Sign in"));
 
     await waitFor(() => {
       expect(mockSignInWithPassword).toHaveBeenCalledWith(
@@ -58,7 +58,7 @@ describe("SignInScreen", () => {
   it("blocks blank input before calling Supabase", () => {
     render(<SignInScreen />);
 
-    fireEvent.press(screen.getByText("Sign In"));
+    fireEvent.press(screen.getByText("Sign in"));
 
     expect(screen.getByText("Email is required.")).toBeTruthy();
     expect(mockSignInWithPassword).not.toHaveBeenCalled();
@@ -75,7 +75,7 @@ describe("SignInScreen", () => {
 
     fireEvent.changeText(screen.getByPlaceholderText("you@example.com"), "user@example.com");
     fireEvent.changeText(screen.getByPlaceholderText("Your password"), "password-123");
-    fireEvent.press(screen.getByText("Sign In"));
+    fireEvent.press(screen.getByText("Sign in"));
 
     await waitFor(() => {
       expect(

@@ -1,7 +1,7 @@
 # Habits App — Project Brain
 
 > Single source of truth for anyone picking up this project.
-> Last updated: May 2, 2026 (post-S9c — Today screen redesign + icon set locked; NEXT: remaining screen designs, then S10 beta build)
+> Last updated: May 3, 2026 (post-S9c — Goal-based architecture locked; Focus/Supporting dissolved; Today screen redesign locked; S10 tickets written)
 
 ---
 
@@ -200,9 +200,12 @@ No real user data exists yet to preserve. Clean slate.
 
 **`local_habits`**
 - `id` (TEXT PK), `user_id`, `title`, `identity_phrase`, `cue`, `tiny_action`, `minimum_viable_action`, `preferred_time_window`
-- `habit_state`: focus | supporting | automatic
+- `habit_state`: active | automatic
 - `status`: active | archived | backlog
+- `icon`: Lucide icon component name (e.g., "BookOpen")
 - `start_date`, `created_at`, `updated_at`, `archived_at`, `automated_at`, `backlog_at`
+
+**Note (May 3 2026):** `habit_state` values `focus` and `supporting` were dissolved. Migration 004 converts all existing rows to `active`. All habits under a goal (identity phrase) are now equal peers. See design-direction.md §Goal-based architecture.
 
 **`local_habit_logs`**
 - `id`, `habit_id` (FK), `user_id`, `log_date` (YYYY-MM-DD), `status` (done/skipped/missed), `note`, `created_at`, `updated_at`
@@ -248,7 +251,7 @@ Rules:
 - Single Missed day with Done on both sides → streak survives
 - Two consecutive Missed days (after skipped removal) → streak resets to 0
 
-Display: identity-flavored copy on Focus habit (e.g., *"You've been a runner for 12 days"*). Not shown on Supporting habits.
+Display: generic randomized streak copy per goal (e.g., "12 days and counting" / "Showing up for 12 days" / "12 days strong" / "Day N — keep going" / "N days of building"). See design-direction.md §Today screen redesign for full variant set.
 
 ### 7.2 Consistency calculation (formula unchanged, now local)
 
@@ -258,17 +261,17 @@ Display: identity-flavored copy on Focus habit (e.g., *"You've been a runner for
 
 **Local enforcement.** Logs and edits within 48 hours of `log_date` are accepted. Beyond 48 hours, the day is immutable. This is a product rule, not a security rule.
 
-### 7.4 3-active cap (Core v1 — hard cap)
+### 7.4 Soft 3-per-goal cap (Core v1 — revised May 3 2026)
 
-The product enforces at most 3 habits with `status = active` and `habit_state in (focus, supporting)`:
-- 1 Focus
-- Up to 2 Supporting
+Habits belong to a goal (the becoming/identity phrase). All habits under a goal are equal peers — no Focus/Supporting distinction. The system enforces a **soft cap of 3 active habits per goal**:
+- On 4th habit attempt under the same identity_phrase, the user sees a gentle warning ("Research suggests more than 3 active habits under one goal can be difficult to sustain. Are you sure?")
+- The user can proceed — it’s guidance, not a block
 
-A 4th active habit prompts: replace existing or save to Backlog. Soft-friction paid override **deferred** until monetization.
+The previous hard cap (1 Focus + 2 Supporting) is dissolved. See design-direction.md §Goal-based architecture.
 
 ### 7.5 Worst-day gate
 
-Hard block during onboarding (first Focus) and for all Supporting habits. Guidance only for post-onboarding Focus habits. See requirements Section 3.5.
+Hard block during onboarding (first habit). For habits added post-onboarding, the worst-day gate is guidance only — the user can proceed even if they answer "no." See requirements Section 3.5.
 
 ### 7.6 Graduation eligibility (NEW)
 
@@ -342,7 +345,7 @@ Source-of-truth docs live directly in `docs/`. Sprint planning and per-sprint de
 | Design Direction | .md | `docs/design-direction.md` | **Current — the how it looks (visual language for Core v1, paired with `design/habitapp/habit-screens.jsx`)** |
 | Icon Set | .md | `docs/icon-set.md` | **Current — curated Lucide icon set (60 icons, 8 categories, rendering rules)** |
 | Project Brain | .md | `docs/PROJECT_BRAIN.md` | **Current — this document** |
-| Sprint Plan | .md | `docs/sprint_tickets/sprint-plan.md` | **Current — the when (23-sprint roadmap, 4 phases; S9 visual design sprint inserted post-S7)** |
+| Sprint Plan | .md | `docs/sprint_tickets/sprint-plan.md` | **Current — the when (23-sprint roadmap, 5 phases; Phase C resequenced May 3 for revised pre-beta path; S10–S14 → ship to testers)** |
 | Sprint Tickets | .md | `docs/sprint_tickets/sprint-N-tickets.md` | **Current — per-sprint dev ticket packages (S1–S8 closed; S9+ to come)** |
 | Sprint Follow-ups | .md | `docs/sprint_tickets/sprint-N-followups.md` | **Current — per-sprint deferred items / cleanup notes** |
 | PRD Monetization | .docx | `docs/habits-app-prd-monetization.docx` | Reference for post-Core-v1 monetization |
@@ -436,9 +439,25 @@ Product-lead review of Today screen. Current screen rejected — flat, empty, no
 **Architecture implication flagged:**
 - Current data model has no "goal" entity — habits are standalone with `habit_state`. Today screen groups habits under the Focus habit's `identityPhrase` visually. No schema change needed for Core v1 beta (1 goal only). Post-v1: consider a `goals` table if multi-goal support ships.
 
-### Up next: S10 — Beta build
+### Up next: S10 — Today screen redesign + goal architecture + beta build prep
 
-S10 is gated on the OPEN-list resolutions from S9, especially OPEN #1 (multi-habit Today layout — the load-bearing surface for beta). Once those resolve, S10 (beta build) can begin. See `docs/sprint_tickets/sprint-9-followups.md` for the full deferred item list (F1–F10).
+S10 ticket package written at `docs/sprint_tickets/sprint-10-tickets.md`. 7 tickets:
+- S10-01: Dissolve Focus/Supporting in type system (migration 004, contract, validators, 10 test files)
+- S10-02: Recovery hooks — remove Focus-only filter, check all active habits
+- S10-03: Today screen rebuild — GoalContainer + ConsistencyDonut + identity anchor
+- S10-04: HabitRow component — tap circle=Done, long-press=Skip, tap row=detail
+- S10-05: Post-completion state ("You showed up today.") + MissBanner wiring
+- S10-06: Gate Weekly Review screen + fix integration test failures
+- S10-07: Internal QA + beta build prep
+
+Dev implementation plan reviewed. Key feedback:
+- S10-02 recovery hooks have a hooks-in-loop problem — recommend bulk query approach (`listLogsForHabitsInRange`) instead of per-habit hook calls
+- S10-03 must include randomized streak copy variants (5 variants, see design-direction.md)
+- `useTodayHabits` cleanup (remove `latestReviewQueries` dead code) should happen in S10-03, not S10-06
+- `TodayHabitCardData` type needs `icon` added, `isWeeklyReviewDue` and `latestReviewWeekStart` removed
+- Empty state copy needs updating (“Focus habit” reference removed)
+- `extractIdentityNoun` and `IdentityStreakDisplay` removed from TodayScreen (replaced by generic streak copy)
+- Icon picker for Create/Edit Habit moved to S12 (habit creation sprint)
 
 ### Transitional state to be aware of
 
@@ -510,8 +529,11 @@ Per tech handoff Section 9. Status as of S8 close.
 - `src/features/habits/components/RetroLogSelector.tsx` — modal-based retro-log selector with editable/read-only modes; `readOnlyReason` prop added in S8 to distinguish window-locked vs app-locked copy (S6 + S8)
 - `src/components/ReadOnlyBanner.tsx` — calm non-dismissible banner with PrimaryButton reconnect CTA, surfaced when offline-grace exhausted (S8)
 
-### To build
+### To build (S10+)
 
+- `src/features/today/components/GoalContainer.tsx` — Tonal surface wrapping identity anchor + donut + habits card (S10)
+- `src/features/today/components/ConsistencyDonut.tsx` — 48px SVG ring, sage gradient, avg consistency across goal (S10)
+- `src/features/today/components/HabitRow.tsx` — Tap circle=Done, long-press=Skip, tap row=detail (S10)
 - `LibraryCard.tsx` — Automatic Library card (lights up when graduation ships)
 - `SrhiQuestion.tsx` — single SRHI question with Likert input
 - `BacklogList.tsx` — backlog management list

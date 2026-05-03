@@ -10,6 +10,11 @@ import Database from "better-sqlite3";
 import type { SQLiteDatabase } from "expo-sqlite";
 
 function createAdapter(db: Database.Database): SQLiteDatabase {
+  function enforceConstraints() {
+    db.pragma("foreign_keys = ON");
+    db.pragma("ignore_check_constraints = 0");
+  }
+
   return {
     async execAsync(sql: string): Promise<void> {
       db.exec(sql);
@@ -19,6 +24,7 @@ function createAdapter(db: Database.Database): SQLiteDatabase {
       sql: string,
       ...params: unknown[]
     ): Promise<{ lastInsertRowId: number; changes: number }> {
+      enforceConstraints();
       const stmt = db.prepare(sql);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const result = stmt.run(...(params as any[]));

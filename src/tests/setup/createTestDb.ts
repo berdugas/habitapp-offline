@@ -14,5 +14,9 @@ export async function createTestDb(): Promise<SQLiteDatabase> {
   const db = await openDatabaseAsync(":memory:");
   await db.execAsync("PRAGMA foreign_keys = ON;");
   await runMigrations(db);
+  await db.execAsync(`
+    PRAGMA foreign_keys = ON;
+    PRAGMA ignore_check_constraints = 0;
+  `);
   return db;
 }

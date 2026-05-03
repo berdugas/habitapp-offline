@@ -23,6 +23,10 @@ jest.mock("expo-router", () => ({
       Screen: () => null,
     },
   ),
+  Slot: () => {
+    const { Text } = require("react-native");
+    return <Text>stack</Text>;
+  },
 }));
 
 jest.mock("@/features/auth/hooks", () => ({

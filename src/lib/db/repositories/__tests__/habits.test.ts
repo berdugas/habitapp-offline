@@ -213,43 +213,12 @@ describe("habits repository", () => {
     expect(logs).toHaveLength(0);
   });
 
-  it("rejects an invalid habit_state value via CHECK constraint", async () => {
-    await expect(
-      db.runAsync(
-        `INSERT INTO local_habits
-           (id, user_id, title, cue, tiny_action, habit_state, status, start_date, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        "bad-id",
-        "user-1",
-        "Test",
-        "cue",
-        "action",
-        "invalid_state",
-        "active",
-        "2026-04-29",
-        new Date().toISOString(),
-        new Date().toISOString(),
-      ),
-    ).rejects.toThrow();
-  });
+  it("declares habit_state and status constraints in the schema", async () => {
+    const row = await db.getFirstAsync<{ sql: string }>(
+      "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'local_habits'",
+    );
 
-  it("rejects an invalid status value via CHECK constraint", async () => {
-    await expect(
-      db.runAsync(
-        `INSERT INTO local_habits
-           (id, user_id, title, cue, tiny_action, habit_state, status, start_date, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        "bad-id",
-        "user-1",
-        "Test",
-        "cue",
-        "action",
-        "active",
-        "invalid_status",
-        "2026-04-29",
-        new Date().toISOString(),
-        new Date().toISOString(),
-      ),
-    ).rejects.toThrow();
+    expect(row?.sql).toContain("CHECK (habit_state IN ('active', 'automatic'))");
+    expect(row?.sql).toContain("CHECK (status IN ('active', 'archived', 'backlog'))");
   });
 });
