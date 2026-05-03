@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import React, { useRef } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { router } from "expo-router";
 import { useQueryClient } from "@tanstack/react-query";
@@ -10,6 +10,7 @@ import { PrimaryButton } from "@/components/buttons/PrimaryButton";
 import { ZenCard } from "@/components/cards/ZenCard";
 import { ErrorState } from "@/components/feedback/ErrorState";
 import { LoadingState } from "@/components/feedback/LoadingState";
+import { MissBanner } from "@/components/feedback/MissBanner";
 import { GoalContainer } from "@/features/today/components/GoalContainer";
 import { HabitRow } from "@/features/today/components/HabitRow";
 import {
@@ -224,30 +225,48 @@ export default function TodayScreen() {
       {upsertTodayHabitStatusMutation.error ? (
         <ErrorState message={getSaveTodayStatusErrorMessage()} />
       ) : null}
-      {goalGroups.map((group) => (
-        <GoalContainer
-          key={group.identityPhrase}
-          consistencyRate={avgConsistencyRate(group.habits)}
-          identityPhrase={group.identityPhrase}
-          streak={oldestStreak(group.habits)}
-        >
-          {group.habits.map((habit) => (
-            <HabitRow
-              key={habit.id}
-              disabled={upsertTodayHabitStatusMutation.isPending || isReadOnly}
-              habit={habit}
-              onDone={(id) => void handleStatusPress(id, "done")}
-              onNavigate={(id) =>
-                router.push({
-                  pathname: "/(app)/habits/[habitId]",
-                  params: { habitId: id },
-                })
+      {goalGroups.map((group) => {
+        const allLogged = group.habits.length > 0 &&
+          group.habits.every((h) => h.todayStatus !== null);
+        const groupHasBanner =
+          showBanner && group.habits.some((h) => h.id === missingHabitId);
+
+        return (
+          <React.Fragment key={group.identityPhrase}>
+            <GoalContainer
+              banner={
+                groupHasBanner ? (
+                  <MissBanner
+                    onDismiss={() => void handleBannerDismiss()}
+                  />
+                ) : null
               }
-              onSkip={(id) => void handleStatusPress(id, "skipped")}
-            />
-          ))}
-        </GoalContainer>
-      ))}
+              consistencyRate={avgConsistencyRate(group.habits)}
+              identityPhrase={group.identityPhrase}
+              streak={oldestStreak(group.habits)}
+            >
+              {group.habits.map((habit) => (
+                <HabitRow
+                  key={habit.id}
+                  disabled={upsertTodayHabitStatusMutation.isPending || isReadOnly}
+                  habit={habit}
+                  onDone={(id) => void handleStatusPress(id, "done")}
+                  onNavigate={(id) =>
+                    router.push({
+                      pathname: "/(app)/habits/[habitId]",
+                      params: { habitId: id },
+                    })
+                  }
+                  onSkip={(id) => void handleStatusPress(id, "skipped")}
+                />
+              ))}
+            </GoalContainer>
+            {allLogged ? (
+              <Text style={styles.completionText}>You showed up today.</Text>
+            ) : null}
+          </React.Fragment>
+        );
+      })}
       <RecoveryModal
         habitTitle={triggeringHabit?.title ?? habits[0]?.name ?? ""}
         onClose={() => void handleRecoveryClose()}
@@ -261,6 +280,12 @@ export default function TodayScreen() {
 }
 
 const styles = StyleSheet.create({
+  completionText: {
+    color: colors.textMuted,
+    fontFamily: fontFamilies.body,
+    fontSize: typography.bodyMd,
+    textAlign: "center",
+  },
   content: {
     gap: spacing.xl,
     padding: spacing.xl,

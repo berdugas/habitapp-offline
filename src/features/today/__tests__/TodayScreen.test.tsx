@@ -278,6 +278,66 @@ describe("TodayScreen", () => {
     expect(screen.queryByText(/Yesterday was a miss/)).toBeNull();
   });
 
+  it("renders MissBanner when useSingleMissBanner returns showBanner=true", () => {
+    useTodayHabits.mockReturnValue({
+      error: null,
+      habits: [makeHabit()],
+      isLoading: false,
+      upcomingHabits: [],
+    });
+    useSingleMissBanner.mockReturnValue({
+      showBanner: true,
+      missDate: "2026-04-29",
+      missingHabitId: "habit-1",
+    });
+    renderWithClient(<TodayScreen />);
+    expect(screen.getByText(/Yesterday was a miss/)).toBeTruthy();
+  });
+
+  it("tapping × on MissBanner calls setPreference with the banner-dismissed key", async () => {
+    useTodayHabits.mockReturnValue({
+      error: null,
+      habits: [makeHabit()],
+      isLoading: false,
+      upcomingHabits: [],
+    });
+    useSingleMissBanner.mockReturnValue({
+      showBanner: true,
+      missDate: "2026-04-29",
+      missingHabitId: "habit-1",
+    });
+    renderWithClient(<TodayScreen />);
+    fireEvent.press(screen.getByLabelText("Dismiss"));
+    await waitFor(() => {
+      expect(setPreference).toHaveBeenCalledWith(
+        "single-miss-banner-dismissed-habit-1-2026-04-29",
+        "true",
+      );
+    });
+  });
+
+  it("shows 'You showed up today.' when all habits are logged", () => {
+    useTodayHabits.mockReturnValue({
+      error: null,
+      habits: [makeHabit({ todayStatus: "done" })],
+      isLoading: false,
+      upcomingHabits: [],
+    });
+    renderWithClient(<TodayScreen />);
+    expect(screen.getByText("You showed up today.")).toBeTruthy();
+  });
+
+  it("does not show 'You showed up today.' when some habits are unlogged", () => {
+    useTodayHabits.mockReturnValue({
+      error: null,
+      habits: [makeHabit({ todayStatus: "done" }), makeHabit({ id: "habit-2", todayStatus: null })],
+      isLoading: false,
+      upcomingHabits: [],
+    });
+    renderWithClient(<TodayScreen />);
+    expect(screen.queryByText("You showed up today.")).toBeNull();
+  });
+
   it("renders the recovery modal when shouldShowModal is true", () => {
     useTodayHabits.mockReturnValue({
       error: null,
