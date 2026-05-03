@@ -45,11 +45,9 @@ jest.mock("@/lib/db/repositories/preferences", () => ({
 }));
 
 const {
-  useHabitLogsForRange,
   useTodayHabits,
   useUpsertTodayHabitStatusMutation,
 } = jest.requireMock("@/features/today/hooks") as {
-  useHabitLogsForRange: jest.Mock;
   useTodayHabits: jest.Mock;
   useUpsertTodayHabitStatusMutation: jest.Mock;
 };
@@ -80,11 +78,9 @@ function makeHabit(overrides: Record<string, unknown> = {}) {
     consistencyRate: 0.9,
     cue: "morning coffee",
     formula: "After morning coffee, run for 2 minutes",
-    habitState: "active",
+    icon: null,
     id: "habit-1",
     identityPhrase: "a runner",
-    isWeeklyReviewDue: false,
-    latestReviewWeekStart: null,
     name: "Run",
     skipCount: 0,
     startDate: "2026-04-01",
@@ -104,7 +100,6 @@ describe("TodayScreen", () => {
       isPending: false,
       mutateAsync: jest.fn().mockResolvedValue(undefined),
     });
-    useHabitLogsForRange.mockReturnValue({ data: [] });
     useArchiveHabitMutation.mockReturnValue({
       error: null,
       isPending: false,
@@ -123,7 +118,7 @@ describe("TodayScreen", () => {
     resetClockForTesting();
   });
 
-  it("renders the no-habits empty state with CTA when no Focus habit exists", () => {
+  it("renders the no-habits empty state with CTA when no habits exist", () => {
     useTodayHabits.mockReturnValue({
       error: null,
       habits: [],
@@ -135,7 +130,7 @@ describe("TodayScreen", () => {
     expect(screen.getByText("Create your first habit")).toBeTruthy();
   });
 
-  it("renders the Focus card with becoming header and identity streak", () => {
+  it("renders GoalContainer with identity phrase, streak copy, and habit name", () => {
     useTodayHabits.mockReturnValue({
       error: null,
       habits: [makeHabit()],
@@ -144,34 +139,33 @@ describe("TodayScreen", () => {
     });
     renderWithClient(<TodayScreen />);
     expect(screen.getByText("Become a runner")).toBeTruthy();
-    expect(screen.getByText("After morning coffee, run for 2 minutes")).toBeTruthy();
-    expect(screen.getByText("You've been a runner for 12 days.")).toBeTruthy();
+    // streak=12 → 12 % 5 = 2 → "12-day streak. One day at a time."
+    expect(screen.getByText("12-day streak. One day at a time.")).toBeTruthy();
+    expect(screen.getByText("Run")).toBeTruthy();
     expect(screen.getByText("Done")).toBeTruthy();
     expect(screen.getByText("Skip")).toBeTruthy();
   });
 
-  it("renders the first-day copy when start_date is today, todayStatus is null, and streak is 0", () => {
+  it("renders 'Today is a fresh start.' when streak is 0", () => {
     useTodayHabits.mockReturnValue({
       error: null,
-      habits: [makeHabit({ startDate: "2026-04-30", streak: 0, todayStatus: null })],
+      habits: [makeHabit({ streak: 0 })],
       isLoading: false,
       upcomingHabits: [],
     });
     renderWithClient(<TodayScreen />);
-    expect(screen.getByText("Your first day. Start small.")).toBeTruthy();
-    expect(screen.queryByText("Day one. Start showing up.")).toBeNull();
+    expect(screen.getByText("Today is a fresh start.")).toBeTruthy();
   });
 
-  it("renders standard streak copy after first log on Day 1", () => {
+  it("renders 'Day one done. Come back tomorrow.' when streak is 1", () => {
     useTodayHabits.mockReturnValue({
       error: null,
-      habits: [makeHabit({ startDate: "2026-04-30", streak: 1, todayStatus: "done" })],
+      habits: [makeHabit({ streak: 1, todayStatus: "done" })],
       isLoading: false,
       upcomingHabits: [],
     });
     renderWithClient(<TodayScreen />);
-    expect(screen.queryByText("Your first day. Start small.")).toBeNull();
-    expect(screen.getByText("You've been a runner for 1 day.")).toBeTruthy();
+    expect(screen.getByText("Day one done. Come back tomorrow.")).toBeTruthy();
   });
 
   it("calls the mutation with status='done' when Done is tapped", () => {
@@ -248,25 +242,7 @@ describe("TodayScreen", () => {
     expect(screen.getByText(getSaveTodayStatusErrorMessage())).toBeTruthy();
   });
 
-  it("renders the single-miss banner when useSingleMissBanner returns showBanner=true", () => {
-    useTodayHabits.mockReturnValue({
-      error: null,
-      habits: [makeHabit()],
-      isLoading: false,
-      upcomingHabits: [],
-    });
-    useSingleMissBanner.mockReturnValue({
-      showBanner: true,
-      missDate: "2026-04-29",
-      missingHabitId: "habit-1",
-    });
-    renderWithClient(<TodayScreen />);
-    expect(
-      screen.getByText(/Yesterday was a miss/),
-    ).toBeTruthy();
-  });
-
-  it("does not render the single-miss banner when showBanner is false", () => {
+  it("does not render a miss banner when showBanner is false", () => {
     useTodayHabits.mockReturnValue({
       error: null,
       habits: [makeHabit()],
@@ -307,8 +283,6 @@ describe("TodayScreen", () => {
     renderWithClient(<TodayScreen />);
     expect(screen.queryByText("Restart as-is")).toBeNull();
   });
-
-  // --- Recovery action-handler tests ---
 
   function renderModalOpen() {
     useTodayHabits.mockReturnValue({
@@ -395,28 +369,6 @@ describe("TodayScreen", () => {
     fireEvent.press(screen.getByText("Pause for now"));
     await waitFor(() => {
       expect(mutateAsync).toHaveBeenCalledTimes(1);
-    });
-  });
-
-  it("tapping × on the banner calls setPreference with the banner-dismissed key", async () => {
-    useTodayHabits.mockReturnValue({
-      error: null,
-      habits: [makeHabit()],
-      isLoading: false,
-      upcomingHabits: [],
-    });
-    useSingleMissBanner.mockReturnValue({
-      showBanner: true,
-      missDate: "2026-04-29",
-      missingHabitId: "habit-1",
-    });
-    renderWithClient(<TodayScreen />);
-    fireEvent.press(screen.getByText("×"));
-    await waitFor(() => {
-      expect(setPreference).toHaveBeenCalledWith(
-        "single-miss-banner-dismissed-habit-1-2026-04-29",
-        "true",
-      );
     });
   });
 });

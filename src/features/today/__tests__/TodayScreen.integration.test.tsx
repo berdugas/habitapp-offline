@@ -28,10 +28,6 @@ jest.mock("@/features/auth/hooks", () => ({
   useAuthSession: () => ({ user: { id: "user-1" } }),
 }));
 
-jest.mock("@/features/reviews/api", () => ({
-  getLatestWeeklyReview: jest.fn().mockResolvedValue(null),
-}));
-
 function renderWithClient(ui: React.ReactElement) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
@@ -39,7 +35,7 @@ function renderWithClient(ui: React.ReactElement) {
   return render(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
 }
 
-describe("TodayScreen integration — heatmap refresh round-trip", () => {
+describe("TodayScreen integration — log round-trip", () => {
   beforeEach(async () => {
     setNowForTesting(new Date("2026-04-30T10:00:00.000Z"));
     await initDb();
@@ -62,35 +58,35 @@ describe("TodayScreen integration — heatmap refresh round-trip", () => {
     resetClockForTesting();
   });
 
-  it("turns today's heatmap cell green when Done is tapped", async () => {
+  it("shows 'Done ✓' after tapping Done", async () => {
     renderWithClient(<TodayScreen />);
 
     await waitFor(() => {
-      expect(screen.getByLabelText("Today, not logged")).toBeTruthy();
+      expect(screen.getByText("Become a runner")).toBeTruthy();
     });
 
     fireEvent.press(screen.getByText("Done"));
 
     await waitFor(
       () => {
-        expect(screen.getByLabelText("Today, done")).toBeTruthy();
+        expect(screen.getByText("Done ✓")).toBeTruthy();
       },
       { timeout: 3000 },
     );
   });
 
-  it("turns today's heatmap cell soft tan when Skip is tapped", async () => {
+  it("shows 'Skipped ✓' after tapping Skip", async () => {
     renderWithClient(<TodayScreen />);
 
     await waitFor(() => {
-      expect(screen.getByLabelText("Today, not logged")).toBeTruthy();
+      expect(screen.getByText("Become a runner")).toBeTruthy();
     });
 
     fireEvent.press(screen.getByText("Skip"));
 
     await waitFor(
       () => {
-        expect(screen.getByLabelText("Today, skipped")).toBeTruthy();
+        expect(screen.getByText("Skipped ✓")).toBeTruthy();
       },
       { timeout: 3000 },
     );
