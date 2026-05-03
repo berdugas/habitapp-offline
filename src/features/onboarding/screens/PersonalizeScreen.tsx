@@ -137,6 +137,13 @@ export default function PersonalizeScreen() {
           {", "}I will{" "}
           <Text style={styles.formulaBold}>{draft.tinyAction}</Text>
         </Text>
+
+        {draft.becomingPhrase ? (
+          <View style={styles.goalBadge}>
+            <LucideIcon name="Target" size={13} color={colors.primary} strokeWidth={2} />
+            <Text style={styles.goalText}>Becoming {draft.becomingPhrase}</Text>
+          </View>
+        ) : null}
       </View>
 
       {phase === "personalize" && (
@@ -279,5 +286,20 @@ const styles = StyleSheet.create({
   },
   phase2Footer: {
     gap: spacing.md,
+  },
+  goalBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "flex-start",
+    gap: 6,
+    backgroundColor: colors.primarySoft,
+    borderRadius: radius.pill,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  goalText: {
+    fontFamily: fontFamilies.bodySemi,
+    fontSize: 13,
+    color: colors.primary,
   },
 });
