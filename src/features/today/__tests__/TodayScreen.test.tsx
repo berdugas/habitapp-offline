@@ -80,7 +80,7 @@ function makeHabit(overrides: Record<string, unknown> = {}) {
     consistencyRate: 0.9,
     cue: "morning coffee",
     formula: "After morning coffee, run for 2 minutes",
-    habitState: "focus",
+    habitState: "active",
     id: "habit-1",
     identityPhrase: "a runner",
     isWeeklyReviewDue: false,

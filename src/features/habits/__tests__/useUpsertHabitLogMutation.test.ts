@@ -30,7 +30,7 @@ async function seedActiveHabit(startDate: string) {
     minimum_viable_action: null,
     preferred_time_window: null,
     start_date: startDate,
-    habit_state: "focus",
+    habit_state: "active",
     status: "active",
   });
 }

@@ -55,14 +55,25 @@ async function applyMigration(
   migration: Migration,
 ): Promise<void> {
   try {
-    await db.withTransactionAsync(async () => {
+    if (migration.raw) {
+      // Raw migrations run outside a transaction so DDL like PRAGMA foreign_keys = OFF
+      // can take effect. The schema_migrations bookkeeping row is inserted separately.
       await db.execAsync(migration.up);
       await db.runAsync(
         "INSERT INTO schema_migrations (id, name) VALUES (?, ?)",
         migration.id,
         migration.name,
       );
-    });
+    } else {
+      await db.withTransactionAsync(async () => {
+        await db.execAsync(migration.up);
+        await db.runAsync(
+          "INSERT INTO schema_migrations (id, name) VALUES (?, ?)",
+          migration.id,
+          migration.name,
+        );
+      });
+    }
     logger.info("DB migration applied", {
       id: migration.id,
       name: migration.name,

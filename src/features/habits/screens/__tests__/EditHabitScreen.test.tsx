@@ -55,7 +55,7 @@ const baseHabit = {
   tiny_action: "run for 2 minutes",
   minimum_viable_action: null,
   preferred_time_window: null,
-  habit_state: "focus",
+  habit_state: "active",
   status: "active",
   start_date: "2026-04-01",
   created_at: "2026-04-01T00:00:00.000Z",

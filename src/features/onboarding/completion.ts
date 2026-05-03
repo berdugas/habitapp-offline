@@ -31,11 +31,11 @@ export async function finalizeOnboarding(
   draft: OnboardingDraft,
 ): Promise<Habit> {
   // (D6) Cap check before transaction — reads only, fine outside the atomic block.
-  const capCheck = await assertCanCreateActiveHabit(userId, "focus");
+  const capCheck = await assertCanCreateActiveHabit(userId, draft.becomingPhrase.trim());
   if (!capCheck.ok) {
     throw new OnboardingFinalizationError(
       "cap_failed",
-      `Cannot create Focus habit: ${capCheck.reason}`,
+      `Cannot create habit: ${capCheck.reason}`,
     );
   }
 
@@ -58,7 +58,7 @@ export async function finalizeOnboarding(
         minimum_viable_action: null,
         preferred_time_window: null,
         icon: draft.habitIcon ?? null,
-        habit_state: "focus",
+        habit_state: "active",
         status: "active",
         start_date: today,
       });

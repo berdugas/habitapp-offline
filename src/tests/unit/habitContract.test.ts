@@ -1,7 +1,5 @@
 import {
-  ACTIVE_FOCUS_LIMIT,
-  ACTIVE_HABIT_CAP,
-  ACTIVE_SUPPORTING_LIMIT,
+  ACTIVE_HABITS_PER_GOAL_SOFT_CAP,
   FORGIVING_STREAK_RULES,
   HABIT_LOG_STATUSES,
   HABIT_STATES,
@@ -46,7 +44,7 @@ describe("local-DB contract constants", () => {
   });
 
   it("HABIT_STATES matches expected values", () => {
-    expect(HABIT_STATES).toEqual(["focus", "supporting", "automatic"]);
+    expect(HABIT_STATES).toEqual(["active", "automatic"]);
   });
 
   it("HABIT_STATUSES matches expected values", () => {
@@ -54,9 +52,7 @@ describe("local-DB contract constants", () => {
   });
 
   it("cap and streak constants have the correct values", () => {
-    expect(ACTIVE_HABIT_CAP).toBe(3);
-    expect(ACTIVE_FOCUS_LIMIT).toBe(1);
-    expect(ACTIVE_SUPPORTING_LIMIT).toBe(2);
+    expect(ACTIVE_HABITS_PER_GOAL_SOFT_CAP).toBe(3);
     expect(RETRO_LOG_WINDOW_HOURS).toBe(48);
   });
 
