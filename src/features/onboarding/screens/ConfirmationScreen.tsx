@@ -23,15 +23,6 @@ function getFinalizeErrorMessage(error: unknown): string {
   return "Something went wrong. Please try again.";
 }
 
-function SummaryField({ label, value }: { label: string; value: string }) {
-  return (
-    <View style={styles.summaryField}>
-      <Text style={styles.summaryLabel}>{label}</Text>
-      <Text style={styles.summaryValue}>{value}</Text>
-    </View>
-  );
-}
-
 export default function ConfirmationScreen() {
   const { draft } = useOnboarding();
   const finalizeMutation = useFinalizeOnboardingMutation(draft);
@@ -89,12 +80,20 @@ export default function ConfirmationScreen() {
 
           <View style={styles.summaryDivider} />
 
-          <SummaryField label="BECOMING" value={draft.becomingPhrase} />
-          <SummaryField
-            label="YOUR FORMULA"
-            value={`After I ${draft.cueExisting}, I will ${draft.tinyAction}`}
-          />
-          <SummaryField label="STARTS" value="Today" />
+          {/* Formula */}
+          <Text style={styles.formulaText}>
+            {"After "}
+            <Text style={styles.formulaEmphasis}>{draft.cueExisting}</Text>
+            {", I will "}
+            <Text style={styles.formulaEmphasis}>{draft.tinyAction}</Text>
+            {"."}
+          </Text>
+
+          {/* Goal badge */}
+          <View style={styles.goalBadge}>
+            <LucideIcon name="Target" size={13} color={colors.primary} strokeWidth={2} />
+            <Text style={styles.goalText}>Becoming {draft.becomingPhrase}</Text>
+          </View>
         </View>
       </View>
     </OnboardingLayout>
@@ -165,21 +164,30 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceHigh,
     marginVertical: 2,
   },
-  summaryField: {
-    gap: 3,
-  },
-  summaryLabel: {
-    fontFamily: fontFamilies.bodyMedium,
-    fontSize: 11,
-    color: colors.primary,
-    letterSpacing: 0.66,
-    textTransform: "uppercase",
-  },
-  summaryValue: {
+  formulaText: {
     fontFamily: fontFamilies.body,
-    fontSize: 15,
-    lineHeight: 21.75,
+    fontSize: 17,
+    lineHeight: 26,
+    color: colors.textMuted,
+  },
+  formulaEmphasis: {
+    fontFamily: fontFamilies.displaySemi,
     color: colors.text,
+  },
+  goalBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "flex-start",
+    gap: 6,
+    backgroundColor: colors.primarySoft,
+    borderRadius: radius.pill,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  goalText: {
+    fontFamily: fontFamilies.bodySemi,
+    fontSize: 13,
+    color: colors.primary,
   },
   error: {
     fontFamily: fontFamilies.body,

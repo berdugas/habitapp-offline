@@ -48,7 +48,8 @@ export default function BecomingScreen() {
         currentStep={1}
         onBack={() => {
           update({ step: "welcome" });
-          router.back();
+          if (router.canGoBack()) router.back();
+          else router.replace("/(onboarding)/welcome");
         }}
       />
 

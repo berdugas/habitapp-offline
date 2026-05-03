@@ -1,11 +1,11 @@
 import { useRef, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { router } from "expo-router";
 
 import { PrimaryButton } from "@/components/buttons/PrimaryButton";
 import { TextField } from "@/components/forms/TextField";
 import { OnboardingLayout } from "@/components/layouts/OnboardingLayout";
-import { OnboardingHeader } from "@/components/navigation/OnboardingHeader";
+import { BackButton } from "@/components/navigation/BackButton";
 import { signUpWithPassword } from "@/features/auth/api";
 import { logger } from "@/services/logger";
 import { colors } from "@/theme/colors";
@@ -102,11 +102,9 @@ export default function SignUpScreen() {
         </Pressable>
       }
     >
-      <OnboardingHeader
-        currentStep={2}
-        totalSteps={3}
-        onBack={() => router.push("/(entry)/welcome")}
-      />
+      <View style={styles.backRow}>
+        <BackButton onPress={() => router.back()} />
+      </View>
 
       <Text style={styles.headline}>
         The person you want to be starts here.
@@ -146,6 +144,9 @@ export default function SignUpScreen() {
 }
 
 const styles = StyleSheet.create({
+  backRow: {
+    marginBottom: 44,
+  },
   headline: {
     fontFamily: fontFamilies.displayBold,
     fontSize: 30,

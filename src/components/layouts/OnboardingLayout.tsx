@@ -18,35 +18,44 @@ export function OnboardingLayout({
 }: OnboardingLayoutProps) {
   const insets = useSafeAreaInsets();
 
-  const inner = (
-    <View style={styles.root}>
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={[styles.body, { paddingTop: insets.top + spacing.lg }]}>
-          {children}
-        </View>
-      </ScrollView>
-      <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom + spacing.lg, spacing.xxxl) }]}>
-        {footer}
+  const scrollArea = (
+    <ScrollView
+      contentContainerStyle={styles.scrollContent}
+      keyboardShouldPersistTaps="handled"
+      showsVerticalScrollIndicator={false}
+    >
+      <View style={[styles.body, { paddingTop: insets.top + spacing.lg }]}>
+        {children}
       </View>
+    </ScrollView>
+  );
+
+  const footerArea = (
+    <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom + spacing.lg, spacing.xxxl) }]}>
+      {footer}
     </View>
   );
 
   if (keyboardAware) {
     return (
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.flex}
-      >
-        {inner}
-      </KeyboardAvoidingView>
+      <View style={styles.root}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.flex}
+        >
+          {scrollArea}
+        </KeyboardAvoidingView>
+        {footerArea}
+      </View>
     );
   }
 
-  return inner;
+  return (
+    <View style={styles.root}>
+      {scrollArea}
+      {footerArea}
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({

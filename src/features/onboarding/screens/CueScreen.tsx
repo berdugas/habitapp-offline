@@ -39,7 +39,8 @@ export default function CueScreen() {
         currentStep={4}
         onBack={() => {
           update({ step: "shrink" });
-          router.back();
+          if (router.canGoBack()) router.back();
+          else router.replace("/(onboarding)/shrink");
         }}
       />
 
@@ -49,7 +50,7 @@ export default function CueScreen() {
       <Text style={styles.headline}>What will trigger it?</Text>
 
       <View style={styles.formulaCard}>
-        <Text style={styles.fieldLabel}>After I</Text>
+        <Text style={styles.fieldLabel}>After</Text>
         <OnboardingInput
           label=""
           placeholder="something you already do..."

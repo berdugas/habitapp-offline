@@ -24,7 +24,6 @@ export default function WelcomeScreen() {
 
       <Text style={styles.headline}>Let's build your first habit.</Text>
       <Text style={styles.subhead}>We'll walk you through it — step by step.</Text>
-      <Text style={styles.micro}>Takes about a minute.</Text>
     </OnboardingLayout>
   );
 }
@@ -49,11 +48,5 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     letterSpacing: 0.32,
     marginBottom: 8,
-  },
-  micro: {
-    fontFamily: fontFamilies.body,
-    fontSize: 14,
-    lineHeight: 21,
-    color: colors.textFaint,
   },
 });

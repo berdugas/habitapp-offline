@@ -38,7 +38,8 @@ export default function ShrinkScreen() {
         currentStep={3}
         onBack={() => {
           update({ step: "daily-action" });
-          router.back();
+          if (router.canGoBack()) router.back();
+          else router.replace("/(onboarding)/daily-action");
         }}
       />
 

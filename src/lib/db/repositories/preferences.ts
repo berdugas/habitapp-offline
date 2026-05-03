@@ -38,6 +38,11 @@ export async function deletePreference(key: string): Promise<void> {
   );
 }
 
+export async function clearAllPreferences(): Promise<void> {
+  const db = getDb();
+  await db.runAsync("DELETE FROM local_user_preferences");
+}
+
 export async function listPreferences(): Promise<Preference[]> {
   const db = getDb();
   return db.getAllAsync<Preference>(

@@ -74,7 +74,8 @@ export default function PersonalizeScreen() {
           currentStep={5}
           onBack={() => {
             update({ step: "cue" });
-            router.back();
+            if (router.canGoBack()) router.back();
+            else router.replace("/(onboarding)/cue");
           }}
         />
       )}
@@ -131,7 +132,7 @@ export default function PersonalizeScreen() {
         )}
 
         <Text style={styles.formula}>
-          After I{" "}
+          After{" "}
           <Text style={styles.formulaBold}>{draft.cueExisting}</Text>
           {", "}I will{" "}
           <Text style={styles.formulaBold}>{draft.tinyAction}</Text>

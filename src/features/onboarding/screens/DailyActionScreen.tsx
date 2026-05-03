@@ -40,7 +40,8 @@ export default function DailyActionScreen() {
         currentStep={2}
         onBack={() => {
           update({ step: "becoming" });
-          router.back();
+          if (router.canGoBack()) router.back();
+          else router.replace("/(onboarding)/becoming");
         }}
       />
 
