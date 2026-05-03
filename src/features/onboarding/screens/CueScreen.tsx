@@ -1,156 +1,127 @@
-import { ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { router } from "expo-router";
+import { StyleSheet, Text, View } from "react-native";
 
 import { PrimaryButton } from "@/components/buttons/PrimaryButton";
-import { ZenCard } from "@/components/cards/ZenCard";
+import { GuidanceCard } from "@/components/cards/GuidanceCard";
+import { GuidanceExample } from "@/components/cards/GuidanceExample";
+import { OnboardingInput } from "@/components/forms/OnboardingInput";
+import { OnboardingLayout } from "@/components/layouts/OnboardingLayout";
+import { OnboardingHeader } from "@/components/navigation/OnboardingHeader";
 import { useOnboarding } from "@/features/onboarding/OnboardingProvider";
 import { colors } from "@/theme/colors";
 import { fontFamilies } from "@/theme/fontFamilies";
+import { radius } from "@/theme/radius";
 import { spacing } from "@/theme/spacing";
-import { typography } from "@/theme/typography";
-
-const COACHING_PARAGRAPH =
-  "A routine cue beats a clock cue. Tying your habit to something you already " +
-  "do every day means you don't have to remember — the previous action " +
-  "becomes the reminder. Pick something that happens reliably without effort.";
-
-const EXAMPLE_ROUTINES = [
-  "after morning coffee",
-  "after I brush my teeth",
-  "after my last meeting",
-  "before I make dinner",
-  "when I sit down at my desk",
-];
 
 export default function CueScreen() {
   const { draft, update } = useOnboarding();
 
-  const canContinue =
-    draft.cueExisting.trim().length > 0 && draft.tinyAction.trim().length > 0;
+  const canContinue = draft.cueExisting.trim().length >= 2;
 
   const handleContinue = () => {
-    update({ step: "worst-day" });
-    router.push("/(onboarding)/worst-day");
+    update({ step: "personalize" });
+    router.push("/(onboarding)/personalize");
   };
 
   return (
-    <ScrollView
-      contentContainerStyle={styles.content}
-      contentInsetAdjustmentBehavior="automatic"
-      keyboardShouldPersistTaps="handled"
-      style={styles.screen}
+    <OnboardingLayout
+      keyboardAware
+      footer={
+        <PrimaryButton
+          disabled={!canContinue}
+          label="Continue"
+          showArrow
+          onPress={handleContinue}
+        />
+      }
     >
-      <ZenCard padding="xxl">
-        <Text selectable style={styles.header}>
-          What will trigger it?
-        </Text>
-
-        <View style={styles.field}>
-          <Text selectable style={styles.label}>
-            After I
-          </Text>
-          <TextInput
-            autoCorrect
-            multiline
-            onChangeText={(text) => update({ cueExisting: text })}
-            placeholder="my morning coffee"
-            placeholderTextColor={colors.textFaint}
-            style={styles.input}
-            value={draft.cueExisting}
-          />
-        </View>
-
-        <View style={styles.field}>
-          <Text selectable style={styles.label}>
-            I will
-          </Text>
-          <TextInput
-            autoCorrect
-            multiline
-            onChangeText={(text) => update({ tinyAction: text })}
-            placeholder=""
-            placeholderTextColor={colors.textFaint}
-            style={styles.input}
-            value={draft.tinyAction}
-          />
-        </View>
-
-        <Text selectable style={styles.coaching}>
-          {COACHING_PARAGRAPH}
-        </Text>
-
-        <View style={styles.examples}>
-          <Text selectable style={styles.examplesLabel}>
-            Some routines that work well:
-          </Text>
-          {EXAMPLE_ROUTINES.map((example) => (
-            <Text key={example} selectable style={styles.exampleItem}>
-              {example}
-            </Text>
-          ))}
-        </View>
-      </ZenCard>
-
-      <PrimaryButton
-        disabled={!canContinue}
-        label="Continue"
-        onPress={handleContinue}
+      <OnboardingHeader
+        currentStep={4}
+        onBack={() => {
+          update({ step: "shrink" });
+          if (router.canGoBack()) router.back();
+          else router.replace("/(onboarding)/shrink");
+        }}
       />
-    </ScrollView>
+
+      <Text style={styles.eyebrow}>
+        Attach it to something you already do — no willpower needed.
+      </Text>
+      <Text style={styles.headline}>What will trigger it?</Text>
+
+      <View style={styles.formulaCard}>
+        <Text style={styles.fieldLabel}>After</Text>
+        <OnboardingInput
+          label=""
+          placeholder="something you already do..."
+          value={draft.cueExisting}
+          onChangeText={(text) => update({ cueExisting: text })}
+        />
+
+        <Text style={[styles.fieldLabel, styles.fieldLabelSecond]}>I will</Text>
+        <View style={styles.readonlyField}>
+          <Text style={styles.readonlyText}>{draft.tinyAction}</Text>
+        </View>
+      </View>
+
+      <GuidanceCard
+        title="Why a routine trigger?"
+        body="A routine cue beats a clock cue. Pick something you already do reliably — the previous action becomes your reminder."
+      >
+        <GuidanceExample
+          trigger="finish my morning coffee"
+          action="read one page"
+        />
+        <GuidanceExample
+          trigger="brush my teeth"
+          action="meditate for one breath"
+        />
+      </GuidanceCard>
+    </OnboardingLayout>
   );
 }
 
 const styles = StyleSheet.create({
-  coaching: {
-    color: colors.textMuted,
-    fontFamily: fontFamilies.body,
-    fontSize: typography.bodyLg,
-    lineHeight: 24,
+  eyebrow: {
+    fontFamily: fontFamilies.bodyMedium,
+    fontSize: 14,
+    lineHeight: 21,
+    color: colors.primary,
+    marginBottom: 8,
   },
-  content: {
-    flexGrow: 1,
-    gap: spacing.xxl,
-    justifyContent: "center",
-    padding: spacing.xl,
-  },
-  exampleItem: {
-    color: colors.textMuted,
-    fontFamily: fontFamilies.body,
-    fontSize: typography.bodyLg,
-    lineHeight: 24,
-  },
-  examples: {
-    gap: spacing.md,
-  },
-  examplesLabel: {
-    color: colors.text,
-    fontFamily: fontFamilies.bodySemi,
-    fontSize: typography.bodyLg,
-  },
-  field: {
-    gap: spacing.sm,
-  },
-  header: {
-    color: colors.text,
+  headline: {
     fontFamily: fontFamilies.displayBold,
-    fontSize: typography.headlineLg,
-    lineHeight: 36,
+    fontSize: 28,
+    lineHeight: 33,
+    color: colors.text,
+    marginBottom: 20,
   },
-  input: {
+  formulaCard: {
     backgroundColor: colors.surface,
-    color: colors.text,
-    fontSize: typography.bodyLg,
-    lineHeight: 24,
-    minHeight: 80,
-    padding: spacing.md,
+    borderRadius: radius.lg,
+    paddingVertical: spacing.xl,
+    paddingHorizontal: spacing.lg + 4,
+    marginBottom: 20,
+    gap: 8,
   },
-  label: {
-    color: colors.text,
+  fieldLabel: {
+    fontFamily: fontFamilies.bodyMedium,
+    fontSize: 13,
+    color: colors.textMuted,
+    paddingLeft: 4,
+  },
+  fieldLabelSecond: {
+    marginTop: 12,
+  },
+  readonlyField: {
+    backgroundColor: colors.surfaceHigh,
+    borderRadius: radius.md,
+    paddingVertical: 16,
+    paddingHorizontal: 18,
+  },
+  readonlyText: {
     fontFamily: fontFamilies.bodySemi,
-    fontSize: typography.bodyLg,
-  },
-  screen: {
-    backgroundColor: colors.bg,
-    flex: 1,
+    fontSize: 15,
+    color: colors.text,
   },
 });

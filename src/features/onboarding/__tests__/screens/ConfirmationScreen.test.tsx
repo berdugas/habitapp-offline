@@ -3,6 +3,10 @@ import { fireEvent, render, screen } from "@testing-library/react-native";
 import ConfirmationScreen from "@/features/onboarding/screens/ConfirmationScreen";
 import { OnboardingFinalizationError } from "@/features/onboarding/completion";
 
+jest.mock("expo-router", () => ({
+  useRouter: jest.fn(() => ({ back: jest.fn() })),
+}));
+
 jest.mock("@/features/onboarding/OnboardingProvider", () => ({
   useOnboarding: jest.fn(),
 }));
@@ -27,6 +31,8 @@ function makeDraft(overrides: object = {}) {
     tinyAction: "Run for 2 minutes",
     cueExisting: "morning coffee",
     worstDayPassed: true,
+    habitName: "Running habit",
+    habitIcon: "PersonRunning",
     ...overrides,
   };
 }
@@ -56,7 +62,7 @@ describe("ConfirmationScreen", () => {
     expect(
       screen.getByText("After I morning coffee, I will Run for 2 minutes"),
     ).toBeTruthy();
-    expect(screen.getByText("today")).toBeTruthy();
+    expect(screen.getByText("Today")).toBeTruthy();
   });
 
   it("tapping the CTA calls the mutation's mutate function", () => {
@@ -68,7 +74,7 @@ describe("ConfirmationScreen", () => {
 
     render(<ConfirmationScreen />);
 
-    fireEvent.press(screen.getByText("Start showing up."));
+    fireEvent.press(screen.getByText("Let's go"));
     expect(mockMutate).toHaveBeenCalledTimes(1);
   });
 
@@ -111,7 +117,6 @@ describe("ConfirmationScreen", () => {
       ),
     ).toBeTruthy();
     // Button is still enabled (not pending) so user can retry.
-    const button = screen.getByText("Start showing up.");
-    expect(button).toBeTruthy();
+    expect(screen.getByText("Let's go")).toBeTruthy();
   });
 });

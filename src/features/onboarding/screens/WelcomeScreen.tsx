@@ -1,13 +1,12 @@
-import { ScrollView, StyleSheet, Text } from "react-native";
 import { router } from "expo-router";
+import { StyleSheet, Text, View } from "react-native";
 
+import { AppLogo } from "@/components/branding/AppLogo";
 import { PrimaryButton } from "@/components/buttons/PrimaryButton";
-import { ZenCard } from "@/components/cards/ZenCard";
+import { OnboardingLayout } from "@/components/layouts/OnboardingLayout";
 import { useOnboarding } from "@/features/onboarding/OnboardingProvider";
 import { colors } from "@/theme/colors";
 import { fontFamilies } from "@/theme/fontFamilies";
-import { spacing } from "@/theme/spacing";
-import { typography } from "@/theme/typography";
 
 export default function WelcomeScreen() {
   const { update } = useOnboarding();
@@ -18,47 +17,36 @@ export default function WelcomeScreen() {
   };
 
   return (
-    <ScrollView
-      contentContainerStyle={styles.content}
-      contentInsetAdjustmentBehavior="automatic"
-      style={styles.screen}
-    >
-      <ZenCard padding="xxl">
-        <Text selectable style={styles.title}>
-          This is a tool for becoming.
-        </Text>
-        <Text selectable style={styles.body}>
-          We help you turn who you want to be into something you can do tomorrow
-          morning. Let's start.
-        </Text>
-      </ZenCard>
+    <OnboardingLayout footer={<PrimaryButton label="Begin" showArrow onPress={handleBegin} />}>
+      <View style={styles.logoContainer}>
+        <AppLogo size={56} />
+      </View>
 
-      <PrimaryButton label="Begin" onPress={handleBegin} />
-    </ScrollView>
+      <Text style={styles.headline}>Let's build your first habit.</Text>
+      <Text style={styles.subhead}>We'll walk you through it — step by step.</Text>
+    </OnboardingLayout>
   );
 }
 
 const styles = StyleSheet.create({
-  body: {
-    color: colors.textMuted,
-    fontFamily: fontFamilies.body,
-    fontSize: typography.bodyLg,
-    lineHeight: 24,
+  logoContainer: {
+    alignItems: "center",
+    paddingTop: 180,
+    marginBottom: 80,
   },
-  content: {
-    flexGrow: 1,
-    gap: spacing.xxl,
-    justifyContent: "center",
-    padding: spacing.xl,
-  },
-  screen: {
-    backgroundColor: colors.bg,
-    flex: 1,
-  },
-  title: {
-    color: colors.text,
+  headline: {
     fontFamily: fontFamilies.displayBold,
-    fontSize: typography.headlineLg,
-    lineHeight: 36,
+    fontSize: 30,
+    lineHeight: 35.4,
+    color: colors.text,
+    marginBottom: 12,
+  },
+  subhead: {
+    fontFamily: fontFamilies.body,
+    fontSize: 16,
+    lineHeight: 25.6,
+    color: colors.textMuted,
+    letterSpacing: 0.32,
+    marginBottom: 8,
   },
 });

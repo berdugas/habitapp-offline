@@ -16,6 +16,7 @@ module.exports = {
   ],
   moduleNameMapper: {
     "^expo-sqlite$": "<rootDir>/src/tests/setup/sqliteTestAdapter",
+    "^react-native-safe-area-context$": "<rootDir>/src/tests/setup/safeAreaContextMock.tsx",
     "^@/(.*)$": "<rootDir>/src/$1"
   }
 };

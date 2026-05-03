@@ -1,22 +1,18 @@
 import { useRef, useState } from "react";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { router } from "expo-router";
 
 import { PrimaryButton } from "@/components/buttons/PrimaryButton";
-import { SecondaryButton } from "@/components/buttons/SecondaryButton";
-import { ZenCard } from "@/components/cards/ZenCard";
-import { ErrorState } from "@/components/feedback/ErrorState";
 import { TextField } from "@/components/forms/TextField";
+import { OnboardingLayout } from "@/components/layouts/OnboardingLayout";
+import { BackButton } from "@/components/navigation/BackButton";
 import { signUpWithPassword } from "@/features/auth/api";
 import { logger } from "@/services/logger";
 import { colors } from "@/theme/colors";
 import { fontFamilies } from "@/theme/fontFamilies";
+import { radius } from "@/theme/radius";
 import { spacing } from "@/theme/spacing";
-import { typography } from "@/theme/typography";
-import {
-  isBlank,
-  isLikelyEmail,
-} from "@/utils/validation";
+import { isBlank, isLikelyEmail } from "@/utils/validation";
 import {
   getSignUpErrorMessage,
   isExpectedSignUpAuthError,
@@ -95,73 +91,96 @@ export default function SignUpScreen() {
   }
 
   return (
-    <ScrollView
-      contentContainerStyle={styles.content}
-      contentInsetAdjustmentBehavior="automatic"
-      style={styles.screen}
+    <OnboardingLayout
+      keyboardAware
+      footer={
+        <Pressable
+          onPress={() => router.push("/(auth)/sign-in")}
+          style={styles.signInLink}
+        >
+          <Text style={styles.signInText}>I already have an account</Text>
+        </Pressable>
+      }
     >
-      <View style={styles.header}>
-        <Text selectable style={styles.headline}>
-          Become someone different.
-        </Text>
-        <Text selectable style={styles.subhead}>
-          Start with one habit. Build from there.
-        </Text>
+      <View style={styles.backRow}>
+        <BackButton onPress={() => router.back()} />
       </View>
 
-      <ZenCard padding="xxl">
-        {error ? <ErrorState message={error} /> : null}
+      <Text style={styles.headline}>
+        The person you want to be starts here.
+      </Text>
+      <Text style={styles.subhead}>One habit at a time.</Text>
+
+      <View style={styles.formCard}>
+        {error != null && (
+          <Text style={styles.error}>{error}</Text>
+        )}
         <TextField
           autoCapitalize="none"
           label="Email"
-          onChangeText={setEmail}
           placeholder="you@example.com"
           value={email}
+          variant="onboarding"
+          onChangeText={setEmail}
         />
         <TextField
           autoCapitalize="none"
           label="Password"
-          onChangeText={setPassword}
           placeholder="Choose a password"
           secureTextEntry
           value={password}
+          variant="onboarding"
+          onChangeText={setPassword}
         />
         <PrimaryButton
           disabled={isSubmitting}
-          label={isSubmitting ? "Creating account..." : "Sign Up"}
+          label={isSubmitting ? "Creating account..." : "Sign up"}
+          showArrow
           onPress={handleSubmit}
         />
-        <SecondaryButton
-          disabled={isSubmitting}
-          label="I already have an account"
-          onPress={() => router.push("/(auth)/sign-in")}
-        />
-      </ZenCard>
-    </ScrollView>
+      </View>
+    </OnboardingLayout>
   );
 }
 
 const styles = StyleSheet.create({
-  content: {
-    gap: spacing.xl,
-    padding: spacing.xl,
-  },
-  header: {
-    gap: spacing.sm,
+  backRow: {
+    marginBottom: 44,
   },
   headline: {
-    color: colors.text,
     fontFamily: fontFamilies.displayBold,
-    fontSize: typography.displayLg,
-  },
-  screen: {
-    backgroundColor: colors.bg,
-    flex: 1,
+    fontSize: 30,
+    lineHeight: 35.4,
+    color: colors.text,
+    marginBottom: 8,
   },
   subhead: {
-    color: colors.textMuted,
     fontFamily: fontFamilies.body,
-    fontSize: typography.bodyLg,
-    lineHeight: 24,
+    fontSize: 15,
+    lineHeight: 23.25,
+    color: colors.textMuted,
+    marginBottom: 24,
+  },
+  formCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    paddingTop: 28,
+    paddingHorizontal: spacing.xl,
+    paddingBottom: 32,
+    gap: spacing.lg,
+  },
+  error: {
+    fontFamily: fontFamilies.body,
+    fontSize: 14,
+    color: colors.danger,
+  },
+  signInLink: {
+    alignItems: "center",
+    paddingVertical: spacing.md,
+  },
+  signInText: {
+    fontFamily: fontFamilies.bodySemi,
+    fontSize: 14,
+    color: colors.primary,
   },
 });

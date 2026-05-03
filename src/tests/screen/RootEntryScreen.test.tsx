@@ -109,9 +109,7 @@ describe("RootEntryScreen", () => {
   it("shows the pre-auth WelcomeScreen when there is no session", () => {
     setup({ session: null, user: null });
     render(<RootEntryScreen />);
-    expect(
-      screen.getByText(/build habits through small actions/i),
-    ).toBeTruthy();
+    expect(screen.getByText(/small actions/i)).toBeTruthy();
   });
 
   it("shows loading while any query is still resolving", () => {

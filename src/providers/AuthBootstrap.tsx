@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { AuthSessionProvider } from "@/features/auth/hooks";
 import { getSession } from "@/features/auth/api";
 import { onSupabaseAuthStateChange } from "@/lib/supabase/auth";
+import { clearAllPreferences } from "@/lib/db/repositories/preferences";
 import { logger } from "@/services/logger";
 
 import type { AuthSessionState } from "@/features/auth/types";
@@ -51,6 +52,11 @@ export function AuthBootstrap({ children }: PropsWithChildren) {
       });
 
     const subscription = onSupabaseAuthStateChange(async (_event, session) => {
+      if (_event === "SIGNED_OUT") {
+        await clearAllPreferences().catch((error: unknown) => {
+          logger.warn("Failed to clear local preferences on sign-out", { error });
+        });
+      }
       setAuthState({
         isBootstrapping: false,
         session,

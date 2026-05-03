@@ -1,15 +1,16 @@
-import { ScrollView, StyleSheet, Text, TextInput } from "react-native";
 import { router } from "expo-router";
+import { StyleSheet, Text } from "react-native";
 
 import { PrimaryButton } from "@/components/buttons/PrimaryButton";
-import { ZenCard } from "@/components/cards/ZenCard";
+import { GuidanceCard } from "@/components/cards/GuidanceCard";
+import { GuidanceExample } from "@/components/cards/GuidanceExample";
+import { OnboardingInput } from "@/components/forms/OnboardingInput";
+import { OnboardingLayout } from "@/components/layouts/OnboardingLayout";
+import { OnboardingHeader } from "@/components/navigation/OnboardingHeader";
 import { useOnboarding } from "@/features/onboarding/OnboardingProvider";
-import { getDailyActionPlaceholder } from "@/features/onboarding/dailyActionPlaceholder";
 import type { OnboardingDraft } from "@/features/onboarding/types";
 import { colors } from "@/theme/colors";
 import { fontFamilies } from "@/theme/fontFamilies";
-import { spacing } from "@/theme/spacing";
-import { typography } from "@/theme/typography";
 
 export default function DailyActionScreen() {
   const { draft, update } = useOnboarding();
@@ -24,79 +25,72 @@ export default function DailyActionScreen() {
   };
 
   return (
-    <ScrollView
-      contentContainerStyle={styles.content}
-      contentInsetAdjustmentBehavior="automatic"
-      keyboardShouldPersistTaps="handled"
-      style={styles.screen}
-    >
-      <ZenCard padding="xxl">
-        <Text selectable style={styles.header}>
-          What does that person do every day?
-        </Text>
-        {draft.becomingPhrase.trim().length > 0 && (
-          <Text selectable style={styles.reflection}>
-            Becoming: {draft.becomingPhrase}
-          </Text>
-        )}
-        <TextInput
-          autoCorrect
-          multiline
-          onChangeText={(text) => update({ dailyAction: text })}
-          placeholder={getDailyActionPlaceholder(draft.becomingPhrase)}
-          placeholderTextColor={colors.textFaint}
-          style={styles.input}
-          value={draft.dailyAction}
+    <OnboardingLayout
+      keyboardAware
+      footer={
+        <PrimaryButton
+          disabled={draft.dailyAction.trim().length < 2}
+          label="Continue"
+          showArrow
+          onPress={handleContinue}
         />
-        <Text selectable style={styles.helper}>
-          Even one minute counts. We'll make it smaller in the next step.
-        </Text>
-      </ZenCard>
-
-      <PrimaryButton
-        disabled={draft.dailyAction.trim().length === 0}
-        label="Continue"
-        onPress={handleContinue}
+      }
+    >
+      <OnboardingHeader
+        currentStep={2}
+        onBack={() => {
+          update({ step: "becoming" });
+          if (router.canGoBack()) router.back();
+          else router.replace("/(onboarding)/becoming");
+        }}
       />
-    </ScrollView>
+
+      <Text style={styles.headline}>
+        What action will you take to become who you want to be?
+      </Text>
+      <Text style={styles.body}>
+        Write a concrete action — something small and repeatable you can track.
+      </Text>
+
+      <OnboardingInput
+        label="Your action"
+        placeholder="e.g. Read for 10 minutes"
+        value={draft.dailyAction}
+        onChangeText={(text) => update({ dailyAction: text })}
+      />
+
+      <GuidanceCard
+        title="What makes a good habit action?"
+        body="Think about one small thing that brings you closer to who you described. Make it specific enough that you'll know you did it."
+      >
+        <GuidanceExample
+          context="Becoming a reader"
+          good="Read for 10 minutes"
+          bad="Read more books"
+        />
+        <GuidanceExample
+          context="Becoming physically fit"
+          good="Exercise for 15 minutes"
+          bad="Be healthier"
+        />
+      </GuidanceCard>
+    </OnboardingLayout>
   );
 }
 
 const styles = StyleSheet.create({
-  content: {
-    flexGrow: 1,
-    gap: spacing.xxl,
-    justifyContent: "center",
-    padding: spacing.xl,
-  },
-  header: {
-    color: colors.text,
+  headline: {
     fontFamily: fontFamilies.displayBold,
-    fontSize: typography.headlineLg,
-    lineHeight: 36,
-  },
-  helper: {
-    color: colors.textMuted,
-    fontFamily: fontFamilies.body,
-    fontSize: typography.bodyLg,
-    lineHeight: 24,
-  },
-  input: {
-    backgroundColor: colors.surface,
+    fontSize: 28,
+    lineHeight: 33,
     color: colors.text,
-    fontSize: typography.bodyLg,
-    lineHeight: 24,
-    minHeight: 80,
-    padding: spacing.md,
+    marginBottom: 12,
   },
-  reflection: {
-    color: colors.textMuted,
+  body: {
     fontFamily: fontFamilies.body,
-    fontSize: typography.bodyMd,
-    fontStyle: "italic",
-  },
-  screen: {
-    backgroundColor: colors.bg,
-    flex: 1,
+    fontSize: 15,
+    lineHeight: 23,
+    color: colors.textMuted,
+    marginBottom: 20,
   },
 });
