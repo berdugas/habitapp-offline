@@ -50,14 +50,14 @@ describe("finalizeOnboarding", () => {
     await db.closeAsync();
   });
 
-  it("creates a Focus habit, marks completion, and clears the draft on success", async () => {
+  it("creates an active habit, marks completion, and clears the draft on success", async () => {
     const draft = makeReadyDraft();
     await saveOnboardingDraft(draft);
 
     const habit = await finalizeOnboarding(TEST_USER_ID, draft);
 
     expect(habit.user_id).toBe(TEST_USER_ID);
-    expect(habit.habit_state).toBe("focus");
+    expect(habit.habit_state).toBe("active");
     expect(habit.status).toBe("active");
     expect(habit.identity_phrase).toBe("a runner");
     expect(habit.cue).toBe("morning coffee");
@@ -85,8 +85,8 @@ describe("finalizeOnboarding", () => {
       .spyOn(habitsValidators, "assertCanCreateActiveHabit")
       .mockResolvedValueOnce({
         ok: false,
-        reason: "focus_full",
-        counts: { focus: 1, supporting: 0 },
+        reason: "soft_cap_warning",
+        count: 3,
       });
 
     const err = await finalizeOnboarding(TEST_USER_ID, draft).catch((e) => e);

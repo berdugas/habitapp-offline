@@ -93,9 +93,9 @@ describe("validateCreateHabitPayload — field validation", () => {
   });
 });
 
-// ─── Cap helper (async, uses real DB) ────────────────────────────────────────
+// ─── Per-goal soft cap (async, uses real DB) ──────────────────────────────────
 
-describe("assertCanCreateActiveHabit", () => {
+describe("assertCanCreateActiveHabit — per-goal soft cap", () => {
   let db: SQLiteDatabase;
 
   beforeEach(async () => {
@@ -109,105 +109,70 @@ describe("assertCanCreateActiveHabit", () => {
 
   async function seedHabit(
     userId: string,
-    state: "focus" | "supporting",
+    identityPhrase: string | null,
     status: "active" | "archived" = "active",
   ) {
     return repoCreateHabit({
       user_id: userId,
       title: "Test habit",
-      identity_phrase: null,
+      identity_phrase: identityPhrase,
       cue: "Morning",
       tiny_action: "Do it",
       minimum_viable_action: null,
       preferred_time_window: null,
       start_date: "2026-04-23",
-      habit_state: state,
+      habit_state: "active",
       status,
     });
   }
 
-  it("returns ok when there are no active habits (asking for focus)", async () => {
-    const result = await assertCanCreateActiveHabit("user-1", "focus");
+  it("returns ok when there are no active habits for the identity phrase", async () => {
+    const result = await assertCanCreateActiveHabit("user-1", "a runner");
     expect(result.ok).toBe(true);
   });
 
-  it("returns ok when there are no active habits (asking for supporting)", async () => {
-    const result = await assertCanCreateActiveHabit("user-1", "supporting");
+  it("returns ok when fewer than 3 active habits exist under the identity phrase", async () => {
+    await seedHabit("user-1", "a runner");
+    await seedHabit("user-1", "a runner");
+    const result = await assertCanCreateActiveHabit("user-1", "a runner");
     expect(result.ok).toBe(true);
   });
 
-  it("returns focus_full when 1 focus habit exists and asking for another focus", async () => {
-    await seedHabit("user-1", "focus");
-    const result = await assertCanCreateActiveHabit("user-1", "focus");
+  it("returns soft_cap_warning when 3 active habits exist under the same identity phrase", async () => {
+    await seedHabit("user-1", "a runner");
+    await seedHabit("user-1", "a runner");
+    await seedHabit("user-1", "a runner");
+    const result = await assertCanCreateActiveHabit("user-1", "a runner");
     expect(result.ok).toBe(false);
     if (!result.ok) {
-      expect(result.reason).toBe("focus_full");
-      expect(result.counts.focus).toBe(1);
+      expect(result.reason).toBe("soft_cap_warning");
+      expect(result.count).toBe(3);
     }
   });
 
-  it("returns supporting_full when 2 supporting habits exist and asking for another supporting", async () => {
-    await seedHabit("user-1", "supporting");
-    await seedHabit("user-1", "supporting");
-    const result = await assertCanCreateActiveHabit("user-1", "supporting");
-    expect(result.ok).toBe(false);
-    if (!result.ok) {
-      expect(result.reason).toBe("supporting_full");
-      expect(result.counts.supporting).toBe(2);
-    }
-  });
-
-  it("returns ok when 1 focus and 1 supporting exist and asking for supporting (under cap)", async () => {
-    await seedHabit("user-1", "focus");
-    await seedHabit("user-1", "supporting");
-    const result = await assertCanCreateActiveHabit("user-1", "supporting");
-    expect(result.ok).toBe(true);
-  });
-
-  it("returns total_cap_reached when 1 focus + 2 supporting exist and asking for a valid state", async () => {
-    await seedHabit("user-1", "focus");
-    await seedHabit("user-1", "supporting");
-    await seedHabit("user-1", "supporting");
-    // Total = 3 = cap. Asking for supporting would hit supporting_full first (2 >= 2).
-    // But if we ask for something that wouldn't hit a sub-limit: let's verify the cap check.
-    // At 1 focus + 2 supporting, the focus sub-limit (1) is hit for focus requests.
-    // The supporting sub-limit (2) is hit for supporting requests.
-    // The total cap (3) is also hit regardless.
-    const focusResult = await assertCanCreateActiveHabit("user-1", "focus");
-    expect(focusResult.ok).toBe(false);
-    if (!focusResult.ok) {
-      expect(focusResult.reason).toBe("focus_full");
-    }
-    const supportingResult = await assertCanCreateActiveHabit("user-1", "supporting");
-    expect(supportingResult.ok).toBe(false);
-    if (!supportingResult.ok) {
-      expect(supportingResult.reason).toBe("supporting_full");
-    }
-  });
-
-  it("always returns ok for automatic state regardless of counts", async () => {
-    await seedHabit("user-1", "focus");
-    await seedHabit("user-1", "supporting");
-    await seedHabit("user-1", "supporting");
-    const result = await assertCanCreateActiveHabit("user-1", "automatic");
+  it("does not count habits under a different identity phrase toward the cap", async () => {
+    await seedHabit("user-1", "a runner");
+    await seedHabit("user-1", "a runner");
+    await seedHabit("user-1", "a runner");
+    // Different identity phrase — should not be affected by the runner cap
+    const result = await assertCanCreateActiveHabit("user-1", "a meditator");
     expect(result.ok).toBe(true);
   });
 
   it("does not count archived habits toward the cap", async () => {
-    await seedHabit("user-1", "focus");
-    await seedHabit("user-1", "focus", "archived"); // archived — should not count
-    // With 1 active focus (+ 1 archived), asking for focus should hit the limit
-    const result = await assertCanCreateActiveHabit("user-1", "focus");
-    expect(result.ok).toBe(false);
-    if (!result.ok) {
-      expect(result.counts.focus).toBe(1); // only active counted
-    }
+    await seedHabit("user-1", "a runner");
+    await seedHabit("user-1", "a runner");
+    await seedHabit("user-1", "a runner", "archived"); // archived — should not count
+    // Only 2 active, under cap
+    const result = await assertCanCreateActiveHabit("user-1", "a runner");
+    expect(result.ok).toBe(true);
   });
 
   it("does not count another user's habits toward this user's cap", async () => {
-    // User-2 has 1 focus — should not affect user-1's cap check
-    await seedHabit("user-2", "focus");
-    const result = await assertCanCreateActiveHabit("user-1", "focus");
+    await seedHabit("user-2", "a runner");
+    await seedHabit("user-2", "a runner");
+    await seedHabit("user-2", "a runner");
+    const result = await assertCanCreateActiveHabit("user-1", "a runner");
     expect(result.ok).toBe(true);
   });
 });

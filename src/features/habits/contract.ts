@@ -33,8 +33,7 @@ export const LOCAL_HABIT_LOG_FIELDS = [
 ] as const;
 
 export const HABIT_STATES = [
-  "focus",
-  "supporting",
+  "active",
   "automatic",
 ] as const satisfies readonly HabitState[];
 
@@ -67,9 +66,7 @@ export const FORGIVING_STREAK_RULES = {
 
 export const RETRO_LOG_WINDOW_HOURS = 48 as const;
 
-export const ACTIVE_HABIT_CAP = 3 as const;
-export const ACTIVE_FOCUS_LIMIT = 1 as const;
-export const ACTIVE_SUPPORTING_LIMIT = 2 as const;
+export const ACTIVE_HABITS_PER_GOAL_SOFT_CAP = 3 as const;
 
 export const LOGICAL_DAY_FORMAT = "YYYY-MM-DD";
 export const LOGICAL_DAY_SOURCE = "device_local_day" as const;

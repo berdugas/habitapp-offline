@@ -50,7 +50,7 @@ const baseHabitData = {
   tiny_action: "Read 1 page",
   minimum_viable_action: null,
   preferred_time_window: "Evening",
-  habit_state: "focus",
+  habit_state: "active",
   status: "active",
   start_date: "2026-04-24",
 };

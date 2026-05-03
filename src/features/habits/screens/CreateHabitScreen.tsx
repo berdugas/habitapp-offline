@@ -85,7 +85,7 @@ export default function CreateHabitScreen() {
     let hasSavedHabit = false;
 
     try {
-      await createHabitMutation.mutateAsync({ ...normalizedPayload, habitState: "focus" });
+      await createHabitMutation.mutateAsync({ ...normalizedPayload, habitState: "active" });
       hasSavedHabit = true;
       if (!user?.id) {
         throw new Error("We could not refresh your habit list right now.");

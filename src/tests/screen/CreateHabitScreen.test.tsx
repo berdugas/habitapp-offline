@@ -128,7 +128,7 @@ describe("CreateHabitScreen", () => {
         tinyAction: "Read 1 page",
         minimumViableAction: "",
         preferredTimeWindow: "",
-        habitState: "focus",
+        habitState: "active",
       });
     });
 

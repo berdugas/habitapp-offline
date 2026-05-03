@@ -2,7 +2,7 @@ import type { SQLiteBindValue } from "expo-sqlite";
 
 import { getDb } from "@/lib/db/client";
 
-export type HabitState = "focus" | "supporting" | "automatic";
+export type HabitState = "active" | "automatic";
 export type HabitStatus = "active" | "archived" | "backlog";
 
 export type Habit = {
@@ -85,7 +85,7 @@ export async function createHabit(input: CreateHabitInput): Promise<Habit> {
     input.minimum_viable_action ?? null,
     input.preferred_time_window ?? null,
     input.icon ?? null,
-    input.habit_state ?? "focus",
+    input.habit_state ?? "active",
     input.status ?? "active",
     input.start_date,
     now,

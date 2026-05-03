@@ -54,7 +54,7 @@ describe("habits API integration", () => {
       tinyAction: "2 minutes of breathing",
       minimumViableAction: "One breath",
       preferredTimeWindow: "morning",
-      habitState: "focus",
+      habitState: "active",
       ...overrides,
     });
   }
@@ -66,7 +66,7 @@ describe("habits API integration", () => {
     expect(habit.id).toBeTruthy();
     expect(habit.title).toBe("Meditate");
     expect(habit.status).toBe("active");
-    expect(habit.habit_state).toBe("focus");
+    expect(habit.habit_state).toBe("active");
     expect(habit.start_date).toBe(TODAY);
     expect(habit.created_at).toBeTruthy();
     expect(habit.updated_at).toBeTruthy();
@@ -133,7 +133,7 @@ describe("habits API integration", () => {
       tinyAction: "Do it",
       minimumViableAction: "",
       preferredTimeWindow: "",
-      habitState: "supporting",
+      habitState: "active",
     });
     // Override start_date to tomorrow by using the repo directly after creation
     // We verify by checking the filter, not by mutating — the API sets start_date = today
@@ -150,7 +150,7 @@ describe("habits API integration", () => {
       minimum_viable_action: null,
       preferred_time_window: null,
       start_date: "2026-04-24", // tomorrow
-      habit_state: "supporting",
+      habit_state: "active",
       status: "active",
     });
 
@@ -171,7 +171,7 @@ describe("habits API integration", () => {
       minimum_viable_action: null,
       preferred_time_window: null,
       start_date: "2026-04-26",
-      habit_state: "supporting",
+      habit_state: "active",
       status: "active",
     });
     await repoCreateHabit({
@@ -183,7 +183,7 @@ describe("habits API integration", () => {
       minimum_viable_action: null,
       preferred_time_window: null,
       start_date: "2026-04-24",
-      habit_state: "supporting",
+      habit_state: "active",
       status: "active",
     });
     await makeHabit("user-1"); // today — should not appear
@@ -284,7 +284,7 @@ describe("habits API integration", () => {
       minimum_viable_action: null,
       preferred_time_window: null,
       start_date: "2026-04-20",
-      habit_state: "focus",
+      habit_state: "active",
       status: "active",
     });
     await expect(
@@ -305,7 +305,7 @@ describe("habits API integration", () => {
       minimum_viable_action: null,
       preferred_time_window: null,
       start_date: "2026-04-19",
-      habit_state: "focus",
+      habit_state: "active",
       status: "active",
     });
     await expect(
@@ -326,7 +326,7 @@ describe("habits API integration", () => {
       minimum_viable_action: null,
       preferred_time_window: null,
       start_date: "2026-04-19",
-      habit_state: "focus",
+      habit_state: "active",
       status: "active",
     });
     await expect(
@@ -348,7 +348,7 @@ describe("habits API integration", () => {
       minimum_viable_action: null,
       preferred_time_window: null,
       start_date: "2026-04-18",
-      habit_state: "focus",
+      habit_state: "active",
       status: "active",
     });
     await expect(
@@ -390,7 +390,7 @@ describe("habits API integration", () => {
       minimum_viable_action: null,
       preferred_time_window: null,
       start_date: "2026-04-18",
-      habit_state: "focus",
+      habit_state: "active",
       status: "active",
     });
     let caught: unknown;

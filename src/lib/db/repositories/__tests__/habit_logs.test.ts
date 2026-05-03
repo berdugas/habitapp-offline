@@ -28,7 +28,7 @@ async function seedHabit(db: SQLiteDatabase, userId = "user-1"): Promise<string>
     "Meditate",
     "After coffee",
     "2 minutes",
-    "focus",
+    "active",
     "active",
     "2026-04-29",
     now,

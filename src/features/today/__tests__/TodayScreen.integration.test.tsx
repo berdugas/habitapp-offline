@@ -52,7 +52,7 @@ describe("TodayScreen integration — heatmap refresh round-trip", () => {
       minimum_viable_action: null,
       preferred_time_window: null,
       start_date: "2026-04-01",
-      habit_state: "focus",
+      habit_state: "active",
       status: "active",
     });
   });

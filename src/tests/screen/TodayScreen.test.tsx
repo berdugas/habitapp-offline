@@ -68,7 +68,7 @@ function buildFocusHabit(overrides = {}) {
     consistencyRate: 0,
     cue: "I wake up",
     formula: "After I wake up, I will Read 1 page.",
-    habitState: "focus",
+    habitState: "active",
     id: "habit-1",
     identityPhrase: "a reader",
     isWeeklyReviewDue: false,

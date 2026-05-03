@@ -1,12 +1,8 @@
 import { exceedsLength, isBlank } from "@/utils/validation";
 import { listActiveHabits } from "@/features/habits/api";
-import {
-  ACTIVE_FOCUS_LIMIT,
-  ACTIVE_HABIT_CAP,
-  ACTIVE_SUPPORTING_LIMIT,
-} from "@/features/habits/contract";
+import { ACTIVE_HABITS_PER_GOAL_SOFT_CAP } from "@/features/habits/contract";
 
-import type { HabitSetupPayload, HabitState } from "@/features/habits/types";
+import type { HabitSetupPayload } from "@/features/habits/types";
 
 export type HabitValidationErrors = Partial<Record<keyof HabitSetupPayload, string>>;
 
@@ -64,47 +60,28 @@ export function validateHabitSetupPayload(
 
 export const validateCreateHabitPayload = validateHabitSetupPayload;
 
-// ─── 3-active cap helper ──────────────────────────────────────────────────────
+// ─── Per-goal active cap helper ───────────────────────────────────────────────
 
 export type CapCheckResult =
   | { ok: true }
-  | {
-      ok: false;
-      reason: "focus_full" | "supporting_full" | "total_cap_reached";
-      counts: { focus: number; supporting: number };
-    };
+  | { ok: false; reason: "soft_cap_warning"; count: number };
 
 /**
- * Checks whether the user can add a new active habit of the given state.
- * Queries the DB for current active habit counts, then compares against
- * ACTIVE_HABIT_CAP / ACTIVE_FOCUS_LIMIT / ACTIVE_SUPPORTING_LIMIT.
- *
- * "automatic" habits never count toward the cap.
+ * Soft cap: warn when a user already has 3+ active habits under the same
+ * identity phrase (goal). Creation is never hard-blocked — the warning is
+ * surfaced in the UI so the user can make an informed choice.
  */
 export async function assertCanCreateActiveHabit(
   userId: string,
-  nextHabitState: HabitState,
+  identityPhrase: string,
 ): Promise<CapCheckResult> {
-  if (nextHabitState === "automatic") {
-    return { ok: true };
-  }
-
   const active = await listActiveHabits(userId);
-  const counts = {
-    focus: active.filter((h) => h.habit_state === "focus").length,
-    supporting: active.filter((h) => h.habit_state === "supporting").length,
-  };
+  const count = active.filter(
+    (h) => h.habit_state === "active" && h.identity_phrase === identityPhrase,
+  ).length;
 
-  if (nextHabitState === "focus" && counts.focus >= ACTIVE_FOCUS_LIMIT) {
-    return { ok: false, reason: "focus_full", counts };
-  }
-
-  if (nextHabitState === "supporting" && counts.supporting >= ACTIVE_SUPPORTING_LIMIT) {
-    return { ok: false, reason: "supporting_full", counts };
-  }
-
-  if (counts.focus + counts.supporting >= ACTIVE_HABIT_CAP) {
-    return { ok: false, reason: "total_cap_reached", counts };
+  if (count >= ACTIVE_HABITS_PER_GOAL_SOFT_CAP) {
+    return { ok: false, reason: "soft_cap_warning", count };
   }
 
   return { ok: true };

@@ -51,19 +51,19 @@ describe("habits repository", () => {
     expect(habit.title).toBe("Meditate");
   });
 
-  it("createHabit defaults to habit_state=focus and status=active when not specified", async () => {
+  it("createHabit defaults to habit_state=active and status=active when not specified", async () => {
     const habit = await createHabit(makeInput());
 
-    expect(habit.habit_state).toBe("focus");
+    expect(habit.habit_state).toBe("active");
     expect(habit.status).toBe("active");
   });
 
   it("createHabit respects provided habit_state and status overrides", async () => {
     const habit = await createHabit(
-      makeInput({ habit_state: "supporting", status: "backlog" }),
+      makeInput({ habit_state: "automatic", status: "backlog" }),
     );
 
-    expect(habit.habit_state).toBe("supporting");
+    expect(habit.habit_state).toBe("automatic");
     expect(habit.status).toBe("backlog");
   });
 
@@ -142,26 +142,25 @@ describe("habits repository", () => {
   });
 
   it("listHabits filters by a single habit_state value", async () => {
-    await createHabit(makeInput({ habit_state: "focus" }));
-    await createHabit(makeInput({ habit_state: "supporting" }));
+    await createHabit(makeInput({ habit_state: "active" }));
+    await createHabit(makeInput({ habit_state: "automatic" }));
 
-    const results = await listHabits({ user_id: "user-1", habit_state: "focus" });
+    const results = await listHabits({ user_id: "user-1", habit_state: "active" });
     expect(results).toHaveLength(1);
-    expect(results[0].habit_state).toBe("focus");
+    expect(results[0].habit_state).toBe("active");
   });
 
   it("listHabits filters by an array of habit_state values", async () => {
-    await createHabit(makeInput({ habit_state: "focus" }));
-    await createHabit(makeInput({ habit_state: "supporting" }));
+    await createHabit(makeInput({ habit_state: "active" }));
     await createHabit(makeInput({ habit_state: "automatic" }));
 
     const results = await listHabits({
       user_id: "user-1",
-      habit_state: ["focus", "supporting"],
+      habit_state: ["active", "automatic"],
     });
     expect(results).toHaveLength(2);
     const states = results.map((h) => h.habit_state).sort();
-    expect(states).toEqual(["focus", "supporting"]);
+    expect(states).toEqual(["active", "automatic"]);
   });
 
   it("listHabits filters by status", async () => {
@@ -245,7 +244,7 @@ describe("habits repository", () => {
         "Test",
         "cue",
         "action",
-        "focus",
+        "active",
         "invalid_status",
         "2026-04-29",
         new Date().toISOString(),
