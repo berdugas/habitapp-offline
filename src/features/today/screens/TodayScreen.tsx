@@ -151,28 +151,27 @@ export default function TodayScreen() {
   const { accessMode, isValidating, refresh } = useTrialValidation();
   const isReadOnly = accessMode === "read_only";
 
-  const focusHabit = habits.find((h) => h.habitState === "focus") ?? null;
+  // FocusCard still uses the first active habit — will be replaced in S10-03.
+  const focusHabit = habits[0] ?? null;
 
   // Adapter: TodayHabitCardData (camelCase) → RecoveryHabitRef (snake_case)
-  const focusHabitRef = focusHabit
-    ? {
-        id: focusHabit.id,
-        habit_state: focusHabit.habitState,
-        start_date: focusHabit.startDate,
-      }
-    : null;
+  const habitRefs = habits.map((h) => ({
+    id: h.id,
+    start_date: h.startDate,
+    title: h.name,
+  }));
 
-  const { shouldShowModal, breakRunStartDate, logs } =
-    useRecoveryCheck(focusHabitRef);
-  const { showBanner, missDate } = useSingleMissBanner(
-    focusHabitRef,
+  const { shouldShowModal, triggeringHabit, breakRunStartDate, logs } =
+    useRecoveryCheck(habitRefs);
+  const { showBanner, missDate, missingHabitId } = useSingleMissBanner(
+    habitRefs,
     logs as HabitLog[],
     shouldShowModal,
   );
 
   async function markRecoveryModalShown() {
-    if (!focusHabit || !breakRunStartDate) return;
-    const key = recoveryModalPreferenceKey(focusHabit.id, breakRunStartDate);
+    if (!triggeringHabit || !breakRunStartDate) return;
+    const key = recoveryModalPreferenceKey(triggeringHabit.id, breakRunStartDate);
     await setPreference(key, "true");
     await queryClient.invalidateQueries({ queryKey: ["preferences", key] });
   }
@@ -202,11 +201,11 @@ export default function TodayScreen() {
   }
 
   async function handleRecoveryMakeItSmaller() {
-    if (!focusHabit) return;
+    if (!triggeringHabit) return;
     await markRecoveryModalShown();
     router.push({
       pathname: "/(app)/habits/[habitId]/edit",
-      params: { habitId: focusHabit.id, from: "recovery" },
+      params: { habitId: triggeringHabit.id, from: "recovery" },
     });
   }
 
@@ -214,13 +213,13 @@ export default function TodayScreen() {
     if (
       recoveryActionLockRef.current ||
       archiveHabitMutation.isPending ||
-      !focusHabit
+      !triggeringHabit
     ) {
       return;
     }
     recoveryActionLockRef.current = true;
     try {
-      await archiveHabitMutation.mutateAsync({ habitId: focusHabit.id });
+      await archiveHabitMutation.mutateAsync({ habitId: triggeringHabit.id });
       await markRecoveryModalShown();
     } finally {
       recoveryActionLockRef.current = false;
@@ -232,8 +231,8 @@ export default function TodayScreen() {
   }
 
   async function handleBannerDismiss() {
-    if (!focusHabit || !missDate) return;
-    const key = singleMissBannerPreferenceKey(focusHabit.id, missDate);
+    if (!missingHabitId || !missDate) return;
+    const key = singleMissBannerPreferenceKey(missingHabitId, missDate);
     await setPreference(key, "true");
     await queryClient.invalidateQueries({ queryKey: ["preferences", key] });
   }
@@ -295,7 +294,7 @@ export default function TodayScreen() {
         showBanner={showBanner}
       />
       <RecoveryModal
-        habitTitle={focusHabit.name}
+        habitTitle={triggeringHabit?.title ?? focusHabit.name}
         onClose={() => void handleRecoveryClose()}
         onMakeItSmaller={() => void handleRecoveryMakeItSmaller()}
         onPauseForNow={() => void handleRecoveryPauseForNow()}
