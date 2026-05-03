@@ -1,21 +1,17 @@
 import { useRef } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { router } from "expo-router";
 import { useQueryClient } from "@tanstack/react-query";
 
-import { Heatmap } from "@/components/Heatmap";
-import { IdentityStreakDisplay } from "@/components/IdentityStreakDisplay";
+import { AppLogo } from "@/components/branding/AppLogo";
 import { ReadOnlyBanner } from "@/components/ReadOnlyBanner";
 import { RecoveryModal } from "@/components/RecoveryModal";
 import { PrimaryButton } from "@/components/buttons/PrimaryButton";
-import { SecondaryButton } from "@/components/buttons/SecondaryButton";
 import { ZenCard } from "@/components/cards/ZenCard";
 import { ErrorState } from "@/components/feedback/ErrorState";
 import { LoadingState } from "@/components/feedback/LoadingState";
-import { extractIdentityNoun } from "@/features/onboarding/identityNoun";
-import { useArchiveHabitMutation } from "@/features/habits/hooks";
+import { GoalContainer } from "@/features/today/components/GoalContainer";
 import {
-  useHabitLogsForRange,
   useTodayHabits,
   useUpsertTodayHabitStatusMutation,
 } from "@/features/today/hooks";
@@ -27,14 +23,13 @@ import {
   recoveryModalPreferenceKey,
   singleMissBannerPreferenceKey,
 } from "@/features/recovery/api";
+import { useArchiveHabitMutation } from "@/features/habits/hooks";
 import { useTrialValidation } from "@/features/trial/hooks";
 import { setPreference } from "@/lib/db/repositories/preferences";
 import { colors } from "@/theme/colors";
 import { fontFamilies } from "@/theme/fontFamilies";
-import { radius } from "@/theme/radius";
 import { spacing } from "@/theme/spacing";
 import { typography } from "@/theme/typography";
-import { todayDateString } from "@/utils/clock";
 import {
   getLoadHabitsErrorMessage,
   getSaveTodayStatusErrorMessage,
@@ -44,99 +39,49 @@ import type { TodayHabitCardData } from "@/features/today/types";
 import type { HabitLogStatus } from "@/features/habits/types";
 import type { HabitLog } from "@/lib/db/repositories/habit_logs";
 
-function SubtleDateHeader() {
+type GoalGroup = {
+  identityPhrase: string;
+  habits: TodayHabitCardData[];
+};
+
+function groupByIdentity(habits: TodayHabitCardData[]): GoalGroup[] {
+  const map = new Map<string, TodayHabitCardData[]>();
+  for (const habit of habits) {
+    const key = habit.identityPhrase || "(no goal)";
+    const group = map.get(key) ?? [];
+    group.push(habit);
+    map.set(key, group);
+  }
+  return Array.from(map.entries()).map(([identityPhrase, groupHabits]) => ({
+    identityPhrase,
+    habits: groupHabits,
+  }));
+}
+
+function oldestStreak(habits: TodayHabitCardData[]): number {
+  const sorted = [...habits].sort((a, b) =>
+    a.startDate.localeCompare(b.startDate),
+  );
+  return sorted[0]?.streak ?? 0;
+}
+
+function avgConsistencyRate(habits: TodayHabitCardData[]): number {
+  if (habits.length === 0) return 0;
+  return habits.reduce((sum, h) => sum + h.consistencyRate, 0) / habits.length;
+}
+
+function AppHeader() {
   const label = new Date().toLocaleDateString(undefined, {
     day: "numeric",
     month: "long",
     weekday: "long",
   });
   return (
-    <Text selectable style={styles.dateHeader}>
-      {label}
-    </Text>
-  );
-}
-
-type FocusCardProps = {
-  habit: TodayHabitCardData;
-  isReadOnly: boolean;
-  mutation: ReturnType<typeof useUpsertTodayHabitStatusMutation>;
-  onLog: (habitId: string, status: HabitLogStatus) => void;
-  showBanner: boolean;
-  onDismissBanner: () => void;
-};
-
-function FocusCard({
-  habit,
-  isReadOnly,
-  mutation,
-  onLog,
-  showBanner,
-  onDismissBanner,
-}: FocusCardProps) {
-  const identityNoun = extractIdentityNoun(habit.identityPhrase);
-  const isFirstDay =
-    habit.startDate === todayDateString() &&
-    habit.todayStatus === null &&
-    habit.streak === 0;
-
-  const logsQuery = useHabitLogsForRange(habit.id, 30);
-
-  return (
-    <View style={styles.card}>
-      {habit.identityPhrase ? (
-        <Text selectable style={styles.becomingHeader}>
-          Become {habit.identityPhrase}
-        </Text>
-      ) : null}
-
-      <Text selectable style={styles.cueAction}>
-        After {habit.cue}, {habit.tinyAction}
+    <View style={styles.header}>
+      <AppLogo size={28} animated={false} />
+      <Text selectable style={styles.dateText}>
+        {label}
       </Text>
-
-      {isFirstDay ? (
-        <Text selectable style={styles.firstDayCopy}>
-          Your first day. Start small.
-        </Text>
-      ) : (
-        <IdentityStreakDisplay
-          identityNoun={identityNoun}
-          streak={habit.streak}
-        />
-      )}
-
-      {showBanner ? (
-        <View style={styles.missBanner}>
-          <Text selectable style={styles.missBannerText}>
-            Yesterday was a miss. The science says it didn&apos;t matter. Keep going.
-          </Text>
-          <Pressable
-            accessibilityLabel="Dismiss"
-            accessibilityRole="button"
-            onPress={onDismissBanner}
-            style={styles.missBannerClose}
-          >
-            <Text selectable style={styles.missBannerCloseText}>
-              ×
-            </Text>
-          </Pressable>
-        </View>
-      ) : null}
-
-      <View style={styles.actionsRow}>
-        <PrimaryButton
-          disabled={mutation.isPending || isReadOnly}
-          label={habit.todayStatus === "done" ? "Done ✓" : "Done"}
-          onPress={() => onLog(habit.id, "done")}
-        />
-        <SecondaryButton
-          disabled={mutation.isPending || isReadOnly}
-          label={habit.todayStatus === "skipped" ? "Skipped ✓" : "Skip"}
-          onPress={() => onLog(habit.id, "skipped")}
-        />
-      </View>
-
-      <Heatmap days={30} logs={logsQuery.data ?? []} />
     </View>
   );
 }
@@ -151,10 +96,6 @@ export default function TodayScreen() {
   const { accessMode, isValidating, refresh } = useTrialValidation();
   const isReadOnly = accessMode === "read_only";
 
-  // FocusCard still uses the first active habit — will be replaced in S10-03.
-  const focusHabit = habits[0] ?? null;
-
-  // Adapter: TodayHabitCardData (camelCase) → RecoveryHabitRef (snake_case)
   const habitRefs = habits.map((h) => ({
     id: h.id,
     start_date: h.startDate,
@@ -183,14 +124,9 @@ export default function TodayScreen() {
     ) {
       return;
     }
-
     statusSubmitLockRef.current = true;
-
     try {
-      await upsertTodayHabitStatusMutation.mutateAsync({
-        habitId,
-        status,
-      });
+      await upsertTodayHabitStatusMutation.mutateAsync({ habitId, status });
     } finally {
       statusSubmitLockRef.current = false;
     }
@@ -245,20 +181,20 @@ export default function TodayScreen() {
     return <ErrorState message={getLoadHabitsErrorMessage()} />;
   }
 
-  if (!focusHabit) {
+  if (habits.length === 0) {
     return (
       <ScrollView
         contentContainerStyle={styles.content}
         contentInsetAdjustmentBehavior="automatic"
         style={styles.screen}
       >
-        <SubtleDateHeader />
+        <AppHeader />
         <ZenCard>
           <Text selectable style={styles.emptyTitle}>
             No active habits yet
           </Text>
           <Text selectable style={styles.emptyBody}>
-            Start with one Focus habit. Small, repeatable, sized to your worst day.
+            Start with one small habit — sized to your worst day.
           </Text>
           <PrimaryButton
             label="Create your first habit"
@@ -269,13 +205,15 @@ export default function TodayScreen() {
     );
   }
 
+  const goalGroups = groupByIdentity(habits);
+
   return (
     <ScrollView
       contentContainerStyle={styles.content}
       contentInsetAdjustmentBehavior="automatic"
       style={styles.screen}
     >
-      <SubtleDateHeader />
+      <AppHeader />
       {isReadOnly ? (
         <ReadOnlyBanner
           isReconnecting={isValidating}
@@ -285,16 +223,26 @@ export default function TodayScreen() {
       {upsertTodayHabitStatusMutation.error ? (
         <ErrorState message={getSaveTodayStatusErrorMessage()} />
       ) : null}
-      <FocusCard
-        habit={focusHabit}
-        isReadOnly={isReadOnly}
-        mutation={upsertTodayHabitStatusMutation}
-        onDismissBanner={() => void handleBannerDismiss()}
-        onLog={handleStatusPress}
-        showBanner={showBanner}
-      />
+      {goalGroups.map((group) => (
+        <GoalContainer
+          key={group.identityPhrase}
+          consistencyRate={avgConsistencyRate(group.habits)}
+          identityPhrase={group.identityPhrase}
+          streak={oldestStreak(group.habits)}
+        >
+          {group.habits.map((habit) => (
+            <HabitPlaceholderRow
+              key={habit.id}
+              disabled={upsertTodayHabitStatusMutation.isPending || isReadOnly}
+              habit={habit}
+              onDone={() => void handleStatusPress(habit.id, "done")}
+              onSkip={() => void handleStatusPress(habit.id, "skipped")}
+            />
+          ))}
+        </GoalContainer>
+      ))}
       <RecoveryModal
-        habitTitle={triggeringHabit?.title ?? focusHabit.name}
+        habitTitle={triggeringHabit?.title ?? habits[0]?.name ?? ""}
         onClose={() => void handleRecoveryClose()}
         onMakeItSmaller={() => void handleRecoveryMakeItSmaller()}
         onPauseForNow={() => void handleRecoveryPauseForNow()}
@@ -305,32 +253,46 @@ export default function TodayScreen() {
   );
 }
 
+type HabitPlaceholderRowProps = {
+  disabled: boolean;
+  habit: TodayHabitCardData;
+  onDone: () => void;
+  onSkip: () => void;
+};
+
+function HabitPlaceholderRow({
+  disabled,
+  habit,
+  onDone,
+  onSkip,
+}: HabitPlaceholderRowProps) {
+  return (
+    <View style={styles.placeholderRow}>
+      <Text selectable style={styles.habitName}>
+        {habit.name}
+      </Text>
+      <View style={styles.placeholderActions}>
+        <PrimaryButton
+          disabled={disabled}
+          label={habit.todayStatus === "done" ? "Done ✓" : "Done"}
+          onPress={onDone}
+        />
+        <PrimaryButton
+          disabled={disabled}
+          label={habit.todayStatus === "skipped" ? "Skipped ✓" : "Skip"}
+          onPress={onSkip}
+        />
+      </View>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
-  actionsRow: {
-    flexDirection: "row",
-    gap: spacing.sm,
-  },
-  becomingHeader: {
-    color: colors.text,
-    fontSize: typography.headlineMd,
-    fontWeight: "700",
-  },
-  card: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    gap: spacing.lg,
-    padding: spacing.xl,
-  },
   content: {
     gap: spacing.xl,
     padding: spacing.xl,
   },
-  cueAction: {
-    color: colors.textMuted,
-    fontSize: typography.bodyLg,
-    lineHeight: 24,
-  },
-  dateHeader: {
+  dateText: {
     color: colors.textMuted,
     fontFamily: fontFamilies.body,
     fontSize: typography.bodyLg,
@@ -346,34 +308,23 @@ const styles = StyleSheet.create({
     fontFamily: fontFamilies.displaySemi,
     fontSize: typography.headlineLg,
   },
-  firstDayCopy: {
+  habitName: {
     color: colors.text,
+    fontFamily: fontFamilies.bodyMedium,
     fontSize: typography.bodyLg,
-    fontStyle: "italic",
-    lineHeight: 24,
   },
-  missBanner: {
+  header: {
     alignItems: "center",
-    backgroundColor: colors.surfaceMuted,
-    borderRadius: radius.md,
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  placeholderActions: {
     flexDirection: "row",
     gap: spacing.sm,
-    padding: spacing.md,
   },
-  missBannerClose: {
-    paddingHorizontal: spacing.xs,
-  },
-  missBannerCloseText: {
-    color: colors.textMuted,
-    fontSize: 20,
-    fontWeight: "300",
-    lineHeight: 22,
-  },
-  missBannerText: {
-    color: colors.textMuted,
-    flex: 1,
-    fontSize: 14,
-    lineHeight: 20,
+  placeholderRow: {
+    gap: spacing.sm,
+    padding: spacing.lg,
   },
   screen: {
     backgroundColor: colors.bg,

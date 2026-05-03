@@ -68,11 +68,9 @@ function buildFocusHabit(overrides = {}) {
     consistencyRate: 0,
     cue: "I wake up",
     formula: "After I wake up, I will Read 1 page.",
-    habitState: "active",
+    icon: null,
     id: "habit-1",
     identityPhrase: "a reader",
-    isWeeklyReviewDue: false,
-    latestReviewWeekStart: null,
     name: "Reading",
     skipCount: 0,
     startDate: "2026-04-01",
@@ -150,7 +148,7 @@ describe("TodayScreen", () => {
     expect(screen.queryByText("No active habits yet")).toBeNull();
   });
 
-  it("shows the empty state with new S5 copy when no Focus habit exists", () => {
+  it("shows the empty state when no habits exist", () => {
     useTodayHabits.mockReturnValue({
       error: null,
       habits: [],
@@ -163,7 +161,7 @@ describe("TodayScreen", () => {
     expect(screen.getByText("No active habits yet")).toBeTruthy();
     expect(
       screen.getByText(
-        "Start with one Focus habit. Small, repeatable, sized to your worst day.",
+        "Start with one small habit — sized to your worst day.",
       ),
     ).toBeTruthy();
     expect(screen.getByText("Create your first habit")).toBeTruthy();
