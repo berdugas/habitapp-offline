@@ -182,11 +182,9 @@ export function useUpsertTodayHabitStatusMutation() {
         throw new Error("You need an account session before logging a habit.");
       }
 
-      const todayDate = toDeviceDateString();
-
       return upsertHabitLog(user.id, {
         habitId,
-        logDate: todayDate,
+        logDate: todayDateString(),
         status,
       });
     },
