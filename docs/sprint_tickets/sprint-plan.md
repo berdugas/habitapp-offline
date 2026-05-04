@@ -17,7 +17,7 @@ Five rules govern how this plan is shaped. Every deviation from this plan should
 
 **2. Each sprint produces something testable.** Either a green test suite, a screen the user can tap through, or a build that runs. A sprint that ends with "in progress" was too big.
 
-**3. Ship the thinnest beta first.** Stage 1 (Private Beta) is the minimum viable becoming-bridge: onboard → log → see streak → recover from a miss → add supporting habits → get reminded. Anything that doesn't directly test the becoming-bridge thesis gets pushed to Stage 2.
+**3. Ship the thinnest beta first.** Stage 1 (Private Beta) is the minimum viable becoming-bridge: onboard → log → see streak → recover from a miss → add habits to your goal → get reminded. Anything that doesn't directly test the becoming-bridge thesis gets pushed to Stage 2.
 
 **4. Risky things first, polish last.** Streak math, DB migration, trial validation, recovery flow have unknowns and get earlier sprints. Settings polish, empty states, analytics instrumentation come later.
 
@@ -31,13 +31,13 @@ Twenty-three sprints grouped into four phases. The phase grouping is for progres
 |---|---|---|---|
 | A — Foundation | S0–S2 | ~1 week | Server cleaned, local DB rails laid, streak algorithm tested. No user-visible work. |
 | B — Beta surface + visual design | S3–S9 | ~3.5 weeks | Onboarding → log → streak → recover → visual pass. The Mindful Canvas applied. |
-| C — Beta completion + ship to testers | S10–S14 | ~2 weeks | Today redesign, reviews migration, supporting habits, reminders, multi-habit Today. TestFlight build shipped. |
+| C — Beta completion + ship to testers | S10–S14 | ~2 weeks | Today redesign (S10, done), reviews cleanup, habit creation + icon picker, reminders, beta QA + ship to testers. |
 | D — Full Core v1 features | S15–S19 | ~2.5 weeks | Graduation, Library, Backlog, Account, Export. |
 | E — Polish & ship | S20–S22 | ~1 week | Bug fixes, empty states, analytics, store submission. |
 
 **Total estimate:** ~58 working days ≈ 8–9 calendar weeks for solo dev to "submitted." Add 1–2 weeks for App Store / Play Store review before "live."
 
-**Stage 1 (Private Beta) ships at the close of S14.** Testers get: onboarding → Focus habit → supporting habits → reminders → multi-habit Today → recovery → identity streaks — the complete daily loop. Stage 2 (Full Core v1) covers S15–S22.
+**Stage 1 (Private Beta) ships at the close of S14.** Testers get: onboarding → habit goal setup → add multiple habits → reminders → Today with all habits as peer rows → recovery → identity streaks — the complete daily loop. Stage 2 (Full Core v1) covers S15–S22.
 
 **What beta does NOT include (deferred to Stage 2):** graduation ceremony, SRHI, Automatic Library, backlog management, account deletion, data export, weekly reviews, analytics. These features either require weeks of usage data (graduation), aren't reachable in a 2-week beta window (Library), or are polish/compliance (analytics, export, deletion). Shipping them before tester signal would be building in the dark.
 
@@ -397,7 +397,7 @@ Phase D builds on beta learnings. Sprint contents stay as planned unless beta fe
 
 ### Sprint 16 — Graduation ceremony
 
-**Goal.** The user can complete the SRHI ceremony and graduate a Focus habit to Automatic.
+**Goal.** The user can complete the SRHI ceremony and graduate a habit to Automatic.
 
 **Deliverables.**
 - Eligibility check runs on app open
@@ -426,7 +426,7 @@ Phase D builds on beta learnings. Sprint contents stay as planned unless beta fe
 - Promote-back logic preserves log history, resets 60-day clock
 - Backlog management surface in Settings → Habit Management:
   - `BacklogList` component
-  - Promote from backlog to Focus or Supporting (with worst-day gate for Supporting)
+  - Promote from backlog to active (worst-day gate applies)
   - "Save to backlog" wired into cap-exceeded flow from S12
 - Tests for Library promote-back and Backlog promote/delete flows
 
