@@ -1,3 +1,4 @@
+import { forwardRef } from 'react';
 import { PenLine } from 'lucide-react-native';
 import { StyleSheet, Text, TextInput, View } from 'react-native';
 
@@ -13,28 +14,26 @@ type OnboardingInputProps = {
   onChangeText: (text: string) => void;
 };
 
-export function OnboardingInput({
-  label,
-  placeholder,
-  value,
-  onChangeText,
-}: OnboardingInputProps) {
-  return (
-    <View>
-      <Text style={styles.label}>{label}</Text>
-      <View style={styles.inputContainer}>
-        <PenLine color={colors.primary} size={18} strokeWidth={1.5} />
-        <TextInput
-          placeholder={placeholder}
-          placeholderTextColor={colors.textFaint}
-          style={styles.input}
-          value={value}
-          onChangeText={onChangeText}
-        />
+export const OnboardingInput = forwardRef<TextInput, OnboardingInputProps>(
+  function OnboardingInput({ label, placeholder, value, onChangeText }, ref) {
+    return (
+      <View>
+        <Text style={styles.label}>{label}</Text>
+        <View style={styles.inputContainer}>
+          <PenLine color={colors.primary} size={18} strokeWidth={1.5} />
+          <TextInput
+            ref={ref}
+            placeholder={placeholder}
+            placeholderTextColor={colors.textFaint}
+            style={styles.input}
+            value={value}
+            onChangeText={onChangeText}
+          />
+        </View>
       </View>
-    </View>
-  );
-}
+    );
+  },
+);
 
 const styles = StyleSheet.create({
   label: {
