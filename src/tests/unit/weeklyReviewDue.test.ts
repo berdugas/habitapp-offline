@@ -14,7 +14,7 @@ const baseHabit: Habit = {
   identity_phrase: null,
   minimum_viable_action: null,
   preferred_time_window: null,
-  start_date: "2026-04-20",
+  start_date: "2026-04-13",
   status: "active",
   tiny_action: "Read 1 page",
   title: "Reading",

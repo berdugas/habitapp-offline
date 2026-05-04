@@ -7,6 +7,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import { CalendarGrid } from "@/components/CalendarGrid";
 import type { HeatmapLog } from "@/components/CalendarGrid";
 import { ReadOnlyBanner } from "@/components/ReadOnlyBanner";
+import { PrimaryButton } from "@/components/buttons/PrimaryButton";
 import { SecondaryButton } from "@/components/buttons/SecondaryButton";
 import { ZenCard } from "@/components/cards/ZenCard";
 import { RowLV } from "@/components/cards/RowLV";
@@ -24,11 +25,14 @@ import {
   useUpsertHabitLogMutation,
 } from "@/features/habits/hooks";
 import { getStreakCopy } from "@/features/today/streakCopy";
+import { isWeeklyReviewDue } from "@/features/reviews/due";
+import { useLatestWeeklyReviewQuery } from "@/features/reviews/hooks";
 import { useTrialValidation } from "@/features/trial/hooks";
 import { useHabitLogsForRange } from "@/features/today/hooks";
 import { getReminderByHabitId } from "@/lib/db/repositories/reminders";
 import { useAuthSession } from "@/features/auth/hooks";
 import { now } from "@/utils/clock";
+import { getWeekStartDateString, toDeviceDateString } from "@/utils/dates";
 import { colors } from "@/theme/colors";
 import { fontFamilies } from "@/theme/fontFamilies";
 import { radius } from "@/theme/radius";
@@ -67,6 +71,20 @@ export default function HabitDetailScreen() {
   const calendarLogs = useHabitLogsForRange(habit?.id, 35).data ?? [];
   const { accessMode, isValidating, refresh } = useTrialValidation();
   const isReadOnly = accessMode === "read_only";
+
+  // Weekly review state
+  const todayDate = toDeviceDateString(now());
+  const currentWeekStart = getWeekStartDateString(now());
+  const latestReviewQuery = useLatestWeeklyReviewQuery(habitId);
+  const latestReview = latestReviewQuery.data ?? null;
+  const isReviewDue = habit
+    ? isWeeklyReviewDue({ currentWeekStart, habit, latestReview, todayDate })
+    : false;
+  const isReviewedThisWeek = latestReview?.week_start === currentWeekStart;
+  const showReviewCard =
+    !isReadOnly &&
+    habit?.status === "active" &&
+    (isReviewDue || isReviewedThisWeek);
 
   // Reminder state
   const [reminderEnabled, setReminderEnabled] = useState(false);
@@ -286,6 +304,43 @@ export default function HabitDetailScreen() {
               <Text style={styles.streakNumber}>{progress.streak}</Text>
             </LinearGradient>
           </View>
+        </ZenCard>
+      ) : null}
+
+      {/* Weekly Review card */}
+      {showReviewCard ? (
+        <ZenCard>
+          <Eyebrow label="Weekly Review" />
+          {isReviewDue ? (
+            <>
+              <Text style={styles.reviewPromptText}>
+                Time for a quick reflection on this habit.
+              </Text>
+              <PrimaryButton
+                label="Start review"
+                onPress={() =>
+                  router.push({
+                    pathname: "/(app)/reviews/[habitId]",
+                    params: { habitId: habit.id, returnTo: "habitDetail" },
+                  })
+                }
+              />
+            </>
+          ) : (
+            <>
+              <Text style={styles.reviewCompletedText}>Reviewed this week ✓</Text>
+              <Pressable
+                onPress={() =>
+                  router.push({
+                    pathname: "/(app)/reviews/[habitId]",
+                    params: { habitId: habit.id, returnTo: "habitDetail" },
+                  })
+                }
+              >
+                <Text style={styles.reviewAgainLink}>Review again</Text>
+              </Pressable>
+            </>
+          )}
         </ZenCard>
       ) : null}
 
@@ -662,5 +717,21 @@ const styles = StyleSheet.create({
   streakTextCol: {
     flex: 1,
     gap: 4,
+  },
+  reviewPromptText: {
+    color: colors.textMuted,
+    fontFamily: fontFamilies.body,
+    fontSize: typography.bodyLg,
+    lineHeight: 24,
+  },
+  reviewCompletedText: {
+    color: colors.primary,
+    fontFamily: fontFamilies.bodySemi,
+    fontSize: typography.bodyLg,
+  },
+  reviewAgainLink: {
+    color: colors.textFaint,
+    fontFamily: fontFamilies.bodyMedium,
+    fontSize: typography.bodyMd,
   },
 });

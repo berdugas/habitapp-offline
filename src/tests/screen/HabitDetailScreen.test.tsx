@@ -1,3 +1,11 @@
+jest.mock("@/features/reviews/hooks", () => ({
+  useLatestWeeklyReviewQuery: jest.fn().mockReturnValue({
+    data: null,
+    error: null,
+    isLoading: false,
+  }),
+}));
+
 jest.mock("@/features/trial/hooks", () => ({
   useTrialValidation: jest.fn(() => ({
     isBootstrapping: false,

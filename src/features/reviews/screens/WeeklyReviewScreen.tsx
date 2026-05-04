@@ -3,18 +3,24 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 
 import { PrimaryButton } from "@/components/buttons/PrimaryButton";
+import { SecondaryButton } from "@/components/buttons/SecondaryButton";
+import { ZenCard } from "@/components/cards/ZenCard";
 import { ErrorState } from "@/components/feedback/ErrorState";
 import { LoadingState } from "@/components/feedback/LoadingState";
 import { TextField } from "@/components/forms/TextField";
+import { Eyebrow } from "@/components/text/Eyebrow";
 import { useHabitDetail } from "@/features/habits/hooks";
 import { getHabitAdjustmentSuggestions } from "@/features/recommendations/habitAdjustmentEngine";
 import {
   useCurrentWeeklyReviewQuery,
   useUpsertWeeklyReviewMutation,
 } from "@/features/reviews/hooks";
+import { useTrialValidation } from "@/features/trial/hooks";
 import { colors } from "@/theme/colors";
+import { fontFamilies } from "@/theme/fontFamilies";
 import { radius } from "@/theme/radius";
 import { spacing } from "@/theme/spacing";
+import { typography } from "@/theme/typography";
 import { getWeekStartDateString } from "@/utils/dates";
 import {
   getLoadWeeklyReviewErrorMessage,
@@ -103,6 +109,8 @@ export default function WeeklyReviewScreen() {
   const habitId = normalizeHabitId(habitIdParam);
   const returnTo = normalizeReturnTo(returnToParam);
   const weekStart = getWeekStartDateString();
+  const { accessMode } = useTrialValidation();
+  const isReadOnly = accessMode === "read_only";
   const habitDetail = useHabitDetail(habitId);
   const currentReviewQuery = useCurrentWeeklyReviewQuery(habitId);
   const upsertWeeklyReviewMutation = useUpsertWeeklyReviewMutation();
@@ -216,6 +224,25 @@ export default function WeeklyReviewScreen() {
     );
   }
 
+  if (isReadOnly) {
+    return (
+      <ScrollView
+        contentContainerStyle={styles.content}
+        contentInsetAdjustmentBehavior="automatic"
+        style={styles.screen}
+      >
+        <ZenCard>
+          <Eyebrow label="Weekly Review" />
+          <Text selectable style={styles.body}>
+            Weekly reviews aren't available while the app is in read-only mode.
+            Reconnect to restore full access.
+          </Text>
+        </ZenCard>
+        <SecondaryButton label="Go back" onPress={() => router.back()} />
+      </ScrollView>
+    );
+  }
+
   const isSaveBlocked = upsertWeeklyReviewMutation.isPending || reviewSaved;
 
   return (
@@ -233,20 +260,20 @@ export default function WeeklyReviewScreen() {
         </Text>
       </View>
 
-      <View style={styles.card}>
+      <ZenCard>
         <Text selectable style={styles.cardTitle}>
           {habitDetail.habit.title}
         </Text>
         <Text selectable style={styles.body}>
           Week of {weekStart}
         </Text>
-      </View>
+      </ZenCard>
 
       {validationError ? <ErrorState message={validationError} /> : null}
       {saveError || upsertWeeklyReviewMutation.error ? (
         <ErrorState message={getSaveWeeklyReviewErrorMessage()} />
       ) : null}
-      <View style={styles.card}>
+      <ZenCard>
         <TextField
           label="What went well this week?"
           multiline
@@ -281,20 +308,20 @@ export default function WeeklyReviewScreen() {
           placeholder="One small change for next week"
           value={adjustmentNote}
         />
-      </View>
+      </ZenCard>
 
       {reviewSaved ? (
-        <View style={styles.successCard}>
+        <ZenCard style={styles.successCard}>
           <Text selectable style={styles.successTitle}>
             Review saved
           </Text>
           <Text selectable style={styles.successBody}>
             Your habit reflection has been updated for this week.
           </Text>
-        </View>
+        </ZenCard>
       ) : null}
       {adjustmentSuggestion ? (
-        <View style={styles.suggestionCard}>
+        <ZenCard>
           <Text selectable style={styles.suggestionEyebrow}>
             Suggested adjustment
           </Text>
@@ -310,7 +337,7 @@ export default function WeeklyReviewScreen() {
           <Text selectable style={styles.suggestionReason}>
             {adjustmentSuggestion.reason}
           </Text>
-        </View>
+        </ZenCard>
       ) : null}
 
       <PrimaryButton
@@ -329,7 +356,8 @@ export default function WeeklyReviewScreen() {
 const styles = StyleSheet.create({
   body: {
     color: colors.textMuted,
-    fontSize: 16,
+    fontFamily: fontFamilies.body,
+    fontSize: typography.bodyLg,
     lineHeight: 24,
   },
   booleanField: {
@@ -337,26 +365,19 @@ const styles = StyleSheet.create({
   },
   booleanHelper: {
     color: colors.textMuted,
-    fontSize: 14,
+    fontFamily: fontFamilies.body,
+    fontSize: typography.bodyMd,
     lineHeight: 20,
   },
   booleanLabel: {
     color: colors.text,
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  card: {
-    backgroundColor: colors.surface,
-    borderColor: 'transparent',
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    gap: spacing.lg,
-    padding: spacing.xl,
+    fontFamily: fontFamilies.bodySemi,
+    fontSize: typography.bodyMd,
   },
   cardTitle: {
     color: colors.text,
-    fontSize: 20,
-    fontWeight: "700",
+    fontFamily: fontFamilies.displaySemi,
+    fontSize: typography.titleLg,
   },
   content: {
     gap: spacing.xl,
@@ -376,79 +397,68 @@ const styles = StyleSheet.create({
   },
   successBody: {
     color: colors.textMuted,
-    fontSize: 14,
+    fontFamily: fontFamilies.body,
+    fontSize: typography.bodyMd,
     lineHeight: 20,
   },
   successCard: {
-    backgroundColor: colors.surface,
-    borderColor: colors.success,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    gap: spacing.xs,
-    padding: spacing.lg,
+    backgroundColor: colors.primarySoft,
   },
   successTitle: {
-    color: colors.success,
-    fontSize: 16,
-    fontWeight: "700",
+    color: colors.primary,
+    fontFamily: fontFamilies.bodySemi,
+    fontSize: typography.bodyLg,
   },
   suggestionBody: {
     color: colors.textMuted,
-    fontSize: 14,
+    fontFamily: fontFamilies.body,
+    fontSize: typography.bodyMd,
     lineHeight: 20,
-  },
-  suggestionCard: {
-    backgroundColor: colors.surface,
-    borderColor: 'transparent',
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    gap: spacing.sm,
-    padding: spacing.lg,
   },
   suggestionEyebrow: {
     color: colors.textMuted,
-    fontSize: 12,
-    fontWeight: "700",
+    fontFamily: fontFamilies.bodySemi,
+    fontSize: typography.micro,
+    letterSpacing: 1,
     textTransform: "uppercase",
   },
   suggestionReason: {
     color: colors.textMuted,
-    fontSize: 14,
+    fontFamily: fontFamilies.body,
+    fontSize: typography.bodyMd,
     lineHeight: 20,
   },
   suggestionReasonLabel: {
     color: colors.text,
-    fontSize: 13,
-    fontWeight: "700",
+    fontFamily: fontFamilies.bodySemi,
+    fontSize: typography.labelMd,
   },
   suggestionTitle: {
     color: colors.text,
-    fontSize: 18,
-    fontWeight: "700",
+    fontFamily: fontFamilies.displaySemi,
+    fontSize: typography.titleMd,
   },
   segmentButton: {
-    backgroundColor: colors.bg,
-    borderColor: 'transparent',
+    backgroundColor: colors.surface,
     borderRadius: radius.pill,
-    borderWidth: 1,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
   },
   segmentButtonLabel: {
-    color: colors.text,
-    fontSize: 14,
-    fontWeight: "600",
+    color: colors.textMuted,
+    fontFamily: fontFamilies.bodyMedium,
+    fontSize: typography.bodyMd,
   },
   segmentButtonLabelSelected: {
-    color: colors.surfaceCard,
+    color: colors.primary,
+    fontFamily: fontFamilies.bodySemi,
   },
   segmentButtonSelected: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
+    backgroundColor: colors.primarySoft,
   },
   title: {
     color: colors.text,
-    fontSize: 28,
-    fontWeight: "800",
+    fontFamily: fontFamilies.displayBold,
+    fontSize: typography.headlineLg,
   },
 });
