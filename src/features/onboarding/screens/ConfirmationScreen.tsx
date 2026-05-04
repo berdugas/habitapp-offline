@@ -5,7 +5,7 @@ import { PrimaryButton } from "@/components/buttons/PrimaryButton";
 import { OnboardingLayout } from "@/components/layouts/OnboardingLayout";
 import { OnboardingFinalizationError } from "@/features/onboarding/completion";
 import { useFinalizeOnboardingMutation } from "@/features/onboarding/hooks";
-import { LucideIcon } from "@/features/onboarding/components/LucideIconPicker";
+import { LucideIcon } from "@/components/LucideIconPicker";
 import { useOnboarding } from "@/features/onboarding/OnboardingProvider";
 import { colors } from "@/theme/colors";
 import { fontFamilies } from "@/theme/fontFamilies";

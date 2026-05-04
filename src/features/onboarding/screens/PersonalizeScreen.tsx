@@ -10,7 +10,7 @@ import { useOnboarding } from "@/features/onboarding/OnboardingProvider";
 import {
   LucideIcon,
   LucideIconPicker,
-} from "@/features/onboarding/components/LucideIconPicker";
+} from "@/components/LucideIconPicker";
 import { colors } from "@/theme/colors";
 import { fontFamilies } from "@/theme/fontFamilies";
 import { radius } from "@/theme/radius";

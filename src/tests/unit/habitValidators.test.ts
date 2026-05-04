@@ -21,6 +21,7 @@ describe("validateCreateHabitPayload — field validation", () => {
     tinyAction: "2 minutes of breathing",
     minimumViableAction: "",
     preferredTimeWindow: "",
+    icon: "",
   };
 
   it("errors on blank required fields: title, cue, tinyAction", () => {
@@ -31,6 +32,7 @@ describe("validateCreateHabitPayload — field validation", () => {
       tinyAction: "   ",
       minimumViableAction: "",
       preferredTimeWindow: "",
+      icon: "",
     });
     expect(errors).toHaveProperty("title");
     expect(errors).toHaveProperty("cue");

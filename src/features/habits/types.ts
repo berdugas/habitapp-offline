@@ -23,7 +23,7 @@ export type HabitRecord = Habit;
 export type HabitLogRecord = HabitLog;
 export type HabitLogStatus = LogStatus;
 
-// Form-layer shape (camelCase). Used by CreateHabitScreen / EditHabitScreen.
+// Form-layer shape (camelCase). Used by CreateHabitFlow / EditHabitScreen.
 // Reminder fields removed — moved to local_reminder_settings (S15).
 export type HabitSetupPayload = {
   identityPhrase: string;
@@ -32,6 +32,7 @@ export type HabitSetupPayload = {
   tinyAction: string;
   minimumViableAction: string;
   preferredTimeWindow: string;
+  icon: string;
 };
 
 export type CreateHabitPayload = HabitSetupPayload & {

@@ -16,6 +16,7 @@ export function normalizeHabitSetupPayload(
     tinyAction: payload.tinyAction.trim(),
     minimumViableAction: payload.minimumViableAction.trim(),
     preferredTimeWindow: payload.preferredTimeWindow.trim(),
+    icon: payload.icon.trim(),
   };
 }
 
@@ -53,6 +54,10 @@ export function validateHabitSetupPayload(
 
   if (!isBlank(normalized.preferredTimeWindow) && exceedsLength(normalized.preferredTimeWindow, 80)) {
     errors.preferredTimeWindow = "Preferred time window must stay under 80 characters.";
+  }
+
+  if (!isBlank(normalized.icon) && exceedsLength(normalized.icon, 60)) {
+    errors.icon = "Icon name must stay under 60 characters.";
   }
 
   return errors;
