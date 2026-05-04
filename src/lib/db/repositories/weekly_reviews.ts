@@ -84,6 +84,15 @@ export async function upsertWeeklyReview(
   const db = getDb();
   const now = new Date().toISOString();
   const id = crypto.randomUUID();
+  const habit = await db.getFirstAsync<{ id: string }>(
+    "SELECT id FROM local_habits WHERE id = ? AND user_id = ?",
+    input.habitId,
+    input.userId,
+  );
+
+  if (!habit) {
+    throw new Error(`Habit not found: ${input.habitId}`);
+  }
 
   await db.runAsync(
     `INSERT INTO local_weekly_reviews (

@@ -11,14 +11,6 @@ jest.mock("@/features/trial/hooks", () => ({
   })),
 }));
 
-jest.mock("@/features/auth/hooks", () => ({
-  useAuthSession: jest.fn(() => ({ user: { id: "user-1" } })),
-}));
-
-jest.mock("@/lib/db/repositories/weekly_reviews", () => ({
-  upsertWeeklyReview: jest.fn().mockResolvedValue(undefined),
-}));
-
 import { fireEvent, render, screen } from "@testing-library/react-native";
 
 import HabitDetailScreen from "@/features/habits/screens/HabitDetailScreen";

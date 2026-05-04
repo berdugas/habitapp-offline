@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 
@@ -18,13 +18,11 @@ import {
 } from "@/features/habits/contract";
 import { isWithinRetroWindow } from "@/features/habits/api";
 import { RetroLogSelector } from "@/features/habits/components/RetroLogSelector";
-import { useAuthSession } from "@/features/auth/hooks";
 import {
   useArchiveHabitMutation,
   useHabitDetail,
   useUpsertHabitLogMutation,
 } from "@/features/habits/hooks";
-import { upsertWeeklyReview } from "@/lib/db/repositories/weekly_reviews";
 import { extractIdentityNoun } from "@/features/onboarding/identityNoun";
 import { getHabitAdjustmentSuggestions } from "@/features/recommendations/habitAdjustmentEngine";
 import { useTrialValidation } from "@/features/trial/hooks";
@@ -82,28 +80,6 @@ function getUpcomingHabitMessage() {
   return "This habit is scheduled and will become loggable on its start date.";
 }
 
-// DEV-ONLY validation helper — remove before merging s11/bug2-validation
-async function seedReviewForValidation(userId: string, habitId: string) {
-  // Scenario A — single card (trigger-fix): uncomment + comment out B
-  // await upsertWeeklyReview({
-  //   userId, habitId, weekStart: "2026-04-21",
-  //   wentWell: "Felt motivated", wasHard: "Getting started", adjustmentNote: "",
-  //   triggerWorked: false, tinyActionTooHard: null,
-  // });
-
-  // Scenario B — dual cards (action-fix first, then trigger-fix): active by default
-  await upsertWeeklyReview({
-    userId,
-    habitId,
-    weekStart: "2026-04-28",
-    wentWell: "Mostly good",
-    wasHard: "Action felt too big and trigger was unreliable",
-    adjustmentNote: "",
-    triggerWorked: false,
-    tinyActionTooHard: true,
-  });
-}
-
 export default function HabitDetailScreen() {
   const { habitId } = useLocalSearchParams<{ habitId?: string | string[] }>();
   const activeStateSubmitLockRef = useRef(false);
@@ -117,17 +93,7 @@ export default function HabitDetailScreen() {
     progress,
     recentLogs,
   } = useHabitDetail(habitId);
-  const { user } = useAuthSession();
   const archiveHabitMutation = useArchiveHabitMutation();
-
-  // DEV-ONLY: seed review data to validate Bug #2 suggestion card layout.
-  // Remove this block before merging. Two scenarios:
-  //   Scenario A (single card): uncomment the weekStart "2026-04-21" upsert, comment out "2026-04-28"
-  //   Scenario B (dual cards): active by default — both trigger_worked=false AND tiny_action_too_hard=true
-  useEffect(() => {
-    if (!__DEV__ || !habit || !user) return;
-    void seedReviewForValidation(user.id, habit.id);
-  }, [habit?.id, user?.id]);
   const upsertHabitLogMutation = useUpsertHabitLogMutation();
   const retroLogSubmitLockRef = useRef(false);
   const [selectorState, setSelectorState] = useState<{
