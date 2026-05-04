@@ -93,6 +93,28 @@ describe("weekly review due logic", () => {
   });
 
   // S14 age-gate threshold cases (I1 / I2)
+  it("does not mark a habit created today as due (day 0 below threshold)", () => {
+    expect(
+      isWeeklyReviewDue({
+        currentWeekStart: "2026-04-24",
+        habit: { ...baseHabit, start_date: "2026-04-24" },
+        latestReview: null,
+        todayDate: "2026-04-24",
+      }),
+    ).toBe(false);
+  });
+
+  it("does not mark a habit that is 3 days old as due (below threshold)", () => {
+    expect(
+      isWeeklyReviewDue({
+        currentWeekStart: "2026-04-13",
+        habit: baseHabit,
+        latestReview: null,
+        todayDate: "2026-04-16",
+      }),
+    ).toBe(false);
+  });
+
   it("does not mark a habit that is 6 days old as due (one day below the 7-day threshold)", () => {
     // start_date = 2026-04-13 (Mon), todayDate = 2026-04-19 (Sun) → 6 days
     expect(
@@ -113,6 +135,18 @@ describe("weekly review due logic", () => {
         habit: baseHabit,
         latestReview: null,
         todayDate: "2026-04-20",
+      }),
+    ).toBe(true);
+  });
+
+  it("marks a habit that is 14 days old as due when the current week is unreviewed", () => {
+    // start_date = 2026-04-13 (Mon), todayDate = 2026-04-27 (Mon) → 14 days
+    expect(
+      isWeeklyReviewDue({
+        currentWeekStart: "2026-04-27",
+        habit: baseHabit,
+        latestReview: null,
+        todayDate: "2026-04-27",
       }),
     ).toBe(true);
   });

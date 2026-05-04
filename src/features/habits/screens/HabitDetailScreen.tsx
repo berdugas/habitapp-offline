@@ -81,10 +81,6 @@ export default function HabitDetailScreen() {
     ? isWeeklyReviewDue({ currentWeekStart, habit, latestReview, todayDate })
     : false;
   const isReviewedThisWeek = latestReview?.week_start === currentWeekStart;
-  const showReviewCard =
-    !isReadOnly &&
-    habit?.status === "active" &&
-    (isReviewDue || isReviewedThisWeek);
 
   // Reminder state
   const [reminderEnabled, setReminderEnabled] = useState(false);
@@ -308,7 +304,7 @@ export default function HabitDetailScreen() {
       ) : null}
 
       {/* Weekly Review card */}
-      {showReviewCard ? (
+      {!isReadOnly && habit?.status === "active" && (isReviewDue || isReviewedThisWeek) ? (
         <ZenCard>
           <Eyebrow label="Weekly Review" />
           {isReviewDue ? (
