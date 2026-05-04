@@ -1,3 +1,12 @@
+jest.mock("@/features/trial/hooks", () => ({
+  useTrialValidation: jest.fn(() => ({
+    accessMode: "full",
+    isBootstrapping: false,
+    isValidating: false,
+    refresh: jest.fn().mockResolvedValue(undefined),
+  })),
+}));
+
 import {
   act,
   fireEvent,
