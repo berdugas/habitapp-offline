@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ScrollView, StyleSheet, Text, TextInput } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 
+import { LucideIcon, LucideIconPicker } from "@/components/LucideIconPicker";
 import { PrimaryButton } from "@/components/buttons/PrimaryButton";
 import { ReadOnlyBanner } from "@/components/ReadOnlyBanner";
 import { ZenCard } from "@/components/cards/ZenCard";
@@ -54,6 +55,8 @@ export default function EditHabitScreen() {
   const [tinyAction, setTinyAction] = useState("");
   const [minimumViableAction, setMinimumViableAction] = useState("");
   const [preferredTimeWindow, setPreferredTimeWindow] = useState("");
+  const [icon, setIcon] = useState("");
+  const [showPicker, setShowPicker] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
   const formPayload = {
@@ -63,6 +66,7 @@ export default function EditHabitScreen() {
     tinyAction,
     minimumViableAction,
     preferredTimeWindow,
+    icon,
   };
   const normalizedPayload = normalizeHabitSetupPayload(formPayload);
   const validationErrors = useMemo(
@@ -81,6 +85,7 @@ export default function EditHabitScreen() {
     setTinyAction(ownedHabitQuery.data.tiny_action);
     setMinimumViableAction(ownedHabitQuery.data.minimum_viable_action ?? "");
     setPreferredTimeWindow(ownedHabitQuery.data.preferred_time_window ?? "");
+    setIcon(ownedHabitQuery.data.icon ?? "");
     hasHydratedFormRef.current = true;
 
     if (fromRecovery) {
@@ -230,6 +235,29 @@ export default function EditHabitScreen() {
           options={PREFERRED_TIME_WINDOW_OPTIONS}
           value={preferredTimeWindow}
         />
+        <View style={styles.iconRow}>
+          <Text style={styles.iconLabel}>Icon</Text>
+          <Pressable
+            onPress={() => setShowPicker((v) => !v)}
+            style={styles.iconCircle}
+          >
+            <LucideIcon
+              name={icon || "Sparkles"}
+              size={20}
+              color={icon ? colors.primary : colors.textFaint}
+              strokeWidth={1.8}
+            />
+          </Pressable>
+        </View>
+        {showPicker ? (
+          <LucideIconPicker
+            selected={icon || null}
+            onSelect={(name) => {
+              setIcon(name);
+              setShowPicker(false);
+            }}
+          />
+        ) : null}
         {/* TODO(S15): reminder settings */}
       </ZenCard>
 
@@ -316,5 +344,23 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
     textAlign: "center",
+  },
+  iconRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  iconLabel: {
+    color: colors.textMuted,
+    fontFamily: fontFamilies.bodyMedium,
+    fontSize: 13,
+  },
+  iconCircle: {
+    alignItems: "center",
+    backgroundColor: colors.surface,
+    borderRadius: 20,
+    height: 40,
+    justifyContent: "center",
+    width: 40,
   },
 });

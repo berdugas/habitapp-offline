@@ -61,6 +61,7 @@ export default function CreateHabitScreen() {
     tinyAction,
     minimumViableAction,
     preferredTimeWindow,
+    icon: "",
   };
   const normalizedPayload = normalizeHabitSetupPayload(formPayload);
 

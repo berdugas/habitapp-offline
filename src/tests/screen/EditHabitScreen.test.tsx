@@ -298,6 +298,7 @@ describe("EditHabitScreen", () => {
           tinyAction: "Read 2 pages",
           minimumViableAction: "",
           preferredTimeWindow: "",
+          icon: "",
         },
       });
     });
