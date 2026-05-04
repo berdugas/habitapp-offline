@@ -1,5 +1,5 @@
 import { router, useLocalSearchParams } from "expo-router";
-import { ArrowLeft } from "lucide-react-native";
+import { AlertTriangle, ArrowLeft } from "lucide-react-native";
 import { useEffect, useRef, useState } from "react";
 import {
   Animated,
@@ -11,7 +11,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { GoalContextChip } from "@/components/GoalContextChip";
 import { LucideIcon, LucideIconPicker } from "@/components/LucideIconPicker";
@@ -23,6 +23,7 @@ import { OnboardingLayout } from "@/components/layouts/OnboardingLayout";
 import { ErrorState } from "@/components/feedback/ErrorState";
 import { useAuthSession } from "@/features/auth/hooks";
 import { listEligibleHabitsForToday } from "@/features/habits/api";
+import { assertCanCreateActiveHabit } from "@/features/habits/validators";
 import { formatHabitFormula } from "@/features/habits/formatters";
 import {
   getEligibleHabitsQueryKey,
@@ -89,6 +90,23 @@ export default function CreateHabitFlow() {
   const [focusTinyActionOnBuild, setFocusTinyActionOnBuild] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const submitLockRef = useRef(false);
+
+  // Debounce identity phrase for cap check (Path B only — Path A phrase is pre-set)
+  const [debouncedPhrase, setDebouncedPhrase] = useState(draft.identityPhrase);
+  useEffect(() => {
+    if (goalMode === "existing") return;
+    const t = setTimeout(() => setDebouncedPhrase(draft.identityPhrase), 300);
+    return () => clearTimeout(t);
+  }, [draft.identityPhrase, goalMode]);
+
+  const capPhraseForQuery = goalMode === "existing" ? draft.identityPhrase : debouncedPhrase;
+  const capCheckQuery = useQuery({
+    queryKey: ["cap-check", user?.id ?? "", capPhraseForQuery.trim()],
+    queryFn: () => assertCanCreateActiveHabit(user!.id, capPhraseForQuery.trim()),
+    enabled: !!user?.id && capPhraseForQuery.trim().length >= 2,
+  });
+  const capWarning =
+    capCheckQuery.data?.ok === false ? capCheckQuery.data : null;
 
   const entryOpacity = useRef(new Animated.Value(1)).current;
   const entryTranslate = useRef(new Animated.Value(0)).current;
@@ -189,6 +207,7 @@ export default function CreateHabitFlow() {
           value={draft.identityPhrase}
           onChangeText={(text) => update({ identityPhrase: text })}
         />
+        {capWarning ? <CapWarningCard count={capWarning.count} /> : null}
       </OnboardingLayout>
     );
   } else if (step === "action") {
@@ -199,6 +218,7 @@ export default function CreateHabitFlow() {
         onBack={handleBack}
         onContinue={() => advanceTo("build")}
         showChip={showChip}
+        capWarning={capWarning}
       />
     );
   } else if (step === "build") {
@@ -260,9 +280,10 @@ type ActionStepProps = {
   onBack: () => void;
   onContinue: () => void;
   showChip: boolean;
+  capWarning: { count: number } | null;
 };
 
-function ActionStep({ draft, update, onBack, onContinue, showChip }: ActionStepProps) {
+function ActionStep({ draft, update, onBack, onContinue, showChip, capWarning }: ActionStepProps) {
   const canContinue = draft.dailyAction.trim().length >= 2;
   return (
     <OnboardingLayout
@@ -286,7 +307,22 @@ function ActionStep({ draft, update, onBack, onContinue, showChip }: ActionStepP
         value={draft.dailyAction}
         onChangeText={(text) => update({ dailyAction: text })}
       />
+      {capWarning ? <CapWarningCard count={capWarning.count} /> : null}
     </OnboardingLayout>
+  );
+}
+
+// ─── Cap warning card ─────────────────────────────────────────────────────────
+
+function CapWarningCard({ count }: { count: number }) {
+  return (
+    <View style={styles.capWarning}>
+      <AlertTriangle color="#b45309" size={16} strokeWidth={1.75} />
+      <Text style={styles.capWarningText}>
+        You have {count} active habit{count !== 1 ? "s" : ""} for this goal. Research suggests
+        focusing on 3 or fewer for sustainable change. You can still add this one.
+      </Text>
+    </View>
   );
 }
 
@@ -777,5 +813,21 @@ const styles = StyleSheet.create({
   },
   gateFooter: {
     gap: spacing.md,
+  },
+  capWarning: {
+    alignItems: "flex-start",
+    backgroundColor: "#fef3c7",
+    borderRadius: radius.md,
+    flexDirection: "row",
+    gap: spacing.sm,
+    marginTop: spacing.lg,
+    padding: spacing.md,
+  },
+  capWarningText: {
+    color: "#92400e",
+    flex: 1,
+    fontFamily: fontFamilies.body,
+    fontSize: 13,
+    lineHeight: 19,
   },
 });

@@ -1,5 +1,6 @@
 import React, { useMemo } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { Plus } from "lucide-react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { ConsistencyDonut } from "@/features/today/components/ConsistencyDonut";
 import { getStreakCopy } from "@/features/today/streakCopy";
@@ -13,6 +14,7 @@ type GoalContainerProps = {
   children: React.ReactNode;
   consistencyRate: number;
   identityPhrase: string;
+  onAddHabit?: () => void;
   streak: number;
 };
 
@@ -21,6 +23,7 @@ export function GoalContainer({
   children,
   consistencyRate,
   identityPhrase,
+  onAddHabit,
   streak,
 }: GoalContainerProps) {
   const streakCopy = useMemo(() => getStreakCopy(streak), [streak]);
@@ -35,7 +38,19 @@ export function GoalContainer({
         <ConsistencyDonut rate={consistencyRate} />
       </View>
       {banner ?? null}
-      <View style={styles.habitsCard}>{children}</View>
+      <View style={styles.habitsCard}>
+        {children}
+        {onAddHabit ? (
+          <Pressable
+            onPress={onAddHabit}
+            style={({ pressed }) => [styles.addHabitRow, pressed && styles.addHabitRowPressed]}
+            accessibilityLabel="Add a habit"
+          >
+            <Plus color={colors.textMuted} size={16} strokeWidth={1.75} />
+            <Text style={styles.addHabitText}>Add a habit</Text>
+          </Pressable>
+        ) : null}
+      </View>
       <Text style={styles.hintText}>Long-press a circle to skip</Text>
     </View>
   );
@@ -73,6 +88,23 @@ const styles = StyleSheet.create({
     fontFamily: fontFamilies.body,
     fontSize: typography.micro,
     paddingHorizontal: 2,
+  },
+  addHabitRow: {
+    alignItems: "center",
+    borderTopColor: colors.surface,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    flexDirection: "row",
+    gap: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md + 2,
+  },
+  addHabitRowPressed: {
+    backgroundColor: colors.surface,
+  },
+  addHabitText: {
+    color: colors.textMuted,
+    fontFamily: fontFamilies.body,
+    fontSize: 14,
   },
   streakText: {
     color: colors.primary,
