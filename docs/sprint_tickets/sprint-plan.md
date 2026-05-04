@@ -187,9 +187,9 @@ Tickets are derived from deliverables. Aim for 3–8 tickets per sprint.
 
 ## 6. Phase C — Beta completion + ship to testers
 
-Phase C implements the features needed for a complete beta daily loop, then ships to testers. The thesis being tested: *does the becoming-bridge work for real people when they can create supporting habits, get reminded, and see their full habit system on Today?*
+Phase C implements the features needed for a complete beta daily loop, then ships to testers. The thesis being tested: *does the becoming-bridge work for real people when they can add multiple habits to their goal, get reminded, and see their full habit system on Today?*
 
-**Why this sequence:** Graduation and Library require 60+ days of data — no tester will reach them in 2 weeks. Backlog is a nice-to-have that doesn't affect the core loop. Account deletion and data export are compliance features, not beta-signal features. Weekly Reviews are deferred (OPEN #2 locked: option a — don't ship, don't link) because the Supabase table is dropped and reviews migration is not worth the cost before we know the beta thesis holds.
+**Why this sequence:** Graduation and Library require 60+ days of data — no tester will reach them in 2 weeks. Backlog is a nice-to-have that doesn't affect the core loop. Account deletion and data export are compliance features, not beta-signal features. Weekly Reviews are deferred (OPEN #2 locked: option a — don't ship, don't link). Multi-habit Today was fully implemented in S10 — S14's scope collapses to beta QA and tester ship logistics.
 
 ### Sprint 10 — Today screen implementation + beta build prep
 
@@ -230,60 +230,49 @@ Phase C implements the features needed for a complete beta daily loop, then ship
 
 ---
 
-### Sprint 11 — Reviews migration to local SQLite
+### Sprint 11 — Reviews cleanup + adjustment validation
 
-**Goal.** Weekly reviews data moves from the (dropped) Supabase table to local SQLite, silencing console noise and unblocking Bug #2's inert fix.
+**Goal.** Close out the reviews subsystem: add missing repository test coverage, verify Bug #2's dual-suggestion-card layout with real local data, confirm no stale Supabase references remain, and realign the sprint plan to the goal-based peer-habit model S10 implemented.
+
+**Note.** The original S11 scope ("Reviews migration to local SQLite") was already complete before this sprint started. Migration 002, `repositories/weekly_reviews.ts`, and `features/reviews/api.ts` were all wired to local SQLite in S1/S8. What remained: test coverage, UX validation, audit, and plan rewrite.
 
 **Deliverables.**
-- `src/lib/db/migrations/00X_reviews.sql` — adds `local_weekly_reviews` table
-- `src/lib/db/repositories/reviews.ts` — CRUD for weekly reviews against local SQLite
-- `src/features/reviews/api.ts` rewritten to use local repository instead of Supabase queries
-- Dead code cleanup:
-  - Remove `latestReviewQueries` block from `useTodayHabits` (no consumer post-S5; now no data source either)
-  - Remove the Supabase `weekly_reviews` query path entirely
-  - Verify console noise is silenced
-- Bug #2 UX validation: with reviews now backed by real local data, verify the dual-suggestion-card layout in HabitDetailScreen works with actual review data (not just mocked). If layout or copy needs adjustment, fix in this sprint.
-- Weekly Review screen: **not shipped in beta** (OPEN #2 locked: option a). Remove or gate the nav entry point so testers cannot reach it. The data layer exists; the UI is deferred to post-beta.
-- Tests:
-  - Repository CRUD for local weekly reviews
-  - Bug #2 dual-card rendering with real review data
-  - Verify no Supabase `weekly_reviews` references remain outside of migration history
+- `src/lib/db/repositories/__tests__/weekly_reviews.test.ts` — 9 tests: upsert, upsert-on-conflict, getLatest, getLatest-null, getForWeek, getForWeek-null, bool-null round-trip, bool-true round-trip, bool-false round-trip, FK reject, ON DELETE CASCADE
+- Bug #2 end-to-end validation: dual-suggestion-card layout in `HabitDetailScreen` verified with real SQLite data (single-card and dual-card scenarios). Any layout/copy issues fixed.
+- Supabase audit: `grep -r "supabase" src/features/reviews/` returns empty. No active queries against dropped table.
+- Sprint plan rewrite: S12 and S14 updated for goal-based model (see S11-04).
 
 **Depends on.** S10.
 
-**Done means.** `features/reviews/api.ts` reads/writes local SQLite. Console noise from dropped Supabase table is gone. Bug #2 dual-card layout verified with real data. Weekly Review screen is unreachable from the app.
+**Done means.** 9+ `weekly_reviews` tests green. Bug #2 dual-card layout verified visually with real local data. No Supabase references in reviews feature module. S12 and S14 rewritten.
 
-**Risks.** Low. The data model for reviews is simple. The main risk is discovering that Bug #2's fix needs more work once real data flows — budget time for that.
+**Risks.** Bug #2 validation may surface layout issues with real field lengths — budget 0.5 day for fixes.
 
-**Estimate.** 2–3 days.
+**Estimate.** 2 days.
 
 ---
 
-### Sprint 12 — Supporting habit creation
+### Sprint 12 — Habit creation + icon picker
 
-**Goal.** Users can add up to 2 Supporting habits alongside their Focus, with the 3-active cap enforced.
+**Goal.** Users can add additional habits to their goal after onboarding, with the 3-per-goal cap enforced and icon picker integrated.
 
 **Deliverables.**
-- Post-onboarding habit creation flow updated (`CreateHabitScreen`):
-  - Habit state auto-determined by available slots: if Focus slot empty → Focus; if Focus filled → Supporting
-  - Worst-day gate **as hard block** for Supporting (per requirements §3.5) — reuses the two-phase personalize/worst-day pattern from onboarding
-  - Worst-day gate **as guidance only** for post-onboarding Focus
-  - Lucide icon picker integrated (reused from onboarding `LucideIconPicker`)
-- 3-active cap enforcement:
-  - Counts `status='active'` AND `habit_state IN ('focus','supporting')`
-  - On 4th active habit attempt: show a clear message that the cap is reached, suggest archiving an existing habit first (Backlog UI deferred to post-beta — no "save to backlog" option yet)
-- Supporting log behavior: Done/Skip only; Missed auto-applied at day end like Focus
+- Post-onboarding habit creation flow (`CreateHabitScreen`):
+  - All new habits are created as `active` — no Focus/Supporting distinction
+  - Worst-day gate applies equally to all habits (hard block on "no" answer), reusing the two-phase personalize/worst-day pattern from onboarding
+  - `LucideIconPicker` integrated (reused from onboarding)
+- 3-per-goal cap enforcement using `assertCanCreateActiveHabit` (implemented in S10):
+  - On 4th active habit attempt: clear message that the cap is reached; suggest archiving an existing habit first (Backlog UI deferred to post-beta)
 - Tests:
-  - 3-active cap blocks 4th creation
-  - Supporting worst-day "no" answer blocks creation
-  - Focus worst-day "no" allows creation with gentle note
-  - Creating a Supporting habit correctly sets `habit_state='supporting'`
+  - 3-per-goal cap blocks 4th creation
+  - Worst-day "no" answer blocks creation
+  - New habit created as `active` with icon stored
 
-**Depends on.** S11 (reviews migration cleans up dead code paths that could interfere with habit creation flow).
+**Depends on.** S11.
 
-**Done means.** User has 1 Focus + 2 Supporting habits. 4th attempt is blocked with a helpful message. Supporting habits appear in the habit list. Creating a Supporting habit walks through the full personalize + worst-day flow.
+**Done means.** User can add a new habit to their goal after onboarding. 4th attempt is blocked with a helpful message. New habits appear in Today as equal peer rows. Icon picker is reachable from create flow.
 
-**Risks.** Without Backlog UI, the cap-exceeded experience is blunt ("you're at the limit"). That's acceptable for beta — testers with 3 habits are engaged users and can archive one if they want a new one. Backlog's graceful handling comes in S17.
+**Risks.** Without Backlog UI, the cap-exceeded experience is blunt ("you're at the limit"). Acceptable for beta — testers with 3 habits are engaged users and can archive one if needed. Backlog's graceful handling comes in S17.
 
 **Estimate.** 2–3 days.
 
@@ -333,36 +322,29 @@ Phase C implements the features needed for a complete beta daily loop, then ship
 
 ---
 
-### Sprint 14 — Multi-habit Today
+### Sprint 14 — Beta QA + ship to testers
 
-**Goal.** The Today screen renders 1 Focus + up to 2 Supporting habits inside the identity-anchored card. The complete daily loop is visible on one screen.
+**Goal.** Final QA pass on the complete beta loop, then ship to testers.
+
+**Note.** Multi-habit Today was fully implemented in S10 (all habits render as equal peer rows inside the GoalContainer). S14's original scope is complete. This sprint is pure ship logistics.
 
 **Deliverables.**
-- Today screen updated to render multiple habits:
-  - Focus habit row: gradient check circle + strong shadow on Done/Skip buttons + identity streak below card
-  - Supporting habit rows: white check circle + subtle shadow on Done/Skip buttons
-  - All habits grouped inside the single identity-anchored card
-  - Visual distinction between Focus and Supporting via button weight only (per S9c decision — no eyebrow labels on Today)
-- Done/Skip interaction works independently per habit row
-- Habit ordering: Focus always first, Supporting below in creation order
-- Card metrics update to reflect all active habits (consistency % is Focus-only; streak count is Focus-only — Supporting habits don't show streak on Today per requirements §18)
-- Empty-state transitions: archiving last habit shows empty state; creating first habit shows populated state — no reload required
-- MissBanner triggers for Focus habit only (Supporting misses are quiet)
-- Tests:
-  - Render 1 Focus + 2 Supporting correctly
-  - Done on Supporting doesn't affect Focus streak display
-  - Archiving middle habit re-renders correctly
-  - Focus-only miss banner logic
+- Final QA pass against requirements §24.1–§24.12 and the beta acceptance checklist
+- Bug fixes surfaced by QA (budget 0.5–1 day)
+- TestFlight build (iOS) and Internal Testing track build (Android) submitted
+- Tester invitations sent (target 25–50)
+- Feedback channel active (form, email, or Discord)
+- Welcome message sent to testers explaining what the beta is and isn't
 
-**Depends on.** S12 (supporting habits must exist to render them on Today).
+**Depends on.** S13.
 
-**Done means.** A user with 1 Focus + 2 Supporting habits sees all three as rows inside the identity card on Today. Each can be logged independently. Focus has gradient treatment; Supporting has subtle treatment. The screen feels like one coherent view of "today's practice."
+**Done means.** Beta build is live on TestFlight and Play Console internal track. Testers have received invitations and onboarding message. Feedback channel is open.
 
 **Risks.**
-- The identity card was designed for single-habit in S9c. Adding 2 more rows changes the card's height and visual balance. May need spacing/padding adjustments.
-- Performance with 3 habit rows + goal metrics + header — should be fine, but verify scroll behavior if the card exceeds screen height.
+- TestFlight provisioning may take 24+ hours on first submission.
+- QA may surface a blocking issue — if so, fix before ship rather than shipping broken.
 
-**Estimate.** 2–3 days.
+**Estimate.** 1–2 days.
 
 ---
 
@@ -370,7 +352,8 @@ Phase C implements the features needed for a complete beta daily loop, then ship
 
 **What testers get:**
 - Full onboarding (becoming-bridge, 7 screens with personalize/worst-day, Lucide icon picker)
-- Today screen with identity-anchored card, 1 Focus + up to 2 Supporting habits as rows
+- Today screen with identity-anchored card; habits as equal peer rows under the identity goal
+- Habit creation: add multiple habits to a goal, 3-per-goal cap enforced, icon picker
 - Habit detail with 90-day heatmap, identity streak, consistency %, retro-log within 48h
 - Create/edit habits with Lucide icons, worst-day gate
 - Recovery flow (single-miss reframing, double-miss modal)
@@ -612,8 +595,9 @@ Decisions that were OPEN in `design-direction.md` and have been resolved:
 
 | Decision | Resolution | Date | Sprint impact |
 |---|---|---|---|
-| OPEN #1 — Multi-habit Today | Identity-anchored card with habits-as-rows (S9c design) | May 2, 2026 | S10 implements, S14 extends to multi-habit |
-| OPEN #2 — Weekly Review in beta | Option (a): defer entirely. Don't ship UI, don't link to it. Data layer migrates in S11 but screen is gated. | May 3, 2026 | S11 migrates data; screen unreachable until post-beta decision |
+| OPEN #1 — Multi-habit Today | Identity-anchored card with habits-as-rows (S9c design) | May 2, 2026 | S10 implements full multi-habit Today; S14 scope collapsed to beta ship logistics |
+| OPEN #2 — Weekly Review in beta | Option (a): defer entirely. Don't ship UI, don't link to it. Data layer (migration 002, repository, api.ts) was already local SQLite before S11. | May 3, 2026 | S11 adds test coverage and Bug #2 validation; screen unreachable until post-beta decision |
+| Focus/Supporting model dissolved | All habits are equal peer rows under a goal. No Focus/Supporting distinction in creation, Today rendering, or metrics. `habit_state` column retained but not used for UI differentiation. | May 3, 2026 | S10 implements; S12 reflects in creation flow; S14 scope collapsed |
 
 Still open: OPEN #3 (Backlog UI — deferred to S17), OPEN #4 (retro-log affordance — deferred), OPEN #5 (ReadOnlyBanner styling — deferred), OPEN #6 (logo asset — blocks S22 app icon).
 
@@ -667,11 +651,11 @@ Update this document when:
 | S7 | Done | Recovery flow + single-miss |
 | S8 | Done | Trial validation + Settings + Bug #2 |
 | S9 | Done | Visual design (The Mindful Canvas) + S9b onboarding redesign + S9c Today design |
-| S10 | Planned | Today implementation + beta build prep |
-| S11 | Planned | Reviews migration |
-| S12 | Planned | Supporting habit creation |
+| S10 | Done | Today implementation + beta build prep |
+| S11 | In progress | Reviews cleanup + adjustment validation |
+| S12 | Planned | Habit creation + icon picker |
 | S13 | Planned | Reminders |
-| S14 | Planned | Multi-habit Today → **SHIP TO TESTERS** |
+| S14 | Planned | Beta QA → **SHIP TO TESTERS** |
 | S15 | Planned | SRHI repo + eligibility |
 | S16 | Planned | Graduation ceremony |
 | S17 | Planned | Library + Backlog |
