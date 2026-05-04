@@ -5,7 +5,9 @@ import {
   listHabits,
   updateHabit as updateHabitRow,
 } from "@/lib/db/repositories/habits";
-import { listLogs, listLogsByUser, upsertLog } from "@/lib/db/repositories/habit_logs";
+import { ALL_DAYS, serializeActiveDays } from "@/features/habits/activeDays";
+
+import { deleteLogByHabitAndDate, listLogs, listLogsByUser, upsertLog } from "@/lib/db/repositories/habit_logs";
 import { RETRO_LOG_WINDOW_HOURS } from "@/features/habits/contract";
 import { now, todayDateString } from "@/utils/clock";
 import { logger } from "@/services/logger";
@@ -110,6 +112,7 @@ export async function createHabit(
     minimum_viable_action: payload.minimumViableAction.trim() || null,
     preferred_time_window: payload.preferredTimeWindow.trim() || null,
     icon: payload.icon?.trim() || null,
+    active_days: serializeActiveDays(payload.activeDays ?? ALL_DAYS),
     start_date: todayDateString(),
     habit_state: payload.habitState,
     status: "active",
@@ -132,6 +135,7 @@ export async function updateHabit(
     minimum_viable_action: payload.minimumViableAction.trim() || null,
     preferred_time_window: payload.preferredTimeWindow.trim() || null,
     icon: payload.icon?.trim() || null,
+    active_days: serializeActiveDays(payload.activeDays ?? ALL_DAYS),
   };
   return updateHabitRow(habitId, patch);
 }
@@ -217,4 +221,12 @@ export async function upsertHabitLog(
     status: payload.status,
     note: payload.note ?? null,
   });
+}
+
+export async function deleteHabitLog(
+  userId: string,
+  habitId: string,
+  logDate: string,
+): Promise<boolean> {
+  return deleteLogByHabitAndDate(habitId, userId, logDate);
 }

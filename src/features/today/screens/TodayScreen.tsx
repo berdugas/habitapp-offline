@@ -1,6 +1,7 @@
 import React, { useRef } from "react";
 import { Target } from "lucide-react-native";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -15,6 +16,7 @@ import { MissBanner } from "@/components/feedback/MissBanner";
 import { GoalContainer } from "@/features/today/components/GoalContainer";
 import { HabitRow } from "@/features/today/components/HabitRow";
 import {
+  useDeleteTodayHabitLogMutation,
   useTodayHabits,
   useUpsertTodayHabitStatusMutation,
 } from "@/features/today/hooks";
@@ -81,7 +83,10 @@ function AppHeader() {
   });
   return (
     <View style={styles.header}>
-      <AppLogo size={28} animated={false} />
+      <View style={styles.headerBrand}>
+        <AppLogo size={28} animated={false} />
+        <Text style={styles.appName}>Habitapp</Text>
+      </View>
       <Text selectable style={styles.dateText}>
         {label}
       </Text>
@@ -90,9 +95,11 @@ function AppHeader() {
 }
 
 export default function TodayScreen() {
+  const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
   const { error, habits, isLoading } = useTodayHabits();
   const upsertTodayHabitStatusMutation = useUpsertTodayHabitStatusMutation();
+  const deleteTodayHabitLogMutation = useDeleteTodayHabitLogMutation();
   const archiveHabitMutation = useArchiveHabitMutation();
   const statusSubmitLockRef = useRef(false);
   const recoveryActionLockRef = useRef(false);
@@ -130,6 +137,18 @@ export default function TodayScreen() {
     statusSubmitLockRef.current = true;
     try {
       await upsertTodayHabitStatusMutation.mutateAsync({ habitId, status });
+    } finally {
+      statusSubmitLockRef.current = false;
+    }
+  }
+
+  async function handleUndo(habitId: string) {
+    if (statusSubmitLockRef.current || deleteTodayHabitLogMutation.isPending) {
+      return;
+    }
+    statusSubmitLockRef.current = true;
+    try {
+      await deleteTodayHabitLogMutation.mutateAsync(habitId);
     } finally {
       statusSubmitLockRef.current = false;
     }
@@ -187,8 +206,7 @@ export default function TodayScreen() {
   if (habits.length === 0) {
     return (
       <ScrollView
-        contentContainerStyle={styles.content}
-        contentInsetAdjustmentBehavior="automatic"
+        contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing.xxl }]}
         style={styles.screen}
       >
         <AppHeader />
@@ -212,8 +230,7 @@ export default function TodayScreen() {
 
   return (
     <ScrollView
-      contentContainerStyle={styles.content}
-      contentInsetAdjustmentBehavior="automatic"
+      contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing.xxl }]}
       style={styles.screen}
     >
       <AppHeader />
@@ -227,8 +244,9 @@ export default function TodayScreen() {
         <ErrorState message={getSaveTodayStatusErrorMessage()} />
       ) : null}
       {goalGroups.map((group) => {
-        const allLogged = group.habits.length > 0 &&
-          group.habits.every((h) => h.todayStatus !== null);
+        const activeHabits = group.habits.filter((h) => !h.offDay);
+        const allLogged = activeHabits.length > 0 &&
+          activeHabits.every((h) => h.todayStatus !== null);
         const groupHasBanner =
           showBanner && group.habits.some((h) => h.id === missingHabitId);
 
@@ -244,6 +262,7 @@ export default function TodayScreen() {
               }
               consistencyRate={avgConsistencyRate(group.habits)}
               identityPhrase={group.identityPhrase}
+              remainingCount={group.habits.filter((h) => !h.offDay && h.todayStatus === null).length}
               onAddHabit={
                 isReadOnly
                   ? undefined
@@ -258,8 +277,13 @@ export default function TodayScreen() {
               {group.habits.map((habit) => (
                 <HabitRow
                   key={habit.id}
-                  disabled={upsertTodayHabitStatusMutation.isPending || isReadOnly}
+                  disabled={
+                    upsertTodayHabitStatusMutation.isPending ||
+                    deleteTodayHabitLogMutation.isPending ||
+                    isReadOnly
+                  }
                   habit={habit}
+                  offDay={habit.offDay}
                   onDone={(id) => void handleStatusPress(id, "done")}
                   onNavigate={(id) =>
                     router.push({
@@ -268,6 +292,7 @@ export default function TodayScreen() {
                     })
                   }
                   onSkip={(id) => void handleStatusPress(id, "skipped")}
+                  onUndo={(id) => void handleUndo(id)}
                 />
               ))}
             </GoalContainer>
@@ -329,10 +354,22 @@ const styles = StyleSheet.create({
     fontFamily: fontFamilies.displaySemi,
     fontSize: typography.headlineLg,
   },
+  appName: {
+    color: colors.primary,
+    fontFamily: fontFamilies.bodySemi,
+    fontSize: 13,
+    letterSpacing: 1.5,
+    textTransform: "uppercase",
+  },
   header: {
     alignItems: "center",
     flexDirection: "row",
     justifyContent: "space-between",
+  },
+  headerBrand: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: spacing.sm,
   },
   screen: {
     backgroundColor: colors.bg,

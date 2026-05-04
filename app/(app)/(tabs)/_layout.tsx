@@ -1,4 +1,5 @@
 import { BlurView } from "expo-blur";
+import { BookOpen, Clock, Settings } from "lucide-react-native";
 import { Tabs } from "expo-router";
 import { StyleSheet } from "react-native";
 
@@ -17,9 +18,27 @@ export default function AppTabsLayout() {
         ),
       }}
     >
-      <Tabs.Screen name="today" options={{ title: "Today" }} />
-      <Tabs.Screen name="library" options={{ title: "Library" }} />
-      <Tabs.Screen name="settings" options={{ title: "Settings" }} />
+      <Tabs.Screen
+        name="today"
+        options={{
+          title: "Today",
+          tabBarIcon: ({ color, size }) => <Clock color={color} size={size} />,
+        }}
+      />
+      <Tabs.Screen
+        name="library"
+        options={{
+          title: "Library",
+          tabBarIcon: ({ color, size }) => <BookOpen color={color} size={size} />,
+        }}
+      />
+      <Tabs.Screen
+        name="settings"
+        options={{
+          title: "Settings",
+          tabBarIcon: ({ color, size }) => <Settings color={color} size={size} />,
+        }}
+      />
     </Tabs>
   );
 }

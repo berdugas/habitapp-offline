@@ -13,6 +13,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
+import { ActiveDaysPicker } from "@/components/forms/ActiveDaysPicker";
 import { GoalContextChip } from "@/components/GoalContextChip";
 import { LucideIcon, LucideIconPicker } from "@/components/LucideIconPicker";
 import { PrimaryButton } from "@/components/buttons/PrimaryButton";
@@ -52,6 +53,7 @@ export type CreateHabitDraft = {
   icon: string;
   minimumViableAction: string;
   preferredTimeWindow: string;
+  activeDays: number[];
 };
 
 const EMPTY_DRAFT: CreateHabitDraft = {
@@ -63,6 +65,7 @@ const EMPTY_DRAFT: CreateHabitDraft = {
   icon: "",
   minimumViableAction: "",
   preferredTimeWindow: "",
+  activeDays: [1, 2, 3, 4, 5, 6, 7],
 };
 
 const STEP_ORDER: Step[] = ["goal", "action", "build", "personalize"];
@@ -155,6 +158,7 @@ export default function CreateHabitFlow() {
         minimumViableAction: draft.minimumViableAction.trim(),
         preferredTimeWindow: draft.preferredTimeWindow.trim(),
         icon: draft.icon.trim(),
+        activeDays: draft.activeDays,
         habitState: "active",
       });
       hasSaved = true;
@@ -338,6 +342,7 @@ type BuildStepProps = {
   onFocusConsumed: () => void;
 };
 
+
 function BuildStep({
   draft,
   update,
@@ -413,6 +418,13 @@ function BuildStep({
           <Text style={styles.formulaText}>{formulaPreview}</Text>
         </View>
       ) : null}
+
+      <View style={styles.sectionGap}>
+        <ActiveDaysPicker
+          value={draft.activeDays}
+          onChange={(days) => update({ activeDays: days })}
+        />
+      </View>
     </OnboardingLayout>
   );
 }

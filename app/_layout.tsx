@@ -7,6 +7,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import * as SplashScreen from "expo-splash-screen";
+import * as Notifications from "expo-notifications";
 import { useFonts } from "expo-font";
 import {
   PlusJakartaSans_700Bold,
@@ -22,10 +23,44 @@ import {
 
 import { initDb } from "@/lib/db/client";
 import { AppProviders } from "@/providers/AppProviders";
+import { handleForegroundNotification } from "@/features/reminders/notifications";
 import { logger } from "@/services/logger";
 import { colors } from "@/theme/colors";
+import { useAuthSession } from "@/features/auth/hooks";
+
+// Suppress notifications that fire while the app is in the foreground — the
+// handler decides per-notification (backup type: suppress if already logged).
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+    shouldShowBanner: true,
+    shouldShowList: true,
+  }),
+});
 
 void SplashScreen.preventAutoHideAsync();
+
+function NotificationHandler() {
+  const { user } = useAuthSession();
+
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const subscription = Notifications.addNotificationReceivedListener(
+      (notification) => {
+        void handleForegroundNotification(notification, user.id).catch((err) => {
+          logger.warn("Foreground notification handler error", { err });
+        });
+      },
+    );
+
+    return () => subscription.remove();
+  }, [user?.id]);
+
+  return null;
+}
 
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
@@ -71,6 +106,7 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <AppProviders>
+          <NotificationHandler />
           <StatusBar style="dark" />
           <Stack
             screenOptions={{

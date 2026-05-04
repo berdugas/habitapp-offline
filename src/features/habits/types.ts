@@ -24,7 +24,6 @@ export type HabitLogRecord = HabitLog;
 export type HabitLogStatus = LogStatus;
 
 // Form-layer shape (camelCase). Used by CreateHabitFlow / EditHabitScreen.
-// Reminder fields removed — moved to local_reminder_settings (S15).
 export type HabitSetupPayload = {
   identityPhrase: string;
   title: string;
@@ -33,6 +32,7 @@ export type HabitSetupPayload = {
   minimumViableAction: string;
   preferredTimeWindow: string;
   icon: string;
+  activeDays?: number[];
 };
 
 export type CreateHabitPayload = HabitSetupPayload & {

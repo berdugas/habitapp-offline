@@ -4,6 +4,7 @@ import { StyleSheet, Text, View } from "react-native";
 import { PrimaryButton } from "@/components/buttons/PrimaryButton";
 import { GuidanceCard } from "@/components/cards/GuidanceCard";
 import { GuidanceExample } from "@/components/cards/GuidanceExample";
+import { ActiveDaysPicker } from "@/components/forms/ActiveDaysPicker";
 import { OnboardingInput } from "@/components/forms/OnboardingInput";
 import { OnboardingLayout } from "@/components/layouts/OnboardingLayout";
 import { OnboardingHeader } from "@/components/navigation/OnboardingHeader";
@@ -62,6 +63,13 @@ export default function CueScreen() {
         <View style={styles.readonlyField}>
           <Text style={styles.readonlyText}>{draft.tinyAction}</Text>
         </View>
+      </View>
+
+      <View style={styles.pickerWrap}>
+        <ActiveDaysPicker
+          value={draft.activeDays}
+          onChange={(days) => update({ activeDays: days })}
+        />
       </View>
 
       <GuidanceCard
@@ -123,5 +131,8 @@ const styles = StyleSheet.create({
     fontFamily: fontFamilies.bodySemi,
     fontSize: 15,
     color: colors.text,
+  },
+  pickerWrap: {
+    marginBottom: 20,
   },
 });

@@ -39,7 +39,8 @@
       "Bash(grep -v \"^\\\\s*at\\\\s\\\\|node_modules\\\\|^\\\\s*$\\\\|console.info\\\\|DB \")",
       "Bash(timeout 90 node -e ' *)",
       "Bash(Get-ChildItem -Path \"d:\\\\habits_offline\\\\src\\\\features\\\\onboarding\" -Recurse -File)",
-      "Bash(Select-Object FullName)"
+      "Bash(Select-Object FullName)",
+      "Bash(Sort-Object)"
     ],
     "additionalDirectories": [
       "C:\\Users\\daddy\\appium-test"

@@ -43,7 +43,25 @@ jest.mock("@/features/today/hooks", () => ({
   useHabitLogsForRange: jest.fn().mockReturnValue({ data: [] }),
 }));
 
+jest.mock("@/features/auth/hooks", () => ({
+  useAuthSession: jest.fn(() => ({ user: { id: "user-1" } })),
+}));
+
+jest.mock("@/lib/db/repositories/reminders", () => ({
+  getReminderByHabitId: jest.fn().mockResolvedValue(null),
+}));
+
+jest.mock("@/features/reminders/notifications", () => ({
+  cancelReminder: jest.fn().mockResolvedValue(undefined),
+  hasBeenPrompted: jest.fn().mockResolvedValue(true),
+  markPrompted: jest.fn().mockResolvedValue(undefined),
+  requestPermission: jest.fn().mockResolvedValue(true),
+  scheduleReminder: jest.fn().mockResolvedValue(undefined),
+}));
+
 const baseHabit = {
+  active_days: "[1,2,3,4,5,6,7]",
+  icon: null,
   id: "habit-1",
   title: "Reading",
   identity_phrase: null,
@@ -114,14 +132,14 @@ describe("HabitDetailScreen", () => {
     expect(mockPush).toHaveBeenCalledWith("/(app)/(tabs)/today");
   });
 
-  it("renders habit setup, progress, and recent history", () => {
+  it("renders habit header, calendar, streak, and setup sections", () => {
     mockUseHabitDetail.mockReturnValue({
       error: null,
       formula: "After I brush my teeth, I will Read 1 page.",
       habit: {
         ...baseHabit,
         title: "Reading",
-        identity_phrase: "Become a reader",
+        identity_phrase: "a reader",
         cue: "I brush my teeth",
         preferred_time_window: "Evening",
       },
@@ -133,28 +151,7 @@ describe("HabitDetailScreen", () => {
         streak: 2,
         todayStatus: "done",
       },
-      recentLogs: [
-        {
-          created_at: "2026-04-24T00:00:00.000Z",
-          habit_id: "habit-1",
-          id: "log-1",
-          log_date: "2026-04-24",
-          note: "Felt easy today",
-          status: "done",
-          updated_at: "2026-04-24T00:00:00.000Z",
-          user_id: "user-1",
-        },
-        {
-          created_at: "2026-04-23T00:00:00.000Z",
-          habit_id: "habit-1",
-          id: "log-2",
-          log_date: "2026-04-23",
-          note: null,
-          status: "skipped",
-          updated_at: "2026-04-23T00:00:00.000Z",
-          user_id: "user-1",
-        },
-      ],
+      recentLogs: [],
     });
 
     render(<HabitDetailScreen />);
@@ -162,219 +159,18 @@ describe("HabitDetailScreen", () => {
     expect(mockUseHabitDetail).toHaveBeenCalledWith("habit-1");
     expect(screen.getByText("Reading")).toBeTruthy();
     expect(screen.getByText("Become a reader")).toBeTruthy();
-    expect(
-      screen.getAllByText("After I brush my teeth, I will Read 1 page.").length,
-    ).toBeGreaterThan(0);
     expect(screen.getByText("Evening")).toBeTruthy();
-    expect(screen.getByText("Today: Done")).toBeTruthy();
-    expect(screen.getByText("1")).toBeTruthy();
-    expect(screen.getByText("67% over the last 30 days")).toBeTruthy();
-    expect(screen.getByText("You've shown up 2 days for this habit.")).toBeTruthy();
-    expect(screen.getByText("Felt easy today")).toBeTruthy();
+    // Streak copy for streak=2 (index 2%5=2 → "N-day streak. One day at a time.")
+    expect(screen.getByText("2-day streak. One day at a time.")).toBeTruthy();
+    // Setup card shows active days label (may appear in multiple places)
+    expect(screen.getAllByText("Every day").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Archive habit").length).toBeGreaterThan(0);
     expect(
       screen.getByText("This removes the habit from Today, but keeps its history."),
     ).toBeTruthy();
-    expect(screen.queryByText("WEEKLY REVIEW")).toBeNull();
-    expect(screen.queryByText("Start weekly review")).toBeNull();
-    expect(screen.queryByText("Update weekly review")).toBeNull();
+    // Removed sections from old design
     expect(screen.queryByText("SUGGESTED ADJUSTMENT")).toBeNull();
-    expect(screen.queryByText("Delete habit")).toBeNull();
-    expect(screen.queryByText("Pause habit")).toBeNull();
-
-    fireEvent.press(screen.getByText("Edit habit"));
-
-    expect(mockPush).toHaveBeenCalledWith("/(app)/habits/habit-1/edit");
-  });
-
-  it("uses the latest weekly review only for read-only suggestions", () => {
-    mockUseHabitDetail.mockReturnValue({
-      error: null,
-      formula: "After breakfast, I will Read 1 page.",
-      habit: baseHabit,
-      isLoading: false,
-      isUpcoming: false,
-      latestReview: {
-        adjustment_note: "Move the book to the table",
-        created_at: "2026-04-24T00:00:00.000Z",
-        habit_id: "habit-1",
-        id: "review-1",
-        tiny_action_too_hard: false,
-        trigger_worked: true,
-        updated_at: "2026-04-24T00:00:00.000Z",
-        user_id: "user-1",
-        was_hard: "Rushed mornings",
-        week_start: "2026-04-20",
-        went_well: "Breakfast cue worked",
-      },
-      progress: emptyProgress,
-      recentLogs: [],
-    });
-
-    render(<HabitDetailScreen />);
-
-    expect(screen.getByText("SUGGESTED ADJUSTMENT")).toBeTruthy();
-    expect(screen.getByText("Reduce the friction")).toBeTruthy();
-    expect(screen.getByText("Why this suggestion")).toBeTruthy();
-    expect(
-      screen.getByText(
-        "An easier setup may help with your recent consistency or skip pattern.",
-      ),
-    ).toBeTruthy();
-    expect(screen.getByText("Review suggestion")).toBeTruthy();
-    expect(screen.queryByText("LATEST WEEKLY REVIEW")).toBeNull();
-    expect(screen.queryByText("Update weekly review")).toBeNull();
-  });
-
-  it("shows the tiny-action suggestion when the latest review says it was too hard", () => {
-    mockUseHabitDetail.mockReturnValue({
-      error: null,
-      formula: "After breakfast, I will Read 1 page.",
-      habit: baseHabit,
-      isLoading: false,
-      isUpcoming: false,
-      latestReview: {
-        adjustment_note: null,
-        created_at: "2026-04-24T00:00:00.000Z",
-        habit_id: "habit-1",
-        id: "review-1",
-        tiny_action_too_hard: true,
-        trigger_worked: true,
-        updated_at: "2026-04-24T00:00:00.000Z",
-        user_id: "user-1",
-        was_hard: null,
-        week_start: "2026-04-20",
-        went_well: "Breakfast cue worked",
-      },
-      progress: { consistencyRate: 1, skipCount: 0, streak: 2, todayStatus: "done" },
-      recentLogs: [],
-    });
-
-    render(<HabitDetailScreen />);
-
-    expect(screen.getByText("SUGGESTED ADJUSTMENT")).toBeTruthy();
-    expect(screen.getByText("Make it smaller next week")).toBeTruthy();
-    expect(screen.getByText("Why this suggestion")).toBeTruthy();
-    expect(
-      screen.getByText("You answered that the tiny action was too hard."),
-    ).toBeTruthy();
-    expect(screen.getByText("Review suggestion")).toBeTruthy();
-  });
-
-  it("routes from Review suggestion to edit with the suggestion type", () => {
-    mockUseHabitDetail.mockReturnValue({
-      error: null,
-      formula: "After breakfast, I will Read 1 page.",
-      habit: baseHabit,
-      isLoading: false,
-      isUpcoming: false,
-      latestReview: {
-        adjustment_note: null,
-        created_at: "2026-04-24T00:00:00.000Z",
-        habit_id: "habit-1",
-        id: "review-1",
-        tiny_action_too_hard: true,
-        trigger_worked: true,
-        updated_at: "2026-04-24T00:00:00.000Z",
-        user_id: "user-1",
-        was_hard: null,
-        week_start: "2026-04-20",
-        went_well: "Breakfast cue worked",
-      },
-      progress: { consistencyRate: 1, skipCount: 0, streak: 2, todayStatus: "done" },
-      recentLogs: [],
-    });
-
-    render(<HabitDetailScreen />);
-
-    fireEvent.press(screen.getByText("Review suggestion"));
-
-    expect(mockPush).toHaveBeenCalledWith({
-      pathname: "/(app)/habits/[habitId]/edit",
-      params: {
-        habitId: "habit-1",
-        suggestionType: "make_tiny_action_smaller",
-      },
-    });
-  });
-
-  it("shows the trigger suggestion when the latest review says the trigger did not work", () => {
-    mockUseHabitDetail.mockReturnValue({
-      error: null,
-      formula: "After breakfast, I will Read 1 page.",
-      habit: baseHabit,
-      isLoading: false,
-      isUpcoming: false,
-      latestReview: {
-        adjustment_note: null,
-        created_at: "2026-04-24T00:00:00.000Z",
-        habit_id: "habit-1",
-        id: "review-1",
-        tiny_action_too_hard: false,
-        trigger_worked: false,
-        updated_at: "2026-04-24T00:00:00.000Z",
-        user_id: "user-1",
-        was_hard: null,
-        week_start: "2026-04-20",
-        went_well: "Breakfast cue worked",
-      },
-      progress: { consistencyRate: 1, skipCount: 0, streak: 2, todayStatus: "done" },
-      recentLogs: [],
-    });
-
-    render(<HabitDetailScreen />);
-
-    expect(screen.getByText("SUGGESTED ADJUSTMENT")).toBeTruthy();
-    expect(screen.getByText("Adjust your trigger")).toBeTruthy();
-    expect(screen.getByText("Why this suggestion")).toBeTruthy();
-    expect(
-      screen.getByText("You answered that the trigger did not work."),
-    ).toBeTruthy();
-  });
-
-  it("shows two separate suggestion cards when both flags fire (action-fix first)", () => {
-    mockUseHabitDetail.mockReturnValue({
-      error: null,
-      formula: "After breakfast, I will Read 1 page.",
-      habit: baseHabit,
-      isLoading: false,
-      isUpcoming: false,
-      latestReview: {
-        adjustment_note: null,
-        created_at: "2026-04-24T00:00:00.000Z",
-        habit_id: "habit-1",
-        id: "review-1",
-        tiny_action_too_hard: true,
-        trigger_worked: false,
-        updated_at: "2026-04-24T00:00:00.000Z",
-        user_id: "user-1",
-        was_hard: null,
-        week_start: "2026-04-20",
-        went_well: "Breakfast cue worked",
-      },
-      progress: { consistencyRate: 1, skipCount: 0, streak: 2, todayStatus: "done" },
-      recentLogs: [],
-    });
-
-    render(<HabitDetailScreen />);
-
-    // Two separate suggestion cards — one per suggestion type.
-    const eyebrows = screen.getAllByText("SUGGESTED ADJUSTMENT");
-    expect(eyebrows).toHaveLength(2);
-    expect(screen.getByText("Make it smaller next week")).toBeTruthy();
-    expect(screen.getByText("Adjust your trigger")).toBeTruthy();
-
-    // "Review suggestion" buttons: first one routes to make_tiny_action_smaller.
-    const reviewButtons = screen.getAllByText("Review suggestion");
-    fireEvent.press(reviewButtons[0]);
-
-    expect(mockPush).toHaveBeenCalledWith({
-      pathname: "/(app)/habits/[habitId]/edit",
-      params: {
-        habitId: "habit-1",
-        suggestionType: "make_tiny_action_smaller",
-      },
-    });
+    expect(screen.queryByText("Recent history")).toBeNull();
   });
 
   it("hides optional setup fields when they are absent", () => {
@@ -402,7 +198,7 @@ describe("HabitDetailScreen", () => {
     expect(screen.queryByText("Preferred time")).toBeNull();
   });
 
-  it("shows active future-start context and empty history for upcoming habits", () => {
+  it("shows upcoming habit context and hides calendar/streak for future habits", () => {
     mockUseHabitDetail.mockReturnValue({
       error: null,
       formula: "After lunch, I will Stretch for 1 minute.",
@@ -412,7 +208,7 @@ describe("HabitDetailScreen", () => {
         title: "Stretching",
         cue: "After lunch",
         tiny_action: "Stretch for 1 minute",
-        start_date: "2026-04-26",
+        start_date: "2026-06-01",
       },
       isLoading: false,
       isUpcoming: true,
@@ -422,13 +218,10 @@ describe("HabitDetailScreen", () => {
 
     render(<HabitDetailScreen />);
 
-    expect(screen.getByText(/Starts on/i)).toBeTruthy();
-    expect(
-      screen.getByText(
-        "This habit is scheduled and will become loggable on its start date.",
-      ),
-    ).toBeTruthy();
-    expect(screen.getByText("No recent history yet")).toBeTruthy();
+    expect(screen.getByText("Stretching")).toBeTruthy();
+    // Calendar and streak are hidden for upcoming habits
+    expect(screen.queryByText("LAST 30 DAYS")).toBeNull();
+    expect(screen.queryByText("CURRENT STREAK")).toBeNull();
   });
 
   it("shows archive button for active habits and calls archiveHabitMutation on press", () => {

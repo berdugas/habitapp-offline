@@ -1,35 +1,37 @@
-import { useRef, useState } from "react";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { useEffect, useRef, useState } from "react";
+import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
+import { ChevronLeft, Pencil } from "lucide-react-native";
 import { router, useLocalSearchParams } from "expo-router";
 
-import { Heatmap } from "@/components/Heatmap";
-import type { HeatmapLog } from "@/components/Heatmap";
-import { IdentityStreakDisplay } from "@/components/IdentityStreakDisplay";
+import { CalendarGrid } from "@/components/CalendarGrid";
+import type { HeatmapLog } from "@/components/CalendarGrid";
 import { ReadOnlyBanner } from "@/components/ReadOnlyBanner";
 import { SecondaryButton } from "@/components/buttons/SecondaryButton";
 import { ZenCard } from "@/components/cards/ZenCard";
 import { RowLV } from "@/components/cards/RowLV";
-import { EmptyState } from "@/components/feedback/EmptyState";
 import { ErrorState } from "@/components/feedback/ErrorState";
 import { LoadingState } from "@/components/feedback/LoadingState";
 import { Eyebrow } from "@/components/text/Eyebrow";
-import {
-  HABIT_LOG_STATUS_LABELS,
-} from "@/features/habits/contract";
+import { LucideIcon } from "@/components/LucideIconPicker";
 import { isWithinRetroWindow } from "@/features/habits/api";
+import { getActiveDaysLabel, isActiveDay, parseActiveDays } from "@/features/habits/activeDays";
+import { cancelReminder, hasBeenPrompted, markPrompted, requestPermission, scheduleReminder } from "@/features/reminders/notifications";
 import { RetroLogSelector } from "@/features/habits/components/RetroLogSelector";
 import {
   useArchiveHabitMutation,
   useHabitDetail,
   useUpsertHabitLogMutation,
 } from "@/features/habits/hooks";
-import { extractIdentityNoun } from "@/features/onboarding/identityNoun";
-import { getHabitAdjustmentSuggestions } from "@/features/recommendations/habitAdjustmentEngine";
+import { getStreakCopy } from "@/features/today/streakCopy";
 import { useTrialValidation } from "@/features/trial/hooks";
 import { useHabitLogsForRange } from "@/features/today/hooks";
+import { getReminderByHabitId } from "@/lib/db/repositories/reminders";
+import { useAuthSession } from "@/features/auth/hooks";
 import { now } from "@/utils/clock";
 import { colors } from "@/theme/colors";
 import { fontFamilies } from "@/theme/fontFamilies";
+import { radius } from "@/theme/radius";
 import { spacing } from "@/theme/spacing";
 import { typography } from "@/theme/typography";
 import {
@@ -38,60 +40,19 @@ import {
 } from "@/utils/userFacingErrors";
 
 import type { HabitLogStatus } from "@/features/habits/types";
-
-function formatTodayStatus(status: HabitLogStatus | null) {
-  if (!status) {
-    return "Today not logged yet";
-  }
-
-  return `Today: ${status[0].toUpperCase()}${status.slice(1)}`;
-}
-
-function formatConsistency(consistencyRate: number) {
-  return `${Math.round(consistencyRate * 100)}%`;
-}
-
-function formatDateLabel(dateString: string) {
-  return new Date(`${dateString}T12:00:00`).toLocaleDateString(undefined, {
-    day: "numeric",
-    month: "short",
-  });
-}
-
-function formatWeekLabel(weekStart: string) {
-  return `Week of ${new Date(`${weekStart}T12:00:00`).toLocaleDateString(
-    undefined,
-    {
-      day: "numeric",
-      month: "short",
-    },
-  )}`;
-}
-
-function formatBooleanAnswer(value: boolean | null) {
-  if (value === null) {
-    return "Not answered";
-  }
-
-  return value ? "Yes" : "No";
-}
-
-function getUpcomingHabitMessage() {
-  return "This habit is scheduled and will become loggable on its start date.";
-}
+import type { ReminderType } from "@/lib/db/repositories/reminders";
 
 export default function HabitDetailScreen() {
   const { habitId } = useLocalSearchParams<{ habitId?: string | string[] }>();
   const activeStateSubmitLockRef = useRef(false);
+  const { user } = useAuthSession();
   const {
     error,
     formula,
     habit,
     isLoading,
     isUpcoming,
-    latestReview,
     progress,
-    recentLogs,
   } = useHabitDetail(habitId);
   const archiveHabitMutation = useArchiveHabitMutation();
   const upsertHabitLogMutation = useUpsertHabitLogMutation();
@@ -103,17 +64,85 @@ export default function HabitDetailScreen() {
     canEdit: boolean;
     readOnlyReason?: "window" | "app";
   } | null>(null);
-  const heatmapLogs = useHabitLogsForRange(habit?.id, 90).data ?? [];
+  const calendarLogs = useHabitLogsForRange(habit?.id, 35).data ?? [];
   const { accessMode, isValidating, refresh } = useTrialValidation();
   const isReadOnly = accessMode === "read_only";
+
+  // Reminder state
+  const [reminderEnabled, setReminderEnabled] = useState(false);
+  const [reminderType, setReminderType] = useState<ReminderType>("backup");
+  const [reminderTime, setReminderTime] = useState("09:00");
+  const [reminderEditing, setReminderEditing] = useState(false);
+  const [reminderPending, setReminderPending] = useState(false);
+
+  useEffect(() => {
+    if (!habit) return;
+    getReminderByHabitId(habit.id).then((r) => {
+      if (r && r.reminder_type !== "none") {
+        setReminderEnabled(true);
+        setReminderType(r.reminder_type);
+        setReminderTime(r.reminder_time ?? "09:00");
+      }
+    });
+  }, [habit?.id]);
+
+  async function handleReminderToggle(value: boolean) {
+    if (!habit || !user?.id || reminderPending) return;
+    setReminderPending(true);
+    try {
+      if (value) {
+        const prompted = await hasBeenPrompted();
+        if (!prompted) {
+          await markPrompted();
+          await requestPermission();
+        }
+        setReminderEnabled(true);
+        setReminderEditing(true);
+      } else {
+        await cancelReminder(habit.id);
+        setReminderEnabled(false);
+        setReminderEditing(false);
+      }
+    } finally {
+      setReminderPending(false);
+    }
+  }
+
+  async function handleReminderSave() {
+    if (!habit || !user?.id || reminderPending || reminderType === "none") return;
+    setReminderPending(true);
+    try {
+      await scheduleReminder(habit.id, user.id, reminderType, reminderTime, activeDays);
+      setReminderEditing(false);
+    } finally {
+      setReminderPending(false);
+    }
+  }
+
+  const activeDays = habit ? parseActiveDays(habit.active_days) : [1,2,3,4,5,6,7];
+  const schedulelabel = getActiveDaysLabel(activeDays);
+
+  // Count done days out of active days in the last 30-day window for the header counter
+  const calendarDoneCount = (calendarLogs as HeatmapLog[]).filter((l) => l.status === "done").length;
+  const calendarActiveDayCount = (() => {
+    if (!habit) return 0;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    let count = 0;
+    for (let i = 0; i < 30; i++) {
+      const d = new Date(today);
+      d.setDate(d.getDate() - i);
+      if (isActiveDay(d, activeDays)) count++;
+    }
+    return count;
+  })();
 
   function handleCellPress(date: string) {
     if (!habit) return;
     if (date < habit.start_date) return;
-    const existing = heatmapLogs.find((log) => log.log_date === date);
+    const existing = (calendarLogs as HeatmapLog[]).find((log) => log.log_date === date);
     const currentStatus = existing?.status ?? null;
     const withinWindow = isWithinRetroWindow(date, now());
-    // Window-beats-app: reconnecting won't unlock an out-of-window day.
     let canEdit: boolean;
     let readOnlyReason: "window" | "app" | undefined;
     if (!withinWindow) {
@@ -149,18 +178,12 @@ export default function HabitDetailScreen() {
   }
 
   async function handleArchivePress() {
-    if (
-      !habit ||
-      activeStateSubmitLockRef.current ||
-      archiveHabitMutation.isPending
-    ) {
-      return;
-    }
-
+    if (!habit || activeStateSubmitLockRef.current || archiveHabitMutation.isPending) return;
     activeStateSubmitLockRef.current = true;
-
     try {
       await archiveHabitMutation.mutateAsync({ habitId: habit.id });
+      // Cancel any scheduled reminder after archive (non-fatal)
+      await cancelReminder(habit.id).catch(() => {});
     } finally {
       activeStateSubmitLockRef.current = false;
     }
@@ -177,9 +200,11 @@ export default function HabitDetailScreen() {
         contentInsetAdjustmentBehavior="automatic"
         style={styles.screen}
       >
-        <Text selectable style={styles.title}>
-          Habit Detail
-        </Text>
+        <View style={styles.backRow}>
+          <Pressable onPress={() => router.back()} style={styles.backButton}>
+            <ChevronLeft color={colors.textMuted} size={22} strokeWidth={1.75} />
+          </Pressable>
+        </View>
         <ErrorState message={getLoadHabitDetailErrorMessage()} />
         <SecondaryButton
           label="Back to Today"
@@ -188,14 +213,6 @@ export default function HabitDetailScreen() {
       </ScrollView>
     );
   }
-
-  const adjustmentSuggestions = latestReview
-    ? getHabitAdjustmentSuggestions({
-        habit,
-        latestReview,
-        progress,
-      })
-    : [];
 
   return (
     <ScrollView
@@ -209,33 +226,86 @@ export default function HabitDetailScreen() {
           onReconnect={() => void refresh()}
         />
       ) : null}
+
+      {/* Header */}
       <View style={styles.header}>
+        <Pressable onPress={() => router.back()} style={styles.backButton}>
+          <ChevronLeft color={colors.textMuted} size={22} strokeWidth={1.75} />
+        </Pressable>
         {habit.identity_phrase ? (
-          <Text selectable style={styles.becomingHeader}>
+          <Text selectable style={styles.goalLabel}>
             Become {habit.identity_phrase}
           </Text>
         ) : null}
-        <Text selectable style={styles.title}>
-          {habit.title}
-        </Text>
-        <Text selectable style={styles.formula}>
-          {formula}
-        </Text>
+        <View style={styles.habitTitleRow}>
+          {habit.icon ? (
+            <LucideIcon name={habit.icon} size={28} color={colors.primary} strokeWidth={1.75} />
+          ) : null}
+          <Text selectable style={styles.habitTitle}>{habit.title}</Text>
+        </View>
+        <Text selectable style={styles.scheduleLabel}>{schedulelabel}</Text>
+        <Text selectable style={styles.cueText}>{habit.cue}</Text>
       </View>
 
-      {isUpcoming ? (
+      {/* 30-day calendar */}
+      {!isUpcoming ? (
         <ZenCard>
-          <Text selectable style={styles.infoTitle}>
-            Starts on {formatDateLabel(habit.start_date)}
-          </Text>
-          <Text selectable style={styles.infoBody}>
-            {getUpcomingHabitMessage()}
-          </Text>
+          <View style={styles.calendarHeader}>
+            <Eyebrow label="Last 30 days" />
+            <Text style={styles.calendarCounter}>
+              {calendarDoneCount} of {calendarActiveDayCount} active days
+            </Text>
+          </View>
+          <CalendarGrid
+            activeDays={activeDays}
+            logs={calendarLogs as HeatmapLog[]}
+            onCellPress={handleCellPress}
+          />
         </ZenCard>
       ) : null}
 
+      {/* Streak card */}
+      {!isUpcoming ? (
+        <ZenCard>
+          <Eyebrow label="Current streak" />
+          <View style={styles.streakRow}>
+            <View style={styles.streakTextCol}>
+              <Text selectable style={styles.streakCopy}>
+                {getStreakCopy(progress.streak)}
+              </Text>
+              <Text selectable style={styles.consistencyText}>
+                {Math.round(progress.consistencyRate * 100)}% consistency · {progress.skipCount} skips
+              </Text>
+            </View>
+            <LinearGradient
+              colors={[colors.primary, colors.primaryGradientEnd]}
+              end={{ x: 1, y: 1 }}
+              start={{ x: 0, y: 0 }}
+              style={styles.streakCircle}
+            >
+              <Text style={styles.streakNumber}>{progress.streak}</Text>
+            </LinearGradient>
+          </View>
+        </ZenCard>
+      ) : null}
+
+      {/* Setup card */}
       <ZenCard>
-        <Eyebrow label="Setup" />
+        <View style={styles.setupHeader}>
+          <Eyebrow label="Setup" />
+          <Pressable
+            disabled={isReadOnly}
+            onPress={() =>
+              router.push({
+                pathname: "/(app)/habits/[habitId]/edit",
+                params: { habitId: habit.id },
+              })
+            }
+            style={styles.editButton}
+          >
+            <Pencil color={isReadOnly ? colors.textFaint : colors.primary} size={16} strokeWidth={1.75} />
+          </Pressable>
+        </View>
         {habit.identity_phrase ? (
           <RowLV label="Identity" value={habit.identity_phrase} />
         ) : null}
@@ -243,90 +313,97 @@ export default function HabitDetailScreen() {
         {habit.preferred_time_window ? (
           <RowLV label="Preferred time" value={habit.preferred_time_window} />
         ) : null}
-        {/* TODO(S15): reminder settings row */}
+        <RowLV label="Active days" value={schedulelabel} />
       </ZenCard>
 
-      {!isUpcoming ? (
-        <ZenCard>
-          <HabitDetailHeatmap logs={heatmapLogs} onCellPress={handleCellPress} />
-        </ZenCard>
-      ) : null}
-
+      {/* Reminder card */}
       <ZenCard>
-        <Eyebrow label="Today" />
-        <Text selectable style={styles.statusText}>
-          {formatTodayStatus(progress.todayStatus)}
-        </Text>
-      </ZenCard>
-
-      <ZenCard>
-        <Eyebrow label="Progress" />
-        <IdentityStreakDisplay
-          identityNoun={extractIdentityNoun(habit.identity_phrase ?? "")}
-          streak={progress.streak}
-        />
-        <RowLV label="30-day skips" value={String(progress.skipCount)} />
-        <RowLV
-          label="Consistency"
-          value={`${formatConsistency(progress.consistencyRate)} over the last 30 days`}
-        />
-      </ZenCard>
-
-      <ZenCard>
-        <Eyebrow label="Recent history" />
-        {recentLogs.length === 0 ? (
-          <EmptyState
-            body="This habit has no recent logs yet."
-            title="No recent history yet"
+        <View style={styles.reminderHeader}>
+          <Eyebrow label="Reminder" />
+          <Switch
+            disabled={isReadOnly || reminderPending}
+            onValueChange={(v) => void handleReminderToggle(v)}
+            value={reminderEnabled}
           />
+        </View>
+        {reminderEnabled ? (
+          <>
+            <RowLV
+              label="Type"
+              value={reminderType === "backup" ? "Backup (if not logged)" : "Daily"}
+            />
+            <RowLV label="Time" value={reminderTime} />
+            {reminderEditing ? (
+              <View style={styles.reminderEditor}>
+                <View style={styles.reminderTypeRow}>
+                  {(["backup", "daily"] as ReminderType[]).filter(t => t !== "none").map((t) => (
+                    <Pressable
+                      key={t}
+                      onPress={() => setReminderType(t)}
+                      style={[
+                        styles.reminderTypeChip,
+                        reminderType === t && styles.reminderTypeChipSelected,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.reminderTypeLabel,
+                          reminderType === t && styles.reminderTypeLabelSelected,
+                        ]}
+                      >
+                        {t === "backup" ? "Backup" : "Daily"}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+                <View style={styles.reminderTimeRow}>
+                  {["07:00", "08:00", "09:00", "12:00", "17:00", "20:00", "21:00"].map((t) => (
+                    <Pressable
+                      key={t}
+                      onPress={() => setReminderTime(t)}
+                      style={[
+                        styles.reminderTimeChip,
+                        reminderTime === t && styles.reminderTimeChipSelected,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.reminderTimeLabel,
+                          reminderTime === t && styles.reminderTimeLabelSelected,
+                        ]}
+                      >
+                        {t}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+                <Pressable
+                  disabled={reminderPending}
+                  onPress={() => void handleReminderSave()}
+                  style={styles.reminderSaveButton}
+                >
+                  <Text style={styles.reminderSaveLabel}>
+                    {reminderPending ? "Saving..." : "Save reminder"}
+                  </Text>
+                </Pressable>
+              </View>
+            ) : (
+              <Pressable
+                onPress={() => setReminderEditing(true)}
+                style={styles.editReminderButton}
+              >
+                <Text style={styles.editReminderLabel}>Edit reminder</Text>
+              </Pressable>
+            )}
+          </>
         ) : (
-          recentLogs.map((log) => (
-            <View key={log.id}>
-              <RowLV
-                label={formatDateLabel(log.log_date)}
-                value={HABIT_LOG_STATUS_LABELS[log.status]}
-              />
-              {log.note ? (
-                <Text selectable style={styles.logNote}>
-                  {log.note}
-                </Text>
-              ) : null}
-            </View>
-          ))
+          <Text style={styles.reminderPlaceholder}>
+            Get a gentle nudge when it's time for this habit.
+          </Text>
         )}
       </ZenCard>
 
-
-      {adjustmentSuggestions.map((suggestion) => (
-        <ZenCard key={suggestion.type} gap={spacing.sm}>
-          <Eyebrow label="Suggested adjustment" />
-          <Text selectable style={styles.suggestionTitle}>
-            {suggestion.title}
-          </Text>
-          <Text selectable style={styles.suggestionBody}>
-            {suggestion.body}
-          </Text>
-          <Text selectable style={styles.suggestionReasonLabel}>
-            Why this suggestion
-          </Text>
-          <Text selectable style={styles.suggestionReason}>
-            {suggestion.reason}
-          </Text>
-          <SecondaryButton
-            label="Review suggestion"
-            onPress={() =>
-              router.push({
-                pathname: "/(app)/habits/[habitId]/edit",
-                params: {
-                  habitId: habit.id,
-                  suggestionType: suggestion.type,
-                },
-              })
-            }
-          />
-        </ZenCard>
-      ))}
-
+      {/* Archive */}
       <View style={styles.actions}>
         {archiveHabitMutation.error ? (
           <ErrorState message={getUpdateHabitActiveStateErrorMessage()} />
@@ -334,9 +411,7 @@ export default function HabitDetailScreen() {
         {habit.status === "active" ? (
           <>
             <View style={styles.actionHelperCard}>
-              <Text selectable style={styles.actionHelperTitle}>
-                Archive habit
-              </Text>
+              <Text selectable style={styles.actionHelperTitle}>Archive habit</Text>
               <Text selectable style={styles.actionHelperBody}>
                 This removes the habit from Today, but keeps its history.
               </Text>
@@ -349,24 +424,18 @@ export default function HabitDetailScreen() {
           </>
         ) : (
           <View style={styles.actionHelperCard}>
-            <Text selectable style={styles.actionHelperTitle}>
-              Archived
-            </Text>
+            <Text selectable style={styles.actionHelperTitle}>Archived</Text>
             <Text selectable style={styles.actionHelperBody}>
               This habit is archived. Reactivation coming in a future release.
             </Text>
           </View>
         )}
         <SecondaryButton
-          disabled={isReadOnly}
-          label="Edit habit"
-          onPress={() => router.push(`/(app)/habits/${habit.id}/edit`)}
-        />
-        <SecondaryButton
           label="Back to Today"
           onPress={() => router.push("/(app)/(tabs)/today")}
         />
       </View>
+
       {selectorState ? (
         <RetroLogSelector
           canEdit={selectorState.canEdit}
@@ -383,16 +452,6 @@ export default function HabitDetailScreen() {
   );
 }
 
-function HabitDetailHeatmap({
-  logs,
-  onCellPress,
-}: {
-  logs: HeatmapLog[];
-  onCellPress?: (date: string) => void;
-}) {
-  return <Heatmap days={90} logs={logs} onCellPress={onCellPress} />;
-}
-
 const styles = StyleSheet.create({
   actionHelperBody: {
     color: colors.textMuted,
@@ -402,9 +461,7 @@ const styles = StyleSheet.create({
   },
   actionHelperCard: {
     backgroundColor: colors.surface,
-    borderColor: 'transparent',
     borderRadius: 12,
-    borderWidth: 1,
     gap: spacing.xs,
     padding: spacing.lg,
   },
@@ -416,90 +473,194 @@ const styles = StyleSheet.create({
   actions: {
     gap: spacing.md,
   },
-  becomingHeader: {
-    color: colors.text,
-    fontFamily: fontFamilies.bodySemi,
-    fontSize: typography.headlineMd,
-    lineHeight: 30,
+  backButton: {
+    alignItems: "center",
+    height: 36,
+    justifyContent: "center",
+    width: 36,
+  },
+  calendarCounter: {
+    color: colors.textFaint,
+    fontFamily: fontFamilies.body,
+    fontSize: 12,
+  },
+  calendarHeader: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: spacing.sm,
+  },
+  backRow: {
+    marginBottom: spacing.sm,
+  },
+  cueText: {
+    color: colors.textFaint,
+    fontFamily: fontFamilies.body,
+    fontSize: 13,
+    lineHeight: 19,
+  },
+  consistencyText: {
+    color: colors.textFaint,
+    fontFamily: fontFamilies.body,
+    fontSize: 13,
+    lineHeight: 18,
   },
   content: {
     gap: spacing.xl,
     padding: spacing.xl,
   },
-  formula: {
-    color: colors.textMuted,
-    fontFamily: fontFamilies.body,
-    fontSize: 16,
-    lineHeight: 24,
+  editButton: {
+    alignItems: "center",
+    height: 32,
+    justifyContent: "center",
+    width: 32,
+  },
+  goalLabel: {
+    color: colors.primary,
+    fontFamily: fontFamilies.bodySemi,
+    fontSize: 13,
+    letterSpacing: 0.5,
+    marginBottom: spacing.xs,
+  },
+  habitTitle: {
+    color: colors.text,
+    fontFamily: fontFamilies.displayBold,
+    fontSize: typography.headlineLg,
+    flexShrink: 1,
+  },
+  habitTitleRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: spacing.sm,
+    marginBottom: spacing.xs,
   },
   header: {
+    gap: 4,
+  },
+  editReminderButton: {
+    marginTop: spacing.xs,
+  },
+  editReminderLabel: {
+    color: colors.primary,
+    fontFamily: fontFamilies.bodyMedium,
+    fontSize: 14,
+  },
+  reminderEditor: {
+    gap: spacing.md,
+    marginTop: spacing.sm,
+  },
+  reminderHeader: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: spacing.xs,
+  },
+  reminderPlaceholder: {
+    color: colors.textFaint,
+    fontFamily: fontFamilies.body,
+    fontSize: 14,
+  },
+  reminderSaveButton: {
+    alignItems: "center",
+    backgroundColor: colors.primary,
+    borderRadius: radius.md,
+    paddingVertical: spacing.sm + 2,
+  },
+  reminderSaveLabel: {
+    color: colors.primaryText,
+    fontFamily: fontFamilies.bodySemi,
+    fontSize: 15,
+  },
+  reminderTimeChip: {
+    borderColor: colors.surfaceHigh,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    paddingHorizontal: spacing.sm + 2,
+    paddingVertical: spacing.xs + 1,
+  },
+  reminderTimeChipSelected: {
+    backgroundColor: colors.primarySoft,
+    borderColor: colors.primary,
+  },
+  reminderTimeLabel: {
+    color: colors.textMuted,
+    fontFamily: fontFamilies.body,
+    fontSize: 13,
+  },
+  reminderTimeLabelSelected: {
+    color: colors.primary,
+    fontFamily: fontFamilies.bodySemi,
+  },
+  reminderTimeRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.xs,
+  },
+  reminderTypeChip: {
+    borderColor: colors.surfaceHigh,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs + 1,
+  },
+  reminderTypeChipSelected: {
+    backgroundColor: colors.primarySoft,
+    borderColor: colors.primary,
+  },
+  reminderTypeLabel: {
+    color: colors.textMuted,
+    fontFamily: fontFamilies.body,
+    fontSize: 14,
+  },
+  reminderTypeLabelSelected: {
+    color: colors.primary,
+    fontFamily: fontFamilies.bodySemi,
+  },
+  reminderTypeRow: {
+    flexDirection: "row",
     gap: spacing.sm,
   },
-  infoBody: {
+  scheduleLabel: {
     color: colors.textMuted,
-    fontFamily: fontFamilies.body,
-    fontSize: 15,
-    lineHeight: 22,
-  },
-  infoTitle: {
-    color: colors.text,
-    fontFamily: fontFamilies.bodySemi,
-    fontSize: typography.bodyLg,
-  },
-  logNote: {
-    color: colors.textMuted,
-    fontFamily: fontFamilies.body,
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  reviewContent: {
-    gap: spacing.md,
-  },
-  reviewPlaceholder: {
-    color: colors.text,
-    fontFamily: fontFamilies.body,
-    fontSize: 16,
-    lineHeight: 24,
-  },
-  reviewWeek: {
-    color: colors.textMuted,
-    fontFamily: fontFamilies.bodySemi,
-    fontSize: 14,
+    fontFamily: fontFamilies.bodyMedium,
+    fontSize: 13,
   },
   screen: {
     backgroundColor: colors.bg,
     flex: 1,
   },
-  statusText: {
-    color: colors.text,
-    fontFamily: fontFamilies.body,
-    fontSize: 18,
+  setupHeader: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: spacing.xs,
   },
-  suggestionBody: {
-    color: colors.textMuted,
-    fontFamily: fontFamilies.body,
-    fontSize: 14,
-    lineHeight: 20,
+  streakCircle: {
+    alignItems: "center",
+    borderRadius: 32,
+    height: 64,
+    justifyContent: "center",
+    width: 64,
   },
-  suggestionReason: {
-    color: colors.textMuted,
-    fontFamily: fontFamilies.body,
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  suggestionReasonLabel: {
+  streakCopy: {
     color: colors.text,
     fontFamily: fontFamilies.bodySemi,
-    fontSize: 13,
+    fontSize: 15,
+    lineHeight: 22,
   },
-  suggestionTitle: {
-    color: colors.text,
-    fontFamily: fontFamilies.displaySemi,
-    fontSize: typography.titleMd,
-  },
-  title: {
-    color: colors.text,
+  streakNumber: {
+    color: colors.primaryText,
     fontFamily: fontFamilies.displayBold,
-    fontSize: typography.headlineLg,
+    fontSize: 24,
+  },
+  streakRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: spacing.lg,
+    justifyContent: "space-between",
+  },
+  streakTextCol: {
+    flex: 1,
+    gap: 4,
   },
 });

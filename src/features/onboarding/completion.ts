@@ -1,4 +1,5 @@
 import { assertCanCreateActiveHabit } from "@/features/habits/validators";
+import { serializeActiveDays, ALL_DAYS } from "@/features/habits/activeDays";
 import { createHabit as createHabitRepo } from "@/lib/db/repositories/habits";
 import {
   deletePreference,
@@ -58,6 +59,7 @@ export async function finalizeOnboarding(
         minimum_viable_action: null,
         preferred_time_window: null,
         icon: draft.habitIcon ?? null,
+        active_days: serializeActiveDays(draft.activeDays ?? ALL_DAYS),
         habit_state: "active",
         status: "active",
         start_date: today,

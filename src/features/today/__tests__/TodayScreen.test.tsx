@@ -29,6 +29,11 @@ jest.mock("@/features/today/hooks", () => ({
   useHabitLogsForRange: jest.fn(),
   useTodayHabits: jest.fn(),
   useUpsertTodayHabitStatusMutation: jest.fn(),
+  useDeleteTodayHabitLogMutation: jest.fn(() => ({
+    mutateAsync: jest.fn().mockResolvedValue(undefined),
+    isPending: false,
+    error: null,
+  })),
 }));
 
 jest.mock("@/features/habits/hooks", () => ({
@@ -75,6 +80,7 @@ function renderWithClient(ui: React.ReactElement) {
 
 function makeHabit(overrides: Record<string, unknown> = {}) {
   return {
+    activeDays: [1, 2, 3, 4, 5, 6, 7],
     consistencyRate: 0.9,
     cue: "morning coffee",
     formula: "After morning coffee, run for 2 minutes",
@@ -82,6 +88,7 @@ function makeHabit(overrides: Record<string, unknown> = {}) {
     id: "habit-1",
     identityPhrase: "a runner",
     name: "Run",
+    offDay: false,
     skipCount: 0,
     startDate: "2026-04-01",
     streak: 12,

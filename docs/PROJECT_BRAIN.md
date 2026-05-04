@@ -1,7 +1,7 @@
 # Habits App — Project Brain
 
 > Single source of truth for anyone picking up this project.
-> Last updated: May 3, 2026 (post-S9c — Goal-based architecture locked; Focus/Supporting dissolved; Today screen redesign locked; S10 tickets written)
+> Last updated: May 4, 2026 (post-S13 implementation — active days, Habit Detail redesign, local reminders)
 
 ---
 
@@ -110,7 +110,7 @@ D:\habits_offline\
 | Authentication | `features/auth/` | Stays. No changes for Core v1. |
 | Smart entry routing | `features/entry/RootEntryScreen.tsx` | Stays. May extend for onboarding-incomplete state. |
 | Welcome screen | `features/entry/WelcomeScreen.tsx` | Stays. |
-| Habit creation | `features/habits/screens/CreateHabitScreen.tsx` | First-time path replaced by onboarding. Post-onboarding form: add worst-day gate, 3-active cap enforcement, time picker (Bug #3). |
+| Habit creation | `features/habits/screens/CreateHabitFlow.tsx` | Flat form replaced by goal-anchored step flow in S12. Two paths: add to existing goal (Path A) or start new goal (Path B). Steps: Goal → Action → Build (shrink+cue) → Personalize+Gate. Worst-day gate enforced. 3-per-goal soft cap warning. Icon picker integrated. |
 | Habit editing | `features/habits/screens/EditHabitScreen.tsx` | Stays. AI rewrite section stays gated off. |
 | Habit detail | `features/habits/screens/HabitDetailScreen.tsx` | Add 90-day heatmap, identity-flavored streak, consistency display. |
 | Today screen | `features/today/screens/TodayScreen.tsx` | Redesign for Focus emphasis + heatmap + identity-flavored streak. |
@@ -271,7 +271,7 @@ The previous hard cap (1 Focus + 2 Supporting) is dissolved. See design-directio
 
 ### 7.5 Worst-day gate
 
-Hard block during onboarding (first habit). For habits added post-onboarding, the worst-day gate is guidance only — the user can proceed even if they answer "no." See requirements Section 3.5.
+Enforced during both onboarding (first habit) and post-onboarding creation (via CreateHabitFlow). The gate is always a hard block — the user must affirm "Yes, I could do this on my worst day" before the habit saves. If they answer "Let me make it smaller," the flow returns to the Build step with the tiny action field focused. Not applied on Edit (user already committed).
 
 ### 7.6 Graduation eligibility (NEW)
 
@@ -439,29 +439,43 @@ Product-lead review of Today screen. Current screen rejected — flat, empty, no
 **Architecture implication flagged:**
 - Current data model has no "goal" entity — habits are standalone with `habit_state`. Today screen groups habits under the Focus habit's `identityPhrase` visually. No schema change needed for Core v1 beta (1 goal only). Post-v1: consider a `goals` table if multi-goal support ships.
 
-### Up next: S10 — Today screen redesign + goal architecture + beta build prep
+- **S10** — Today screen rebuild + Focus/Supporting dissolution. GoalContainer + ConsistencyDonut + HabitRow components built. Migration 004 converts all `focus`/`supporting` rows to `active`. Recovery hooks rewritten to check all active habits (bulk query via `listLogsForHabitsInRange`). Weekly Review route gated (redirects to habit detail or Today). `latestReviewQueries` dead code removed from `useTodayHabits`. Post-completion state ("You showed up today.") and MissBanner wired. Streak copy: randomized variants per goal. S10 followups (5 items) in `sprint-10-followups.md` — all cosmetic/optimization, none blocking.
 
-S10 ticket package written at `docs/sprint_tickets/sprint-10-tickets.md`. 7 tickets:
-- S10-01: Dissolve Focus/Supporting in type system (migration 004, contract, validators, 10 test files)
-- S10-02: Recovery hooks — remove Focus-only filter, check all active habits
-- S10-03: Today screen rebuild — GoalContainer + ConsistencyDonut + identity anchor
-- S10-04: HabitRow component — tap circle=Done, long-press=Skip, tap row=detail
-- S10-05: Post-completion state ("You showed up today.") + MissBanner wiring
-- S10-06: Gate Weekly Review screen + fix integration test failures
-- S10-07: Internal QA + beta build prep
+### S13 — Active days, Habit Detail redesign, local reminders ✅
 
-Dev implementation plan reviewed. Key feedback:
-- S10-02 recovery hooks have a hooks-in-loop problem — recommend bulk query approach (`listLogsForHabitsInRange`) instead of per-habit hook calls
-- S10-03 must include randomized streak copy variants (5 variants, see design-direction.md)
-- `useTodayHabits` cleanup (remove `latestReviewQueries` dead code) should happen in S10-03, not S10-06
-- `TodayHabitCardData` type needs `icon` added, `isWeeklyReviewDue` and `latestReviewWeekStart` removed
-- Empty state copy needs updating (“Focus habit” reference removed)
-- `extractIdentityNoun` and `IdentityStreakDisplay` removed from TodayScreen (replaced by generic streak copy)
-- Icon picker for Create/Edit Habit moved to S12 (habit creation sprint)
+8 tickets, ~5–6 days. Three bundled features:
+
+**Active days (`active_days TEXT DEFAULT '[1,2,3,4,5,6,7]'`):**
+- Migration 005 adds `active_days` column to `local_habits`
+- `src/features/habits/activeDays.ts` — `parseActiveDays`, `serializeActiveDays`, `isActiveDay`, `isoWeekday`, `getActiveDaysLabel` (returns "Every day" / "Weekdays" / "Weekends" / "N days a week")
+- `ActiveDaysPicker` shared form component in `src/components/forms/` — 7 circular toggles, last-day guard, dynamic label
+- Streak engine (`progress.ts`) skips off-days from sequence, consistency denominator = active days only, `todayStatus = null` if today is off-day
+- Wired into onboarding `CueScreen` + `completion.ts`, `CreateHabitFlow` Build step, `EditHabitScreen`
+- `KNOWN_DRAFT_KEYS` updated with `activeDays`
+- Today screen: `offDay` computed per habit; `HabitRow` shows dashed circle + 50% opacity + "Off day" subtitle when off; circle not tappable on off-days; `remainingCount` excludes off-days
+
+**Habit Detail redesign:**
+- 90-day heatmap replaced by `CalendarGrid` (`src/components/CalendarGrid.tsx`) — 35-cell 5×7 grid (Mon-Sun columns), fills from today backward; cell states: done/missed/skipped/off-day/today-pending/future; off-day cells not tappable; accessibility labels on cells
+- New layout: header (back + goal + title + schedule label + cue) → 30-day calendar card → streak card (gradient circle + copy) → setup card (identity, formula, preferred time, active days, pencil icon) → reminder card → archive
+- Removed: 90-day heatmap, "Today" card, "Progress" card, "Recent history" card, suggestion cards
+
+**Local reminders:**
+- Migration 006 creates `local_reminder_settings` (habit_id UNIQUE, type, reminder_time, `notification_ids TEXT DEFAULT '[]'` — JSON array for multi-day schedules)
+- `src/lib/db/repositories/reminders.ts` — CRUD via `upsertReminder`, `getReminderByHabitId`, `deleteReminderByHabitId`, `listAllReminders`
+- `src/features/reminders/notifications.ts` — `scheduleReminder` (per active weekday, weekly recurring via `expo-notifications`), `cancelReminder` (cancels all IDs in JSON array), `rescheduleAll` (on active days edit), `handleForegroundNotification` (backup type: suppress if today's log exists — checked at notification fire time, not schedule time)
+- `src/features/reminders/copy.ts` — approved templates, no streak-loss language
+- Habit Detail shows reminder toggle + inline editor (type picker + preset time chips + Save); archive cancels reminder; edit active days triggers `rescheduleAll`
+- Permission pre-prompt gated by `notifications.permission_prompted` preference key (shown once)
+
+**Schema delta:** migrations 005–006; 472 tests passing.
+
+### Phase C status
+
+Phase C (S10–S14) is the beta completion arc. S13 complete. S14 = QA + TestFlight build + tester invitations.
 
 ### Transitional state to be aware of
 
-`src/features/reviews/api.ts` still queries the Supabase `weekly_reviews` table, which was dropped in S0. The error is silently swallowed inside `useTodayHabits` (caught but not surfaced in the hook's `error` field), so the app does not crash — but every Today render produces console noise. This is expected and was out of scope for S5. Note: the redesigned TodayScreen no longer reads `isWeeklyReviewDue`, so these queries now fire with no consumer — pure noise. When Reviews migrates to local SQLite, delete the `latestReviewQueries` block in `useTodayHabits` as part of that migration. No sprint assigned yet — likely lands in Phase C alongside whatever sprint surfaces the need first.
+Reviews data layer is fully local (migration 002, repository, API all wired to SQLite). `latestReviewQueries` dead code removed from `useTodayHabits` in S10. Bug #2 dual-card layout validated with real data in S11. The `ConfirmationScreen` error message still says "You already have a Focus habit" — stale copy, will be caught in S14 QA pass or post-beta polish.
 
 ---
 
@@ -479,6 +493,8 @@ Dev implementation plan reviewed. Key feedback:
 - **No habit text content leaves the device.** Anonymous analytics may be transmitted, but the allowlist excludes anything the user typed. See requirements Section 23.
 - **Reminders are local notifications.** No push tokens stored on the server.
 - **`features/sync/` stays dormant in Core v1.** May activate when cloud backup ships.
+- **Goal-based habit grouping.** Habits belong to a goal (identity phrase). All habits under a goal are equal peers — no Focus/Supporting hierarchy. `groupByIdentity` in TodayScreen groups habits by `identity_phrase`. Multi-goal is architecturally supported but not built for beta.
+- **Post-onboarding creation mirrors onboarding structure.** `CreateHabitFlow` follows the same goal → action → shrink+cue → gate sequence as onboarding, compressed for returning users. The goal always comes first.
 
 ---
 
@@ -507,7 +523,8 @@ Dev implementation plan reviewed. Key feedback:
 | Add theme tokens | `src/theme/` |
 | Understand visual design intent / language | `docs/design-direction.md` (paired with `design/habitapp/habit-screens.jsx` as visual oracle) |
 | Weekly review due logic | `src/features/reviews/due.ts` |
-| Onboarding flow (planned) | `src/features/onboarding/screens/` |
+| Onboarding flow | `src/features/onboarding/screens/` (7-screen becoming-bridge, implemented S3-S4) |
+| Create habit (post-onboarding) | `src/features/habits/screens/CreateHabitFlow.tsx` (goal-anchored step flow, S12) |
 | Library (planned) | `src/features/library/screens/LibraryScreen.tsx` |
 | Graduation eligibility (planned) | `src/features/graduation/eligibility.ts` |
 | Recovery modal | `src/components/RecoveryModal.tsx` (component) + `src/features/recovery/api.ts` + `src/features/recovery/hooks.ts` (logic + hooks) |
@@ -528,12 +545,12 @@ Per tech handoff Section 9. Status as of S8 close.
 - `src/components/RecoveryModal.tsx` — post-streak-break recovery modal with 4 actions and submit-lock on Pause (S7)
 - `src/features/habits/components/RetroLogSelector.tsx` — modal-based retro-log selector with editable/read-only modes; `readOnlyReason` prop added in S8 to distinguish window-locked vs app-locked copy (S6 + S8)
 - `src/components/ReadOnlyBanner.tsx` — calm non-dismissible banner with PrimaryButton reconnect CTA, surfaced when offline-grace exhausted (S8)
+- `src/features/today/components/GoalContainer.tsx` — Tonal surface wrapping identity anchor + donut + habits card; optional `onAddHabit` prop for entry point (S10, extended S12)
+- `src/features/today/components/ConsistencyDonut.tsx` — 48px SVG ring, sage color, avg consistency across goal (S10)
+- `src/features/today/components/HabitRow.tsx` — 38px circles, Lucide icon + name + cue + chevron; tap circle=Done, long-press=Skip, tap row=detail (S10)
 
-### To build (S10+)
+### To build (S13+)
 
-- `src/features/today/components/GoalContainer.tsx` — Tonal surface wrapping identity anchor + donut + habits card (S10)
-- `src/features/today/components/ConsistencyDonut.tsx` — 48px SVG ring, sage gradient, avg consistency across goal (S10)
-- `src/features/today/components/HabitRow.tsx` — Tap circle=Done, long-press=Skip, tap row=detail (S10)
 - `LibraryCard.tsx` — Automatic Library card (lights up when graduation ships)
 - `SrhiQuestion.tsx` — single SRHI question with Likert input
 - `BacklogList.tsx` — backlog management list

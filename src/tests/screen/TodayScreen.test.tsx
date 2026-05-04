@@ -30,6 +30,11 @@ jest.mock("@/features/today/hooks", () => ({
   useHabitLogsForRange: jest.fn(),
   useTodayHabits: jest.fn(),
   useUpsertTodayHabitStatusMutation: jest.fn(),
+  useDeleteTodayHabitLogMutation: jest.fn(() => ({
+    mutateAsync: jest.fn().mockResolvedValue(undefined),
+    isPending: false,
+    error: null,
+  })),
 }));
 
 jest.mock("@/features/habits/hooks", () => ({
@@ -65,6 +70,7 @@ const { useRecoveryCheck, useSingleMissBanner } = jest.requireMock(
 
 function buildFocusHabit(overrides = {}) {
   return {
+    activeDays: [1, 2, 3, 4, 5, 6, 7],
     consistencyRate: 0,
     cue: "I wake up",
     formula: "After I wake up, I will Read 1 page.",
@@ -72,6 +78,7 @@ function buildFocusHabit(overrides = {}) {
     id: "habit-1",
     identityPhrase: "a reader",
     name: "Reading",
+    offDay: false,
     skipCount: 0,
     startDate: "2026-04-01",
     streak: 0,

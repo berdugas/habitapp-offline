@@ -2,6 +2,7 @@ import { isWeeklyReviewDue } from "@/features/reviews/due";
 import type { Habit } from "@/features/habits/types";
 
 const baseHabit: Habit = {
+  active_days: "[1,2,3,4,5,6,7]",
   archived_at: null,
   automated_at: null,
   backlog_at: null,

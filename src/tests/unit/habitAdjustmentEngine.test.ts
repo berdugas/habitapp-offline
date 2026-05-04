@@ -4,6 +4,7 @@ import type { HabitRecord } from "@/features/habits/types";
 import type { WeeklyReviewRecord } from "@/features/reviews/types";
 
 const baseHabit: HabitRecord = {
+  active_days: "[1,2,3,4,5,6,7]",
   archived_at: null,
   automated_at: null,
   backlog_at: null,

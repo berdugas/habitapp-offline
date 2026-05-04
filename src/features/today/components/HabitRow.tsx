@@ -17,6 +17,8 @@ type HabitRowProps = {
   onDone: (habitId: string) => void;
   onNavigate: (habitId: string) => void;
   onSkip: (habitId: string) => void;
+  onUndo: (habitId: string) => void;
+  offDay?: boolean;
 };
 
 export function HabitRow({
@@ -25,6 +27,8 @@ export function HabitRow({
   onDone,
   onNavigate,
   onSkip,
+  onUndo,
+  offDay,
 }: HabitRowProps) {
   const isDone = habit.todayStatus === "done";
   const isSkipped = habit.todayStatus === "skipped";
@@ -38,13 +42,52 @@ export function HabitRow({
 
   async function handleCirclePress() {
     if (disabled) return;
-    onDone(habit.id);
+    if (isLogged) {
+      onUndo(habit.id);
+    } else {
+      onDone(habit.id);
+    }
   }
 
   function handleCircleLongPress() {
     if (disabled) return;
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     onSkip(habit.id);
+  }
+
+  if (offDay) {
+    return (
+      <Pressable
+        accessibilityLabel={`Open ${habit.name}`}
+        accessibilityRole="button"
+        onPress={() => onNavigate(habit.id)}
+        style={({ pressed }) => [styles.row, pressed && styles.rowPressed, styles.rowOffDay]}
+      >
+        <View style={styles.circleWrap}>
+          <View style={styles.circleOffDay} />
+        </View>
+
+        <View style={styles.iconWrap}>
+          <LucideIcon
+            name={habit.icon ?? "Sparkles"}
+            color={colors.textFaint}
+            size={18}
+            strokeWidth={1.75}
+          />
+        </View>
+
+        <View style={styles.textWrap}>
+          <Text style={[styles.habitName, styles.habitNameOffDay]} numberOfLines={1}>
+            {habit.name}
+          </Text>
+          <Text style={styles.formulaText} numberOfLines={1}>
+            Off day
+          </Text>
+        </View>
+
+        <ChevronRight color={colors.textFaint} size={16} strokeWidth={1.75} />
+      </Pressable>
+    );
   }
 
   return (
@@ -55,7 +98,7 @@ export function HabitRow({
       style={({ pressed }) => [
         styles.row,
         pressed && styles.rowPressed,
-        isLogged && styles.rowLogged,
+        isSkipped && styles.rowSkipped,
       ]}
     >
       <Pressable
@@ -74,10 +117,12 @@ export function HabitRow({
           >
             <Check color="white" size={18} strokeWidth={2.5} />
           </LinearGradient>
+        ) : isSkipped ? (
+          <View style={styles.circleSkipped} />
         ) : (
-          <View
-            style={[styles.circlePending, isSkipped && styles.circleSkipped]}
-          />
+          <View style={styles.circlePending}>
+            <Check color={colors.primaryLight} size={16} strokeWidth={2.5} />
+          </View>
         )}
       </Pressable>
 
@@ -92,13 +137,20 @@ export function HabitRow({
 
       <View style={styles.textWrap}>
         <Text
-          style={[styles.habitName, isLogged && styles.habitNameLogged]}
+          style={[
+            styles.habitName,
+            isDone && styles.habitNameDone,
+            isSkipped && styles.habitNameSkipped,
+          ]}
           numberOfLines={1}
         >
           {habit.name}
         </Text>
-        <Text style={styles.cueText} numberOfLines={1}>
-          After {habit.cue}
+        <Text
+          style={[styles.formulaText, isSkipped && styles.formulaTextSkipped]}
+          numberOfLines={1}
+        >
+          {isSkipped ? "Skipped today" : habit.formula}
         </Text>
       </View>
 
@@ -122,24 +174,43 @@ const styles = StyleSheet.create({
     width: CIRCLE_SIZE,
   },
   circlePending: {
+    alignItems: "center",
     borderColor: colors.primary,
     borderRadius: CIRCLE_SIZE / 2,
     borderWidth: 2,
     height: CIRCLE_SIZE,
+    justifyContent: "center",
     width: CIRCLE_SIZE,
   },
   circleSkipped: {
     borderColor: colors.textFaint,
+    borderRadius: CIRCLE_SIZE / 2,
+    borderWidth: 2,
+    height: CIRCLE_SIZE,
+    opacity: 0.4,
+    width: CIRCLE_SIZE,
+  },
+  circleOffDay: {
+    borderColor: colors.textFaint,
+    borderRadius: CIRCLE_SIZE / 2,
+    borderStyle: "dashed",
+    borderWidth: 1.5,
+    height: CIRCLE_SIZE,
     opacity: 0.5,
+    width: CIRCLE_SIZE,
   },
   circleWrap: {
     flexShrink: 0,
   },
-  cueText: {
+  formulaText: {
     color: colors.textFaint,
     fontFamily: fontFamilies.body,
     fontSize: typography.bodyMd - 2,
     lineHeight: 16,
+  },
+  formulaTextSkipped: {
+    color: colors.primary,
+    fontStyle: "italic",
   },
   habitName: {
     color: colors.text,
@@ -147,13 +218,23 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "500",
   },
-  habitNameLogged: {
+  habitNameDone: {
     color: colors.textMuted,
     textDecorationLine: "line-through",
+  },
+  habitNameOffDay: {
+    opacity: 0.5,
+  },
+  habitNameSkipped: {
+    color: colors.textMuted,
   },
   iconWrap: {
     flexShrink: 0,
     width: 22,
+  },
+  textWrap: {
+    flex: 1,
+    gap: 2,
   },
   row: {
     alignItems: "center",
@@ -164,14 +245,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md + 2,
   },
-  rowLogged: {
+  rowOffDay: {
     opacity: 0.6,
+  },
+  rowSkipped: {
+    opacity: 0.7,
   },
   rowPressed: {
     backgroundColor: colors.surfaceMuted,
-  },
-  textWrap: {
-    flex: 1,
-    gap: 2,
   },
 });
