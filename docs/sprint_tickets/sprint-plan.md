@@ -1,7 +1,7 @@
 # Habits App — Core v1 Sprint Plan
 
 > **Status:** Active sequencing document for Core v1 build.
-> **Date:** May 3, 2026 (Phase C resequenced for revised pre-beta path; OPEN #2 locked)
+> **Date:** May 4, 2026 (S14 expanded: weekly review ungated + beta QA + ship; OPEN #2 reversed)
 > **Owner:** Tech Lead
 > **Companion documents:** `product-strategy.md` (the why), `core-v1-requirements.md` (the what), `tech-handoff-core-v1.md` (the how), `PROJECT_BRAIN.md` (developer reference)
 
@@ -31,15 +31,15 @@ Twenty-three sprints grouped into four phases. The phase grouping is for progres
 |---|---|---|---|
 | A — Foundation | S0–S2 | ~1 week | Server cleaned, local DB rails laid, streak algorithm tested. No user-visible work. |
 | B — Beta surface + visual design | S3–S9 | ~3.5 weeks | Onboarding → log → streak → recover → visual pass. The Mindful Canvas applied. |
-| C — Beta completion + ship to testers | S10–S14 | ~2 weeks | Today redesign (S10, done), reviews cleanup, habit creation + icon picker, reminders, beta QA + ship to testers. |
+| C — Beta completion + ship to testers | S10–S14 | ~2.5 weeks | Today redesign (S10, done), reviews cleanup, habit creation + icon picker, reminders, weekly review ungating, beta QA + ship to testers. |
 | D — Full Core v1 features | S15–S19 | ~2.5 weeks | Graduation, Library, Backlog, Account, Export. |
 | E — Polish & ship | S20–S22 | ~1 week | Bug fixes, empty states, analytics, store submission. |
 
 **Total estimate:** ~58 working days ≈ 8–9 calendar weeks for solo dev to "submitted." Add 1–2 weeks for App Store / Play Store review before "live."
 
-**Stage 1 (Private Beta) ships at the close of S14.** Testers get: onboarding → habit goal setup → add multiple habits → reminders → Today with all habits as peer rows → recovery → identity streaks — the complete daily loop. Stage 2 (Full Core v1) covers S15–S22.
+**Stage 1 (Private Beta) ships at the close of S14.** Testers get: onboarding → habit goal setup → add multiple habits → reminders → Today with all habits as peer rows → recovery → identity streaks → weekly reviews (after 7 days) — the complete daily loop. Stage 2 (Full Core v1) covers S15–S22.
 
-**What beta does NOT include (deferred to Stage 2):** graduation ceremony, SRHI, Automatic Library, backlog management, account deletion, data export, weekly reviews, analytics. These features either require weeks of usage data (graduation), aren't reachable in a 2-week beta window (Library), or are polish/compliance (analytics, export, deletion). Shipping them before tester signal would be building in the dark.
+**What beta does NOT include (deferred to Stage 2):** graduation ceremony, SRHI, Automatic Library, backlog management, account deletion, data export, analytics. These features either require weeks of usage data (graduation), aren't reachable in a 2-week beta window (Library), or are polish/compliance (analytics, export, deletion). Shipping them before tester signal would be building in the dark.
 
 ## 3. Sprint format
 
@@ -187,9 +187,9 @@ Tickets are derived from deliverables. Aim for 3–8 tickets per sprint.
 
 ## 6. Phase C — Beta completion + ship to testers
 
-Phase C implements the features needed for a complete beta daily loop, then ships to testers. The thesis being tested: *does the becoming-bridge work for real people when they can add multiple habits to their goal, get reminded, and see their full habit system on Today?*
+Phase C implements the features needed for a complete beta daily loop, then ships to testers. The thesis being tested: *does the becoming-bridge work for real people when they can add multiple habits to their goal, get reminded, reflect weekly, and see their full habit system on Today?*
 
-**Why this sequence:** Graduation and Library require 60+ days of data — no tester will reach them in 2 weeks. Backlog is a nice-to-have that doesn't affect the core loop. Account deletion and data export are compliance features, not beta-signal features. Weekly Reviews are deferred (OPEN #2 locked: option a — don't ship, don't link). Multi-habit Today was fully implemented in S10 — S14's scope collapses to beta QA and tester ship logistics.
+**Why this sequence:** Graduation and Library require 60+ days of data — no tester will reach them in 2 weeks. Backlog is a nice-to-have that doesn't affect the core loop. Account deletion and data export are compliance features, not beta-signal features. Multi-habit Today was fully implemented in S10. Weekly reviews are ungated in S14 with a 7-day age gate — testers who stick past week 1 get the reflection loop.
 
 ### Sprint 10 — Today screen implementation + beta build prep
 
@@ -273,86 +273,84 @@ Phase C implements the features needed for a complete beta daily loop, then ship
 
 ---
 
-### Sprint 13 — Reminders
+### Sprint 13 — Active days + Habit Detail redesign + Reminders
 
-**Goal.** Users can set reminders per habit and receive local notifications. Foundation + UI in one sprint since they're tightly coupled.
+**Goal.** Users can choose which days a habit is active, see a redesigned Habit Detail with a 30-day calendar grid, and set local reminders per habit. The daily loop becomes honest about rest days and gains a lightweight notification layer.
+
+**Note.** Scope expanded from original reminders-only (~3–4 days). Active days, Habit Detail redesign, and reminders are tightly coupled: the calendar grid needs active days to render off-days; reminders only fire on active days; the reminder toggle lives on the redesigned detail screen. Building them separately would mean rebuilding Habit Detail twice.
 
 **Deliverables.**
-- `src/lib/db/migrations/00X_reminders.sql` — adds `local_reminder_settings` table
-- `src/lib/db/repositories/reminders.ts`
-- `src/features/reminders/notifications.ts`:
-  - `expo-notifications` setup with permission request flow
-  - `scheduleReminder(habitId, type, time)` — schedules and stores `notification_id`
-  - `cancelReminder(habitId)` — cancels and clears `notification_id`
-  - `rescheduleAll()` — utility for app updates / time-zone changes
-- Lifecycle hooks:
-  - On habit archive → cancel reminder
-  - On habit delete → cancel reminder
-- `src/features/reminders/copy.ts` — approved copy templates per requirements §14.4 (no streak-loss language allowed)
-- Soft pre-prompt screen before iOS system notification permission dialog — explains why, calm tone
-- Reminder settings accessible from Habit Detail:
-  - Reminder type: None (default) / Backup / Daily
-  - Time picker (HH:mm in device local time)
-  - Save persists to `local_reminder_settings` and schedules notification
-- Notification action buttons:
-  - Snooze 1 hour → reschedules
-  - Disable for today → suppresses until next day
-- Frequency cap: one notification per habit per day maximum
-- Tests:
-  - Backup reminder skips firing if today is already logged
-  - Daily reminder fires regardless of log status
-  - Snooze rescheduling
-  - Archive cancels reminder
+- Migration 005: `active_days` column on `local_habits` (JSON array, default all-7)
+- `ActiveDaysPicker` shared component wired into onboarding, CreateHabitFlow, EditHabitScreen
+- Streak engine + consistency updated for active-day awareness (off-days filtered before evaluation)
+- Today screen: off-day rendering (dimmed state, dashed circle, "Off day" label)
+- Habit Detail screen redesigned: header, 30-day `CalendarGrid` (7×5 grid), streak card, setup card, reminder card
+- Migration 006: `local_reminder_settings` table
+- `src/features/reminders/notifications.ts`: permission flow, `scheduleReminder`, `cancelReminder`, `rescheduleAll`
+- Reminder copy templates (no streak-loss language)
+- Soft pre-prompt before iOS system notification dialog
+- Reminder settings on Habit Detail: type (none/backup/daily), time picker, save/cancel
+- Notification actions: snooze 1h, disable for today
+- Lifecycle hooks: archive/delete cancels reminder, active days change reschedules
+- Tests: active days utilities, streak with off-days, off-day rendering, reminder scheduling on active days only
 
-**Depends on.** S12 (supporting habits exist and can have reminders set).
+**Depends on.** S12.
 
-**Done means.** From a habit detail screen, enable backup reminder at a specific time. When the time arrives and the habit isn't logged, notification fires with approved copy. Snooze works. Archiving the habit cancels the reminder.
+**Done means.** Weekday-only habit shows dimmed on weekend. Calendar grid renders off-days with dashed border. Backup reminder fires on weekday when unlogged, skips weekend. Snooze works. Archive cancels reminder. Full suite green.
 
 **Risks.**
-- iOS notification permission first-prompt UX — the soft pre-prompt is critical. First system prompt is the only chance.
-- `expo-notifications` behavior differences between iOS and Android — test on both.
-- Combining foundation + UI into one sprint is tight but acceptable because the UI is simple (one settings screen per habit, not a complex management surface).
+- Sprint is larger than typical (5–6 days). Acceptable because features are tightly coupled.
+- Active days touches many surfaces — mitigated by foundation-first ticket ordering.
+- iOS notification permission first-prompt UX — soft pre-prompt is critical.
 
-**Estimate.** 3–4 days.
+**Estimate.** 5–6 days.
 
 ---
 
-### Sprint 14 — Beta QA + ship to testers
+### Sprint 14 — Weekly Review ungating + Beta QA + ship to testers
 
-**Goal.** Final QA pass on the complete beta loop, then ship to testers.
+**Goal.** Ungate weekly reviews with a 7-day age gate and visual reskin, run systematic QA against every beta surface, fix what's broken, and ship to testers.
 
-**Note.** Multi-habit Today was fully implemented in S10 (all habits render as equal peer rows inside the GoalContainer). S14's original scope is complete. This sprint is pure ship logistics.
+**Note.** S14 expanded from "pure ship logistics" (1–2 days) to include weekly review ungating. The entire review data stack (migration 002, repository, API, hooks, due.ts, adjustment engine, screen) was built in S1/S8/S11 but gated in S10. This sprint ungates it with a minimum-age threshold and Mindful Canvas visual pass.
 
 **Deliverables.**
-- Final QA pass against requirements §24.1–§24.12 and the beta acceptance checklist
+- Route swap: `app/(app)/reviews/[habitId].tsx` serves real `WeeklyReviewScreen` instead of redirect
+- 7-day age gate added to `isWeeklyReviewDue()` — habit must exist ≥7 days before review is prompted
+- `WeeklyReviewScreen` reskinned to Mindful Canvas (ZenCard, Eyebrow, sage palette, correct font families)
+- Entry point on Habit Detail: "Weekly Review" card between streak and setup cards (hidden when habit <7 days old, shows prompt when due, shows "Reviewed this week" when complete)
+- Read-only awareness: review card hidden when app in read-only mode
+- 10 `due.ts` tests with simulated week boundaries (deterministic date fixtures, no clock mocking)
+- Structured beta acceptance checklist: 13-section QA walkthrough covering auth, onboarding, Today, creation, editing, detail, logging edge cases, recovery, weekly reviews, reminders, trial validation, settings, visual consistency
 - Bug fixes surfaced by QA (budget 0.5–1 day)
 - TestFlight build (iOS) and Internal Testing track build (Android) submitted
 - Tester invitations sent (target 25–50)
-- Feedback channel active (form, email, or Discord)
-- Welcome message sent to testers explaining what the beta is and isn't
+- Feedback channel active
+- Welcome message sent explaining what beta is and isn't, including weekly review prompt after 7 days
 
 **Depends on.** S13.
 
-**Done means.** Beta build is live on TestFlight and Play Console internal track. Testers have received invitations and onboarding message. Feedback channel is open.
+**Done means.** Weekly review card appears on Habit Detail after 7 days. Review screen matches Mindful Canvas. 10 due-date tests pass. Beta acceptance checklist walked. Blocking bugs fixed. Build live on TestFlight and Play Console. Testers invited. Feedback channel open.
 
 **Risks.**
 - TestFlight provisioning may take 24+ hours on first submission.
-- QA may surface a blocking issue — if so, fix before ship rather than shipping broken.
+- QA may surface blocking issues — fix before ship rather than shipping broken.
+- Visual reskin of review screen must match Mindful Canvas or it undermines brand consistency.
 
-**Estimate.** 1–2 days.
+**Estimate.** 3–4 days.
 
 ---
 
 ### Ship to testers (after S14)
 
 **What testers get:**
-- Full onboarding (becoming-bridge, 7 screens with personalize/worst-day, Lucide icon picker)
-- Today screen with identity-anchored card; habits as equal peer rows under the identity goal
-- Habit creation: add multiple habits to a goal, 3-per-goal cap enforced, icon picker
-- Habit detail with 90-day heatmap, identity streak, consistency %, retro-log within 48h
-- Create/edit habits with Lucide icons, worst-day gate
+- Full onboarding (becoming-bridge, 7 screens with personalize/worst-day, Lucide icon picker, active days picker)
+- Today screen with identity-anchored card; habits as equal peer rows under the identity goal; off-day rendering
+- Habit creation: add multiple habits to a goal, 3-per-goal cap enforced, icon picker, active days picker
+- Habit detail with 30-day calendar grid, identity streak, consistency %, retro-log within 48h, off-day awareness
+- Create/edit habits with Lucide icons, active days, worst-day gate
 - Recovery flow (single-miss reframing, double-miss modal)
-- Local reminders (backup + daily, per-habit time picker, snooze)
+- Weekly reviews (prompted after 7 days of habit usage, with adjustment suggestions)
+- Local reminders (backup + daily, per-habit time picker, snooze, active-day-aware scheduling)
 - Trial validation with 7-day offline grace
 - Settings (account, archived habits, about)
 - The Mindful Canvas visual language throughout
@@ -361,7 +359,6 @@ Phase C implements the features needed for a complete beta daily loop, then ship
 - No graduation / SRHI ceremony (requires 60+ days of data)
 - No Automatic Library (depends on graduation)
 - No backlog management (cap-exceeded says "archive one first")
-- No weekly reviews (data layer exists; UI deferred)
 - No account deletion or data export (compliance features for store launch)
 - No AI features (gated off)
 
@@ -591,7 +588,7 @@ Decisions that were OPEN in `design-direction.md` and have been resolved:
 | Decision | Resolution | Date | Sprint impact |
 |---|---|---|---|
 | OPEN #1 — Multi-habit Today | Identity-anchored card with habits-as-rows (S9c design) | May 2, 2026 | S10 implements full multi-habit Today; S14 scope collapsed to beta ship logistics |
-| OPEN #2 — Weekly Review in beta | Option (a): defer entirely. Don't ship UI, don't link to it. Data layer (migration 002, repository, api.ts) was already local SQLite before S11. | May 3, 2026 | S11 adds test coverage and Bug #2 validation; screen unreachable until post-beta decision |
+| OPEN #2 — Weekly Review in beta | **Reversed.** Originally deferred (option a). Now ungated in S14 with 7-day minimum age gate and Mindful Canvas visual reskin. Data layer was already local SQLite before S11. | May 4, 2026 | S14 ungates route, adds entry point on Habit Detail, reskins screen, adds 10 due-date tests |
 | Focus/Supporting model dissolved | All habits are equal peer rows under a goal. No Focus/Supporting distinction in creation, Today rendering, or metrics. `habit_state` column retained but not used for UI differentiation. | May 3, 2026 | S10 implements; S12 reflects in creation flow; S14 scope collapsed |
 
 Still open: OPEN #3 (Backlog UI — deferred to S17), OPEN #4 (retro-log affordance — deferred), OPEN #5 (ReadOnlyBanner styling — deferred), OPEN #6 (logo asset — blocks S22 app icon).
@@ -649,8 +646,8 @@ Update this document when:
 | S10 | Done | Today implementation + beta build prep |
 | S11 | Done | Reviews cleanup + adjustment validation |
 | S12 | Done | Goal-anchored habit creation flow + icon picker |
-| S13 | Planned | Reminders |
-| S14 | Planned | Beta QA → **SHIP TO TESTERS** |
+| S13 | Planned | Active days + Habit Detail redesign + Reminders |
+| S14 | Planned | Weekly Review ungating + Beta QA → **SHIP TO TESTERS** |
 | S15 | Planned | SRHI repo + eligibility |
 | S16 | Planned | Graduation ceremony |
 | S17 | Planned | Library + Backlog |
