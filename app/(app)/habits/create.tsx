@@ -1,1 +1,1 @@
-export { default } from "@/features/habits/screens/CreateHabitScreen";
+export { default } from "@/features/habits/screens/CreateHabitFlow";
