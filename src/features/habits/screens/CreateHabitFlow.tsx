@@ -1,18 +1,42 @@
 import { router, useLocalSearchParams } from "expo-router";
 import { ArrowLeft } from "lucide-react-native";
 import { useEffect, useRef, useState } from "react";
-import { Animated, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import {
+  Animated,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useQueryClient } from "@tanstack/react-query";
 
 import { GoalContextChip } from "@/components/GoalContextChip";
+import { LucideIcon, LucideIconPicker } from "@/components/LucideIconPicker";
+import { PrimaryButton } from "@/components/buttons/PrimaryButton";
+import { SecondaryButton } from "@/components/buttons/SecondaryButton";
+import { ChoicePills } from "@/components/forms/ChoicePills";
 import { OnboardingInput } from "@/components/forms/OnboardingInput";
 import { OnboardingLayout } from "@/components/layouts/OnboardingLayout";
-import { PrimaryButton } from "@/components/buttons/PrimaryButton";
+import { ErrorState } from "@/components/feedback/ErrorState";
+import { useAuthSession } from "@/features/auth/hooks";
+import { listEligibleHabitsForToday } from "@/features/habits/api";
 import { formatHabitFormula } from "@/features/habits/formatters";
+import {
+  getEligibleHabitsQueryKey,
+  useCreateHabitMutation,
+} from "@/features/habits/hooks";
+import { PREFERRED_TIME_WINDOW_OPTIONS } from "@/features/habits/preferredTimeWindows";
+import { logger } from "@/services/logger";
 import { colors } from "@/theme/colors";
 import { fontFamilies } from "@/theme/fontFamilies";
 import { radius } from "@/theme/radius";
 import { shadows } from "@/theme/shadows";
 import { spacing } from "@/theme/spacing";
+import { toDeviceDateString } from "@/utils/dates";
+import { getCreateHabitErrorMessage } from "@/utils/userFacingErrors";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -53,12 +77,18 @@ export default function CreateHabitFlow() {
   const goalMode = inheritedPhrase ? "existing" : "new";
   const initialStep: Step = goalMode === "existing" ? "action" : "goal";
 
+  const { user } = useAuthSession();
+  const queryClient = useQueryClient();
+  const createHabitMutation = useCreateHabitMutation();
+
   const [step, setStep] = useState<Step>(initialStep);
   const [draft, setDraft] = useState<CreateHabitDraft>({
     ...EMPTY_DRAFT,
     identityPhrase: inheritedPhrase ?? "",
   });
   const [focusTinyActionOnBuild, setFocusTinyActionOnBuild] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const submitLockRef = useRef(false);
 
   const entryOpacity = useRef(new Animated.Value(1)).current;
   const entryTranslate = useRef(new Animated.Value(0)).current;
@@ -90,6 +120,46 @@ export default function CreateHabitFlow() {
   function handleReturnToBuild() {
     setFocusTinyActionOnBuild(true);
     advanceTo("build");
+  }
+
+  async function handleSave() {
+    if (submitLockRef.current || createHabitMutation.isPending || !user?.id) return;
+    setSaveError(null);
+    submitLockRef.current = true;
+    let hasSaved = false;
+
+    try {
+      await createHabitMutation.mutateAsync({
+        identityPhrase: draft.identityPhrase.trim(),
+        title: draft.habitName.trim(),
+        cue: draft.cue.trim(),
+        tinyAction: draft.tinyAction.trim(),
+        minimumViableAction: draft.minimumViableAction.trim(),
+        preferredTimeWindow: draft.preferredTimeWindow.trim(),
+        icon: draft.icon.trim(),
+        habitState: "active",
+      });
+      hasSaved = true;
+
+      const todayDate = toDeviceDateString();
+      const queryKey = getEligibleHabitsQueryKey(user.id, todayDate);
+      await queryClient.invalidateQueries({ queryKey });
+      await queryClient.fetchQuery({
+        queryFn: () => listEligibleHabitsForToday(user.id, todayDate),
+        queryKey,
+      });
+      router.replace("/(app)/(tabs)/today");
+    } catch (error) {
+      if (hasSaved) {
+        logger.warn("Eligible habits refresh failed after successful create", { error });
+        router.replace("/(app)/(tabs)/today");
+      } else {
+        logger.error("CreateHabitFlow save failed", { error });
+        setSaveError(getCreateHabitErrorMessage());
+      }
+    } finally {
+      submitLockRef.current = false;
+    }
   }
 
   const showChip = step !== "goal" && draft.identityPhrase.trim().length > 0;
@@ -145,9 +215,15 @@ export default function CreateHabitFlow() {
     );
   } else {
     stepContent = (
-      <PersonalizeStepShell
+      <PersonalizeStep
+        draft={draft}
+        update={update}
         onBack={handleBack}
         onReturnToBuild={handleReturnToBuild}
+        onSave={() => void handleSave()}
+        isSaving={createHabitMutation.isPending}
+        saveError={saveError}
+        showChip={showChip}
       />
     );
   }
@@ -164,7 +240,7 @@ export default function CreateHabitFlow() {
   );
 }
 
-// ─── Shared sub-components ──────────────────────────────────────────��─────────
+// ─── Shared sub-components ────────────────────────────────────────────────────
 
 function BackRow({ onBack }: { onBack: () => void }) {
   return (
@@ -267,7 +343,6 @@ function BuildStep({
       <BackRow onBack={onBack} />
       {showChip ? <GoalContextChip identityPhrase={draft.identityPhrase} /> : null}
 
-      {/* Section 1: Shrink */}
       <Text style={styles.headline}>Now make it tiny.</Text>
       <Text style={styles.subline}>So small you can't say no, even on your worst day.</Text>
 
@@ -289,7 +364,6 @@ function BuildStep({
         />
       </View>
 
-      {/* Section 2: Cue */}
       <Text style={styles.sectionLabel}>What triggers it?</Text>
       <OnboardingInput
         label="After I..."
@@ -307,29 +381,208 @@ function BuildStep({
   );
 }
 
-// ─── Personalize step shell (S12-04 replaces this) ────────────────────────────
+// ─── Personalize step (two-phase: personalize + worst-day gate) ───────────────
 
-function PersonalizeStepShell({
-  onBack,
-  onReturnToBuild: _onReturnToBuild,
-}: {
+type PersonalizeStepProps = {
+  draft: CreateHabitDraft;
+  update: (patch: Partial<CreateHabitDraft>) => void;
   onBack: () => void;
   onReturnToBuild: () => void;
-}) {
-  return (
-    <OnboardingLayout
-      footer={
+  onSave: () => void;
+  isSaving: boolean;
+  saveError: string | null;
+  showChip: boolean;
+};
+
+type PersonalizePhase = "personalize" | "worstday";
+
+function PersonalizeStep({
+  draft,
+  update,
+  onBack,
+  onReturnToBuild,
+  onSave,
+  isSaving,
+  saveError,
+  showChip,
+}: PersonalizeStepProps) {
+  const insets = useSafeAreaInsets();
+  const [phase, setPhase] = useState<PersonalizePhase>("personalize");
+  const [showPicker, setShowPicker] = useState(false);
+
+  const phase2Opacity = useRef(new Animated.Value(0)).current;
+  const phase2Translate = useRef(new Animated.Value(16)).current;
+  const scrollRef = useRef<ScrollView>(null);
+
+  const canLooksGood = draft.habitName.trim().length >= 2;
+
+  function handleLooksGood() {
+    setShowPicker(false);
+    setPhase("worstday");
+    Animated.parallel([
+      Animated.timing(phase2Opacity, { toValue: 1, duration: 350, useNativeDriver: true }),
+      Animated.timing(phase2Translate, { toValue: 0, duration: 350, useNativeDriver: true }),
+    ]).start(() => {
+      scrollRef.current?.scrollToEnd({ animated: true });
+    });
+  }
+
+  const formula = formatHabitFormula(draft.cue, draft.tinyAction);
+
+  const footer =
+    phase === "personalize" ? (
+      <PrimaryButton
+        disabled={!canLooksGood}
+        label="Looks good"
+        showArrow
+        onPress={handleLooksGood}
+      />
+    ) : (
+      <View style={styles.gateFooter}>
         <PrimaryButton
-          disabled
-          label="Looks good"
-          onPress={() => {}}
+          disabled={isSaving}
+          label={isSaving ? "Saving..." : "Yes, I could"}
+          showArrow
+          onPress={onSave}
         />
-      }
-    >
-      <BackRow onBack={onBack} />
-      <Text style={styles.headline}>Personalize your habit.</Text>
-      <Text style={styles.subline}>(S12-04 wires this step.)</Text>
-    </OnboardingLayout>
+        <SecondaryButton
+          label="Let me make it smaller"
+          onPress={onReturnToBuild}
+        />
+      </View>
+    );
+
+  return (
+    <View style={styles.personalizeRoot}>
+      <ScrollView
+        ref={scrollRef}
+        contentContainerStyle={[
+          styles.personalizeScroll,
+          { paddingTop: insets.top + spacing.lg },
+        ]}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        {phase === "personalize" ? <BackRow onBack={onBack} /> : null}
+        {showChip ? <GoalContextChip identityPhrase={draft.identityPhrase} /> : null}
+
+        {phase === "personalize" ? (
+          <>
+            <Text style={styles.headline}>Personalize your habit.</Text>
+            <Text style={styles.subline}>Give it a name and an icon to make it yours.</Text>
+          </>
+        ) : null}
+
+        {/* Preview card */}
+        <View style={[styles.previewCard, phase === "worstday" && styles.previewCardLocked]}>
+          <View style={styles.cardHeader}>
+            <Pressable
+              disabled={phase === "worstday"}
+              onPress={() => phase === "personalize" && setShowPicker((v) => !v)}
+              style={styles.iconButton}
+            >
+              <LucideIcon
+                name={draft.icon || "Sparkles"}
+                size={22}
+                color={draft.icon ? colors.primary : colors.textFaint}
+                strokeWidth={1.8}
+              />
+            </Pressable>
+
+            <View style={styles.nameContainer}>
+              <Text style={styles.nameHint}>Give it a name</Text>
+              {phase === "personalize" ? (
+                <TextInput
+                  autoCorrect
+                  placeholder="Tap to name your habit"
+                  placeholderTextColor={colors.textFaint}
+                  style={styles.nameInput}
+                  value={draft.habitName}
+                  onChangeText={(text) => update({ habitName: text })}
+                />
+              ) : (
+                <Text style={styles.nameLocked}>{draft.habitName}</Text>
+              )}
+            </View>
+          </View>
+
+          {showPicker && phase === "personalize" ? (
+            <View style={styles.pickerContainer}>
+              <LucideIconPicker
+                selected={draft.icon || null}
+                onSelect={(name) => {
+                  update({ icon: name });
+                  setShowPicker(false);
+                }}
+              />
+            </View>
+          ) : null}
+
+          <Text style={styles.formulaPreview}>{formula}</Text>
+
+          {draft.identityPhrase.trim().length > 0 ? (
+            <View style={styles.goalBadge}>
+              <LucideIcon name="Target" size={13} color={colors.primary} strokeWidth={2} />
+              <Text style={styles.goalBadgeText}>Becoming {draft.identityPhrase.trim()}</Text>
+            </View>
+          ) : null}
+        </View>
+
+        {phase === "personalize" ? (
+          <Text style={styles.micro}>You can rename or change the icon anytime.</Text>
+        ) : null}
+
+        {/* Optional fields — only in personalize phase */}
+        {phase === "personalize" ? (
+          <View style={styles.optionalFields}>
+            <OnboardingInput
+              label="Minimum viable action (optional)"
+              placeholder="The bare minimum on a hard day"
+              value={draft.minimumViableAction}
+              onChangeText={(text) => update({ minimumViableAction: text })}
+            />
+            <ChoicePills
+              label="Preferred time window"
+              onChange={(val) => update({ preferredTimeWindow: val })}
+              options={PREFERRED_TIME_WINDOW_OPTIONS}
+              value={draft.preferredTimeWindow}
+            />
+          </View>
+        ) : null}
+
+        {/* Phase 2: worst-day gate */}
+        <Animated.View
+          style={[
+            styles.gateContainer,
+            {
+              opacity: phase2Opacity,
+              transform: [{ translateY: phase2Translate }],
+            },
+          ]}
+          pointerEvents={phase === "worstday" ? "auto" : "none"}
+        >
+          <Text style={styles.gateHeadline}>One last check.</Text>
+          <Text style={styles.gateQuestion}>
+            Could you still do{" "}
+            <Text style={styles.gateActionBold}>{draft.tinyAction.trim()}</Text>
+            {" "}on your worst day?
+          </Text>
+          <Text style={styles.gateBody}>
+            Imagine a low-energy day — would this still feel doable?
+          </Text>
+        </Animated.View>
+
+        {saveError ? (
+          <View style={styles.saveErrorWrap}>
+            <ErrorState message={saveError} />
+          </View>
+        ) : null}
+      </ScrollView>
+
+      <View style={[styles.personalizeFooter, { paddingBottom: Math.max(insets.bottom + spacing.lg, spacing.xxxl) }]}>
+        {footer}
+      </View>
+    </View>
   );
 }
 
@@ -399,5 +652,130 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 22,
     color: colors.text,
+  },
+  // Personalize step
+  personalizeRoot: {
+    flex: 1,
+    backgroundColor: colors.bg,
+  },
+  personalizeScroll: {
+    flexGrow: 1,
+    paddingHorizontal: spacing.xl,
+    paddingBottom: spacing.xl,
+  },
+  personalizeFooter: {
+    paddingHorizontal: spacing.xl,
+  },
+  saveErrorWrap: {
+    marginTop: spacing.lg,
+  },
+  previewCard: {
+    backgroundColor: colors.surfaceCard,
+    borderRadius: radius.lg,
+    padding: spacing.xl,
+    boxShadow: shadows.cardFloat,
+    gap: spacing.md,
+    marginBottom: spacing.sm,
+  },
+  previewCardLocked: {
+    opacity: 0.9,
+  },
+  cardHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+  },
+  iconButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.primarySoft,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  nameContainer: {
+    flex: 1,
+  },
+  nameHint: {
+    fontFamily: fontFamilies.body,
+    fontSize: 11,
+    color: colors.textFaint,
+    marginBottom: 2,
+  },
+  nameInput: {
+    fontFamily: fontFamilies.displayBold,
+    fontSize: 18,
+    color: colors.text,
+    padding: 0,
+  },
+  nameLocked: {
+    fontFamily: fontFamilies.displayBold,
+    fontSize: 18,
+    color: colors.text,
+  },
+  pickerContainer: {
+    marginTop: 4,
+  },
+  formulaPreview: {
+    fontFamily: fontFamilies.body,
+    fontSize: 14,
+    lineHeight: 21,
+    color: colors.textMuted,
+  },
+  goalBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "flex-start",
+    gap: 6,
+    backgroundColor: colors.primarySoft,
+    borderRadius: radius.pill,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  goalBadgeText: {
+    fontFamily: fontFamilies.bodySemi,
+    fontSize: 13,
+    color: colors.primary,
+  },
+  micro: {
+    fontFamily: fontFamilies.body,
+    fontSize: 13,
+    color: colors.textFaint,
+    marginTop: 4,
+    marginBottom: spacing.xl,
+  },
+  optionalFields: {
+    gap: spacing.xl,
+    marginTop: spacing.lg,
+  },
+  gateContainer: {
+    marginTop: spacing.xxl,
+    gap: spacing.md,
+    paddingBottom: spacing.xl,
+  },
+  gateHeadline: {
+    fontFamily: fontFamilies.displayBold,
+    fontSize: 26,
+    lineHeight: 31,
+    color: colors.text,
+  },
+  gateQuestion: {
+    fontFamily: fontFamilies.displaySemi,
+    fontSize: 20,
+    lineHeight: 28,
+    color: colors.text,
+  },
+  gateActionBold: {
+    fontFamily: fontFamilies.displayBold,
+    color: colors.primary,
+  },
+  gateBody: {
+    fontFamily: fontFamilies.body,
+    fontSize: 15,
+    lineHeight: 23,
+    color: colors.textMuted,
+  },
+  gateFooter: {
+    gap: spacing.md,
   },
 });
