@@ -1,28 +1,15 @@
 import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
-import * as icons from "lucide-react-native";
 import { Check, ChevronRight } from "lucide-react-native";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import React from "react";
 
+import { LucideIcon } from "@/components/LucideIconPicker";
 import { colors } from "@/theme/colors";
 import { fontFamilies } from "@/theme/fontFamilies";
 import { spacing } from "@/theme/spacing";
 import { typography } from "@/theme/typography";
 
 import type { TodayHabitCardData } from "@/features/today/types";
-
-type LucideIconComponent = React.ComponentType<{
-  color?: string;
-  size?: number;
-  strokeWidth?: number;
-}>;
-
-function getIcon(name: string | null): LucideIconComponent {
-  if (!name) return icons.Sparkles as unknown as LucideIconComponent;
-  const resolved = (icons as Record<string, unknown>)[name];
-  return ((resolved ?? icons.Sparkles) as unknown) as LucideIconComponent;
-}
 
 type HabitRowProps = {
   disabled: boolean;
@@ -42,7 +29,6 @@ export function HabitRow({
   const isDone = habit.todayStatus === "done";
   const isSkipped = habit.todayStatus === "skipped";
   const isLogged = isDone || isSkipped;
-  const IconComponent = getIcon(habit.icon);
 
   const circleLabel = isDone
     ? `${habit.name} — done`
@@ -96,7 +82,8 @@ export function HabitRow({
       </Pressable>
 
       <View style={styles.iconWrap}>
-        <IconComponent
+        <LucideIcon
+          name={habit.icon ?? "Sparkles"}
           color={isLogged ? colors.textFaint : colors.primary}
           size={18}
           strokeWidth={1.75}

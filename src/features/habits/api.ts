@@ -109,6 +109,7 @@ export async function createHabit(
     tiny_action: payload.tinyAction.trim(),
     minimum_viable_action: payload.minimumViableAction.trim() || null,
     preferred_time_window: payload.preferredTimeWindow.trim() || null,
+    icon: payload.icon?.trim() || null,
     start_date: todayDateString(),
     habit_state: payload.habitState,
     status: "active",
@@ -130,6 +131,7 @@ export async function updateHabit(
     tiny_action: payload.tinyAction.trim(),
     minimum_viable_action: payload.minimumViableAction.trim() || null,
     preferred_time_window: payload.preferredTimeWindow.trim() || null,
+    icon: payload.icon?.trim() || null,
   };
   return updateHabitRow(habitId, patch);
 }

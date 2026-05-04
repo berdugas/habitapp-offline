@@ -252,29 +252,24 @@ Phase C implements the features needed for a complete beta daily loop, then ship
 
 ---
 
-### Sprint 12 — Habit creation + icon picker
+### Sprint 12 — Goal-anchored habit creation flow ✅
 
-**Goal.** Users can add additional habits to their goal after onboarding, with the 3-per-goal cap enforced and icon picker integrated.
+**Goal.** Users can add habits to their existing goal — or start a new goal — through a step-based flow that mirrors the onboarding becoming-bridge sequence. Goal always comes first.
 
 **Deliverables.**
-- Post-onboarding habit creation flow (`CreateHabitScreen`):
-  - All new habits are created as `active` — no Focus/Supporting distinction
-  - Worst-day gate applies equally to all habits (hard block on "no" answer), reusing the two-phase personalize/worst-day pattern from onboarding
-  - `LucideIconPicker` integrated (reused from onboarding)
-- 3-per-goal cap enforcement using `assertCanCreateActiveHabit` (implemented in S10):
-  - On 4th active habit attempt: clear message that the cap is reached; suggest archiving an existing habit first (Backlog UI deferred to post-beta)
-- Tests:
-  - 3-per-goal cap blocks 4th creation
-  - Worst-day "no" answer blocks creation
-  - New habit created as `active` with icon stored
+- `CreateHabitFlow` replaces flat `CreateHabitScreen` — 4-step flow: Goal Anchor → Daily Action → Build (shrink + cue) → Personalize + worst-day gate
+- Path A (Add to existing goal): "Add a habit" row in GoalContainer → flow starts at Daily Action with context chip
+- Path B (New goal): "Start a new goal" row on Today → flow starts at Goal Anchor (identity phrase input)
+- `icon` wired through `HabitSetupPayload` → API → repository; `LucideIconPicker` moved to `src/components/` (shared); `EditHabitScreen` gains icon picker
+- 3-per-goal soft cap warning (non-blocking) shown in flow when at or above cap
+- `HabitRow` refactored to use shared `LucideIcon` component (eliminates barrel import)
+- 5 new tests: icon round-trip, icon update, icon validator, cap check × 2
 
 **Depends on.** S11.
 
-**Done means.** User can add a new habit to their goal after onboarding. 4th attempt is blocked with a helpful message. New habits appear in Today as equal peer rows. Icon picker is reachable from create flow.
+**Done means.** Path A and Path B both save a habit to the DB. Worst-day gate enforced (cannot skip). Icon picker on create and edit. "Add a habit" and "Start a new goal" entry points visible on Today. 5+ new tests green. Full suite green.
 
-**Risks.** Without Backlog UI, the cap-exceeded experience is blunt ("you're at the limit"). Acceptable for beta — testers with 3 habits are engaged users and can archive one if needed. Backlog's graceful handling comes in S17.
-
-**Estimate.** 2–3 days.
+**Estimate.** 3 days.
 
 ---
 
@@ -652,8 +647,8 @@ Update this document when:
 | S8 | Done | Trial validation + Settings + Bug #2 |
 | S9 | Done | Visual design (The Mindful Canvas) + S9b onboarding redesign + S9c Today design |
 | S10 | Done | Today implementation + beta build prep |
-| S11 | In progress | Reviews cleanup + adjustment validation |
-| S12 | Planned | Habit creation + icon picker |
+| S11 | Done | Reviews cleanup + adjustment validation |
+| S12 | Done | Goal-anchored habit creation flow + icon picker |
 | S13 | Planned | Reminders |
 | S14 | Planned | Beta QA → **SHIP TO TESTERS** |
 | S15 | Planned | SRHI repo + eligibility |

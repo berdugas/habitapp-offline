@@ -54,6 +54,7 @@ describe("habits API integration", () => {
       tinyAction: "2 minutes of breathing",
       minimumViableAction: "One breath",
       preferredTimeWindow: "morning",
+      icon: "",
       habitState: "active",
       ...overrides,
     });
@@ -93,6 +94,7 @@ describe("habits API integration", () => {
       tinyAction: "One page",
       minimumViableAction: "",
       preferredTimeWindow: "evening",
+      icon: "",
     });
 
     expect(updated.title).toBe("Read");
@@ -133,6 +135,7 @@ describe("habits API integration", () => {
       tinyAction: "Do it",
       minimumViableAction: "",
       preferredTimeWindow: "",
+      icon: "",
       habitState: "active",
     });
     // Override start_date to tomorrow by using the repo directly after creation

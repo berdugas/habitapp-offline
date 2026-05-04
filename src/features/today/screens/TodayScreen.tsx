@@ -1,5 +1,6 @@
 import React, { useRef } from "react";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { Target } from "lucide-react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { router } from "expo-router";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -243,6 +244,15 @@ export default function TodayScreen() {
               }
               consistencyRate={avgConsistencyRate(group.habits)}
               identityPhrase={group.identityPhrase}
+              onAddHabit={
+                isReadOnly
+                  ? undefined
+                  : () =>
+                      router.push({
+                        pathname: "/(app)/habits/create",
+                        params: { goalIdentityPhrase: group.identityPhrase },
+                      })
+              }
               streak={oldestStreak(group.habits)}
             >
               {group.habits.map((habit) => (
@@ -267,6 +277,19 @@ export default function TodayScreen() {
           </React.Fragment>
         );
       })}
+      {!isReadOnly ? (
+        <Pressable
+          onPress={() => router.push("/(app)/habits/create")}
+          style={({ pressed }) => [
+            styles.newGoalRow,
+            pressed && styles.newGoalRowPressed,
+          ]}
+          accessibilityLabel="Start a new goal"
+        >
+          <Target color={colors.textMuted} size={16} strokeWidth={1.75} />
+          <Text style={styles.newGoalText}>Start a new goal</Text>
+        </Pressable>
+      ) : null}
       <RecoveryModal
         habitTitle={triggeringHabit?.title ?? habits[0]?.name ?? ""}
         onClose={() => void handleRecoveryClose()}
@@ -314,5 +337,20 @@ const styles = StyleSheet.create({
   screen: {
     backgroundColor: colors.bg,
     flex: 1,
+  },
+  newGoalRow: {
+    alignItems: "center",
+    alignSelf: "center",
+    flexDirection: "row",
+    gap: spacing.sm,
+    paddingVertical: spacing.sm,
+  },
+  newGoalRowPressed: {
+    opacity: 0.6,
+  },
+  newGoalText: {
+    color: colors.textMuted,
+    fontFamily: fontFamilies.body,
+    fontSize: 14,
   },
 });
