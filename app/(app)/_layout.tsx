@@ -27,6 +27,10 @@ export default function ProtectedLayout() {
         name="habits/[habitId]/context"
         options={{ title: "Habit Context" }}
       />
+      <Stack.Screen
+        name="reviews/[habitId]"
+        options={{ title: "Weekly Review" }}
+      />
     </Stack>
   );
 }

@@ -22,6 +22,7 @@ jest.mock("@/features/trial/hooks", () => ({
 import { fireEvent, render, screen } from "@testing-library/react-native";
 
 import HabitDetailScreen from "@/features/habits/screens/HabitDetailScreen";
+import { useTrialValidation } from "@/features/trial/hooks";
 
 const mockPush = jest.fn();
 const mockUseHabitDetail = jest.fn();
@@ -296,5 +297,32 @@ describe("HabitDetailScreen", () => {
     expect(
       screen.getByText("We couldn't update this habit right now. Try again."),
     ).toBeTruthy();
+  });
+
+  it("hides the weekly review card when the app is in read-only mode (I9)", () => {
+    (useTrialValidation as jest.Mock).mockReturnValueOnce({
+      accessMode: "read_only",
+      entitlementStatus: "trial",
+      isBootstrapping: false,
+      isValidating: false,
+      lastValidatedAt: null,
+      refresh: jest.fn().mockResolvedValue(undefined),
+      trialEndsAt: null,
+      trialStartedAt: null,
+    });
+    mockUseHabitDetail.mockReturnValue({
+      error: null,
+      formula: "After breakfast, I will Read 1 page.",
+      habit: { ...baseHabit, status: "active" },
+      isLoading: false,
+      isUpcoming: false,
+      progress: emptyProgress,
+      recentLogs: [],
+    });
+
+    render(<HabitDetailScreen />);
+
+    expect(screen.queryByText("Start review")).toBeNull();
+    expect(screen.queryByText("Reviewed this week ✓")).toBeNull();
   });
 });
