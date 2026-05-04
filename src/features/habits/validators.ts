@@ -9,6 +9,7 @@ export type HabitValidationErrors = Partial<Record<keyof HabitSetupPayload, stri
 export function normalizeHabitSetupPayload(
   payload: HabitSetupPayload,
 ): HabitSetupPayload {
+  const days = payload.activeDays ?? [1, 2, 3, 4, 5, 6, 7];
   return {
     title: payload.title.trim(),
     identityPhrase: payload.identityPhrase.trim(),
@@ -17,6 +18,7 @@ export function normalizeHabitSetupPayload(
     minimumViableAction: payload.minimumViableAction.trim(),
     preferredTimeWindow: payload.preferredTimeWindow.trim(),
     icon: payload.icon.trim(),
+    activeDays: days.length > 0 ? days : [1, 2, 3, 4, 5, 6, 7],
   };
 }
 

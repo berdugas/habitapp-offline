@@ -12,6 +12,7 @@ import {
   updateHabit,
   upsertHabitLog,
 } from "@/features/habits/api";
+import { parseActiveDays } from "@/features/habits/activeDays";
 import { getLatestWeeklyReview } from "@/features/reviews/api";
 import { getLatestWeeklyReviewQueryKey } from "@/features/reviews/queryKeys";
 import { formatHabitFormula } from "@/features/habits/formatters";
@@ -184,6 +185,7 @@ export function useHabitDetail(
     isUpcoming: habit ? habit.start_date > endDate : false,
     latestReview,
     progress: summarizeHabitProgress({
+      activeDays: habit ? parseActiveDays(habit.active_days) : undefined,
       endDate: endDateObject,
       logs: recentLogs,
       windowDays: TODAY_PROGRESS_WINDOW_DAYS,

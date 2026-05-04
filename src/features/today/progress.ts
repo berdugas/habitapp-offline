@@ -1,9 +1,11 @@
 import { addDeviceDays, toDeviceDateString } from "@/utils/dates";
 import { now } from "@/utils/clock";
+import { isActiveDay } from "@/features/habits/activeDays";
 
 import type { HabitLogRecord } from "@/features/habits/types";
 
 type SummarizeHabitProgressOptions = {
+  activeDays?: number[];
   endDate?: Date;
   logs: HabitLogRecord[];
   windowDays: number;
@@ -63,6 +65,7 @@ function computeForgivingStreak(sequence: DayStatus[]): number {
 }
 
 export function summarizeHabitProgress({
+  activeDays,
   endDate = now(),
   logs,
   windowDays,
@@ -90,14 +93,24 @@ export function summarizeHabitProgress({
     }
   }
 
-  const todayStatus = logsByDate.get(endDateString)?.status ?? null;
+  // Today status: null if today is an off-day
+  const todayIsActive = !activeDays || isActiveDay(endDateString, activeDays);
+  const todayStatus = todayIsActive
+    ? (logsByDate.get(endDateString)?.status ?? null)
+    : null;
 
-  // Consistency rate and skip count
+  // Consistency rate and skip count — only active days count
   let doneCount = 0;
   let missedCount = 0;
   let skipCount = 0;
 
-  for (const log of logsByDate.values()) {
+  for (let offset = 0; offset < windowDays; offset++) {
+    const dateString = toDeviceDateString(addDeviceDays(normalizedEndDate, -offset));
+    if (activeDays && !isActiveDay(dateString, activeDays)) continue;
+
+    const log = logsByDate.get(dateString);
+    if (!log) continue;
+
     if (log.status === "done") {
       doneCount += 1;
     } else if (log.status === "missed") {
@@ -111,14 +124,19 @@ export function summarizeHabitProgress({
   const consistencyRate =
     consistencyDenominator === 0 ? 0 : doneCount / consistencyDenominator;
 
-  // Build the streak sequence: walk backward from endDate
-  // newest-first, stopping at today if unlogged
+  // Build the streak sequence: walk backward from endDate over active days only
   const streakSequence: DayStatus[] = [];
 
   for (let offset = 0; offset < windowDays; offset++) {
     const dateString = toDeviceDateString(
       addDeviceDays(normalizedEndDate, -offset),
     );
+
+    // Skip off-days entirely — they don't affect the streak
+    if (activeDays && !isActiveDay(dateString, activeDays)) {
+      continue;
+    }
+
     const logEntry = logsByDate.get(dateString);
 
     if (logEntry) {
@@ -127,7 +145,7 @@ export function summarizeHabitProgress({
       // Today has no log yet — no decision made; skip today and keep walking back
       continue;
     } else {
-      // Past day with no log — treat as missed
+      // Past active day with no log — treat as missed
       streakSequence.push("missed");
     }
   }

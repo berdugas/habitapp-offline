@@ -6,9 +6,11 @@ import {
 
 import { useAuthSession } from "@/features/auth/hooks";
 import {
+  deleteHabitLog,
   getHabitLogsInRange,
   upsertHabitLog,
 } from "@/features/habits/api";
+import { isActiveDay, parseActiveDays } from "@/features/habits/activeDays";
 import {
   useEligibleHabitsQuery,
   useUpcomingActiveHabitsQuery,
@@ -102,21 +104,28 @@ export function useTodayHabits() {
       upcomingHabitsQuery.error ??
       historyLogsQuery.error ??
       null,
-    habits: eligibleHabits.map<TodayHabitCardData>((habit) => ({
-      ...summarizeHabitProgress({
-        endDate: historyWindowEndDate,
-        logs: logsByHabitId.get(habit.id) ?? [],
-        windowDays: TODAY_PROGRESS_WINDOW_DAYS,
-      }),
-      cue: habit.cue,
-      formula: formatHabitFormula(habit.cue, habit.tiny_action),
-      icon: habit.icon ?? null,
-      id: habit.id,
-      identityPhrase: habit.identity_phrase ?? "",
-      name: habit.title,
-      startDate: habit.start_date,
-      tinyAction: habit.tiny_action,
-    })),
+    habits: eligibleHabits.map<TodayHabitCardData>((habit) => {
+      const activeDays = parseActiveDays(habit.active_days);
+      const offDay = !isActiveDay(todayDateString(), activeDays);
+      return {
+        ...summarizeHabitProgress({
+          activeDays,
+          endDate: historyWindowEndDate,
+          logs: logsByHabitId.get(habit.id) ?? [],
+          windowDays: TODAY_PROGRESS_WINDOW_DAYS,
+        }),
+        activeDays,
+        cue: habit.cue,
+        formula: formatHabitFormula(habit.cue, habit.tiny_action),
+        icon: habit.icon ?? null,
+        id: habit.id,
+        identityPhrase: habit.identity_phrase ?? "",
+        name: habit.title,
+        offDay,
+        startDate: habit.start_date,
+        tinyAction: habit.tiny_action,
+      };
+    }),
     isLoading:
       eligibleHabitsQuery.isLoading ||
       upcomingHabitsQuery.isLoading ||
@@ -183,6 +192,45 @@ export function useUpsertTodayHabitStatusMutation() {
         error,
         habitId: variables.habitId,
         status: variables.status,
+        userId: user?.id ?? null,
+      });
+    },
+  });
+}
+
+export function useDeleteTodayHabitLogMutation() {
+  const { user } = useAuthSession();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (habitId: string) => {
+      if (!user?.id) {
+        throw new Error("You need an account session before undoing a habit log.");
+      }
+      return deleteHabitLog(user.id, habitId, todayDateString());
+    },
+    onSuccess: async (_data, habitId) => {
+      if (!user?.id) return;
+
+      const { endDate, startDate } = getTrailingDateRangeStrings(
+        TODAY_PROGRESS_WINDOW_DAYS,
+        now(),
+      );
+      const queryKey = getUserHabitLogsRangeQueryKey(user.id, startDate, endDate);
+
+      await queryClient.invalidateQueries({ queryKey });
+      await queryClient.fetchQuery({
+        queryFn: () => getHabitLogsInRange(user.id, startDate, endDate),
+        queryKey,
+      });
+      await queryClient.invalidateQueries({
+        queryKey: ["habit-logs", "range", habitId],
+      });
+    },
+    onError: (error, habitId) => {
+      logger.error("Today undo log mutation failed", {
+        error,
+        habitId,
         userId: user?.id ?? null,
       });
     },

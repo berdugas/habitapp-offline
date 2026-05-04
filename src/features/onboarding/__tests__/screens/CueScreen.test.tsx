@@ -21,6 +21,7 @@ const { router } = jest.requireMock("expo-router") as {
 
 function makeDraft(overrides: object = {}) {
   return {
+    activeDays: [1, 2, 3, 4, 5, 6, 7],
     step: "cue",
     becomingPhrase: "a runner",
     dailyAction: "Run for 30 minutes",

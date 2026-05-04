@@ -17,6 +17,7 @@ export type Habit = {
   icon: string | null;
   habit_state: HabitState;
   status: HabitStatus;
+  active_days: string;
   start_date: string;
   created_at: string;
   updated_at: string;
@@ -36,10 +37,12 @@ export type CreateHabitInput = Omit<
   | "habit_state"
   | "status"
   | "icon"
+  | "active_days"
 > & {
   habit_state?: HabitState;
   status?: HabitStatus;
   icon?: string | null;
+  active_days?: string;
 };
 
 export type UpdateHabitPatch = Partial<
@@ -54,6 +57,7 @@ export type UpdateHabitPatch = Partial<
     | "icon"
     | "habit_state"
     | "status"
+    | "active_days"
     | "automated_at"
     | "backlog_at"
   >
@@ -74,8 +78,8 @@ export async function createHabit(input: CreateHabitInput): Promise<Habit> {
     `INSERT INTO local_habits (
       id, user_id, title, identity_phrase, cue, tiny_action,
       minimum_viable_action, preferred_time_window, icon, habit_state, status,
-      start_date, created_at, updated_at, archived_at, automated_at, backlog_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, NULL)`,
+      active_days, start_date, created_at, updated_at, archived_at, automated_at, backlog_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, NULL)`,
     id,
     input.user_id,
     input.title,
@@ -87,6 +91,7 @@ export async function createHabit(input: CreateHabitInput): Promise<Habit> {
     input.icon ?? null,
     input.habit_state ?? "active",
     input.status ?? "active",
+    input.active_days ?? "[1,2,3,4,5,6,7]",
     input.start_date,
     now,
     now,
@@ -115,6 +120,7 @@ export async function updateHabit(
     "icon",
     "habit_state",
     "status",
+    "active_days",
     "automated_at",
     "backlog_at",
   ];

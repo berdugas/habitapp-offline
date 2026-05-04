@@ -2,6 +2,12 @@ import type { SQLiteDatabase } from "expo-sqlite";
 
 import { getDb } from "@/lib/db/client";
 import { createTestDb } from "@/tests/setup/createTestDb";
+
+jest.mock("@/features/reminders/notifications", () => ({
+  cancelReminder: jest.fn().mockResolvedValue(undefined),
+  rescheduleAll: jest.fn().mockResolvedValue(undefined),
+  scheduleReminder: jest.fn().mockResolvedValue(undefined),
+}));
 import { resetClockForTesting, setNowForTesting } from "@/utils/clock";
 import {
   createHabit,

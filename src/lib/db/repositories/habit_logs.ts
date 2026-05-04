@@ -163,3 +163,18 @@ export async function deleteLog(id: string): Promise<boolean> {
   const result = await db.runAsync("DELETE FROM local_habit_logs WHERE id = ?", id);
   return result.changes > 0;
 }
+
+export async function deleteLogByHabitAndDate(
+  habitId: string,
+  userId: string,
+  logDate: string,
+): Promise<boolean> {
+  const db = getDb();
+  const result = await db.runAsync(
+    "DELETE FROM local_habit_logs WHERE habit_id = ? AND user_id = ? AND log_date = ?",
+    habitId,
+    userId,
+    logDate,
+  );
+  return result.changes > 0;
+}

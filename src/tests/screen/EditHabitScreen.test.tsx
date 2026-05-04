@@ -42,7 +42,12 @@ jest.mock("@/features/recommendations/hooks", () => ({
   useGenerateHabitRewriteMutation: () => mockUseGenerateHabitRewriteMutation(),
 }));
 
+jest.mock("@/features/auth/hooks", () => ({
+  useAuthSession: jest.fn(() => ({ user: { id: "user-1" } })),
+}));
+
 const baseHabitData = {
+  active_days: "[1,2,3,4,5,6,7]",
   id: "habit-1",
   title: "Reading",
   identity_phrase: "Become a reader",
@@ -292,6 +297,7 @@ describe("EditHabitScreen", () => {
       expect(mockMutateAsync).toHaveBeenCalledWith({
         habitId: "habit-1",
         payload: {
+          activeDays: [1, 2, 3, 4, 5, 6, 7],
           title: "Reading habit",
           identityPhrase: "",
           cue: "After breakfast",

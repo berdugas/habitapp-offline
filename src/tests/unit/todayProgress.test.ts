@@ -358,3 +358,120 @@ describe("streak — edge cases", () => {
     expect(result.streak).toBe(0);
   });
 });
+
+// ─── Active days awareness ─────────────────────────────────────────────────────
+// TODAY = 2026-04-23 (Thursday, ISO weekday 4)
+// Apr17=Fri(5), Apr18=Sat(6), Apr19=Sun(7), Apr20=Mon(1), Apr21=Tue(2),
+// Apr22=Wed(3), Apr23=Thu(4)
+
+describe("active days — streak engine", () => {
+  // 1. Weekday habit, weekend gap: Fri done → Sat/Sun off → Mon done → streak = 2
+  it("weekday habit: Fri done, Sat/Sun off, Mon done → streak 2", () => {
+    // endDate = Mon Apr 20 so "today" = Mon (active day, just logged)
+    const result = summarizeHabitProgress({
+      activeDays: [1, 2, 3, 4, 5],
+      endDate: new Date("2026-04-20T12:00:00"),
+      logs: [
+        log("2026-04-20", "done"), // Mon
+        log("2026-04-17", "done"), // Fri — Sat/Sun are off, not in sequence
+      ],
+      windowDays: 7,
+    });
+    expect(result.streak).toBe(2);
+    expect(result.todayStatus).toBe("done");
+  });
+
+  // 2. Weekday consistency denominator: 4/5 active days done = 80%
+  it("weekday habit: 4 done + 1 missed out of 5 active days in window → 80% consistency", () => {
+    const result = summarizeHabitProgress({
+      activeDays: [1, 2, 3, 4, 5],
+      logs: [
+        log("2026-04-23", "done"),   // Thu
+        log("2026-04-22", "done"),   // Wed
+        log("2026-04-21", "done"),   // Tue
+        log("2026-04-20", "done"),   // Mon
+        log("2026-04-17", "missed"), // Fri — only missed active day
+        // Apr18 Sat and Apr19 Sun have no logs (off-days — not counted)
+      ],
+      windowDays: 7,
+    });
+    expect(result.consistencyRate).toBeCloseTo(0.8);
+  });
+
+  // 3. MWF habit across weeks
+  it("MWF habit: three done Mon/Wed/Fri → streak 3; today Thu is off-day → todayStatus null", () => {
+    // Today = Thu Apr 23 = off-day for MWF habit
+    const result = summarizeHabitProgress({
+      activeDays: [1, 3, 5],
+      logs: [
+        log("2026-04-22", "done"), // Wed
+        log("2026-04-20", "done"), // Mon
+        log("2026-04-17", "done"), // Fri
+      ],
+      windowDays: 14,
+    });
+    expect(result.streak).toBe(3);
+    expect(result.todayStatus).toBeNull();
+  });
+
+  // 4. Monday-only habit, consecutive Mondays → streak 3
+  it("Monday-only habit: three consecutive Mondays done → streak 3", () => {
+    const result = summarizeHabitProgress({
+      activeDays: [1],
+      logs: [
+        log("2026-04-20", "done"), // Mon
+        log("2026-04-13", "done"), // Mon
+        log("2026-04-06", "done"), // Mon
+      ],
+      windowDays: 21,
+    });
+    expect(result.streak).toBe(3);
+    expect(result.todayStatus).toBeNull(); // today = Thu, off-day for Mon-only
+  });
+
+  // 5. Today is off-day → todayStatus is null even if a log exists for that date
+  it("today is an off-day → todayStatus null regardless of log", () => {
+    // today = Thu Apr 23; weekday-only habit (Mon–Fri) but off means Sun would be null
+    // Use endDate = Sun Apr 19 to simulate "today is Sunday on a weekday habit"
+    const result = summarizeHabitProgress({
+      activeDays: [1, 2, 3, 4, 5],
+      endDate: new Date("2026-04-19T12:00:00"), // Sunday
+      logs: [
+        log("2026-04-19", "done"), // logged on a day that's off for this habit
+      ],
+      windowDays: 7,
+    });
+    expect(result.todayStatus).toBeNull();
+  });
+
+  // 6. Recovery edge case: isolated miss on active day still tolerated across off-day gap
+  it("forgiving streak: done×3, isolated miss, [off,off], done — streak 4", () => {
+    // Active days = weekdays. windowDays=7 → Apr17(Fri)..Apr23(Thu), off-days Apr18/19 skipped.
+    // Active-day sequence newest-first: Thu=done, Wed=done, Tue=done, Mon=missed, Fri=done
+    // After off-day removal: [done, done, done, missed, done]
+    // Forgiving walk: done=1, done=2, done=3, missed(peek→done → isolated), done=4 → streak 4
+    const result = summarizeHabitProgress({
+      activeDays: [1, 2, 3, 4, 5],
+      logs: [
+        log("2026-04-23", "done"),   // Thu (today)
+        log("2026-04-22", "done"),   // Wed
+        log("2026-04-21", "done"),   // Tue
+        log("2026-04-20", "missed"), // Mon — isolated miss (Sat/Sun off-days follow)
+        // Apr18 Sat and Apr19 Sun are off-days (skipped from streak sequence)
+        log("2026-04-17", "done"),   // Fri — resumes after off-day gap
+      ],
+      windowDays: 7,
+    });
+    expect(result.streak).toBe(4);
+  });
+
+  // 7. Backward-compat: no activeDays param → all-days behavior unchanged
+  it("activeDays omitted → all-days behavior unchanged (regression guard)", () => {
+    const result = summarizeHabitProgress({
+      logs: [log(TODAY, "done"), log(daysAgo(1), "done")],
+      windowDays: 7,
+    });
+    expect(result.streak).toBe(2);
+    expect(result.todayStatus).toBe("done");
+  });
+});

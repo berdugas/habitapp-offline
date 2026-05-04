@@ -8,6 +8,7 @@ import { ReadOnlyBanner } from "@/components/ReadOnlyBanner";
 import { ZenCard } from "@/components/cards/ZenCard";
 import { ErrorState } from "@/components/feedback/ErrorState";
 import { LoadingState } from "@/components/feedback/LoadingState";
+import { ActiveDaysPicker } from "@/components/forms/ActiveDaysPicker";
 import { ChoicePills } from "@/components/forms/ChoicePills";
 import { TextField } from "@/components/forms/TextField";
 import { Eyebrow } from "@/components/text/Eyebrow";
@@ -15,7 +16,10 @@ import {
   useOwnedHabitQuery,
   useUpdateHabitMutation,
 } from "@/features/habits/hooks";
+import { parseActiveDays, ALL_DAYS } from "@/features/habits/activeDays";
+import { rescheduleAll } from "@/features/reminders/notifications";
 import { formatHabitFormula } from "@/features/habits/formatters";
+import { useAuthSession } from "@/features/auth/hooks";
 import { PREFERRED_TIME_WINDOW_OPTIONS } from "@/features/habits/preferredTimeWindows";
 import {
   normalizeHabitSetupPayload,
@@ -33,6 +37,7 @@ import {
 } from "@/utils/userFacingErrors";
 
 export default function EditHabitScreen() {
+  const { user } = useAuthSession();
   const { habitId, suggestionType, from } = useLocalSearchParams<{
     habitId?: string | string[];
     suggestionType?: string | string[];
@@ -56,6 +61,7 @@ export default function EditHabitScreen() {
   const [minimumViableAction, setMinimumViableAction] = useState("");
   const [preferredTimeWindow, setPreferredTimeWindow] = useState("");
   const [icon, setIcon] = useState("");
+  const [activeDays, setActiveDays] = useState<number[]>(ALL_DAYS);
   const [showPicker, setShowPicker] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -67,6 +73,7 @@ export default function EditHabitScreen() {
     minimumViableAction,
     preferredTimeWindow,
     icon,
+    activeDays,
   };
   const normalizedPayload = normalizeHabitSetupPayload(formPayload);
   const validationErrors = useMemo(
@@ -86,6 +93,7 @@ export default function EditHabitScreen() {
     setMinimumViableAction(ownedHabitQuery.data.minimum_viable_action ?? "");
     setPreferredTimeWindow(ownedHabitQuery.data.preferred_time_window ?? "");
     setIcon(ownedHabitQuery.data.icon ?? "");
+    setActiveDays(parseActiveDays(ownedHabitQuery.data.active_days));
     hasHydratedFormRef.current = true;
 
     if (fromRecovery) {
@@ -119,6 +127,10 @@ export default function EditHabitScreen() {
         habitId: ownedHabitQuery.data.id,
         payload: normalizedPayload,
       });
+      // Reschedule reminder if active days changed
+      if (user?.id) {
+        await rescheduleAll(user.id).catch(() => {});
+      }
       router.replace(`/(app)/habits/${ownedHabitQuery.data.id}`);
     } catch {
       setFormError(getUpdateHabitErrorMessage());
@@ -234,6 +246,11 @@ export default function EditHabitScreen() {
           onChange={setPreferredTimeWindow}
           options={PREFERRED_TIME_WINDOW_OPTIONS}
           value={preferredTimeWindow}
+        />
+        <ActiveDaysPicker
+          value={activeDays}
+          disabled={isReadOnly}
+          onChange={setActiveDays}
         />
         <View style={styles.iconRow}>
           <Text style={styles.iconLabel}>Icon</Text>

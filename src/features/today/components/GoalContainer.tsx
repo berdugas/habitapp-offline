@@ -15,6 +15,7 @@ type GoalContainerProps = {
   consistencyRate: number;
   identityPhrase: string;
   onAddHabit?: () => void;
+  remainingCount: number;
   streak: number;
 };
 
@@ -24,6 +25,7 @@ export function GoalContainer({
   consistencyRate,
   identityPhrase,
   onAddHabit,
+  remainingCount,
   streak,
 }: GoalContainerProps) {
   const streakCopy = useMemo(() => getStreakCopy(streak), [streak]);
@@ -34,6 +36,15 @@ export function GoalContainer({
         <View style={styles.anchorSide}>
           <Text style={styles.becomingText}>Become {identityPhrase}</Text>
           <Text style={styles.streakText}>{streakCopy}</Text>
+          {remainingCount > 0 ? (
+            <View style={styles.pill}>
+              <Text style={styles.pillText}>{remainingCount} remaining</Text>
+            </View>
+          ) : (
+            <View style={[styles.pill, styles.pillComplete]}>
+              <Text style={[styles.pillText, styles.pillTextComplete]}>All done ✓</Text>
+            </View>
+          )}
         </View>
         <ConsistencyDonut rate={consistencyRate} />
       </View>
@@ -51,7 +62,6 @@ export function GoalContainer({
           </Pressable>
         ) : null}
       </View>
-      <Text style={styles.hintText}>Long-press a circle to skip</Text>
     </View>
   );
 }
@@ -80,14 +90,8 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   header: {
-    alignItems: "center",
+    alignItems: "flex-start",
     flexDirection: "row",
-  },
-  hintText: {
-    color: colors.textFaint,
-    fontFamily: fontFamilies.body,
-    fontSize: typography.micro,
-    paddingHorizontal: 2,
   },
   addHabitRow: {
     alignItems: "center",
@@ -105,6 +109,25 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     fontFamily: fontFamilies.body,
     fontSize: 14,
+  },
+  pill: {
+    alignSelf: "flex-start",
+    backgroundColor: colors.surfaceHigh,
+    borderRadius: 99,
+    paddingHorizontal: spacing.sm + 2,
+    paddingVertical: spacing.xs - 1,
+  },
+  pillComplete: {
+    backgroundColor: colors.primaryLight,
+  },
+  pillText: {
+    color: colors.textMuted,
+    fontFamily: fontFamilies.body,
+    fontSize: typography.micro,
+  },
+  pillTextComplete: {
+    color: colors.primary,
+    fontFamily: fontFamilies.bodyMedium,
   },
   streakText: {
     color: colors.primary,
