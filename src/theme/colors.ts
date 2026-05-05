@@ -19,4 +19,5 @@ export const colors = {
   heatDone: '#446655',
   heatSkipped: '#e6d3a8',
   heatMissed: '#ede9e0',
+  offDayBorder: '#e8e3d8',
 };

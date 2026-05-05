@@ -15,7 +15,7 @@ export type HeatmapLog = {
 
 type CellState = "done" | "missed" | "skipped" | "off-day" | "today-pending" | "future" | "empty";
 
-type CalendarCell = {
+export type CalendarCell = {
   date: string;
   state: CellState;
 };
@@ -24,22 +24,45 @@ type CalendarGridProps = {
   activeDays: number[];
   logs: HeatmapLog[];
   onCellPress?: (date: string) => void;
+  startDate?: string;
 };
 
 const DAY_HEADERS = ["M", "T", "W", "T", "F", "S", "S"];
 
-function buildGrid(
+export function buildGrid(
   logs: HeatmapLog[],
   activeDays: number[],
+  startDate?: string,
 ): CalendarCell[] {
   const today = todayDateString();
   const todayDate = new Date(`${today}T12:00:00`);
   const todayWeekday = isoWeekday(todayDate); // Mon=1 … Sun=7
 
-  // Monday of current week
-  const startOfCurrentWeek = addDeviceDays(todayDate, -(todayWeekday - 1));
-  // Monday 4 weeks earlier = start of 5-week grid
-  const gridStart = addDeviceDays(startOfCurrentWeek, -28);
+  let gridStart: Date;
+  let totalCells: number;
+
+  if (startDate) {
+    // Start on Monday of the week containing startDate
+    const startDateObj = new Date(`${startDate}T12:00:00`);
+    const startWeekday = isoWeekday(startDateObj);
+    gridStart = addDeviceDays(startDateObj, -(startWeekday - 1));
+
+    // End on Sunday of the current week
+    const endOfCurrentWeek = addDeviceDays(todayDate, 7 - todayWeekday);
+
+    // Days between gridStart and end-of-current-week (inclusive)
+    const diffMs = endOfCurrentWeek.getTime() - gridStart.getTime();
+    const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24)) + 1;
+
+    // Round up to full weeks
+    const rows = Math.ceil(diffDays / 7);
+    totalCells = rows * 7;
+  } else {
+    // Fixed 5-week window ending at Sunday of current week (backward compat)
+    const startOfCurrentWeek = addDeviceDays(todayDate, -(todayWeekday - 1));
+    gridStart = addDeviceDays(startOfCurrentWeek, -28);
+    totalCells = 35;
+  }
 
   const logMap = new Map<string, HabitLogStatus>();
   for (const log of logs) {
@@ -48,7 +71,7 @@ function buildGrid(
 
   const cells: CalendarCell[] = [];
 
-  for (let i = 0; i < 35; i++) {
+  for (let i = 0; i < totalCells; i++) {
     const date = toDeviceDateString(addDeviceDays(gridStart, i));
     const weekday = isoWeekday(new Date(`${date}T12:00:00`)); // Mon=1
     const isActive = activeDays.includes(weekday);
@@ -56,7 +79,10 @@ function buildGrid(
 
     let state: CellState;
 
-    if (date > today) {
+    // Cells before startDate: treat as empty padding
+    if (startDate && date < startDate) {
+      state = "future";
+    } else if (date > today) {
       state = "future";
     } else if (!isActive) {
       state = "off-day";
@@ -79,9 +105,10 @@ function buildGrid(
   return cells;
 }
 
-export function CalendarGrid({ activeDays, logs, onCellPress }: CalendarGridProps) {
-  const cells = buildGrid(logs, activeDays);
+export function CalendarGrid({ activeDays, logs, onCellPress, startDate }: CalendarGridProps) {
+  const cells = buildGrid(logs, activeDays, startDate);
   const today = todayDateString();
+  const rows = cells.length / 7;
 
   function handlePress(cell: CalendarCell) {
     if (!onCellPress) return;
@@ -101,8 +128,8 @@ export function CalendarGrid({ activeDays, logs, onCellPress }: CalendarGridProp
         ))}
       </View>
 
-      {/* 5 rows × 7 cols */}
-      {Array.from({ length: 5 }).map((_, row) => (
+      {/* Dynamic rows */}
+      {Array.from({ length: rows }).map((_, row) => (
         <View key={row} style={styles.gridRow}>
           {Array.from({ length: 7 }).map((_, col) => {
             const cell = cells[row * 7 + col];
@@ -132,7 +159,7 @@ export function CalendarGrid({ activeDays, logs, onCellPress }: CalendarGridProp
         <LegendItem color={colors.heatDone} label="Done" />
         <LegendItem color={colors.heatSkipped} label="Skipped" />
         <LegendItem color={colors.heatMissed} label="Missed" border />
-        <LegendItem dashed label="Off day" />
+        <LegendItem outlined label="Off day" />
       </View>
     </View>
   );
@@ -141,13 +168,13 @@ export function CalendarGrid({ activeDays, logs, onCellPress }: CalendarGridProp
 function LegendItem({
   border,
   color,
-  dashed,
   label,
+  outlined,
 }: {
   border?: boolean;
   color?: string;
-  dashed?: boolean;
   label: string;
+  outlined?: boolean;
 }) {
   return (
     <View style={styles.legendItem}>
@@ -156,7 +183,7 @@ function LegendItem({
           styles.legendSwatch,
           color ? { backgroundColor: color } : undefined,
           border && styles.legendSwatchBorder,
-          dashed && styles.legendSwatchDashed,
+          outlined && styles.legendSwatchOutlined,
         ]}
       />
       <Text style={styles.legendLabel}>{label}</Text>
@@ -175,10 +202,8 @@ function cellStyle(state: CellState): object {
     case "off-day":
       return {
         backgroundColor: "transparent",
-        borderColor: colors.textFaint,
-        borderStyle: "dashed" as const,
+        borderColor: colors.offDayBorder,
         borderWidth: 1,
-        opacity: 0.4,
       };
     case "today-pending":
       return {
@@ -256,10 +281,9 @@ const styles = StyleSheet.create({
     borderColor: colors.surfaceHigh,
     borderWidth: 1,
   },
-  legendSwatchDashed: {
+  legendSwatchOutlined: {
     backgroundColor: "transparent",
-    borderColor: colors.textFaint,
-    borderStyle: "dashed",
+    borderColor: colors.offDayBorder,
     borderWidth: 1,
   },
 });

@@ -68,7 +68,14 @@ export default function HabitDetailScreen() {
     canEdit: boolean;
     readOnlyReason?: "window" | "app";
   } | null>(null);
-  const calendarLogs = useHabitLogsForRange(habit?.id, 35).data ?? [];
+  // Fetch logs covering the full range from start_date (or 35 days minimum)
+  const calendarDays = (() => {
+    if (!habit?.start_date) return 35;
+    const start = new Date(`${habit.start_date}T12:00:00`);
+    const diff = Math.ceil((Date.now() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+    return Math.max(diff, 35);
+  })();
+  const calendarLogs = useHabitLogsForRange(habit?.id, calendarDays).data ?? [];
   const { accessMode, isValidating, refresh } = useTrialValidation();
   const isReadOnly = accessMode === "read_only";
 
@@ -136,17 +143,21 @@ export default function HabitDetailScreen() {
   const activeDays = habit ? parseActiveDays(habit.active_days) : [1,2,3,4,5,6,7];
   const schedulelabel = getActiveDaysLabel(activeDays);
 
-  // Count done days out of active days in the last 30-day window for the header counter
+  // Count done/active days from start_date to today for the header counter
   const calendarDoneCount = (calendarLogs as HeatmapLog[]).filter((l) => l.status === "done").length;
   const calendarActiveDayCount = (() => {
     if (!habit) return 0;
+    const start = habit.start_date
+      ? new Date(`${habit.start_date}T12:00:00`)
+      : (() => { const d = new Date(); d.setDate(d.getDate() - 29); return d; })();
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     let count = 0;
-    for (let i = 0; i < 30; i++) {
-      const d = new Date(today);
-      d.setDate(d.getDate() - i);
+    const d = new Date(start);
+    d.setHours(0, 0, 0, 0);
+    while (d <= today) {
       if (isActiveDay(d, activeDays)) count++;
+      d.setDate(d.getDate() + 1);
     }
     return count;
   })();
@@ -265,7 +276,7 @@ export default function HabitDetailScreen() {
       {!isUpcoming ? (
         <ZenCard>
           <View style={styles.calendarHeader}>
-            <Eyebrow label="Last 30 days" />
+            <Eyebrow label="Activity" />
             <Text style={styles.calendarCounter}>
               {calendarDoneCount} of {calendarActiveDayCount} active days
             </Text>
@@ -274,6 +285,7 @@ export default function HabitDetailScreen() {
             activeDays={activeDays}
             logs={calendarLogs as HeatmapLog[]}
             onCellPress={handleCellPress}
+            startDate={habit.start_date}
           />
         </ZenCard>
       ) : null}
