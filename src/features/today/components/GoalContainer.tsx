@@ -15,6 +15,7 @@ type GoalContainerProps = {
   consistencyRate: number;
   identityPhrase: string;
   onAddHabit?: () => void;
+  onGoalPress?: () => void;
   remainingCount: number;
   streak: number;
 };
@@ -25,6 +26,7 @@ export function GoalContainer({
   consistencyRate,
   identityPhrase,
   onAddHabit,
+  onGoalPress,
   remainingCount,
   streak,
 }: GoalContainerProps) {
@@ -33,7 +35,11 @@ export function GoalContainer({
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <View style={styles.anchorSide}>
+        <Pressable
+          onPress={onGoalPress}
+          style={styles.anchorSide}
+          disabled={!onGoalPress}
+        >
           <Text style={styles.becomingText}>Become {identityPhrase}</Text>
           <Text style={styles.streakText}>{streakCopy}</Text>
           {remainingCount > 0 ? (
@@ -45,8 +51,12 @@ export function GoalContainer({
               <Text style={[styles.pillText, styles.pillTextComplete]}>All done ✓</Text>
             </View>
           )}
-        </View>
-        <ConsistencyDonut rate={consistencyRate} />
+        </Pressable>
+        <ConsistencyDonut
+          label="Goal consistency"
+          onPress={onGoalPress}
+          rate={consistencyRate}
+        />
       </View>
       {banner ?? null}
       <View style={styles.habitsCard}>

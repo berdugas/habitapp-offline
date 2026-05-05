@@ -262,6 +262,12 @@ export default function TodayScreen() {
                         params: { goalIdentityPhrase: group.identityPhrase },
                       })
               }
+              onGoalPress={() =>
+                router.push({
+                  pathname: "/(app)/goals/[identityPhrase]",
+                  params: { identityPhrase: encodeURIComponent(group.identityPhrase) },
+                })
+              }
               streak={oldestStreak(group.habits)}
             >
               {group.habits.map((habit) => (

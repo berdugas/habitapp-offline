@@ -463,4 +463,32 @@ describe("TodayScreen", () => {
       expect(mutateAsync).toHaveBeenCalledTimes(1);
     });
   });
+
+  it("pressing the goal header navigates to GoalDetailScreen with encoded identityPhrase", () => {
+    useTodayHabits.mockReturnValue({
+      error: null,
+      habits: [makeHabit({ identityPhrase: "a runner" })],
+      isLoading: false,
+      upcomingHabits: [],
+    });
+    renderWithClient(<TodayScreen />);
+    fireEvent.press(screen.getByText("Become a runner"));
+    expect(router.push).toHaveBeenCalledWith(
+      expect.objectContaining({
+        pathname: "/(app)/goals/[identityPhrase]",
+        params: expect.objectContaining({ identityPhrase: "a%20runner" }),
+      }),
+    );
+  });
+
+  it("shows 'Goal consistency' label on the ConsistencyDonut", () => {
+    useTodayHabits.mockReturnValue({
+      error: null,
+      habits: [makeHabit()],
+      isLoading: false,
+      upcomingHabits: [],
+    });
+    renderWithClient(<TodayScreen />);
+    expect(screen.getByText("Goal consistency")).toBeTruthy();
+  });
 });
