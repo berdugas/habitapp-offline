@@ -17,6 +17,7 @@ import {
 } from "@/features/habits/hooks";
 import { formatHabitFormula } from "@/features/habits/formatters";
 import { summarizeHabitProgress } from "@/features/today/progress";
+import { avgConsistencyRate, oldestStreak } from "@/features/today/goalMetrics";
 import { logger } from "@/services/logger";
 import {
   addDeviceDays,
@@ -35,6 +36,7 @@ import type {
   TodayHabitCardData,
   UpcomingHabitCardData,
 } from "@/features/today/types";
+import type { HeatmapLog } from "@/components/CalendarGrid";
 
 export function getUserHabitLogsRangeQueryKey(
   userId: string | undefined,
@@ -235,4 +237,68 @@ export function useDeleteTodayHabitLogMutation() {
       });
     },
   });
+}
+
+export type GoalHabitDetail = {
+  activeDays: number[];
+  consistencyRate: number;
+  icon: string | null;
+  id: string;
+  logs: HeatmapLog[];
+  name: string;
+  skipCount: number;
+  startDate: string;
+  streak: number;
+};
+
+export function useGoalDetail(identityPhrase: string | undefined) {
+  const { endDate } = getTrailingDateRangeStrings(TODAY_PROGRESS_WINDOW_DAYS, now());
+  const endDateObj = new Date(`${endDate}T12:00:00`);
+
+  const allHabitsQuery = useEligibleHabitsQuery();
+  const goalHabits = (allHabitsQuery.data ?? []).filter(
+    (h) => h.identity_phrase === identityPhrase,
+  );
+
+  const habitIds = goalHabits.map((h) => h.id);
+  const logsQuery = useHabitLogsForHabitsInRange(habitIds, TODAY_PROGRESS_WINDOW_DAYS);
+  const allLogs = logsQuery.data ?? [];
+
+  const logsByHabitId = new Map<string, HabitLogRecord[]>();
+  for (const log of allLogs) {
+    const arr = logsByHabitId.get(log.habit_id) ?? [];
+    arr.push(log);
+    logsByHabitId.set(log.habit_id, arr);
+  }
+
+  const habits: GoalHabitDetail[] = goalHabits.map((habit) => {
+    const activeDays = parseActiveDays(habit.active_days);
+    const habitLogs = logsByHabitId.get(habit.id) ?? [];
+    const progress = summarizeHabitProgress({
+      activeDays,
+      endDate: endDateObj,
+      logs: habitLogs,
+      windowDays: TODAY_PROGRESS_WINDOW_DAYS,
+    });
+    return {
+      activeDays,
+      consistencyRate: progress.consistencyRate,
+      icon: habit.icon ?? null,
+      id: habit.id,
+      logs: habitLogs.map((l) => ({ log_date: l.log_date, status: l.status })),
+      name: habit.title,
+      skipCount: progress.skipCount,
+      startDate: habit.start_date,
+      streak: progress.streak,
+    };
+  });
+
+  return {
+    error: allHabitsQuery.error ?? logsQuery.error ?? null,
+    goalConsistencyRate: avgConsistencyRate(habits),
+    goalStreak: oldestStreak(habits),
+    habits,
+    identityPhrase: identityPhrase ?? "",
+    isLoading: allHabitsQuery.isLoading || logsQuery.isLoading,
+  };
 }

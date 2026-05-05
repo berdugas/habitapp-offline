@@ -35,6 +35,7 @@ import { colors } from "@/theme/colors";
 import { fontFamilies } from "@/theme/fontFamilies";
 import { spacing } from "@/theme/spacing";
 import { typography } from "@/theme/typography";
+import { avgConsistencyRate, oldestStreak } from "@/features/today/goalMetrics";
 import {
   getLoadHabitsErrorMessage,
   getSaveTodayStatusErrorMessage,
@@ -63,17 +64,6 @@ function groupByIdentity(habits: TodayHabitCardData[]): GoalGroup[] {
   }));
 }
 
-function oldestStreak(habits: TodayHabitCardData[]): number {
-  const sorted = [...habits].sort((a, b) =>
-    a.startDate.localeCompare(b.startDate),
-  );
-  return sorted[0]?.streak ?? 0;
-}
-
-function avgConsistencyRate(habits: TodayHabitCardData[]): number {
-  if (habits.length === 0) return 0;
-  return habits.reduce((sum, h) => sum + h.consistencyRate, 0) / habits.length;
-}
 
 function AppHeader() {
   const label = new Date().toLocaleDateString(undefined, {
