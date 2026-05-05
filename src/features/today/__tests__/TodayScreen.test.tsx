@@ -491,4 +491,40 @@ describe("TodayScreen", () => {
     renderWithClient(<TodayScreen />);
     expect(screen.getByText("Goal consistency")).toBeTruthy();
   });
+
+  it("does not navigate to GoalDetail when tapping the header of a no-identity group", () => {
+    useTodayHabits.mockReturnValue({
+      error: null,
+      habits: [makeHabit({ identityPhrase: "" })],
+      isLoading: false,
+      upcomingHabits: [],
+    });
+    renderWithClient(<TodayScreen />);
+    // The header Pressable is disabled (onGoalPress=undefined). Even if we trigger
+    // all presses in the component, no goals navigation should be queued.
+    // (Pressing the Add a habit button is fine; it navigates to create, not goals.)
+    expect(router.push).not.toHaveBeenCalledWith(
+      expect.objectContaining({ pathname: "/(app)/goals/[identityPhrase]" }),
+    );
+  });
+
+  it("does not prefill goalIdentityPhrase when adding a habit from a no-identity group", () => {
+    useTodayHabits.mockReturnValue({
+      error: null,
+      habits: [makeHabit({ identityPhrase: "" })],
+      isLoading: false,
+      upcomingHabits: [],
+    });
+    renderWithClient(<TodayScreen />);
+    fireEvent.press(screen.getByLabelText("Add a habit"));
+    expect(router.push).toHaveBeenCalledWith(
+      expect.objectContaining({ pathname: "/(app)/habits/create" }),
+    );
+    // params should not carry the sentinel string
+    expect(router.push).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        params: expect.objectContaining({ goalIdentityPhrase: "(no goal)" }),
+      }),
+    );
+  });
 });

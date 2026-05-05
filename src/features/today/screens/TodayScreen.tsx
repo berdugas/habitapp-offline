@@ -45,6 +45,10 @@ import type { TodayHabitCardData } from "@/features/today/types";
 import type { HabitLogStatus } from "@/features/habits/types";
 import type { HabitLog } from "@/lib/db/repositories/habit_logs";
 
+// Sentinel key for habits that have no identity phrase. Used only as a Map key —
+// never stored in the DB or passed as a route param.
+const NO_GOAL_KEY = "(no goal)";
+
 type GoalGroup = {
   identityPhrase: string;
   habits: TodayHabitCardData[];
@@ -53,7 +57,7 @@ type GoalGroup = {
 function groupByIdentity(habits: TodayHabitCardData[]): GoalGroup[] {
   const map = new Map<string, TodayHabitCardData[]>();
   for (const habit of habits) {
-    const key = habit.identityPhrase || "(no goal)";
+    const key = habit.identityPhrase || NO_GOAL_KEY;
     const group = map.get(key) ?? [];
     group.push(habit);
     map.set(key, group);
@@ -259,14 +263,19 @@ export default function TodayScreen() {
                   : () =>
                       router.push({
                         pathname: "/(app)/habits/create",
-                        params: { goalIdentityPhrase: group.identityPhrase },
+                        ...(group.identityPhrase !== NO_GOAL_KEY && {
+                          params: { goalIdentityPhrase: group.identityPhrase },
+                        }),
                       })
               }
-              onGoalPress={() =>
-                router.push({
-                  pathname: "/(app)/goals/[identityPhrase]",
-                  params: { identityPhrase: encodeURIComponent(group.identityPhrase) },
-                })
+              onGoalPress={
+                group.identityPhrase !== NO_GOAL_KEY
+                  ? () =>
+                      router.push({
+                        pathname: "/(app)/goals/[identityPhrase]",
+                        params: { identityPhrase: encodeURIComponent(group.identityPhrase) },
+                      })
+                  : undefined
               }
               streak={oldestStreak(group.habits)}
             >
