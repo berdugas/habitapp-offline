@@ -167,10 +167,11 @@ describe("HabitDetailScreen", () => {
 
     expect(mockUseHabitDetail).toHaveBeenCalledWith("habit-1");
     expect(screen.getByText("Reading")).toBeTruthy();
-    expect(screen.getByText("Become a reader")).toBeTruthy();
+    // "Become a reader" appears in header and breadcrumb
+    expect(screen.getAllByText("Become a reader").length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText("Evening")).toBeTruthy();
-    // Streak copy for streak=2 (index 2%5=2 → "N-day streak. One day at a time.")
-    expect(screen.getByText("2-day streak. One day at a time.")).toBeTruthy();
+    // New design: streak shown as a large number in a metric card
+    expect(screen.getByText("2")).toBeTruthy();
     // Setup card shows active days label (may appear in multiple places)
     expect(screen.getAllByText("Every day").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Archive habit").length).toBeGreaterThan(0);

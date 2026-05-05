@@ -1,56 +1,80 @@
-import { StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import Svg, { Circle } from "react-native-svg";
 
 import { colors } from "@/theme/colors";
 import { fontFamilies } from "@/theme/fontFamilies";
 import { typography } from "@/theme/typography";
 
-const SIZE = 48;
+const DEFAULT_SIZE = 48;
 const STROKE_WIDTH = 4;
-const RADIUS = (SIZE - STROKE_WIDTH) / 2;
-const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
-const CENTER = SIZE / 2;
 
 type ConsistencyDonutProps = {
+  label?: string;
+  onPress?: () => void;
   rate: number;
+  size?: number;
 };
 
-export function ConsistencyDonut({ rate }: ConsistencyDonutProps) {
-  const offset = CIRCUMFERENCE * (1 - Math.min(1, Math.max(0, rate)));
+export function ConsistencyDonut({
+  label = "Consistency",
+  onPress,
+  rate,
+  size = DEFAULT_SIZE,
+}: ConsistencyDonutProps) {
+  const radius = (size - STROKE_WIDTH) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const center = size / 2;
+  const offset = circumference * (1 - Math.min(1, Math.max(0, rate)));
   const pct = Math.round(rate * 100);
 
-  return (
+  const content = (
     <View style={styles.container}>
-      <View style={styles.donutWrap}>
-        <Svg width={SIZE} height={SIZE}>
+      <View style={[styles.donutWrap, { height: size, width: size }]}>
+        <Svg width={size} height={size}>
           <Circle
-            cx={CENTER}
-            cy={CENTER}
-            r={RADIUS}
+            cx={center}
+            cy={center}
+            r={radius}
             stroke={colors.surfaceHigh}
             strokeWidth={STROKE_WIDTH}
             fill="none"
           />
           <Circle
-            cx={CENTER}
-            cy={CENTER}
-            r={RADIUS}
+            cx={center}
+            cy={center}
+            r={radius}
             stroke={colors.primary}
             strokeWidth={STROKE_WIDTH}
             fill="none"
-            strokeDasharray={`${CIRCUMFERENCE} ${CIRCUMFERENCE}`}
+            strokeDasharray={`${circumference} ${circumference}`}
             strokeDashoffset={offset}
             strokeLinecap="round"
-            transform={`rotate(-90, ${CENTER}, ${CENTER})`}
+            transform={`rotate(-90, ${center}, ${center})`}
           />
         </Svg>
-        <View style={styles.pctOverlay}>
-          <Text style={styles.pctText}>{pct}%</Text>
+        <View style={StyleSheet.absoluteFill}>
+          <View style={styles.pctOverlay}>
+            <Text style={[styles.pctText, { fontSize: Math.round(size * 0.23) }]}>{pct}%</Text>
+          </View>
         </View>
       </View>
-      <Text style={styles.captionText}>Consistency</Text>
+      {label !== "" ? (
+        <Text style={styles.captionText}>{label}</Text>
+      ) : null}
     </View>
   );
+
+  if (onPress) {
+    return (
+      <Pressable
+        onPress={onPress}
+        style={({ pressed }) => (pressed ? { opacity: 0.7 } : undefined)}
+      >
+        {content}
+      </Pressable>
+    );
+  }
+  return content;
 }
 
 const styles = StyleSheet.create({
@@ -65,17 +89,15 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   donutWrap: {
-    height: SIZE,
-    width: SIZE,
+    position: "relative",
   },
   pctOverlay: {
-    ...StyleSheet.absoluteFillObject,
     alignItems: "center",
+    flex: 1,
     justifyContent: "center",
   },
   pctText: {
     color: colors.text,
     fontFamily: fontFamilies.bodyMedium,
-    fontSize: 11,
   },
 });

@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
 import { ChevronLeft, Pencil } from "lucide-react-native";
 import { router, useLocalSearchParams } from "expo-router";
 
@@ -17,6 +16,8 @@ import { Eyebrow } from "@/components/text/Eyebrow";
 import { LucideIcon } from "@/components/LucideIconPicker";
 import { isWithinRetroWindow } from "@/features/habits/api";
 import { getActiveDaysLabel, isActiveDay, parseActiveDays } from "@/features/habits/activeDays";
+import { getFrequencyLabel } from "@/features/habits/formatters";
+import { ConsistencyDonut } from "@/features/today/components/ConsistencyDonut";
 import { cancelReminder, hasBeenPrompted, markPrompted, requestPermission, scheduleReminder } from "@/features/reminders/notifications";
 import { RetroLogSelector } from "@/features/habits/components/RetroLogSelector";
 import {
@@ -47,7 +48,10 @@ import type { HabitLogStatus } from "@/features/habits/types";
 import type { ReminderType } from "@/lib/db/repositories/reminders";
 
 export default function HabitDetailScreen() {
-  const { habitId } = useLocalSearchParams<{ habitId?: string | string[] }>();
+  const { habitId, goalConsistency } = useLocalSearchParams<{
+    habitId?: string | string[];
+    goalConsistency?: string;
+  }>();
   const activeStateSubmitLockRef = useRef(false);
   const { user } = useAuthSession();
   const {
@@ -142,6 +146,26 @@ export default function HabitDetailScreen() {
 
   const activeDays = habit ? parseActiveDays(habit.active_days) : [1,2,3,4,5,6,7];
   const schedulelabel = getActiveDaysLabel(activeDays);
+  const frequencyLabel = getFrequencyLabel(activeDays);
+  const goalConsistencyPct = goalConsistency ? Math.round(Number(goalConsistency) * 100) : null;
+
+  // Count active days from start_date to today for consistency suppression
+  const activeDaysCount = (() => {
+    if (!habit) return 0;
+    const start = habit.start_date
+      ? new Date(`${habit.start_date}T12:00:00`)
+      : new Date();
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    let count = 0;
+    const d = new Date(start);
+    d.setHours(0, 0, 0, 0);
+    while (d <= today) {
+      if (isActiveDay(d, activeDays)) count++;
+      d.setDate(d.getDate() + 1);
+    }
+    return count;
+  })();
 
   // Count done/active days from start_date to today for the header counter
   const calendarDoneCount = (calendarLogs as HeatmapLog[]).filter((l) => l.status === "done").length;
@@ -258,18 +282,27 @@ export default function HabitDetailScreen() {
           <ChevronLeft color={colors.textMuted} size={22} strokeWidth={1.75} />
         </Pressable>
         {habit.identity_phrase ? (
-          <Text selectable style={styles.goalLabel}>
-            Become {habit.identity_phrase}
-          </Text>
+          <Pressable
+            onPress={() =>
+              router.push({
+                pathname: "/(app)/goals/[identityPhrase]",
+                params: { identityPhrase: encodeURIComponent(habit.identity_phrase!) },
+              })
+            }
+          >
+            <Text selectable style={styles.goalLabel}>
+              Become {habit.identity_phrase}
+            </Text>
+          </Pressable>
         ) : null}
         <View style={styles.habitTitleRow}>
           {habit.icon ? (
-            <LucideIcon name={habit.icon} size={28} color={colors.primary} strokeWidth={1.75} />
+            <LucideIcon name={habit.icon} size={22} color={colors.primary} strokeWidth={1.75} />
           ) : null}
           <Text selectable style={styles.habitTitle}>{habit.title}</Text>
         </View>
-        <Text selectable style={styles.scheduleLabel}>{schedulelabel}</Text>
-        <Text selectable style={styles.cueText}>{habit.cue}</Text>
+        <Text selectable style={styles.formulaText}>{formula}</Text>
+        <Text selectable style={styles.frequencyText}>{frequencyLabel}</Text>
       </View>
 
       {/* 30-day calendar */}
@@ -290,29 +323,38 @@ export default function HabitDetailScreen() {
         </ZenCard>
       ) : null}
 
-      {/* Streak card */}
+      {/* Metric cards */}
       {!isUpcoming ? (
-        <ZenCard>
-          <Eyebrow label="Current streak" />
-          <View style={styles.streakRow}>
-            <View style={styles.streakTextCol}>
-              <Text selectable style={styles.streakCopy}>
-                {getStreakCopy(progress.streak)}
-              </Text>
-              <Text selectable style={styles.consistencyText}>
-                {Math.round(progress.consistencyRate * 100)}% consistency · {progress.skipCount} skips
-              </Text>
-            </View>
-            <LinearGradient
-              colors={[colors.primary, colors.primaryGradientEnd]}
-              end={{ x: 1, y: 1 }}
-              start={{ x: 0, y: 0 }}
-              style={styles.streakCircle}
-            >
-              <Text style={styles.streakNumber}>{progress.streak}</Text>
-            </LinearGradient>
+        <>
+          <View style={styles.metricsRow}>
+            <ZenCard style={styles.metricCard}>
+              <Eyebrow label="Habit consistency" />
+              <View style={styles.metricCenter}>
+                {activeDaysCount >= 7 ? (
+                  <ConsistencyDonut rate={progress.consistencyRate} size={40} label="" />
+                ) : (
+                  <Text style={styles.tooEarlyText}>
+                    Too early to tell — keep showing up
+                  </Text>
+                )}
+              </View>
+            </ZenCard>
+            <ZenCard style={styles.metricCard}>
+              <Eyebrow label="Habit streak" />
+              <View style={styles.metricCenter}>
+                <Text style={styles.streakLargeNumber}>{progress.streak}</Text>
+                {progress.skipCount > 0 ? (
+                  <Text style={styles.skipCountText}>{progress.skipCount} skips</Text>
+                ) : null}
+              </View>
+            </ZenCard>
           </View>
-        </ZenCard>
+          {habit.identity_phrase ? (
+            <Text style={styles.goalBreadcrumb}>
+              Become {habit.identity_phrase}{goalConsistencyPct != null ? ` · ${goalConsistencyPct}% overall` : ""}
+            </Text>
+          ) : null}
+        </>
       ) : null}
 
       {/* Weekly Review card */}
@@ -556,17 +598,54 @@ const styles = StyleSheet.create({
   backRow: {
     marginBottom: spacing.sm,
   },
-  cueText: {
-    color: colors.textFaint,
+  formulaText: {
+    color: colors.textMuted,
     fontFamily: fontFamilies.body,
-    fontSize: 13,
-    lineHeight: 19,
+    fontSize: typography.bodyLg,
+    fontStyle: "italic",
+    lineHeight: 22,
   },
-  consistencyText: {
+  frequencyText: {
     color: colors.textFaint,
     fontFamily: fontFamilies.body,
-    fontSize: 13,
-    lineHeight: 18,
+    fontSize: typography.bodyMd,
+  },
+  goalBreadcrumb: {
+    color: colors.textFaint,
+    fontFamily: fontFamilies.body,
+    fontSize: typography.bodyMd,
+    textAlign: "center",
+  },
+  metricsRow: {
+    flexDirection: "row",
+    gap: spacing.md,
+  },
+  metricCard: {
+    flex: 1,
+  },
+  metricCenter: {
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: spacing.sm,
+    minHeight: 60,
+  },
+  streakLargeNumber: {
+    color: colors.text,
+    fontFamily: fontFamilies.displayBold,
+    fontSize: typography.headlineLg,
+  },
+  skipCountText: {
+    color: colors.textFaint,
+    fontFamily: fontFamilies.body,
+    fontSize: typography.micro,
+    marginTop: 2,
+  },
+  tooEarlyText: {
+    color: colors.textMuted,
+    fontFamily: fontFamilies.body,
+    fontSize: typography.bodyMd,
+    fontStyle: "italic",
+    textAlign: "center",
   },
   content: {
     gap: spacing.xl,
@@ -683,11 +762,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: spacing.sm,
   },
-  scheduleLabel: {
-    color: colors.textMuted,
-    fontFamily: fontFamilies.bodyMedium,
-    fontSize: 13,
-  },
   screen: {
     backgroundColor: colors.bg,
     flex: 1,
@@ -697,34 +771,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     marginBottom: spacing.xs,
-  },
-  streakCircle: {
-    alignItems: "center",
-    borderRadius: 32,
-    height: 64,
-    justifyContent: "center",
-    width: 64,
-  },
-  streakCopy: {
-    color: colors.text,
-    fontFamily: fontFamilies.bodySemi,
-    fontSize: 15,
-    lineHeight: 22,
-  },
-  streakNumber: {
-    color: colors.primaryText,
-    fontFamily: fontFamilies.displayBold,
-    fontSize: 24,
-  },
-  streakRow: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: spacing.lg,
-    justifyContent: "space-between",
-  },
-  streakTextCol: {
-    flex: 1,
-    gap: 4,
   },
   reviewPromptText: {
     color: colors.textMuted,

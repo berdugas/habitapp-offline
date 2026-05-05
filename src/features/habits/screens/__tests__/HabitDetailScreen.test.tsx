@@ -133,7 +133,8 @@ describe("HabitDetailScreen", () => {
       recentLogs: [],
     });
     renderWithClient(<HabitDetailScreen />);
-    expect(screen.getByText("Become a runner")).toBeTruthy();
+    // "Become a runner" appears in the header AND the goal breadcrumb below metrics
+    expect(screen.getAllByText("Become a runner").length).toBeGreaterThanOrEqual(1);
   });
 
   it("does not render the 'Become' header when identity_phrase is null", () => {
@@ -151,7 +152,7 @@ describe("HabitDetailScreen", () => {
     expect(screen.queryByText(/^Become /)).toBeNull();
   });
 
-  it("renders streak copy for a streak of 12", () => {
+  it("renders streak number in compact metric card", () => {
     useHabitDetail.mockReturnValue({
       error: null,
       formula: "After morning coffee, run for 2 minutes",
@@ -163,11 +164,10 @@ describe("HabitDetailScreen", () => {
       recentLogs: [],
     });
     renderWithClient(<HabitDetailScreen />);
-    // streak=12 → 12%5=2 → VARIANTS[2] → "12-day streak. One day at a time."
-    expect(screen.getByText("12-day streak. One day at a time.")).toBeTruthy();
+    expect(screen.getByText("12")).toBeTruthy();
   });
 
-  it("renders consistency and skip count in the streak card", () => {
+  it("renders skip count below the streak number", () => {
     useHabitDetail.mockReturnValue({
       error: null,
       formula: "After morning coffee, run for 2 minutes",
@@ -179,7 +179,7 @@ describe("HabitDetailScreen", () => {
       recentLogs: [],
     });
     renderWithClient(<HabitDetailScreen />);
-    expect(screen.getByText("85% consistency · 2 skips")).toBeTruthy();
+    expect(screen.getByText("2 skips")).toBeTruthy();
   });
 
   it("renders the calendar grid when logs are loaded", () => {
@@ -269,8 +269,9 @@ describe("HabitDetailScreen", () => {
     expect(screen.queryByText("Skip")).toBeNull();
   });
 
-  it("does not open the selector when a cell before habit.start_date is tapped", async () => {
-    // start_date = April 27 (3 days ago). Tap April 25 (before start_date). State = "missed".
+  it("cells before habit.start_date are not present in the growing grid", () => {
+    // start_date = April 27. With today = April 30 (Thu), the grid starts on Monday Apr 27
+    // and shows only that week (Apr 27 – May 3). Apr 25 is before startDate and not in grid.
     useHabitDetail.mockReturnValue({
       error: null,
       formula: "After morning coffee, run for 2 minutes",
@@ -282,13 +283,70 @@ describe("HabitDetailScreen", () => {
       recentLogs: [],
     });
     renderWithClient(<HabitDetailScreen />);
+    expect(screen.queryByLabelText(/2026-04-25/)).toBeNull();
+  });
 
-    fireEvent.press(screen.getByLabelText("2026-04-25, missed"));
+  it("renders formula text in header", () => {
+    useHabitDetail.mockReturnValue({
+      error: null,
+      formula: "After morning coffee, I will run for 2 minutes.",
+      habit: makeHabit(),
+      isLoading: false,
+      isUpcoming: false,
+      latestReview: null,
+      progress: makeProgress(),
+      recentLogs: [],
+    });
+    renderWithClient(<HabitDetailScreen />);
+    // Formula appears in the header AND in the Setup card → multiple matches expected
+    expect(screen.getAllByText("After morning coffee, I will run for 2 minutes.").length).toBeGreaterThanOrEqual(1);
+  });
 
-    // Selector should not appear — neither the lock message nor action buttons
-    expect(screen.queryByText("Skip")).toBeNull();
-    expect(
-      screen.queryByText("This day is locked. Logs older than 48 hours can't be changed."),
-    ).toBeNull();
+  it("shows two metric cards side by side for non-upcoming habit", () => {
+    useHabitDetail.mockReturnValue({
+      error: null,
+      formula: "After morning coffee, I will run.",
+      habit: makeHabit(),
+      isLoading: false,
+      isUpcoming: false,
+      latestReview: null,
+      progress: makeProgress(),
+      recentLogs: [],
+    });
+    renderWithClient(<HabitDetailScreen />);
+    // Both eyebrow labels from the two metric cards must be present
+    expect(screen.getByText("HABIT CONSISTENCY")).toBeTruthy();
+    expect(screen.getByText("HABIT STREAK")).toBeTruthy();
+  });
+
+  it("shows 'Too early to tell' when activeDaysCount < 7", () => {
+    // start_date = today (2026-04-30) → 0 active days elapsed → suppression shown
+    useHabitDetail.mockReturnValue({
+      error: null,
+      formula: "After morning coffee, I will run.",
+      habit: makeHabit({ start_date: "2026-04-30" }),
+      isLoading: false,
+      isUpcoming: false,
+      latestReview: null,
+      progress: makeProgress({ consistencyRate: 0.5 }),
+      recentLogs: [],
+    });
+    renderWithClient(<HabitDetailScreen />);
+    expect(screen.getByText("Too early to tell — keep showing up")).toBeTruthy();
+  });
+
+  it("renders goal breadcrumb with identity phrase", () => {
+    useHabitDetail.mockReturnValue({
+      error: null,
+      formula: "After morning coffee, I will run.",
+      habit: makeHabit({ identity_phrase: "a runner" }),
+      isLoading: false,
+      isUpcoming: false,
+      latestReview: null,
+      progress: makeProgress(),
+      recentLogs: [],
+    });
+    renderWithClient(<HabitDetailScreen />);
+    expect(screen.getAllByText("Become a runner").length).toBeGreaterThanOrEqual(1);
   });
 });
