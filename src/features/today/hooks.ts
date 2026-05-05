@@ -246,7 +246,6 @@ export type GoalHabitDetail = {
   id: string;
   logs: HeatmapLog[];
   name: string;
-  skipCount: number;
   startDate: string;
   streak: number;
 };
@@ -287,7 +286,6 @@ export function useGoalDetail(identityPhrase: string | undefined) {
       id: habit.id,
       logs: habitLogs.map((l) => ({ log_date: l.log_date, status: l.status })),
       name: habit.title,
-      skipCount: progress.skipCount,
       startDate: habit.start_date,
       streak: progress.streak,
     };

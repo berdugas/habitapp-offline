@@ -46,7 +46,6 @@ function makeHabit(overrides: Partial<Record<string, unknown>> = {}) {
     id: "h1",
     logs: [],
     name: "Run",
-    skipCount: 0,
     startDate: "2026-04-01",
     streak: 10,
     ...overrides,

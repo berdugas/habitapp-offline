@@ -3,6 +3,7 @@ import { StyleSheet, View } from "react-native";
 import { isoWeekday } from "@/features/habits/activeDays";
 import { colors } from "@/theme/colors";
 import { todayDateString } from "@/utils/clock";
+import { toDeviceDateString } from "@/utils/dates";
 
 import type { HeatmapLog } from "@/components/CalendarGrid";
 import type { HabitLogStatus } from "@/features/habits/types";
@@ -44,8 +45,8 @@ export function buildStripCells(
   const d = new Date(effectiveStart);
   d.setHours(12, 0, 0, 0);
 
-  while (toDateString(d) <= today) {
-    const date = toDateString(d);
+  while (toDeviceDateString(d) <= today) {
+    const date = toDeviceDateString(d);
     const weekday = isoWeekday(d);
     const isActive = activeDays.includes(weekday);
     const logStatus = logMap.get(date);
@@ -70,13 +71,6 @@ export function buildStripCells(
   }
 
   return cells;
-}
-
-function toDateString(date: Date): string {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
 }
 
 function dotStyle(state: CellState): object {

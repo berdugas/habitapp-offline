@@ -13,7 +13,7 @@ export type HeatmapLog = {
   status: HabitLogStatus;
 };
 
-type CellState = "done" | "missed" | "skipped" | "off-day" | "today-pending" | "future" | "empty";
+type CellState = "done" | "missed" | "skipped" | "off-day" | "today-pending" | "future";
 
 export type CalendarCell = {
   date: string;
@@ -139,7 +139,7 @@ export function CalendarGrid({ activeDays, logs, onCellPress, startDate }: Calen
             return (
               <Pressable
                 key={col}
-                accessibilityLabel={`${cell.date}, ${cell.state === "today-pending" ? "not logged" : cell.state === "missed" && cell.date > today ? "future" : cell.state}`}
+                accessibilityLabel={`${cell.date}, ${cell.state === "today-pending" ? "not logged" : cell.state}`}
                 disabled={!tappable || !onCellPress}
                 onPress={() => handlePress(cell)}
                 style={({ pressed }) => [
@@ -213,8 +213,6 @@ function cellStyle(state: CellState): object {
       };
     case "future":
       return { backgroundColor: "transparent" };
-    default:
-      return { backgroundColor: colors.heatMissed };
   }
 }
 
