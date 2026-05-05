@@ -46,8 +46,8 @@ const styles = StyleSheet.create({
   inputContainer: {
     backgroundColor: colors.surfaceCard,
     borderRadius: radius.md,
-    paddingVertical: 16,
-    paddingHorizontal: 18,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,

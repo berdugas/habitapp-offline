@@ -71,11 +71,11 @@ export default function PersonalizeScreen() {
     <OnboardingLayout footer={footer}>
       {phase === "personalize" && (
         <OnboardingHeader
-          currentStep={5}
+          currentStep={6}
           onBack={() => {
-            update({ step: "cue" });
+            update({ step: "schedule" });
             if (router.canGoBack()) router.back();
-            else router.replace("/(onboarding)/cue");
+            else router.replace("/(onboarding)/schedule");
           }}
         />
       )}

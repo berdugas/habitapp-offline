@@ -1,6 +1,6 @@
 # Design Direction — Habits Core v1
 
-**Last updated:** 3 May 2026 (rev 3 — goal-based habit architecture; Today screen redesign locked; Focus/Supporting distinction dissolved)
+**Last updated:** 5 May 2026 (rev 4 — S15 design decisions: CalendarGrid v2, Habit Detail formula header + compact metrics, GoalDetailScreen, off-day outlines, Option C labeling, consistency suppression)
 **Status:** Living document. Most decisions locked; open items at the bottom.
 **Source-of-truth pairing:** This document plus `design/habitapp/habit-screens.jsx` together define the visual language. When this doc is silent or ambiguous, the screens file is the visual oracle. When the screens diverge from this doc, this doc wins.
 **Audience:** Engineers implementing visual surfaces, and the product lead reviewing those implementations.
@@ -63,6 +63,7 @@ The palette is built around a single chromatic accent (sage `#446655`) layered o
 | `heatDone` | `#446655` | Heatmap: completed days |
 | `heatSkipped` | `#e6d3a8` | Heatmap: explicitly skipped days |
 | `heatMissed` | `#ede9e0` | Heatmap: missed days |
+| `offDayBorder` | `#e8e3d8` | CalendarGrid: off-day cell outline. Warm, quiet, between `surfaceHigh` and `surface`. |
 
 **Rules:**
 
@@ -402,8 +403,161 @@ When multi-goal ships, goal containers stack vertically with `xl` (24px) gap bet
 
 ---
 
+## CalendarGrid v2 (locked 5 May 2026)
+
+The CalendarGrid (shared component at `src/components/CalendarGrid.tsx`) changes from a fixed 5-week window to a growing grid anchored at the habit's `start_date`.
+
+### The change
+
+**Before:** Grid always shows 35 cells (5 rows × 7 columns) ending at the current week. On day 1 of a habit, 34 cells are empty or missed — visually discouraging.
+
+**After:** Grid starts at the Monday of the week containing `start_date` and extends to the Sunday of the current week. On day 1, the user sees one row with one cell. On day 10, two rows. On day 30, five rows. The calendar grows with the user — a visual record of time invested, not time remaining.
+
+When `startDate` is omitted (backward compat), the 5-week fixed window is preserved.
+
+### Off-day cell treatment
+
+**Before:** Dashed border, `textFaint` color, 0.4 opacity. Visually noisy — the dashes pull attention to days that don't matter.
+
+**After:** Solid 1px `#e8e3d8` outline (new token: `offDayBorder`), no fill, no opacity reduction. Quiet presence — the user can see the week structure without the off-days competing with active-day cells. The color sits between `surfaceHigh` and `surface`, warm and nearly invisible.
+
+### Legend
+
+Updated: Done / Skipped / Missed / Off day. The off-day swatch matches the new solid-outline treatment.
+
+---
+
+## Habit Detail redesign (locked 5 May 2026)
+
+The Habit Detail screen gets a significant layout restructure in S15 to implement the formula-first header, compact metrics, and consistency suppression decisions from the S14 product review.
+
+### Header: formula-first
+
+The header reorders to lead with the most actionable information:
+
+```
+← Back
+Become {identity_phrase}           ← goal label (tappable → GoalDetail)
+📖 {habit title}                   ← Lucide icon (22px) + title
+After lunch, I will read.          ← full formula (italic Manrope, bodyLg, textMuted)
+Once a week                        ← frequency label (bodyMd, textFaint)
+```
+
+**Why formula-first?** The formula is the behavior design artifact — it's what the user actually does. The title is just a label. Leading with the formula keeps the screen oriented around action, not naming.
+
+The formula renders in italic Manrope to distinguish it from the title without needing a different size. Italic is the right signal: it reads as a personal commitment, not as interface chrome.
+
+### Frequency label
+
+A new formatter `getFrequencyLabel(activeDays)` returns natural English:
+- 7 days → "Every day"
+- 5 weekdays → "Weekdays"
+- 2 days → "Twice a week"
+- 1 day → "Once a week"
+- N days → "N days a week"
+
+This replaces `getActiveDaysLabel()` on the detail screen (which returns "N days a week" — grammatically odd for 1 or 2). The existing function stays for other contexts (settings, edit screen).
+
+### Compact side-by-side metrics
+
+The full-width streak card with gradient circle is replaced by two equal-width metric cards side by side:
+
+```
+┌──────────────────┐  ┌──────────────────┐
+│  Habit consistency│  │  Habit streak    │
+│    (40px donut)   │  │       12         │
+└──────────────────┘  └──────────────────┘
+```
+
+Both are `ZenCard`. The left card contains a 40px `ConsistencyDonut` (component gains `size` prop). The right card shows the streak number in `headlineLg` / `displayBold`.
+
+**Gradient streak circle removed.** This is a deliberate de-emphasis. The gradient circle was the most visually prominent element on the screen — it pulled focus to streak-as-number, which is a gamification signal. Making the streak a plain number inside a metric card, equal in visual weight to the consistency donut, keeps it informative without making it the reward. The reward is internal.
+
+### Consistency suppression
+
+When fewer than 7 active days have elapsed since `start_date`, the consistency donut card shows: *"Too early to tell — keep showing up"* instead of a percentage. This prevents the misleading 100% on day 1 or the alarming 0% after one miss on day 3. The copy is warm, encouraging, and free of exclamation marks.
+
+### Goal breadcrumb
+
+Below the metric cards, a faint breadcrumb connects the habit to its goal: *"Become a runner · 75% overall"* in `bodyMd`, `textFaint`, centered. The percentage is the goal-level consistency (average across all habits in the goal). When unavailable (e.g., deep-linked with no context), the breadcrumb shows just the becoming phrase.
+
+---
+
+## Goal Detail screen (locked 5 May 2026)
+
+A new screen between Today and Habit Detail. Reached by tapping the consistency donut or goal header on Today. This is the reflection layer — "how is this identity project going?" — sitting between the daily action surface (Today) and the habit deep-dive (Habit Detail).
+
+### Screen structure
+
+```
+← Back
+Become {identity_phrase}           ← headline (headlineLg, displayBold)
+Showing up for 12 days             ← identity streak (italic, sage)
+
+┌──────────────┐ ┌──────────────┐
+│Goal           │ │Goal          │
+│consistency    │ │streak        │
+│   72%         │ │   12         │
+└──────────────┘ └──────────────┘
+
+HABITS IN THIS GOAL                ← Eyebrow
+
+┌──────────────────────────────────┐
+│ 📖 Read before bed               │
+│ 85% · 14 days                    │
+│ ██████████████████░░░░░░░░░░░░░░ │  ← MiniHeatmapStrip
+│                              ›   │
+├──────────────────────────────────┤
+│ 🏃 Run around the block          │
+│ 60% · 8 days                     │
+│ ██████░░████░░██████░░░░░░░░░░░░ │
+│                              ›   │
+└──────────────────────────────────┘
+
+           Back to Today            ← TertiaryBtn
+```
+
+### MiniHeatmapStrip
+
+A compressed 30-day (or start-date-capped) horizontal row of tiny squares (8px × 8px, 2px gap, 2px border-radius). Same color mapping as CalendarGrid: done → `heatDone`, missed → `heatMissed`, skipped → `heatSkipped`, off-day → `offDayBorder` outline. No interactivity, no day headers, no legend. Pure glanceable pattern.
+
+The strip right-aligns so the most recent days are always visible when the habit has fewer than 30 days of history.
+
+### Read-only awareness
+
+The screen is inherently read-only (no mutations), but shows `ReadOnlyBanner` when the app is in trial-expired read-only mode, consistent with other screens.
+
+---
+
+## Option C labeling (locked 5 May 2026)
+
+Consistency and streak metrics are labeled differently at each navigation layer to clarify what's being measured:
+
+| Screen | Consistency label | Streak label |
+|---|---|---|
+| Today (GoalContainer) | "Goal consistency" | (shown as identity streak copy, not labeled) |
+| Goal Detail | "Goal consistency" | "Goal streak" |
+| Habit Detail | "Habit consistency" | "Habit streak" |
+
+This eliminates the ambiguity of a single "Consistency" label — the user always knows whether they're looking at their aggregate goal performance or a single habit's track record.
+
+---
+
+## Navigation hierarchy (locked 5 May 2026)
+
+Three layers, each increasing in specificity:
+
+1. **Today** — "What do I do now?" Daily action surface. Shows goal containers with habit rows. The consistency donut and goal header are tappable → GoalDetail.
+2. **Goal Detail** — "How is this identity project going?" Reflection surface. Shows goal-level metrics and per-habit contribution via MiniHeatmapStrip. Habit rows are tappable → HabitDetail.
+3. **Habit Detail** — "How is this specific practice going?" Deep-dive surface. Shows formula, individual metrics, growing calendar, weekly review entry point, setup, reminders. Goal label is tappable → GoalDetail.
+
+Navigation is bidirectional: Today ↔ GoalDetail ↔ HabitDetail. Each screen has a "Back to Today" tertiary link as an escape hatch.
+
+---
+
 ## Revision log
 
 - **1 May 2026 (rev 1)** — Initial draft. AI hints decision locked; multi-habit Today, Weekly Review beta scope, Backlog UI, RetroLog affordance, ReadOnlyBanner styling, and logo asset marked OPEN.
 - **1 May 2026 (rev 2)** — Pre-S9 review fixes: added `primaryGradientEnd: #5a8a6e` token (PrimaryButton gradient end-stop, previously inline in canvas); clarified shadow implementation (RN 0.78+ native `boxShadow`, not `react-native-shadow-2`); corrected `primaryLight` description to reflect reserved-not-consumed state; locked the app name as **Habitapp** (single coined word, capital H only).
 - **3 May 2026 (rev 3)** — Goal-based architecture locked: dissolved Focus/Supporting distinction, habits grouped by identity/goal, all habits visually equal peers, soft 3-per-goal cap. Today screen redesign locked: identity-anchored goal container with donut consistency chart, habits as equal rows, skip via long-press, quiet post-completion state. Weekly Review beta scope locked (option a: defer). Multi-habit Today OPEN resolved.
+- **5 May 2026 (rev 4)** — S15 design decisions locked: CalendarGrid v2 (start-date-based growing grid, off-day solid outlines replacing dashed, `offDayBorder` token). Habit Detail redesign (formula-first header, compact side-by-side metrics, gradient streak circle removed, consistency suppression below 7 days, goal breadcrumb, `getFrequencyLabel` formatter). GoalDetailScreen (new navigation layer with MiniHeatmapStrip). Option C labeling (Goal vs Habit consistency/streak). Three-layer navigation hierarchy (Today → GoalDetail → HabitDetail).

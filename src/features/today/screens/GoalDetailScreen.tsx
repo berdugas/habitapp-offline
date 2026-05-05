@@ -95,7 +95,7 @@ export default function GoalDetailScreen() {
         <ZenCard style={styles.metricCard}>
           <Eyebrow label="Goal consistency" />
           <View style={styles.metricCenter}>
-            {oldestActiveDaysCount >= 7 ? (
+            {goalConsistencyRate !== null && oldestActiveDaysCount >= 7 ? (
               <ConsistencyDonut rate={goalConsistencyRate} size={40} label="" />
             ) : (
               <Text style={styles.tooEarlyText}>

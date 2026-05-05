@@ -1,6 +1,7 @@
 import { exceedsLength, isBlank } from "@/utils/validation";
 import { listActiveHabits } from "@/features/habits/api";
 import { ACTIVE_HABITS_PER_GOAL_SOFT_CAP } from "@/features/habits/contract";
+import { stripLeadingAfter, stripLeadingIWill } from "@/features/habits/formatters";
 
 import type { HabitSetupPayload } from "@/features/habits/types";
 
@@ -13,8 +14,8 @@ export function normalizeHabitSetupPayload(
   return {
     title: payload.title.trim(),
     identityPhrase: payload.identityPhrase.trim(),
-    cue: payload.cue.trim(),
-    tinyAction: payload.tinyAction.trim(),
+    cue: stripLeadingAfter(payload.cue),
+    tinyAction: stripLeadingIWill(payload.tinyAction),
     minimumViableAction: payload.minimumViableAction.trim(),
     preferredTimeWindow: payload.preferredTimeWindow.trim(),
     icon: payload.icon.trim(),

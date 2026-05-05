@@ -2,6 +2,7 @@ import type { HabitLogStatus } from "@/features/habits/types";
 
 export type TodayHabitCardData = {
   activeDays: number[];
+  consistencyDenominator: number;
   consistencyRate: number;
   cue: string;
   formula: string;

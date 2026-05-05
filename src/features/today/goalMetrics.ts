@@ -1,12 +1,14 @@
 type HabitForMetrics = {
+  consistencyDenominator: number;
   consistencyRate: number;
   startDate: string;
   streak: number;
 };
 
-export function avgConsistencyRate(habits: HabitForMetrics[]): number {
-  if (habits.length === 0) return 0;
-  return habits.reduce((sum, h) => sum + h.consistencyRate, 0) / habits.length;
+export function avgConsistencyRate(habits: HabitForMetrics[]): number | null {
+  const habitsWithData = habits.filter((h) => h.consistencyDenominator > 0);
+  if (habitsWithData.length === 0) return null;
+  return habitsWithData.reduce((sum, h) => sum + h.consistencyRate, 0) / habitsWithData.length;
 }
 
 export function oldestStreak(habits: HabitForMetrics[]): number {

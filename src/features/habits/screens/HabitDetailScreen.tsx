@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
-import { ChevronLeft, Pencil } from "lucide-react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Bell, ChevronLeft, Pencil } from "lucide-react-native";
 import { router, useLocalSearchParams } from "expo-router";
 
 import { CalendarGrid } from "@/components/CalendarGrid";
@@ -9,16 +10,15 @@ import { ReadOnlyBanner } from "@/components/ReadOnlyBanner";
 import { PrimaryButton } from "@/components/buttons/PrimaryButton";
 import { SecondaryButton } from "@/components/buttons/SecondaryButton";
 import { ZenCard } from "@/components/cards/ZenCard";
-import { RowLV } from "@/components/cards/RowLV";
 import { ErrorState } from "@/components/feedback/ErrorState";
 import { LoadingState } from "@/components/feedback/LoadingState";
 import { Eyebrow } from "@/components/text/Eyebrow";
 import { LucideIcon } from "@/components/LucideIconPicker";
 import { isWithinRetroWindow } from "@/features/habits/api";
-import { getActiveDaysLabel, isActiveDay, parseActiveDays } from "@/features/habits/activeDays";
+import { isActiveDay, parseActiveDays } from "@/features/habits/activeDays";
 import { getFrequencyLabel } from "@/features/habits/formatters";
 import { ConsistencyDonut } from "@/features/today/components/ConsistencyDonut";
-import { cancelReminder, hasBeenPrompted, markPrompted, requestPermission, scheduleReminder } from "@/features/reminders/notifications";
+import { cancelReminder, requestPermission } from "@/features/reminders/notifications";
 import { RetroLogSelector } from "@/features/habits/components/RetroLogSelector";
 import {
   useArchiveHabitMutation,
@@ -47,11 +47,19 @@ import {
 import type { HabitLogStatus } from "@/features/habits/types";
 import type { ReminderType } from "@/lib/db/repositories/reminders";
 
+function formatDisplayTime(hhmm: string): string {
+  const [h, m] = hhmm.split(":").map(Number);
+  const ampm = h < 12 ? "AM" : "PM";
+  const displayH = h === 0 ? 12 : h > 12 ? h - 12 : h;
+  return `${displayH}:${String(m).padStart(2, "0")} ${ampm}`;
+}
+
 export default function HabitDetailScreen() {
   const { habitId, goalConsistency } = useLocalSearchParams<{
     habitId?: string | string[];
     goalConsistency?: string;
   }>();
+  const { top } = useSafeAreaInsets();
   const activeStateSubmitLockRef = useRef(false);
   const { user } = useAuthSession();
   const {
@@ -97,8 +105,6 @@ export default function HabitDetailScreen() {
   const [reminderEnabled, setReminderEnabled] = useState(false);
   const [reminderType, setReminderType] = useState<ReminderType>("backup");
   const [reminderTime, setReminderTime] = useState("09:00");
-  const [reminderEditing, setReminderEditing] = useState(false);
-  const [reminderPending, setReminderPending] = useState(false);
 
   useEffect(() => {
     if (!habit) return;
@@ -111,41 +117,8 @@ export default function HabitDetailScreen() {
     });
   }, [habit?.id]);
 
-  async function handleReminderToggle(value: boolean) {
-    if (!habit || !user?.id || reminderPending) return;
-    setReminderPending(true);
-    try {
-      if (value) {
-        const prompted = await hasBeenPrompted();
-        if (!prompted) {
-          await markPrompted();
-          await requestPermission();
-        }
-        setReminderEnabled(true);
-        setReminderEditing(true);
-      } else {
-        await cancelReminder(habit.id);
-        setReminderEnabled(false);
-        setReminderEditing(false);
-      }
-    } finally {
-      setReminderPending(false);
-    }
-  }
-
-  async function handleReminderSave() {
-    if (!habit || !user?.id || reminderPending || reminderType === "none") return;
-    setReminderPending(true);
-    try {
-      await scheduleReminder(habit.id, user.id, reminderType, reminderTime, activeDays);
-      setReminderEditing(false);
-    } finally {
-      setReminderPending(false);
-    }
-  }
 
   const activeDays = habit ? parseActiveDays(habit.active_days) : [1,2,3,4,5,6,7];
-  const schedulelabel = getActiveDaysLabel(activeDays);
   const frequencyLabel = getFrequencyLabel(activeDays);
   const goalConsistencyPct = goalConsistency ? Math.round(Number(goalConsistency) * 100) : null;
 
@@ -245,12 +218,18 @@ export default function HabitDetailScreen() {
   if (error || !habit) {
     return (
       <ScrollView
-        contentContainerStyle={styles.content}
-        contentInsetAdjustmentBehavior="automatic"
+        contentContainerStyle={[styles.content, { paddingTop: top + spacing.xl }]}
         style={styles.screen}
       >
         <View style={styles.backRow}>
-          <Pressable onPress={() => router.back()} style={styles.backButton}>
+          <Pressable
+            hitSlop={12}
+            onPress={() => {
+              if (router.canGoBack()) router.back();
+              else router.replace("/(app)/(tabs)/today");
+            }}
+            style={styles.backButton}
+          >
             <ChevronLeft color={colors.textMuted} size={22} strokeWidth={1.75} />
           </Pressable>
         </View>
@@ -265,8 +244,7 @@ export default function HabitDetailScreen() {
 
   return (
     <ScrollView
-      contentContainerStyle={styles.content}
-      contentInsetAdjustmentBehavior="automatic"
+      contentContainerStyle={[styles.content, { paddingTop: top + spacing.xl }]}
       style={styles.screen}
     >
       {isReadOnly ? (
@@ -278,7 +256,14 @@ export default function HabitDetailScreen() {
 
       {/* Header */}
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.backButton}>
+        <Pressable
+          hitSlop={12}
+          onPress={() => {
+            if (router.canGoBack()) router.back();
+            else router.replace("/(app)/(tabs)/today");
+          }}
+          style={styles.backButton}
+        >
           <ChevronLeft color={colors.textMuted} size={22} strokeWidth={1.75} />
         </Pressable>
         {habit.identity_phrase ? (
@@ -300,10 +285,66 @@ export default function HabitDetailScreen() {
             <LucideIcon name={habit.icon} size={22} color={colors.primary} strokeWidth={1.75} />
           ) : null}
           <Text selectable style={styles.habitTitle}>{habit.title}</Text>
+          <Pressable
+            disabled={isReadOnly}
+            hitSlop={12}
+            onPress={() =>
+              router.push({
+                pathname: "/(app)/habits/[habitId]/edit",
+                params: { habitId: habit.id },
+              })
+            }
+          >
+            <Pencil color={isReadOnly ? colors.textFaint : colors.primary} size={16} strokeWidth={1.75} />
+          </Pressable>
         </View>
         <Text selectable style={styles.formulaText}>{formula}</Text>
         <Text selectable style={styles.frequencyText}>{frequencyLabel}</Text>
+        {habit.preferred_time_window ? (
+          <Text selectable style={styles.frequencyText}>{habit.preferred_time_window}</Text>
+        ) : null}
+        {reminderEnabled ? (
+          <View style={styles.reminderSummary}>
+            <Bell color={colors.textFaint} size={12} strokeWidth={1.75} />
+            <Text style={styles.reminderSummaryText}>
+              {reminderType === "backup" ? "Backup reminder" : "Daily reminder"}{" · "}{formatDisplayTime(reminderTime)}
+            </Text>
+          </View>
+        ) : null}
       </View>
+
+      {/* Metric cards */}
+      {!isUpcoming ? (
+        <View style={styles.metricsRow}>
+          <ZenCard gap={spacing.sm} style={styles.metricCard}>
+            <Eyebrow label="Habit consistency" />
+            <View style={styles.metricCenter}>
+              {activeDaysCount >= 7 ? (
+                <ConsistencyDonut rate={progress.consistencyRate} size={36} label="" />
+              ) : (
+                <Text style={styles.tooEarlyText}>
+                  Too early to tell — keep showing up
+                </Text>
+              )}
+            </View>
+          </ZenCard>
+          <ZenCard gap={spacing.sm} style={styles.metricCard}>
+            <Eyebrow label="Habit streak" />
+            <View style={styles.metricCenter}>
+              {progress.streak === 0 && activeDaysCount === 0 ? (
+                <Text style={styles.metricEmpty}>—</Text>
+              ) : (
+                <>
+                  <Text style={styles.streakLargeNumber}>{progress.streak}</Text>
+                  {progress.skipCount > 0 ? (
+                    <Text style={styles.skipCountText}>{progress.skipCount} skips</Text>
+                  ) : null}
+                </>
+              )}
+            </View>
+          </ZenCard>
+        </View>
+      ) : null}
 
       {/* 30-day calendar */}
       {!isUpcoming ? (
@@ -321,40 +362,6 @@ export default function HabitDetailScreen() {
             startDate={habit.start_date}
           />
         </ZenCard>
-      ) : null}
-
-      {/* Metric cards */}
-      {!isUpcoming ? (
-        <>
-          <View style={styles.metricsRow}>
-            <ZenCard style={styles.metricCard}>
-              <Eyebrow label="Habit consistency" />
-              <View style={styles.metricCenter}>
-                {activeDaysCount >= 7 ? (
-                  <ConsistencyDonut rate={progress.consistencyRate} size={40} label="" />
-                ) : (
-                  <Text style={styles.tooEarlyText}>
-                    Too early to tell — keep showing up
-                  </Text>
-                )}
-              </View>
-            </ZenCard>
-            <ZenCard style={styles.metricCard}>
-              <Eyebrow label="Habit streak" />
-              <View style={styles.metricCenter}>
-                <Text style={styles.streakLargeNumber}>{progress.streak}</Text>
-                {progress.skipCount > 0 ? (
-                  <Text style={styles.skipCountText}>{progress.skipCount} skips</Text>
-                ) : null}
-              </View>
-            </ZenCard>
-          </View>
-          {habit.identity_phrase ? (
-            <Text style={styles.goalBreadcrumb}>
-              Become {habit.identity_phrase}{goalConsistencyPct != null ? ` · ${goalConsistencyPct}% overall` : ""}
-            </Text>
-          ) : null}
-        </>
       ) : null}
 
       {/* Weekly Review card */}
@@ -394,119 +401,7 @@ export default function HabitDetailScreen() {
         </ZenCard>
       ) : null}
 
-      {/* Setup card */}
-      <ZenCard>
-        <View style={styles.setupHeader}>
-          <Eyebrow label="Setup" />
-          <Pressable
-            disabled={isReadOnly}
-            onPress={() =>
-              router.push({
-                pathname: "/(app)/habits/[habitId]/edit",
-                params: { habitId: habit.id },
-              })
-            }
-            style={styles.editButton}
-          >
-            <Pencil color={isReadOnly ? colors.textFaint : colors.primary} size={16} strokeWidth={1.75} />
-          </Pressable>
-        </View>
-        {habit.identity_phrase ? (
-          <RowLV label="Identity" value={habit.identity_phrase} />
-        ) : null}
-        <RowLV label="Formula" value={formula} />
-        {habit.preferred_time_window ? (
-          <RowLV label="Preferred time" value={habit.preferred_time_window} />
-        ) : null}
-        <RowLV label="Active days" value={schedulelabel} />
-      </ZenCard>
 
-      {/* Reminder card */}
-      <ZenCard>
-        <View style={styles.reminderHeader}>
-          <Eyebrow label="Reminder" />
-          <Switch
-            disabled={isReadOnly || reminderPending}
-            onValueChange={(v) => void handleReminderToggle(v)}
-            value={reminderEnabled}
-          />
-        </View>
-        {reminderEnabled ? (
-          <>
-            <RowLV
-              label="Type"
-              value={reminderType === "backup" ? "Backup (if not logged)" : "Daily"}
-            />
-            <RowLV label="Time" value={reminderTime} />
-            {reminderEditing ? (
-              <View style={styles.reminderEditor}>
-                <View style={styles.reminderTypeRow}>
-                  {(["backup", "daily"] as ReminderType[]).filter(t => t !== "none").map((t) => (
-                    <Pressable
-                      key={t}
-                      onPress={() => setReminderType(t)}
-                      style={[
-                        styles.reminderTypeChip,
-                        reminderType === t && styles.reminderTypeChipSelected,
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.reminderTypeLabel,
-                          reminderType === t && styles.reminderTypeLabelSelected,
-                        ]}
-                      >
-                        {t === "backup" ? "Backup" : "Daily"}
-                      </Text>
-                    </Pressable>
-                  ))}
-                </View>
-                <View style={styles.reminderTimeRow}>
-                  {["07:00", "08:00", "09:00", "12:00", "17:00", "20:00", "21:00"].map((t) => (
-                    <Pressable
-                      key={t}
-                      onPress={() => setReminderTime(t)}
-                      style={[
-                        styles.reminderTimeChip,
-                        reminderTime === t && styles.reminderTimeChipSelected,
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.reminderTimeLabel,
-                          reminderTime === t && styles.reminderTimeLabelSelected,
-                        ]}
-                      >
-                        {t}
-                      </Text>
-                    </Pressable>
-                  ))}
-                </View>
-                <Pressable
-                  disabled={reminderPending}
-                  onPress={() => void handleReminderSave()}
-                  style={styles.reminderSaveButton}
-                >
-                  <Text style={styles.reminderSaveLabel}>
-                    {reminderPending ? "Saving..." : "Save reminder"}
-                  </Text>
-                </Pressable>
-              </View>
-            ) : (
-              <Pressable
-                onPress={() => setReminderEditing(true)}
-                style={styles.editReminderButton}
-              >
-                <Text style={styles.editReminderLabel}>Edit reminder</Text>
-              </Pressable>
-            )}
-          </>
-        ) : (
-          <Text style={styles.reminderPlaceholder}>
-            Get a gentle nudge when it's time for this habit.
-          </Text>
-        )}
-      </ZenCard>
 
       {/* Archive */}
       <View style={styles.actions}>
@@ -626,8 +521,19 @@ const styles = StyleSheet.create({
   metricCenter: {
     alignItems: "center",
     justifyContent: "center",
-    marginTop: spacing.sm,
-    minHeight: 60,
+    minHeight: 36,
+  },
+  metricEmpty: {
+    fontFamily: fontFamilies.displayBold,
+    fontSize: 22,
+    color: colors.textFaint,
+  },
+  tooEarlyText: {
+    color: colors.textFaint,
+    fontFamily: fontFamilies.body,
+    fontSize: typography.bodyMd,
+    lineHeight: 18,
+    textAlign: "center",
   },
   streakLargeNumber: {
     color: colors.text,
@@ -639,13 +545,6 @@ const styles = StyleSheet.create({
     fontFamily: fontFamilies.body,
     fontSize: typography.micro,
     marginTop: 2,
-  },
-  tooEarlyText: {
-    color: colors.textMuted,
-    fontFamily: fontFamilies.body,
-    fontSize: typography.bodyMd,
-    fontStyle: "italic",
-    textAlign: "center",
   },
   content: {
     gap: spacing.xl,
@@ -668,16 +567,28 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontFamily: fontFamilies.displayBold,
     fontSize: typography.headlineLg,
-    flexShrink: 1,
+    flex: 1,
   },
   habitTitleRow: {
     alignItems: "center",
     flexDirection: "row",
     gap: spacing.sm,
     marginBottom: spacing.xs,
+    justifyContent: "space-between",
   },
   header: {
     gap: 4,
+  },
+  reminderSummary: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    marginTop: 2,
+  },
+  reminderSummaryText: {
+    fontFamily: fontFamilies.body,
+    fontSize: 12,
+    color: colors.textFaint,
   },
   editReminderButton: {
     marginTop: spacing.xs,

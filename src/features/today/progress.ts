@@ -12,6 +12,7 @@ type SummarizeHabitProgressOptions = {
 };
 
 export type HabitProgressSummary = {
+  consistencyDenominator: number;
   consistencyRate: number;
   skipCount: number;
   streak: number;
@@ -153,6 +154,7 @@ export function summarizeHabitProgress({
   const streak = computeForgivingStreak(streakSequence);
 
   return {
+    consistencyDenominator,
     consistencyRate,
     skipCount,
     streak,

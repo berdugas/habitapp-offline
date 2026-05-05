@@ -5,6 +5,10 @@ export function stripLeadingAfter(value: string) {
   return value.trim().replace(/^after\s+/i, "").trim();
 }
 
+export function stripLeadingIWill(value: string) {
+  return value.trim().replace(/^(i\s+will|will)\s+/i, "").trim();
+}
+
 export function getFrequencyLabel(activeDays: number[]): string {
   const sorted = [...activeDays].sort((a, b) => a - b);
   const count = sorted.length;
@@ -24,7 +28,7 @@ export function getFrequencyLabel(activeDays: number[]): string {
 
 export function formatHabitFormula(stackTrigger: string, tinyAction: string) {
   const cleanTrigger = stripLeadingAfter(stackTrigger);
-  const cleanAction = tinyAction.trim();
+  const cleanAction = stripLeadingIWill(tinyAction);
 
   if (!cleanTrigger || !cleanAction) {
     return HABIT_FORMULA_PLACEHOLDER;

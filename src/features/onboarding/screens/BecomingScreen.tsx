@@ -24,8 +24,8 @@ export default function BecomingScreen() {
   const { draft, update } = useOnboarding();
 
   const handleContinue = () => {
-    update({ step: "daily-action" });
-    router.push("/(onboarding)/daily-action");
+    update({ step: "action-insight" });
+    router.push("/(onboarding)/action-insight");
   };
 
   const handleChipSelect = (value: string) => {
@@ -47,9 +47,9 @@ export default function BecomingScreen() {
       <OnboardingHeader
         currentStep={1}
         onBack={() => {
-          update({ step: "welcome" });
+          update({ step: "insight" });
           if (router.canGoBack()) router.back();
-          else router.replace("/(onboarding)/welcome");
+          else router.replace("/(onboarding)/insight");
         }}
       />
 

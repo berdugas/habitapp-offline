@@ -1,6 +1,7 @@
 import {
   formatHabitFormula,
   stripLeadingAfter,
+  stripLeadingIWill,
 } from "@/features/habits/formatters";
 
 describe("habit formatters", () => {
@@ -18,6 +19,18 @@ describe("habit formatters", () => {
     );
   });
 
+  it("strips a leading 'I will' from the action", () => {
+    expect(stripLeadingIWill("I will read one page")).toBe("read one page");
+  });
+
+  it("strips a leading 'will' from the action", () => {
+    expect(stripLeadingIWill("will read one page")).toBe("read one page");
+  });
+
+  it("strips case-insensitively", () => {
+    expect(stripLeadingIWill("I Will Read")).toBe("Read");
+  });
+
   it("formats a habit formula with a plain trigger", () => {
     expect(formatHabitFormula("breakfast", "read one page")).toBe(
       "After breakfast, I will read one page.",
@@ -26,6 +39,18 @@ describe("habit formatters", () => {
 
   it("formats a habit formula without duplicating After", () => {
     expect(formatHabitFormula("After breakfast", "read one page")).toBe(
+      "After breakfast, I will read one page.",
+    );
+  });
+
+  it("formats without duplicating 'I will' when action starts with 'I will'", () => {
+    expect(formatHabitFormula("breakfast", "I will read one page")).toBe(
+      "After breakfast, I will read one page.",
+    );
+  });
+
+  it("formats without duplicating 'will' when action starts with 'will'", () => {
+    expect(formatHabitFormula("breakfast", "will read one page")).toBe(
       "After breakfast, I will read one page.",
     );
   });

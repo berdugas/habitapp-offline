@@ -84,7 +84,7 @@ describe("ShrinkScreen", () => {
 
     fireEvent.press(screen.getByText("Continue"));
 
-    expect(mockUpdate).toHaveBeenCalledWith({ step: "cue" });
-    expect(router.push).toHaveBeenCalledWith("/(onboarding)/cue");
+    expect(mockUpdate).toHaveBeenCalledWith({ step: "cue-insight" });
+    expect(router.push).toHaveBeenCalledWith("/(onboarding)/cue-insight");
   });
 });

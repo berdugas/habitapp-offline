@@ -12,7 +12,7 @@ import { typography } from "@/theme/typography";
 type GoalContainerProps = {
   banner?: React.ReactNode;
   children: React.ReactNode;
-  consistencyRate: number;
+  consistencyRate: number | null;
   identityPhrase: string;
   onAddHabit?: () => void;
   onGoalPress?: () => void;
@@ -52,11 +52,13 @@ export function GoalContainer({
             </View>
           )}
         </Pressable>
-        <ConsistencyDonut
-          label="Goal consistency"
-          onPress={onGoalPress}
-          rate={consistencyRate}
-        />
+        {consistencyRate !== null ? (
+          <ConsistencyDonut
+            label="Goal consistency"
+            onPress={onGoalPress}
+            rate={consistencyRate}
+          />
+        ) : null}
       </View>
       {banner ?? null}
       <View style={styles.habitsCard}>

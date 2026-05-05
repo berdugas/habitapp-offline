@@ -11,7 +11,7 @@ type OnboardingHeaderProps = {
 
 export function OnboardingHeader({
   currentStep,
-  totalSteps = 5,
+  totalSteps = 6,
   onBack,
 }: OnboardingHeaderProps) {
   return (

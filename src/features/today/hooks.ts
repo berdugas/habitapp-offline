@@ -188,6 +188,11 @@ export function useUpsertTodayHabitStatusMutation() {
       await queryClient.invalidateQueries({
         queryKey: ["habit-logs", "range", variables.habitId],
       });
+
+      // Invalidate the habit detail logs so progress metrics stay in sync.
+      await queryClient.invalidateQueries({
+        queryKey: ["habit-logs", "detail", user.id, variables.habitId],
+      });
     },
     onError: (error, variables) => {
       logger.error("Today status mutation failed", {
@@ -228,6 +233,11 @@ export function useDeleteTodayHabitLogMutation() {
       await queryClient.invalidateQueries({
         queryKey: ["habit-logs", "range", habitId],
       });
+
+      // Invalidate the habit detail logs so progress metrics stay in sync.
+      await queryClient.invalidateQueries({
+        queryKey: ["habit-logs", "detail", user.id, habitId],
+      });
     },
     onError: (error, habitId) => {
       logger.error("Today undo log mutation failed", {
@@ -241,6 +251,7 @@ export function useDeleteTodayHabitLogMutation() {
 
 export type GoalHabitDetail = {
   activeDays: number[];
+  consistencyDenominator: number;
   consistencyRate: number;
   icon: string | null;
   id: string;
@@ -281,6 +292,7 @@ export function useGoalDetail(identityPhrase: string | undefined) {
     });
     return {
       activeDays,
+      consistencyDenominator: progress.consistencyDenominator,
       consistencyRate: progress.consistencyRate,
       icon: habit.icon ?? null,
       id: habit.id,

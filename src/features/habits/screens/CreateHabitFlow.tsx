@@ -1,15 +1,18 @@
 import { router, useLocalSearchParams } from "expo-router";
-import { AlertTriangle, ArrowLeft } from "lucide-react-native";
-import { useEffect, useRef, useState } from "react";
+import { AlertTriangle, ArrowLeft, Bell, ChevronRight, Clock } from "lucide-react-native";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Animated,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   View,
 } from "react-native";
+import DateTimePicker from "@react-native-community/datetimepicker";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
@@ -18,19 +21,18 @@ import { GoalContextChip } from "@/components/GoalContextChip";
 import { LucideIcon, LucideIconPicker } from "@/components/LucideIconPicker";
 import { PrimaryButton } from "@/components/buttons/PrimaryButton";
 import { SecondaryButton } from "@/components/buttons/SecondaryButton";
-import { ChoicePills } from "@/components/forms/ChoicePills";
 import { OnboardingInput } from "@/components/forms/OnboardingInput";
 import { OnboardingLayout } from "@/components/layouts/OnboardingLayout";
 import { ErrorState } from "@/components/feedback/ErrorState";
 import { useAuthSession } from "@/features/auth/hooks";
 import { listEligibleHabitsForToday } from "@/features/habits/api";
 import { assertCanCreateActiveHabit } from "@/features/habits/validators";
-import { formatHabitFormula } from "@/features/habits/formatters";
+import { formatHabitFormula, stripLeadingAfter, stripLeadingIWill } from "@/features/habits/formatters";
 import {
   getEligibleHabitsQueryKey,
   useCreateHabitMutation,
 } from "@/features/habits/hooks";
-import { PREFERRED_TIME_WINDOW_OPTIONS } from "@/features/habits/preferredTimeWindows";
+import { scheduleReminder } from "@/features/reminders/notifications";
 import { logger } from "@/services/logger";
 import { colors } from "@/theme/colors";
 import { fontFamilies } from "@/theme/fontFamilies";
@@ -51,9 +53,8 @@ export type CreateHabitDraft = {
   cue: string;
   habitName: string;
   icon: string;
-  minimumViableAction: string;
-  preferredTimeWindow: string;
   activeDays: number[];
+  reminderTime: string | null;
 };
 
 const EMPTY_DRAFT: CreateHabitDraft = {
@@ -63,9 +64,8 @@ const EMPTY_DRAFT: CreateHabitDraft = {
   cue: "",
   habitName: "",
   icon: "",
-  minimumViableAction: "",
-  preferredTimeWindow: "",
   activeDays: [1, 2, 3, 4, 5, 6, 7],
+  reminderTime: null,
 };
 
 const STEP_ORDER: Step[] = ["goal", "action", "build", "personalize"];
@@ -150,18 +150,28 @@ export default function CreateHabitFlow() {
     let hasSaved = false;
 
     try {
-      await createHabitMutation.mutateAsync({
+      const created = await createHabitMutation.mutateAsync({
         identityPhrase: draft.identityPhrase.trim(),
         title: draft.habitName.trim(),
-        cue: draft.cue.trim(),
-        tinyAction: draft.tinyAction.trim(),
-        minimumViableAction: draft.minimumViableAction.trim(),
-        preferredTimeWindow: draft.preferredTimeWindow.trim(),
+        cue: stripLeadingAfter(draft.cue),
+        tinyAction: stripLeadingIWill(draft.tinyAction),
+        minimumViableAction: "",
+        preferredTimeWindow: "",
         icon: draft.icon.trim(),
         activeDays: draft.activeDays,
         habitState: "active",
       });
       hasSaved = true;
+
+      if (draft.reminderTime) {
+        await scheduleReminder(
+          created.id,
+          user.id,
+          "daily",
+          draft.reminderTime,
+          draft.activeDays,
+        ).catch(() => {});
+      }
 
       const todayDate = toDeviceDateString();
       const queryKey = getEligibleHabitsQueryKey(user.id, todayDate);
@@ -306,7 +316,7 @@ function ActionStep({ draft, update, onBack, onContinue, showChip, capWarning }:
       <Text style={styles.headline}>What's one thing this person does every day?</Text>
       <Text style={styles.subline}>Don't worry about making it small yet — we'll do that next.</Text>
       <OnboardingInput
-        label="Daily action"
+        label="Your action"
         placeholder="Goes for a walk, reads before bed..."
         value={draft.dailyAction}
         onChangeText={(text) => update({ dailyAction: text })}
@@ -415,17 +425,112 @@ function BuildStep({
 
       {showFormula ? (
         <View style={styles.formulaCard}>
+          <Text style={styles.formulaEyebrow}>Your habit</Text>
           <Text style={styles.formulaText}>{formulaPreview}</Text>
         </View>
       ) : null}
 
-      <View style={styles.sectionGap}>
+      <View style={styles.activeDaysSection}>
         <ActiveDaysPicker
           value={draft.activeDays}
           onChange={(days) => update({ activeDays: days })}
         />
       </View>
+
+      <ReminderPicker
+        value={draft.reminderTime}
+        onChange={(t) => update({ reminderTime: t })}
+      />
     </OnboardingLayout>
+  );
+}
+
+// ─── Reminder picker ──────────────────────────────────────────────────────────
+
+function format12h(time: string): string {
+  const [h, m] = time.split(":").map(Number);
+  const period = h >= 12 ? "PM" : "AM";
+  const h12 = h % 12 || 12;
+  return `${h12}:${m.toString().padStart(2, "0")} ${period}`;
+}
+
+function ReminderPicker({
+  value,
+  onChange,
+}: {
+  value: string | null;
+  onChange: (v: string | null) => void;
+}) {
+  const [showPicker, setShowPicker] = useState(false);
+  const enabled = value !== null;
+
+  const pickerDate = useMemo(() => {
+    const d = new Date();
+    if (value) {
+      const [h, m] = value.split(":").map(Number);
+      d.setHours(h, m, 0, 0);
+    } else {
+      d.setHours(7, 0, 0, 0);
+    }
+    return d;
+  }, [value]);
+
+  function handleToggle(on: boolean) {
+    if (on) {
+      onChange("07:00");
+    } else {
+      onChange(null);
+      setShowPicker(false);
+    }
+  }
+
+  return (
+    <View style={styles.reminderSection}>
+      <Text style={styles.reminderLabel}>Add a reminder</Text>
+      <View style={styles.reminderCard}>
+        <View style={styles.reminderCardRow}>
+          <Bell size={16} color={colors.primary} strokeWidth={1.75} />
+          <Text style={styles.reminderCardRowText}>Notify me</Text>
+          <Switch
+            value={enabled}
+            onValueChange={handleToggle}
+            trackColor={{ false: colors.surface, true: colors.primary }}
+            thumbColor={colors.surfaceCard}
+          />
+        </View>
+        {enabled ? (
+          <>
+            <View style={styles.reminderDivider} />
+            <Pressable style={styles.reminderCardRow} onPress={() => setShowPicker(true)}>
+              <Clock size={16} color={colors.textMuted} strokeWidth={1.75} />
+              <Text style={styles.reminderCardRowText}>Time</Text>
+              <Text style={styles.reminderTimeValue}>{format12h(value!)}</Text>
+              <ChevronRight size={16} color={colors.textMuted} strokeWidth={1.75} />
+            </Pressable>
+          </>
+        ) : null}
+      </View>
+      {showPicker ? (
+        <DateTimePicker
+          value={pickerDate}
+          mode="time"
+          display={Platform.OS === "ios" ? "spinner" : "default"}
+          onChange={(_, selected) => {
+            if (Platform.OS === "android") setShowPicker(false);
+            if (selected) {
+              const h = selected.getHours().toString().padStart(2, "0");
+              const m = selected.getMinutes().toString().padStart(2, "0");
+              onChange(`${h}:${m}`);
+            }
+          }}
+        />
+      ) : null}
+      {showPicker && Platform.OS === "ios" ? (
+        <Pressable style={styles.reminderDone} onPress={() => setShowPicker(false)}>
+          <Text style={styles.reminderDoneText}>Done</Text>
+        </Pressable>
+      ) : null}
+    </View>
   );
 }
 
@@ -512,7 +617,6 @@ function PersonalizeStep({
         showsVerticalScrollIndicator={false}
       >
         {phase === "personalize" ? <BackRow onBack={onBack} /> : null}
-        {showChip ? <GoalContextChip identityPhrase={draft.identityPhrase} /> : null}
 
         {phase === "personalize" ? (
           <>
@@ -580,23 +684,6 @@ function PersonalizeStep({
           <Text style={styles.micro}>You can rename or change the icon anytime.</Text>
         ) : null}
 
-        {/* Optional fields — only in personalize phase */}
-        {phase === "personalize" ? (
-          <View style={styles.optionalFields}>
-            <OnboardingInput
-              label="Minimum viable action (optional)"
-              placeholder="The bare minimum on a hard day"
-              value={draft.minimumViableAction}
-              onChangeText={(text) => update({ minimumViableAction: text })}
-            />
-            <ChoicePills
-              label="Preferred time window"
-              onChange={(val) => update({ preferredTimeWindow: val })}
-              options={PREFERRED_TIME_WINDOW_OPTIONS}
-              value={draft.preferredTimeWindow}
-            />
-          </View>
-        ) : null}
 
         {/* Phase 2: worst-day gate */}
         <Animated.View
@@ -689,17 +776,78 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   formulaCard: {
+    backgroundColor: colors.primarySoft,
+    borderRadius: radius.md,
+    marginTop: spacing.md,
+    padding: spacing.xl,
+  },
+  formulaEyebrow: {
+    fontFamily: fontFamilies.bodyMedium,
+    fontSize: 11,
+    color: colors.primary,
+    textTransform: "uppercase",
+    letterSpacing: 0.6,
+    marginBottom: spacing.sm,
+  },
+  activeDaysSection: {
+    marginTop: spacing.xl,
+    marginBottom: spacing.xl,
+  },
+  reminderSection: {
+    marginBottom: spacing.xl,
+  },
+  reminderLabel: {
+    fontSize: 13,
+    fontFamily: fontFamilies.bodyMedium,
+    color: colors.textMuted,
+    marginBottom: 8,
+    paddingLeft: 4,
+  },
+  reminderCard: {
     backgroundColor: colors.surfaceCard,
     borderRadius: radius.md,
     boxShadow: shadows.inputField,
-    marginTop: spacing.md,
-    padding: spacing.lg,
+    overflow: "hidden",
   },
-  formulaText: {
+  reminderCardRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+  },
+  reminderCardRowText: {
+    flex: 1,
+    fontFamily: fontFamilies.body,
+    fontSize: 15,
+    color: colors.text,
+  },
+  reminderDivider: {
+    height: 1,
+    backgroundColor: colors.surface,
+    marginHorizontal: spacing.lg,
+  },
+  reminderTimeValue: {
+    fontFamily: fontFamilies.body,
+    fontSize: 15,
+    color: colors.textMuted,
+  },
+  reminderDone: {
+    alignSelf: "flex-end",
+    marginTop: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+  },
+  reminderDoneText: {
     fontFamily: fontFamilies.bodySemi,
     fontSize: 15,
-    lineHeight: 22,
-    color: colors.text,
+    color: colors.primary,
+  },
+  formulaText: {
+    fontFamily: fontFamilies.displaySemi,
+    fontSize: 17,
+    lineHeight: 25,
+    color: colors.primary,
   },
   // Personalize step
   personalizeRoot: {

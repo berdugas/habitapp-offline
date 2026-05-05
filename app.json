@@ -12,7 +12,8 @@
       "expo-router",
       "expo-font",
       "expo-sqlite",
-      "expo-notifications"
+      "expo-notifications",
+      "@react-native-community/datetimepicker"
     ],
     "splash": {
       "image": "./assets/icons/splash-icon.png",

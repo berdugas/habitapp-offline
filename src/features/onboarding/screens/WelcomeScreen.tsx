@@ -12,8 +12,8 @@ export default function WelcomeScreen() {
   const { update } = useOnboarding();
 
   const handleBegin = () => {
-    update({ step: "becoming" });
-    router.push("/(onboarding)/becoming");
+    update({ step: "insight" });
+    router.push("/(onboarding)/insight");
   };
 
   return (

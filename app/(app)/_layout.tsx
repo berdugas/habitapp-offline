@@ -17,8 +17,8 @@ export default function ProtectedLayout() {
   return (
     <Stack>
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-      <Stack.Screen name="habits/create" options={{ title: "Create Habit" }} />
-      <Stack.Screen name="habits/[habitId]" options={{ title: "Habit Detail" }} />
+      <Stack.Screen name="habits/create" options={{ headerShown: false }} />
+      <Stack.Screen name="habits/[habitId]" options={{ headerShown: false }} />
       <Stack.Screen
         name="habits/[habitId]/edit"
         options={{ title: "Edit Habit" }}

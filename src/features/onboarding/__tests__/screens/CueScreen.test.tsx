@@ -65,7 +65,7 @@ describe("CueScreen", () => {
     expect(router.push).not.toHaveBeenCalled();
   });
 
-  it("Continue calls update and navigates to personalize when cueExisting is filled", () => {
+  it("Continue calls update and navigates to schedule when cueExisting is filled", () => {
     const mockUpdate = jest.fn();
     useOnboarding.mockReturnValue({
       draft: makeDraft({ cueExisting: "morning coffee" }),
@@ -76,8 +76,8 @@ describe("CueScreen", () => {
 
     fireEvent.press(screen.getByText("Continue"));
 
-    expect(mockUpdate).toHaveBeenCalledWith({ step: "personalize" });
-    expect(router.push).toHaveBeenCalledWith("/(onboarding)/personalize");
+    expect(mockUpdate).toHaveBeenCalledWith({ step: "schedule" });
+    expect(router.push).toHaveBeenCalledWith("/(onboarding)/schedule");
   });
 
   it("typing in the After-I field calls update with cueExisting", () => {

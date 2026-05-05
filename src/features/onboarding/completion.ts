@@ -8,6 +8,7 @@ import {
 import { getDb } from "@/lib/db/client";
 import { logger } from "@/services/logger";
 import { nowIso, todayDateString } from "@/utils/clock";
+import { requestPermission, scheduleReminder } from "@/features/reminders/notifications";
 
 import type { Habit } from "@/features/habits/types";
 import {
@@ -81,6 +82,21 @@ export async function finalizeOnboarding(
       "write_failed",
       "Habit was not created.",
     );
+  }
+
+  if (draft.reminderEnabled && draft.reminderTime) {
+    try {
+      await requestPermission();
+      await scheduleReminder(
+        createdHabit.id,
+        userId,
+        "daily",
+        draft.reminderTime,
+        draft.activeDays ?? ALL_DAYS,
+      );
+    } catch (err) {
+      logger.warn("Failed to schedule onboarding reminder", { err });
+    }
   }
 
   return createdHabit;

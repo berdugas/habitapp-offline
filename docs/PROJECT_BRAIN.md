@@ -1,7 +1,7 @@
 # Habits App — Project Brain
 
 > Single source of truth for anyone picking up this project.
-> Last updated: May 4, 2026 (post-S13 implementation — active days, Habit Detail redesign, local reminders)
+> Last updated: May 5, 2026 (post-S14 code complete; S15 tickets written — Goal Detail + Habit Detail redesign)
 
 ---
 
@@ -112,8 +112,9 @@ D:\habits_offline\
 | Welcome screen | `features/entry/WelcomeScreen.tsx` | Stays. |
 | Habit creation | `features/habits/screens/CreateHabitFlow.tsx` | Flat form replaced by goal-anchored step flow in S12. Two paths: add to existing goal (Path A) or start new goal (Path B). Steps: Goal → Action → Build (shrink+cue) → Personalize+Gate. Worst-day gate enforced. 3-per-goal soft cap warning. Icon picker integrated. |
 | Habit editing | `features/habits/screens/EditHabitScreen.tsx` | Stays. AI rewrite section stays gated off. |
-| Habit detail | `features/habits/screens/HabitDetailScreen.tsx` | Add 90-day heatmap, identity-flavored streak, consistency display. |
-| Today screen | `features/today/screens/TodayScreen.tsx` | Redesign for Focus emphasis + heatmap + identity-flavored streak. |
+| Habit detail | `features/habits/screens/HabitDetailScreen.tsx` | S13: CalendarGrid (35-cell 5×7), streak card, setup card, reminder card. S15 redesign planned: formula-first header, compact side-by-side metrics, gradient circle removed, consistency suppression, goal breadcrumb. |
+| Goal detail | `features/today/screens/GoalDetailScreen.tsx` | **S15 (planned):** New screen. Goal-level metrics + habit list with MiniHeatmapStrip. Route: `goals/[identityPhrase]`. |
+| Today screen | `features/today/screens/TodayScreen.tsx` | S10: goal container, donut, habit rows. S15: donut+header tappable → GoalDetail. |
 | Daily logging | `features/habits/api.ts` (`upsertHabitLog`) | **Rewrite to SQLite. Add 48-hour retro window enforcement locally.** |
 | Progress tracking | `features/today/progress.ts` | **Rewrite streak rule from strict to forgiving (with skipped-day edge case).** |
 | Weekly reviews | `features/reviews/` | Move to local SQLite. Question structure preserved. |
@@ -312,7 +313,7 @@ Engine now returns `HabitAdjustmentSuggestion[]`. Rule 1 returns both suggestion
 |---|-----|----------|--------|
 | 1 | Reduce friction logic ↔ AI rewrite contradiction | `habitAdjustmentEngine.ts` + AI prompt | **Deferred** (AI off for Core v1) |
 | 2 | Dual suggestion shows only one | Suggestion display logic | **Fixed in S8** (inert until reviews migrates to local SQLite) |
-| 3 | Preferred time should be picker, not text | `CreateHabitScreen.tsx` | **In scope** for Core v1 Sprint 20 |
+| 3 | Preferred time should be picker, not text | `CreateHabitScreen.tsx` | **In scope** for Core v1 Sprint 21 |
 | 4 | AI rewrite prompt needs guidelines | `generate-habit-rewrite/index.ts` | **Deferred** (AI off for Core v1) |
 
 ---
@@ -345,7 +346,7 @@ Source-of-truth docs live directly in `docs/`. Sprint planning and per-sprint de
 | Design Direction | .md | `docs/design-direction.md` | **Current — the how it looks (visual language for Core v1, paired with `design/habitapp/habit-screens.jsx`)** |
 | Icon Set | .md | `docs/icon-set.md` | **Current — curated Lucide icon set (60 icons, 8 categories, rendering rules)** |
 | Project Brain | .md | `docs/PROJECT_BRAIN.md` | **Current — this document** |
-| Sprint Plan | .md | `docs/sprint_tickets/sprint-plan.md` | **Current — the when (23-sprint roadmap, 5 phases; Phase C resequenced May 3 for revised pre-beta path; S10–S14 → ship to testers)** |
+| Sprint Plan | .md | `docs/sprint_tickets/sprint-plan.md` | **Current — the when (24-sprint roadmap, 5 phases; S15 inserted May 5 for Goal Detail + Habit Detail redesign; Phase D = S15–S20, Phase E = S21–S23)** |
 | Sprint Tickets | .md | `docs/sprint_tickets/sprint-N-tickets.md` | **Current — per-sprint dev ticket packages (S1–S8 closed; S9+ to come)** |
 | Sprint Follow-ups | .md | `docs/sprint_tickets/sprint-N-followups.md` | **Current — per-sprint deferred items / cleanup notes** |
 | PRD Monetization | .docx | `docs/habits-app-prd-monetization.docx` | Reference for post-Core-v1 monetization |
@@ -441,6 +442,10 @@ Product-lead review of Today screen. Current screen rejected — flat, empty, no
 
 - **S10** — Today screen rebuild + Focus/Supporting dissolution. GoalContainer + ConsistencyDonut + HabitRow components built. Migration 004 converts all `focus`/`supporting` rows to `active`. Recovery hooks rewritten to check all active habits (bulk query via `listLogsForHabitsInRange`). Weekly Review route gated (redirects to habit detail or Today). `latestReviewQueries` dead code removed from `useTodayHabits`. Post-completion state ("You showed up today.") and MissBanner wired. Streak copy: randomized variants per goal. S10 followups (5 items) in `sprint-10-followups.md` — all cosmetic/optimization, none blocking.
 
+- **S11** — Reviews repo tests + Bug #2 validation + Supabase audit + sprint plan rewrite. S11-01: missing `weekly_reviews.test.ts` added (repository CRUD coverage). S11-02: Bug #2 dual-suggestion-card layout validated with real local data (previously only tested with mocks) — engine correctly returns `[make_tiny_action_smaller, change_trigger]` array, detail screen renders both cards. S11-03: Supabase audit — confirmed no stale habit data references remain; all habit queries go through SQLite repos. S11-04: Sprint plan S12/S14 rewritten — S12 scope updated for goal-anchored creation flow (Focus/Supporting dissolution), S14 code scope collapsed into S10 (S14 = pure beta ship). 2-day sprint.
+
+- **S12** — Goal-anchored habit creation flow + icon picker. `CreateHabitScreen` replaced by `CreateHabitFlow` — goal-anchored step flow with two paths: Path A (add to existing goal, identity inherited, starts at Action step) and Path B (new goal, starts at becoming question). Steps: Goal → Action → Build (shrink + cue + active days) → Personalize (icon + worst-day gate). Worst-day gate = hard block for all habits. 3-per-goal soft cap warning (non-blocking). "Add a habit" entry point in GoalContainer, "Start a new goal" below goal containers on Today. `LucideIconPicker` moved to shared `src/components/`. Old `CreateHabitScreen.tsx` deleted. 3-day sprint.
+
 ### S13 — Active days, Habit Detail redesign, local reminders ✅
 
 8 tickets, ~5–6 days. Three bundled features:
@@ -469,9 +474,32 @@ Product-lead review of Today screen. Current screen rejected — flat, empty, no
 
 **Schema delta:** migrations 005–006; 472 tests passing.
 
+### S14 — Weekly Review ungating + Beta QA prep ✅ (code)
+
+4 tickets, ~3–4 days. Code complete; process items (QA walkthrough, TestFlight distribution, tester invitations) pending.
+
+**Weekly Review ungated:**
+- Route `app/(app)/reviews/[habitId].tsx` now serves real `WeeklyReviewScreen` (was redirecting to detail)
+- 7-day minimum age gate added to `isWeeklyReviewDue()` in `src/features/reviews/due.ts` — habits must exist ≥7 days before review is prompted
+- Entry point on Habit Detail: "Start review" card when due, "Reviewed this week ✓" when done, hidden when habit too young
+- `WeeklyReviewScreen` reskinned to Mindful Canvas (ZenCard, Eyebrow, sage palette, correct fonts)
+- Read-only awareness: review card hidden when `isReadOnly === true`
+- 10 due-date tests in `due.test.ts` (simulated week boundaries, age gate edge cases)
+
+**Beta QA:** S14-02 acceptance checklist (13 sections, 70+ items) covering every beta surface. S14-03 bug fix budget reserved. S14-04 distribution logistics (TestFlight, Play Console, tester invitations, welcome message) — process items pending.
+
 ### Phase C status
 
-Phase C (S10–S14) is the beta completion arc. S13 complete. S14 = QA + TestFlight build + tester invitations.
+Phase C (S10–S14) is the beta completion arc. All code sprints (S10–S14) are done. S14 process items (QA walkthrough, TestFlight build submission, tester invitations) are pending — user will revisit when ready to ship to testers. This is non-blocking for Phase D feature work.
+
+### Up next — S15: Goal Detail screen + Habit Detail redesign
+
+**Sprint 15 tickets written** (`docs/sprint_tickets/sprint-15-tickets.md`). 4 tickets, 3–4 days:
+
+- **S15-01:** CalendarGrid v2 — `startDate` prop (grid grows from habit creation date), off-day cells change to solid 1px `#e8e3d8` outlines (replacing dashed), new `offDayBorder` color token
+- **S15-02:** Habit Detail redesign — formula-first header (goal label → icon+title → formula → frequency), compact side-by-side metric cards (40px donut + streak number as peers, gradient circle removed), `getFrequencyLabel()` formatter, consistency suppressed below 7 active days ("Too early to tell — keep showing up"), faint goal breadcrumb ("Become a runner · 75% overall"), Option C labeling ("Habit consistency" / "Habit streak")
+- **S15-03:** New `GoalDetailScreen` + route `app/(app)/goals/[identityPhrase].tsx` + `MiniHeatmapStrip` component + `useGoalDetail` hook + extracted `goalMetrics.ts`. Middle navigation layer: Today → GoalDetail → HabitDetail
+- **S15-04:** Today → GoalDetail navigation wiring — donut + goal header tappable, "Goal consistency" label, full navigation chain verified
 
 ### Transitional state to be aware of
 
@@ -495,6 +523,8 @@ Reviews data layer is fully local (migration 002, repository, API all wired to S
 - **`features/sync/` stays dormant in Core v1.** May activate when cloud backup ships.
 - **Goal-based habit grouping.** Habits belong to a goal (identity phrase). All habits under a goal are equal peers — no Focus/Supporting hierarchy. `groupByIdentity` in TodayScreen groups habits by `identity_phrase`. Multi-goal is architecturally supported but not built for beta.
 - **Post-onboarding creation mirrors onboarding structure.** `CreateHabitFlow` follows the same goal → action → shrink+cue → gate sequence as onboarding, compressed for returning users. The goal always comes first.
+- **Three-layer navigation.** Today (daily action) → GoalDetail (goal-level reflection) → HabitDetail (habit deep-dive). Each layer increases specificity. Today is "what do I do now?", GoalDetail is "how is this identity project going?", HabitDetail is "how is this specific practice going?". Planned for S15.
+- **Option C labeling.** Consistency and streak are labeled differently at each navigation layer: "Goal consistency" / "Goal streak" on Today and GoalDetail; "Habit consistency" / "Habit streak" on HabitDetail. This clarifies what's being measured without ambiguity. Locked in S15 design review.
 
 ---
 
@@ -525,6 +555,10 @@ Reviews data layer is fully local (migration 002, repository, API all wired to S
 | Weekly review due logic | `src/features/reviews/due.ts` |
 | Onboarding flow | `src/features/onboarding/screens/` (7-screen becoming-bridge, implemented S3-S4) |
 | Create habit (post-onboarding) | `src/features/habits/screens/CreateHabitFlow.tsx` (goal-anchored step flow, S12) |
+| Goal detail (planned S15) | `src/features/today/screens/GoalDetailScreen.tsx` + `src/features/today/goalMetrics.ts` |
+| Goal-level metrics | `src/features/today/goalMetrics.ts` (`avgConsistencyRate`, `oldestStreak` — extracted from TodayScreen, S15) |
+| Mini heatmap strip (planned S15) | `src/components/MiniHeatmapStrip.tsx` |
+| Frequency formatting | `src/features/habits/formatters.ts` (`formatHabitFormula`, `getFrequencyLabel` — S15) |
 | Library (planned) | `src/features/library/screens/LibraryScreen.tsx` |
 | Graduation eligibility (planned) | `src/features/graduation/eligibility.ts` |
 | Recovery modal | `src/components/RecoveryModal.tsx` (component) + `src/features/recovery/api.ts` + `src/features/recovery/hooks.ts` (logic + hooks) |
@@ -549,8 +583,11 @@ Per tech handoff Section 9. Status as of S8 close.
 - `src/features/today/components/ConsistencyDonut.tsx` — 48px SVG ring, sage color, avg consistency across goal (S10)
 - `src/features/today/components/HabitRow.tsx` — 38px circles, Lucide icon + name + cue + chevron; tap circle=Done, long-press=Skip, tap row=detail (S10)
 
-### To build (S13+)
+### To build (S15+)
 
+- `src/components/MiniHeatmapStrip.tsx` — compressed 30-day horizontal strip, 8px squares, glanceable pattern (S15)
+- `src/features/today/screens/GoalDetailScreen.tsx` — goal-level metrics + habit list + mini heatmaps (S15)
+- `src/features/today/goalMetrics.ts` — extracted `avgConsistencyRate` + `oldestStreak` helpers (S15)
 - `LibraryCard.tsx` — Automatic Library card (lights up when graduation ships)
 - `SrhiQuestion.tsx` — single SRHI question with Likert input
 - `BacklogList.tsx` — backlog management list

@@ -1,5 +1,5 @@
 import { router } from "expo-router";
-import { StyleSheet, Text } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 
 import { PrimaryButton } from "@/components/buttons/PrimaryButton";
 import { GuidanceCard } from "@/components/cards/GuidanceCard";
@@ -11,17 +11,18 @@ import { useOnboarding } from "@/features/onboarding/OnboardingProvider";
 import type { OnboardingDraft } from "@/features/onboarding/types";
 import { colors } from "@/theme/colors";
 import { fontFamilies } from "@/theme/fontFamilies";
+import { spacing } from "@/theme/spacing";
 
 export default function DailyActionScreen() {
   const { draft, update } = useOnboarding();
 
   const handleContinue = () => {
-    const next: Partial<OnboardingDraft> = { step: "shrink" };
+    const next: Partial<OnboardingDraft> = { step: "shrink-insight" };
     if (draft.tinyAction.trim().length === 0) {
       next.tinyAction = draft.dailyAction;
     }
     update(next);
-    router.push("/(onboarding)/shrink");
+    router.push("/(onboarding)/shrink-insight");
   };
 
   return (
@@ -39,25 +40,35 @@ export default function DailyActionScreen() {
       <OnboardingHeader
         currentStep={2}
         onBack={() => {
-          update({ step: "becoming" });
+          update({ step: "action-insight" });
           if (router.canGoBack()) router.back();
-          else router.replace("/(onboarding)/becoming");
+          else router.replace("/(onboarding)/action-insight");
         }}
       />
 
       <Text style={styles.headline}>
-        What action will you take to become who you want to be?
+        What action will shape who you want to become?
       </Text>
       <Text style={styles.body}>
         Write a concrete action — something small and repeatable you can track.
       </Text>
 
-      <OnboardingInput
-        label="Your action"
-        placeholder="e.g. Read for 10 minutes"
-        value={draft.dailyAction}
-        onChangeText={(text) => update({ dailyAction: text })}
-      />
+      <View style={styles.goalSection}>
+        <Text style={styles.sectionLabel}>Your goal</Text>
+        <View style={styles.goalCard}>
+          <View style={styles.goalDot} />
+          <Text style={styles.goalText}>{draft.becomingPhrase}</Text>
+        </View>
+      </View>
+
+      <View style={styles.actionSection}>
+        <OnboardingInput
+          label="Your action"
+          placeholder="e.g. Read for 10 minutes"
+          value={draft.dailyAction}
+          onChangeText={(text) => update({ dailyAction: text })}
+        />
+      </View>
 
       <GuidanceCard
         title="What makes a good habit action?"
@@ -81,16 +92,51 @@ export default function DailyActionScreen() {
 const styles = StyleSheet.create({
   headline: {
     fontFamily: fontFamilies.displayBold,
-    fontSize: 28,
-    lineHeight: 33,
+    fontSize: 24,
+    lineHeight: 30,
     color: colors.text,
-    marginBottom: 12,
+    marginBottom: spacing.sm,
   },
   body: {
     fontFamily: fontFamilies.body,
-    fontSize: 15,
-    lineHeight: 23,
+    fontSize: 14.5,
+    lineHeight: 22,
+    color: colors.textFaint,
+    marginBottom: spacing.xl,
+  },
+  goalSection: {
+    marginBottom: spacing.sm,
+  },
+  sectionLabel: {
+    fontFamily: fontFamilies.bodyMedium,
+    fontSize: 13,
     color: colors.textMuted,
-    marginBottom: 20,
+    marginBottom: spacing.sm,
+  },
+  goalCard: {
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: spacing.lg,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  goalDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.primary,
+    flexShrink: 0,
+  },
+  goalText: {
+    fontFamily: fontFamilies.bodyMedium,
+    fontSize: 15,
+    color: colors.primary,
+    flex: 1,
+  },
+  actionSection: {
+    marginTop: spacing.lg,
+    marginBottom: spacing.sm,
   },
 });

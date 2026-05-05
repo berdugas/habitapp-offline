@@ -18,8 +18,8 @@ export default function ShrinkScreen() {
   const { draft, update } = useOnboarding();
 
   const handleContinue = () => {
-    update({ step: "cue" });
-    router.push("/(onboarding)/cue");
+    update({ step: "cue-insight" });
+    router.push("/(onboarding)/cue-insight");
   };
 
   return (
@@ -37,9 +37,9 @@ export default function ShrinkScreen() {
       <OnboardingHeader
         currentStep={3}
         onBack={() => {
-          update({ step: "daily-action" });
+          update({ step: "shrink-insight" });
           if (router.canGoBack()) router.back();
-          else router.replace("/(onboarding)/daily-action");
+          else router.replace("/(onboarding)/shrink-insight");
         }}
       />
 

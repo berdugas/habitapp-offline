@@ -81,6 +81,7 @@ function renderWithClient(ui: React.ReactElement) {
 function makeHabit(overrides: Record<string, unknown> = {}) {
   return {
     activeDays: [1, 2, 3, 4, 5, 6, 7],
+    consistencyDenominator: 10,
     consistencyRate: 0.9,
     cue: "morning coffee",
     formula: "After morning coffee, run for 2 minutes",

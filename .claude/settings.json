@@ -46,7 +46,9 @@
       "Bash(Select-String -Path \"d:\\\\habits_offline\\\\src\\\\features\\\\reviews\\\\screens\\\\WeeklyReviewScreen.tsx\" -Pattern \"Eyebrow\")",
       "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\daddy\\\\appium-test\" -Exclude \"node_modules\" -Recurse -Include \"*.js\", \"*.ts\")",
       "Bash(Select-Object -ExpandProperty FullName)",
-      "Bash(node -e ' *)"
+      "Bash(node -e ' *)",
+      "Bash(node -e \"require\\('./node_modules/jest-expo'\\)\")",
+      "Bash(gh pr *)"
     ],
     "additionalDirectories": [
       "C:\\Users\\daddy\\appium-test"
