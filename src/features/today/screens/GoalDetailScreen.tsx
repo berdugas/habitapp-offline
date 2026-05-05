@@ -15,6 +15,7 @@ import { useGoalDetail } from "@/features/today/hooks";
 import { getStreakCopy } from "@/features/today/streakCopy";
 import { isActiveDay } from "@/features/habits/activeDays";
 import { useTrialValidation } from "@/features/trial/hooks";
+import { now } from "@/utils/clock";
 import { colors } from "@/theme/colors";
 import { fontFamilies } from "@/theme/fontFamilies";
 import { spacing } from "@/theme/spacing";
@@ -53,7 +54,7 @@ export default function GoalDetailScreen() {
     const oldest = [...habits].sort((a, b) => a.startDate.localeCompare(b.startDate))[0];
     if (!oldest) return 0;
     const start = new Date(`${oldest.startDate}T12:00:00`);
-    const today = new Date();
+    const today = now();
     today.setHours(0, 0, 0, 0);
     let count = 0;
     const d = new Date(start);

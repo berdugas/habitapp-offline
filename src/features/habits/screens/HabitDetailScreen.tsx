@@ -154,8 +154,8 @@ export default function HabitDetailScreen() {
     if (!habit) return 0;
     const start = habit.start_date
       ? new Date(`${habit.start_date}T12:00:00`)
-      : new Date();
-    const today = new Date();
+      : now();
+    const today = now();
     today.setHours(0, 0, 0, 0);
     let count = 0;
     const d = new Date(start);
@@ -173,8 +173,8 @@ export default function HabitDetailScreen() {
     if (!habit) return 0;
     const start = habit.start_date
       ? new Date(`${habit.start_date}T12:00:00`)
-      : (() => { const d = new Date(); d.setDate(d.getDate() - 29); return d; })();
-    const today = new Date();
+      : (() => { const d = now(); d.setDate(d.getDate() - 29); return d; })();
+    const today = now();
     today.setHours(0, 0, 0, 0);
     let count = 0;
     const d = new Date(start);
