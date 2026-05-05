@@ -76,7 +76,7 @@ export default function HabitDetailScreen() {
   const calendarDays = (() => {
     if (!habit?.start_date) return 35;
     const start = new Date(`${habit.start_date}T12:00:00`);
-    const diff = Math.ceil((Date.now() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+    const diff = Math.ceil((now().getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
     return Math.max(diff, 35);
   })();
   const calendarLogs = useHabitLogsForRange(habit?.id, calendarDays).data ?? [];
