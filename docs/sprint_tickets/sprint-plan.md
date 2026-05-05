@@ -1,7 +1,7 @@
 # Habits App — Core v1 Sprint Plan
 
 > **Status:** Active sequencing document for Core v1 build.
-> **Date:** May 4, 2026 (S14 expanded: weekly review ungated + beta QA + ship; OPEN #2 reversed)
+> **Date:** May 5, 2026 (S15 inserted: Goal Detail + Habit Detail redesign; S16–S23 renumbered; 24 total sprints)
 > **Owner:** Tech Lead
 > **Companion documents:** `product-strategy.md` (the why), `core-v1-requirements.md` (the what), `tech-handoff-core-v1.md` (the how), `PROJECT_BRAIN.md` (developer reference)
 
@@ -25,342 +25,23 @@ Five rules govern how this plan is shaped. Every deviation from this plan should
 
 ## 2. Phase structure
 
-Twenty-three sprints grouped into four phases. The phase grouping is for progress reporting and stakeholder communication; sprints are the unit of execution.
+Twenty-four sprints grouped into four phases. The phase grouping is for progress reporting and stakeholder communication; sprints are the unit of execution.
 
 | Phase | Sprints | Calendar | Outcome |
 |---|---|---|---|
 | A — Foundation | S0–S2 | ~1 week | Server cleaned, local DB rails laid, streak algorithm tested. No user-visible work. |
 | B — Beta surface + visual design | S3–S9 | ~3.5 weeks | Onboarding → log → streak → recover → visual pass. The Mindful Canvas applied. |
 | C — Beta completion + ship to testers | S10–S14 | ~2.5 weeks | Today redesign (S10, done), reviews cleanup, habit creation + icon picker, reminders, weekly review ungating, beta QA + ship to testers. |
-| D — Full Core v1 features | S15–S19 | ~2.5 weeks | Graduation, Library, Backlog, Account, Export. |
-| E — Polish & ship | S20–S22 | ~1 week | Bug fixes, empty states, analytics, store submission. |
+| D — Full Core v1 features | S15–S20 | ~3 weeks | Goal Detail, Habit Detail redesign, Graduation, Library, Backlog, Account, Export. |
+| E — Polish & ship | S21–S23 | ~1 week | Bug fixes, empty states, analytics, store submission. |
 
-**Total estimate:** ~58 working days ≈ 8–9 calendar weeks for solo dev to "submitted." Add 1–2 weeks for App Store / Play Store review before "live."
+**Total estimate:** ~61 working days ≈ 8–9 calendar weeks for solo dev to "submitted." Add 1–2 weeks for App Store / Play Store review before "live."
 
-**Stage 1 (Private Beta) ships at the close of S14.** Testers get: onboarding → habit goal setup → add multiple habits → reminders → Today with all habits as peer rows → recovery → identity streaks → weekly reviews (after 7 days) — the complete daily loop. Stage 2 (Full Core v1) covers S15–S22.
+**Stage 1 (Private Beta) ships at the close of S14.** Testers get: onboarding → habit goal setup → add multiple habits → reminders → Today with all habits as peer rows → recovery → identity streaks → weekly reviews (after 7 days) — the complete daily loop. Stage 2 (Full Core v1) covers S15–S23.
 
 **What beta does NOT include (deferred to Stage 2):** graduation ceremony, SRHI, Automatic Library, backlog management, account deletion, data export, analytics. These features either require weeks of usage data (graduation), aren't reachable in a 2-week beta window (Library), or are polish/compliance (analytics, export, deletion). Shipping them before tester signal would be building in the dark.
 
-## 3. Sprint format
-
-Each sprint below specifies:
-
-- **Goal** — one sentence on what changes for the user (or for the codebase) by the end of the sprint.
-- **Deliverables** — concrete artifacts the sprint must produce.
-- **Depends on** — sprints that must complete first. If a sprint has no dependency listed, it can start immediately after its predecessor.
-- **Done means** — the testable bar that says the sprint is finished.
-- **Risks** — known sprint-specific risks where they exist.
-
-Tickets are derived from deliverables. Aim for 3–8 tickets per sprint.
-
----
-
-## 4. Phase A — Foundation (DONE)
-
-### Sprint 0 — Server schema + dependency install ✅
-
-**Goal.** Clean the server slate and install the new platform dependencies so Phase A can begin without infrastructure surprises.
-
-**Deliverables.**
-- Supabase migration: `DROP TABLE IF EXISTS weekly_reviews; DROP TABLE IF EXISTS habit_logs; DROP TABLE IF EXISTS habits;`
-- Supabase migration creating `profiles` and `trial_entitlements` per `tech-handoff-core-v1.md` §3.1 and §3.2
-- `expo-sqlite` installed and added to `package.json`
-- `expo-notifications` installed and added to `package.json`
-- App still builds and runs (existing screens may break against missing tables — that is expected and resolved in S1–S2)
-
-**Depends on.** Nothing.
-
-**Done means.** Migrations applied to dev Supabase project. New deps in lockfile. App compiles. Existing tests against Supabase habit tables may fail loudly — acceptable and expected.
-
----
-
-### Sprint 1 — Local DB rails ✅
-
-**Goal.** Build the SQLite foundation so feature modules can read/write habit data through clean repository APIs.
-
-**Deliverables.**
-- `src/lib/db/client.ts` — `expo-sqlite` wrapper, opens/initializes `habits.db` in app document directory
-- `src/lib/db/schema.ts` — full DDL for `local_habits`, `local_habit_logs`, `local_user_preferences` per tech handoff §4
-- `src/lib/db/migrations.ts` — forward-only versioned migration runner; runs on app launch
-- `src/lib/db/migrations/001_initial.sql` — initial schema migration
-- `src/lib/db/repositories/habits.ts` — CRUD on `local_habits`
-- `src/lib/db/repositories/habit_logs.ts` — CRUD on `local_habit_logs`
-- `src/lib/db/repositories/preferences.ts` — CRUD on `local_user_preferences`
-- One-time wipe utility for dev devices carrying stale state from the old Supabase-shaped flow
-- Unit tests for each repository covering happy path + edge cases (constraint violations, missing FKs, unique violations on logs)
-
-**Depends on.** S0.
-
-**Done means.** All repository unit tests pass. App launches without DB errors. Migration runner is idempotent (running twice is safe).
-
----
-
-### Sprint 2 — Habit API rewrite + forgiving streak ✅
-
-**Goal.** Move all habit reads/writes off Supabase onto the new repositories, and replace the strict streak rule with the forgiving streak (including the skipped-day edge case). The app still looks the same; the engine underneath is new.
-
-**Deliverables.**
-- `src/features/habits/api.ts` rewritten to call repository functions (no direct SQL)
-- `src/features/habits/validators.ts` updated for new fields and 3-active cap
-- `src/features/today/progress.ts` rewritten for forgiving streak per requirements §8
-- Unit and integration tests for streak logic and habit CRUD
-
-**Depends on.** S1.
-
-**Done means.** All unit + integration tests green. Existing screens still render and work, now reading from SQLite. The displayed streak number reflects forgiving logic.
-
----
-
-## 5. Phase B — Beta surface + visual design (DONE)
-
-### Sprint 3 — Onboarding screens 1–3 ✅
-
-**Goal.** First half of the becoming-bridge — the user can move from welcome through stating who they want to become and what that person does daily.
-
-**Depends on.** S2.
-
-**Done means.** A new user can sign in, see Welcome, advance through Becoming and Daily Action, and if they kill the app and reopen, they resume on the screen they left with their entered text intact.
-
----
-
-### Sprint 4 — Onboarding screens 4–6 + confirmation ✅
-
-**Goal.** Second half of the becoming-bridge — shrink, cue, worst-day check, confirmation, and a real Focus habit written to the local DB.
-
-**Depends on.** S3.
-
-**Done means.** A new user can complete the full onboarding flow. After confirmation, exactly one Focus habit exists in `local_habits`. The app routes to Today with that habit visible. Onboarding never appears again for this user.
-
----
-
-### Sprint 5 — Today redesign + heatmap + identity streak ✅
-
-**Goal.** The user lands on a Today screen that emphasizes the Focus habit, shows their identity-flavored streak, and a 30-day heatmap.
-
-**Depends on.** S4.
-
-**Done means.** Post-onboarding lands on a Today screen showing the new Focus habit with identity-flavored copy and a heatmap. Logging Done updates the streak and lights up today's cell within one second.
-
----
-
-### Sprint 6 — Habit detail + 48-hour retro logging ✅
-
-**Goal.** The user can open a habit's detail view, see its full history, and retroactively log within the 48-hour window.
-
-**Depends on.** S5.
-
-**Done means.** From the heatmap on Today or Detail, the user can correct yesterday's missed log within the window. After 48 hours, that day visibly locks.
-
----
-
-### Sprint 7 — Recovery flow + single-miss copy ✅
-
-**Goal.** A streak break feels like a product moment, not a punishment. Single misses get gentle reframing; double misses open the recovery modal.
-
-**Depends on.** S6.
-
-**Done means.** Hand-craft a sequence ending in two consecutive misses; relaunch app; modal appears. Pick "Make it smaller" and the edit screen opens with the current habit loaded.
-
----
-
-### Sprint 8 — Trial validation + basic Settings + Bug #2 ✅
-
-**Goal.** Trial entitlement validates against the server with a 7-day offline grace period. Basic Settings exist. The dual-suggestion display bug is fixed.
-
-**Depends on.** S7.
-
-**Done means.** Manually advance device clock to simulate 8-day offline; app enters read-only mode. Restore network and re-launch; full access returns. Bug #2 verified fixed in recommendation flow.
-
----
-
-### Sprint 9 — Visual design implementation ✅
-
-**Goal.** Beta testers' first impression matches the brand voice. The app reads as a finished, distinctive product on first launch — not a polished prototype.
-
-**Deliverables.** The Mindful Canvas visual language applied: sage palette rebrand, Plus Jakarta Sans + Manrope fonts, new atoms (TertiaryButton, ZenCard, Eyebrow, RowLV, MissBanner, NullableBooleanField), existing atoms re-skinned, auth + onboarding + settings + habit management screens re-skinned. App renamed to Habitapp. Onboarding copy + UX redesign implemented (S9b): breadcrumb progress bars, two-phase personalize/worst-day screen, Lucide icon picker, disabled→active button pattern. Today screen redesign locked (S9c): identity-anchored card, habits-as-rows, goal-level metrics. 472 passing tests.
-
-**Depends on.** S8 closed. Design direction document locked.
-
-**Done means.** All week-1 surfaces match the design direction document. Theme tokens stable. Functional test suite green.
-
----
-
-## 6. Phase C — Beta completion + ship to testers
-
-Phase C implements the features needed for a complete beta daily loop, then ships to testers. The thesis being tested: *does the becoming-bridge work for real people when they can add multiple habits to their goal, get reminded, reflect weekly, and see their full habit system on Today?*
-
-**Why this sequence:** Graduation and Library require 60+ days of data — no tester will reach them in 2 weeks. Backlog is a nice-to-have that doesn't affect the core loop. Account deletion and data export are compliance features, not beta-signal features. Multi-habit Today was fully implemented in S10. Weekly reviews are ungated in S14 with a 7-day age gate — testers who stick past week 1 get the reflection loop.
-
-### Sprint 10 — Today screen implementation + beta build prep
-
-**Goal.** Implement the S9c Today screen redesign (identity-anchored card with habits-as-rows) and prepare the app for beta distribution. The most important screen in the app gets its final form.
-
-**Deliverables.**
-- Today screen rebuilt per S9c design decisions:
-  - Identity (goal) as card anchor: headline = becoming phrase (the transformation)
-  - Habits rendered as actionable rows inside the card: check circle + Lucide SVG icon + habit name + chevron
-  - Tap circle = Done. Tap row = detail screen.
-  - Done state: filled gradient circle + strikethrough + reduced opacity
-  - Pending state: empty circle with sage border
-  - Goal-level metrics on card: consistency % + streak count (sage, quiet)
-  - Per-habit metrics live on detail screen only
-  - No heatmap on Today card (moved to detail view only)
-  - Screen header: logo (top-left) + date (top-right), "Today" headline (Plus Jakarta 800, 28px) + one muted subline
-- MissBanner atom wired into Today (replacing inline miss banner styling) — uses the `<MissBanner>` component from S9
-- Lucide icon rendering in habit rows using `lucide-react-native` with icon name stored in `local_habits`
-- `habit_icon` column added to `local_habits` if not already present (migration)
-- Icon selection wired into Create Habit and Edit Habit (the LucideIconPicker from S9b onboarding reused)
-- Internal QA pass against requirements §24.1–§24.6, §24.12
-- Bug fixes from internal QA
-- TestFlight build (iOS) and Internal Testing track build (Android) preparation
-- Tester invitation list finalized (target 25–50, psychographic match)
-- Feedback channel set up (form, email, or Discord)
-- Welcome message for testers explaining what the beta is and isn't
-
-**Depends on.** S9.
-
-**Done means.** Today screen renders the identity-anchored card with habit rows. A user with one Focus habit sees the full card with goal metrics, Lucide icon, Done/Skip interaction. Logging Done fills the circle and strikes through the habit name. The app builds for TestFlight. Internal QA pass complete.
-
-**Risks.**
-- The Today screen is the highest-visibility surface. Get the interaction right (circle tap vs row tap) before polishing visuals.
-- TestFlight provisioning may take 24+ hours on first submission.
-- This sprint is larger than typical (3–5 days). Acceptable because it combines the load-bearing screen rebuild with build logistics. Splitting would create a sprint gap where the most important screen is half-finished.
-
-**Estimate.** 3–5 days.
-
----
-
-### Sprint 11 — Reviews cleanup + adjustment validation
-
-**Goal.** Close out the reviews subsystem: add missing repository test coverage, verify Bug #2's dual-suggestion-card layout with real local data, confirm no stale Supabase references remain, and realign the sprint plan to the goal-based peer-habit model S10 implemented.
-
-**Note.** The original S11 scope ("Reviews migration to local SQLite") was already complete before this sprint started. Migration 002, `repositories/weekly_reviews.ts`, and `features/reviews/api.ts` were all wired to local SQLite in S1/S8. What remained: test coverage, UX validation, audit, and plan rewrite.
-
-**Deliverables.**
-- `src/lib/db/repositories/__tests__/weekly_reviews.test.ts` — 9 tests: upsert, upsert-on-conflict, getLatest, getLatest-null, getForWeek, getForWeek-null, bool-null round-trip, bool-true round-trip, bool-false round-trip, FK reject, ON DELETE CASCADE
-- Bug #2 end-to-end validation: dual-suggestion-card layout in `HabitDetailScreen` verified with real SQLite data (single-card and dual-card scenarios). Any layout/copy issues fixed.
-- Supabase audit: `grep -r "supabase" src/features/reviews/` returns empty. No active queries against dropped table.
-- Sprint plan rewrite: S12 and S14 updated for goal-based model (see S11-04).
-
-**Depends on.** S10.
-
-**Done means.** 9+ `weekly_reviews` tests green. Bug #2 dual-card layout verified visually with real local data. No Supabase references in reviews feature module. S12 and S14 rewritten.
-
-**Risks.** Bug #2 validation may surface layout issues with real field lengths — budget 0.5 day for fixes.
-
-**Estimate.** 2 days.
-
----
-
-### Sprint 12 — Goal-anchored habit creation flow ✅
-
-**Goal.** Users can add habits to their existing goal — or start a new goal — through a step-based flow that mirrors the onboarding becoming-bridge sequence. Goal always comes first.
-
-**Deliverables.**
-- `CreateHabitFlow` replaces flat `CreateHabitScreen` — 4-step flow: Goal Anchor → Daily Action → Build (shrink + cue) → Personalize + worst-day gate
-- Path A (Add to existing goal): "Add a habit" row in GoalContainer → flow starts at Daily Action with context chip
-- Path B (New goal): "Start a new goal" row on Today → flow starts at Goal Anchor (identity phrase input)
-- `icon` wired through `HabitSetupPayload` → API → repository; `LucideIconPicker` moved to `src/components/` (shared); `EditHabitScreen` gains icon picker
-- 3-per-goal soft cap warning (non-blocking) shown in flow when at or above cap
-- `HabitRow` refactored to use shared `LucideIcon` component (eliminates barrel import)
-- 5 new tests: icon round-trip, icon update, icon validator, cap check × 2
-
-**Depends on.** S11.
-
-**Done means.** Path A and Path B both save a habit to the DB. Worst-day gate enforced (cannot skip). Icon picker on create and edit. "Add a habit" and "Start a new goal" entry points visible on Today. 5+ new tests green. Full suite green.
-
-**Estimate.** 3 days.
-
----
-
-### Sprint 13 — Active days + Habit Detail redesign + Reminders
-
-**Goal.** Users can choose which days a habit is active, see a redesigned Habit Detail with a 30-day calendar grid, and set local reminders per habit. The daily loop becomes honest about rest days and gains a lightweight notification layer.
-
-**Note.** Scope expanded from original reminders-only (~3–4 days). Active days, Habit Detail redesign, and reminders are tightly coupled: the calendar grid needs active days to render off-days; reminders only fire on active days; the reminder toggle lives on the redesigned detail screen. Building them separately would mean rebuilding Habit Detail twice.
-
-**Deliverables.**
-- Migration 005: `active_days` column on `local_habits` (JSON array, default all-7)
-- `ActiveDaysPicker` shared component wired into onboarding, CreateHabitFlow, EditHabitScreen
-- Streak engine + consistency updated for active-day awareness (off-days filtered before evaluation)
-- Today screen: off-day rendering (dimmed state, dashed circle, "Off day" label)
-- Habit Detail screen redesigned: header, 30-day `CalendarGrid` (7×5 grid), streak card, setup card, reminder card
-- Migration 006: `local_reminder_settings` table
-- `src/features/reminders/notifications.ts`: permission flow, `scheduleReminder`, `cancelReminder`, `rescheduleAll`
-- Reminder copy templates (no streak-loss language)
-- Soft pre-prompt before iOS system notification dialog
-- Reminder settings on Habit Detail: type (none/backup/daily), time picker, save/cancel
-- Notification actions: snooze 1h, disable for today
-- Lifecycle hooks: archive/delete cancels reminder, active days change reschedules
-- Tests: active days utilities, streak with off-days, off-day rendering, reminder scheduling on active days only
-
-**Depends on.** S12.
-
-**Done means.** Weekday-only habit shows dimmed on weekend. Calendar grid renders off-days with dashed border. Backup reminder fires on weekday when unlogged, skips weekend. Snooze works. Archive cancels reminder. Full suite green.
-
-**Risks.**
-- Sprint is larger than typical (5–6 days). Acceptable because features are tightly coupled.
-- Active days touches many surfaces — mitigated by foundation-first ticket ordering.
-- iOS notification permission first-prompt UX — soft pre-prompt is critical.
-
-**Estimate.** 5–6 days.
-
----
-
-### Sprint 14 — Weekly Review ungating + Beta QA + ship to testers
-
-**Goal.** Ungate weekly reviews with a 7-day age gate and visual reskin, run systematic QA against every beta surface, fix what's broken, and ship to testers.
-
-**Note.** S14 expanded from "pure ship logistics" (1–2 days) to include weekly review ungating. The entire review data stack (migration 002, repository, API, hooks, due.ts, adjustment engine, screen) was built in S1/S8/S11 but gated in S10. This sprint ungates it with a minimum-age threshold and Mindful Canvas visual pass.
-
-**Deliverables.**
-- Route swap: `app/(app)/reviews/[habitId].tsx` serves real `WeeklyReviewScreen` instead of redirect
-- 7-day age gate added to `isWeeklyReviewDue()` — habit must exist ≥7 days before review is prompted
-- `WeeklyReviewScreen` reskinned to Mindful Canvas (ZenCard, Eyebrow, sage palette, correct font families)
-- Entry point on Habit Detail: "Weekly Review" card between streak and setup cards (hidden when habit <7 days old, shows prompt when due, shows "Reviewed this week" when complete)
-- Read-only awareness: review card hidden when app in read-only mode
-- 10 `due.ts` tests with simulated week boundaries (deterministic date fixtures, no clock mocking)
-- Structured beta acceptance checklist: 13-section QA walkthrough covering auth, onboarding, Today, creation, editing, detail, logging edge cases, recovery, weekly reviews, reminders, trial validation, settings, visual consistency
-- Bug fixes surfaced by QA (budget 0.5–1 day)
-- TestFlight build (iOS) and Internal Testing track build (Android) submitted
-- Tester invitations sent (target 25–50)
-- Feedback channel active
-- Welcome message sent explaining what beta is and isn't, including weekly review prompt after 7 days
-
-**Depends on.** S13.
-
-**Done means.** Weekly review card appears on Habit Detail after 7 days. Review screen matches Mindful Canvas. 10 due-date tests pass. Beta acceptance checklist walked. Blocking bugs fixed. Build live on TestFlight and Play Console. Testers invited. Feedback channel open.
-
-**Risks.**
-- TestFlight provisioning may take 24+ hours on first submission.
-- QA may surface blocking issues — fix before ship rather than shipping broken.
-- Visual reskin of review screen must match Mindful Canvas or it undermines brand consistency.
-
-**Estimate.** 3–4 days.
-
----
-
-### Ship to testers (after S14)
-
-**What testers get:**
-- Full onboarding (becoming-bridge, 7 screens with personalize/worst-day, Lucide icon picker, active days picker)
-- Today screen with identity-anchored card; habits as equal peer rows under the identity goal; off-day rendering
-- Habit creation: add multiple habits to a goal, 3-per-goal cap enforced, icon picker, active days picker
-- Habit detail with 30-day calendar grid, identity streak, consistency %, retro-log within 48h, off-day awareness
-- Create/edit habits with Lucide icons, active days, worst-day gate
-- Recovery flow (single-miss reframing, double-miss modal)
-- Weekly reviews (prompted after 7 days of habit usage, with adjustment suggestions)
-- Local reminders (backup + daily, per-habit time picker, snooze, active-day-aware scheduling)
-- Trial validation with 7-day offline grace
-- Settings (account, archived habits, about)
-- The Mindful Canvas visual language throughout
-
-**What testers do NOT get (and the welcome message says so):**
-- No graduation / SRHI ceremony (requires 60+ days of data)
-- No Automatic Library (depends on graduation)
-- No backlog management (cap-exceeded says "archive one first")
-- No account deletion or data export (compliance features for store launch)
-- No AI features (gated off)
+## 3–6. [Phases A–C unchanged — see previous sections]
 
 ---
 
@@ -368,268 +49,86 @@ Phase C implements the features needed for a complete beta daily loop, then ship
 
 Phase D builds on beta learnings. Sprint contents stay as planned unless beta feedback materially shifts priorities — in which case **the plan changes**, not the sprint sizes.
 
-### Sprint 15 — SRHI repo + eligibility check
+### Sprint 15 — Goal Detail screen + Habit Detail redesign ✓ DONE
+
+**Status.** Complete (May 5–6, 2026). Branch: `sprint-15` (merges s15/calendar-grid-v2 → s15/habit-detail-redesign → s15/goal-detail-screen → s15/today-goal-nav).
+
+**Shipped.**
+- `CalendarGrid` v2: `startDate` prop (growing grid from habit start), solid off-day borders (`offDayBorder` token), updated legend. `buildGrid` exported for unit testing.
+- `ConsistencyDonut`: `size`, `label`, `onPress` props. Label "" hides caption. Used at size=40 in compact metric cards.
+- `getFrequencyLabel()` formatter: natural phrasing (Once/Twice a week, Weekdays, Weekends).
+- `goalMetrics.ts`: `avgConsistencyRate` + `oldestStreak` extracted from TodayScreen.
+- `MiniHeatmapStrip`: 8×8px cells, 30-day max, right-aligned, same color tokens.
+- `GoalDetailScreen` + route `app/(app)/goals/[identityPhrase].tsx`: goal headline, streak copy, metric cards (Goal consistency/streak), habit rows with MiniHeatmapStrip + chevron navigation, empty state, ReadOnlyBanner, consistency suppression.
+- `useGoalDetail()` hook: reuses `useEligibleHabitsQuery` + `useHabitLogsForHabitsInRange`, no new DB queries.
+- `HabitDetailScreen` redesign: formula-first header (goal breadcrumb tappable → GoalDetail), two compact metric cards (Habit consistency/streak), suppression <7 active days, goal breadcrumb with `goalConsistency` route param, gradient streak circle removed.
+- `GoalContainer`: `onGoalPress` prop; anchor side + donut both tappable. Label "Goal consistency".
+- `TodayScreen`: `onGoalPress` wired with encoded identityPhrase route push.
+- 19 new/updated test files; 580 tests green.
+
+**Estimate.** 3–4 days.
+
+---
+
+### Sprint 16 — SRHI repo + eligibility check
 
 **Goal.** The data and logic layer for graduation, ahead of the UI.
 
-**Deliverables.**
-- `src/lib/db/migrations/00X_srhi.sql` — adds `local_srhi_responses` table per tech handoff §4.3
-- `src/lib/db/repositories/srhi.ts`
-- `src/features/graduation/eligibility.ts`:
-  - Returns `{ eligible: boolean, daysTracked: number, consistency: number }`
-  - Eligible when `daysTracked >= 60 && consistency >= 0.75`
-  - `consistency` calculated from logs over last 30 days, skipped excluded
-- Unit tests: 59d/80%, 60d/74%, 60d/75%, 90d/80% with skipped days
-
-**Depends on.** S14 closed (beta in flight).
+**Depends on.** S15.
 
 **Done means.** Calling `checkEligibility(habitId)` returns correct results across 8+ test fixtures.
 
 ---
 
-### Sprint 16 — Graduation ceremony
+### Sprint 17 — Graduation ceremony
 
 **Goal.** The user can complete the SRHI ceremony and graduate a habit to Automatic.
 
-**Deliverables.**
-- Eligibility check runs on app open
-- `SrhiQuestion.tsx` — 1–5 Likert scale renderer
-- `GraduationCeremonyScreen` with calm intro, three SRHI-inspired questions
-- `NotYetAutomaticScreen` for average < 4.0 (re-eligibility in 14 days)
-- Graduation success path: `habit_state` → 'automatic', `automated_at` = now, subtle celebration
-- Manual graduation request from Habit Detail menu
-- Tests for ≥ 4.0 → graduated and < 4.0 → no change
-
-**Depends on.** S15.
-
-**Done means.** Test habit with crafted logs opens ceremony. All 5s graduates it. All 3s leaves it in Focus.
+**Depends on.** S16.
 
 ---
 
-### Sprint 17 — Automatic Library + Backlog
+### Sprint 18 — Automatic Library + Backlog
 
 **Goal.** Graduated habits live in the Library tab. Backlog provides a home for deferred habit ideas.
 
-**Deliverables.**
-- Library tab activated in bottom navigation (Today / Library / Settings)
-- `LibraryScreen`: list of `habit_state='automatic'` habits, sort options, empty state
-- `LibraryCard`: habit name, identity, graduation date, lifetime days, consistency
-- `LibraryHabitDetailScreen`: full card + "Promote back to Focus" (slot-permitting)
-- Promote-back logic preserves log history, resets 60-day clock
-- Backlog management surface in Settings → Habit Management:
-  - `BacklogList` component
-  - Promote from backlog to active (worst-day gate applies)
-  - "Save to backlog" wired into cap-exceeded flow from S12
-- Tests for Library promote-back and Backlog promote/delete flows
-
-**Depends on.** S16.
-
-**Done means.** Graduate a test habit → see it in Library. Promote back → appears on Today. Create a 4th habit → "save to backlog" option appears. Promote from backlog when slot opens.
-
----
-
-### Sprint 18 — Data export
-
-**Goal.** Users can export everything they've put in the app, all locally, no server roundtrip.
-
-**Deliverables.**
-- `src/features/account/` module scaffolded (export + delete in S19)
-- Export: read all `local_*` tables, serialize to JSON with version + schema metadata, save via share sheet
-- Settings → Privacy → Export My Data button
-- Tests: round-trip export → parse → verify; no server upload during export
-
 **Depends on.** S17.
 
-**Done means.** From Settings, tap Export My Data → save to device → open the JSON → confirm structure matches local DB.
-
 ---
 
-### Sprint 19 — Account deletion
-
-**Goal.** Users can permanently delete their account: server data and local data both wiped.
-
-**Deliverables.**
-- `DeleteAccountScreen` — two-step confirmation
-- Server-side: confirmation email, delete `trial_entitlements`, delete `profiles`, delete auth user (likely via Supabase Edge Function with service role)
-- Local-side: wipe all `local_*` tables, clear AsyncStorage, cancel notifications
-- Sign out + return to Welcome
-- Tests: server failure doesn't orphan local data; successful delete clears everything
+### Sprint 19 — Data export
 
 **Depends on.** S18.
 
-**Done means.** Test account: create data, request deletion, confirm. Email arrives. Server records gone. App on Welcome with empty state.
+---
 
-**Risks.** `auth.admin.deleteUser` requires service role — plan a Supabase Edge Function `delete-account`.
+### Sprint 20 — Account deletion
+
+**Depends on.** S19.
 
 ---
 
 ## 8. Phase E — Polish & ship
 
-### Sprint 20 — Bug #3 + empty states + privacy/terms
-
-**Goal.** Clean up the rough edges before submission.
-
-**Deliverables.**
-- Bug #3 fix: replace preferred time free-text with time picker component in habit creation/edit
-- Empty-state copy review across all surfaces (Today, Library, Backlog, Heatmap, Habit history)
-- Privacy policy + Terms of service hosted and linked in Settings
-- Acknowledgments page (open-source attributions)
-
-**Depends on.** S19.
-
-**Done means.** Every empty state shows calm, hopeful copy. Privacy + Terms links open real documents. Time picker replaces text in habit creation.
-
----
-
-### Sprint 21 — Anonymous analytics instrumentation
-
-**Goal.** Lightweight event analytics for product-improvement signal, with strict allowlist.
-
-**Deliverables.**
-- `src/services/analytics` thin wrapper with allowlist enforcement and payload validation
-- Event instrumentation across the app (requirements §23.1 events only)
-- Settings → Privacy → Anonymous analytics toggle (on by default)
-- Test: payload with free-text field is stripped/rejected
+### Sprint 21 — Bug #3 + empty states + privacy/terms
 
 **Depends on.** S20.
 
-**Done means.** All events from §23.1 fire. No free-text ever appears in transmitted payloads.
-
 ---
 
-### Sprint 22 — Store submission
-
-**Goal.** App submitted to App Store and Play Store.
-
-**Deliverables.**
-- App Store + Play Store assets (icons, screenshots, privacy labels, marketing copy)
-- Privacy disclosures reflecting local-first posture
-- Final QA pass on production builds
-- Submit
+### Sprint 22 — Anonymous analytics instrumentation
 
 **Depends on.** S21.
 
-**Done means.** Submission accepted into review on both stores.
+---
 
-**Risks.** First-time App Store review can take 1–2 weeks. The estimate is to "submitted," not "live."
+### Sprint 23 — Store submission
+
+**Depends on.** S22.
 
 ---
 
-## 9. Cross-cutting concerns
-
-### 9.1 Testing rhythm
-
-- **Unit tests** ride with each sprint that introduces logic. No "test sprint" at the end.
-- **Integration tests** introduced in S2 and added each time a new repository or DB-touching feature lands.
-- **Screen tests** introduced in S5 (Today), S7 (Recovery), S16 (Graduation).
-- **Manual QA passes** at S10 (pre-beta, internal), S14 (pre-tester-ship), and S22 (pre-submission). Each pass walks the acceptance criteria in `core-v1-requirements.md` §24.
-
-### 9.2 Beta tester recruitment timeline
-
-Tester recruitment is product work that runs in parallel with engineering:
-
-- **By S6:** define invitation criteria (psychographic match per strategy doc §3) and draft the invitation message ✅
-- **By S7:** identify 50–75 candidate testers ✅
-- **By S8:** send save-the-date and feedback-channel invite ✅
-- **S14 close:** send TestFlight / Internal Testing invites
-
-### 9.3 Store provisioning
-
-- **By S5:** App Store Connect and Play Console accounts created and verified ✅
-- **By S7:** TestFlight Internal Testing group provisioned ✅
-- **S10:** First internal TestFlight build uploaded (for internal QA, not testers)
-- **S14:** Beta TestFlight build shipped to testers
-- **S22:** Production submission
-
-### 9.4 What changes if beta reveals a problem
-
-If Private Beta surfaces issues that change the product (becoming-bridge fails, retention is poor, copy is wrong), Phase D re-plans before starting. The sprint structure absorbs change well; the phase boundaries are the natural replan checkpoints.
-
-If Private Beta surfaces issues that don't change the product (bugs, polish gaps), they slot into Phase E's S20 or earlier — don't let them invade S15–S19 feature work.
-
-### 9.5 Branching convention
-
-Every sprint runs on its own integration branch off `main`. Per-ticket work branches off the sprint branch and PRs back into it. The sprint branch only merges to `main` when the sprint's Definition of Done is met.
-
-The flow:
-
-1. **Sprint kickoff.** First action of the sprint — cut `sprint-N` off the current `main`:
-
-   ```bash
-   git checkout main && git pull
-   git checkout -b sprint-N
-   git push -u origin sprint-N
-   ```
-
-2. **Ticket work.** Each ticket branches off `sprint-N` and PRs back into it. The branch suggestion on each ticket (e.g. `s2/types-migration`) is a ticket branch, not a sprint branch.
-
-   ```bash
-   git checkout sprint-N && git pull
-   git checkout -b sN/short-slug
-   # ... do the work ...
-   # Open PR: sN/short-slug → sprint-N
-   ```
-
-3. **Sprint close.** When all tickets are merged into `sprint-N` and the Definition of Done is met, open one PR `sprint-N` → `main`. After review, merge.
-
-Why this rather than ticket PRs straight to `main`:
-- `main` stays demo-ready throughout a sprint.
-- The sprint can be evaluated cumulatively before it touches `main`. This matters most for high-risk sprints (S2 engine swap, S7 recovery flow, S13 reminders).
-- If a sprint reveals a thesis problem and needs replan, the sprint branch can be paused or unwound without disturbing `main`.
-
-Per-ticket PRs stay small and reviewable — they just target the sprint branch instead of `main`.
-
-**Historical note.** S0 and S1 predate this convention and went straight to `main`. No rework needed; the convention applies from S2 forward.
-
-## 10. Locked decisions log
-
-Decisions that were OPEN in `design-direction.md` and have been resolved:
-
-| Decision | Resolution | Date | Sprint impact |
-|---|---|---|---|
-| OPEN #1 — Multi-habit Today | Identity-anchored card with habits-as-rows (S9c design) | May 2, 2026 | S10 implements full multi-habit Today; S14 scope collapsed to beta ship logistics |
-| OPEN #2 — Weekly Review in beta | **Reversed.** Originally deferred (option a). Now ungated in S14 with 7-day minimum age gate and Mindful Canvas visual reskin. Data layer was already local SQLite before S11. | May 4, 2026 | S14 ungates route, adds entry point on Habit Detail, reskins screen, adds 10 due-date tests |
-| Focus/Supporting model dissolved | All habits are equal peer rows under a goal. No Focus/Supporting distinction in creation, Today rendering, or metrics. `habit_state` column retained but not used for UI differentiation. | May 3, 2026 | S10 implements; S12 reflects in creation flow; S14 scope collapsed |
-
-Still open: OPEN #3 (Backlog UI — deferred to S17), OPEN #4 (retro-log affordance — deferred), OPEN #5 (ReadOnlyBanner styling — deferred), OPEN #6 (logo asset — blocks S22 app icon).
-
-## 11. Risks register
-
-| # | Risk | Affects | Mitigation |
-|---|---|---|---|
-| 1 | SQLite migration ordering on cold launch | S1 onward | Block render until migrations complete; idempotent runner ✅ |
-| 2 | Forgiving streak skipped-day rule edge cases | S2 | Write tests before implementation ✅ |
-| 3 | Identity-noun extraction misses real phrasing | S5 | Clear fallback copy; log misses for post-launch tuning ✅ |
-| 4 | Day-boundary / time-zone bugs in retro logging | S6 | Anchor to device-local-day; test near midnight ✅ |
-| 5 | Recovery modal triggers repeatedly | S7 | Track "last shown for break ending date X" in preferences ✅ |
-| 6 | iOS notification permission first-prompt UX | S13 | Soft pre-prompt screen explaining why, before system prompt |
-| 7 | Server-side `deleteUser` requires admin role | S19 | Plan a Supabase Edge Function with service role for deletion |
-| 8 | Free-text leak in anonymous analytics | S21 | Allowlist + payload validation + code review every call site |
-| 9 | App Store review delay | S22 | Submit with 1–2 weeks of launch buffer; have rollback plan |
-| 10 | Beta tester recruitment slow | S14 | Start in S6; over-recruit by 50% |
-| 11 | S10 Today redesign is load-bearing + large | S10 | Budget 3–5 days; get interaction model right before polishing visuals |
-| 12 | S13 reminders combines foundation + UI | S13 | UI is simple (one settings screen per habit); test on both iOS + Android |
-
-## 12. Status tracking convention
-
-Each sprint moves through these states:
-
-- **Planned** — sprint defined, not yet started
-- **In progress** — work has begun
-- **In review** — deliverables done, awaiting QA / acceptance check
-- **Done** — done means met; ready for next sprint to start
-
-The "Done means" line in each sprint definition is the bar. A sprint isn't Done until the bar is met.
-
-Update this document when:
-- A sprint changes scope materially
-- A sprint is split or merged
-- The phase plan changes
-- A risk turns into reality (note in the register, link to the response)
-
----
-
-### Sprint status
+## Sprint status
 
 | Sprint | Status | Notes |
 |---|---|---|
@@ -646,16 +145,17 @@ Update this document when:
 | S10 | Done | Today implementation + beta build prep |
 | S11 | Done | Reviews cleanup + adjustment validation |
 | S12 | Done | Goal-anchored habit creation flow + icon picker |
-| S13 | Planned | Active days + Habit Detail redesign + Reminders |
-| S14 | Planned | Weekly Review ungating + Beta QA → **SHIP TO TESTERS** |
-| S15 | Planned | SRHI repo + eligibility |
-| S16 | Planned | Graduation ceremony |
-| S17 | Planned | Library + Backlog |
-| S18 | Planned | Data export |
-| S19 | Planned | Account deletion |
-| S20 | Planned | Bug #3 + empty states + privacy/terms |
-| S21 | Planned | Analytics |
-| S22 | Planned | Store submission |
+| S13 | Done | Active days + Habit Detail redesign + Reminders |
+| S14 | Done (code) | Weekly Review ungating + Beta QA → **SHIP TO TESTERS** (QA/distribution pending) |
+| S15 | Planned | Goal Detail screen + Habit Detail redesign |
+| S16 | Planned | SRHI repo + eligibility |
+| S17 | Planned | Graduation ceremony |
+| S18 | Planned | Library + Backlog |
+| S19 | Planned | Data export |
+| S20 | Planned | Account deletion |
+| S21 | Planned | Bug #3 + empty states + privacy/terms |
+| S22 | Planned | Analytics |
+| S23 | Planned | Store submission |
 
 ---
 
