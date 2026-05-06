@@ -21,11 +21,15 @@ export default function ProtectedLayout() {
       <Stack.Screen name="habits/[habitId]" options={{ headerShown: false }} />
       <Stack.Screen
         name="habits/[habitId]/edit"
-        options={{ title: "Edit Habit" }}
+        options={{ headerShown: false }}
       />
       <Stack.Screen
         name="habits/[habitId]/context"
         options={{ title: "Habit Context" }}
+      />
+      <Stack.Screen
+        name="goals/[identityPhrase]"
+        options={{ headerShown: false }}
       />
       <Stack.Screen
         name="reviews/[habitId]"

@@ -1,22 +1,20 @@
 import { router, useLocalSearchParams } from "expo-router";
-import { AlertTriangle, ArrowLeft, Bell, ChevronRight, Clock } from "lucide-react-native";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { AlertTriangle, ArrowLeft } from "lucide-react-native";
+import { useEffect, useRef, useState } from "react";
 import {
   Animated,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
-  Switch,
   Text,
   TextInput,
   View,
 } from "react-native";
-import DateTimePicker from "@react-native-community/datetimepicker";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { ActiveDaysPicker } from "@/components/forms/ActiveDaysPicker";
+import { ReminderPicker } from "@/components/forms/ReminderPicker";
 import { GoalContextChip } from "@/components/GoalContextChip";
 import { LucideIcon, LucideIconPicker } from "@/components/LucideIconPicker";
 import { PrimaryButton } from "@/components/buttons/PrimaryButton";
@@ -28,6 +26,7 @@ import { useAuthSession } from "@/features/auth/hooks";
 import { listEligibleHabitsForToday } from "@/features/habits/api";
 import { assertCanCreateActiveHabit } from "@/features/habits/validators";
 import { formatHabitFormula, stripLeadingAfter, stripLeadingIWill } from "@/features/habits/formatters";
+import { normaliseBecomingPhrase } from "@/utils/normalisePhrase";
 import {
   getEligibleHabitsQueryKey,
   useCreateHabitMutation,
@@ -151,7 +150,7 @@ export default function CreateHabitFlow() {
 
     try {
       const created = await createHabitMutation.mutateAsync({
-        identityPhrase: draft.identityPhrase.trim(),
+        identityPhrase: normaliseBecomingPhrase(draft.identityPhrase),
         title: draft.habitName.trim(),
         cue: stripLeadingAfter(draft.cue),
         tinyAction: stripLeadingIWill(draft.tinyAction),
@@ -208,7 +207,11 @@ export default function CreateHabitFlow() {
             disabled={!canContinue}
             label="Continue"
             showArrow
-            onPress={() => advanceTo("action")}
+            onPress={() => {
+              const fixed = normaliseBecomingPhrase(draft.identityPhrase);
+              if (fixed !== draft.identityPhrase) update({ identityPhrase: fixed });
+              advanceTo("action");
+            }}
           />
         }
       >
@@ -220,6 +223,10 @@ export default function CreateHabitFlow() {
           placeholder="runs regularly, reads daily..."
           value={draft.identityPhrase}
           onChangeText={(text) => update({ identityPhrase: text })}
+          onBlur={() => {
+            const fixed = normaliseBecomingPhrase(draft.identityPhrase);
+            if (fixed !== draft.identityPhrase) update({ identityPhrase: fixed });
+          }}
         />
         {capWarning ? <CapWarningCard count={capWarning.count} /> : null}
       </OnboardingLayout>
@@ -442,95 +449,6 @@ function BuildStep({
         onChange={(t) => update({ reminderTime: t })}
       />
     </OnboardingLayout>
-  );
-}
-
-// ─── Reminder picker ──────────────────────────────────────────────────────────
-
-function format12h(time: string): string {
-  const [h, m] = time.split(":").map(Number);
-  const period = h >= 12 ? "PM" : "AM";
-  const h12 = h % 12 || 12;
-  return `${h12}:${m.toString().padStart(2, "0")} ${period}`;
-}
-
-function ReminderPicker({
-  value,
-  onChange,
-}: {
-  value: string | null;
-  onChange: (v: string | null) => void;
-}) {
-  const [showPicker, setShowPicker] = useState(false);
-  const enabled = value !== null;
-
-  const pickerDate = useMemo(() => {
-    const d = new Date();
-    if (value) {
-      const [h, m] = value.split(":").map(Number);
-      d.setHours(h, m, 0, 0);
-    } else {
-      d.setHours(7, 0, 0, 0);
-    }
-    return d;
-  }, [value]);
-
-  function handleToggle(on: boolean) {
-    if (on) {
-      onChange("07:00");
-    } else {
-      onChange(null);
-      setShowPicker(false);
-    }
-  }
-
-  return (
-    <View style={styles.reminderSection}>
-      <Text style={styles.reminderLabel}>Add a reminder</Text>
-      <View style={styles.reminderCard}>
-        <View style={styles.reminderCardRow}>
-          <Bell size={16} color={colors.primary} strokeWidth={1.75} />
-          <Text style={styles.reminderCardRowText}>Notify me</Text>
-          <Switch
-            value={enabled}
-            onValueChange={handleToggle}
-            trackColor={{ false: colors.surface, true: colors.primary }}
-            thumbColor={colors.surfaceCard}
-          />
-        </View>
-        {enabled ? (
-          <>
-            <View style={styles.reminderDivider} />
-            <Pressable style={styles.reminderCardRow} onPress={() => setShowPicker(true)}>
-              <Clock size={16} color={colors.textMuted} strokeWidth={1.75} />
-              <Text style={styles.reminderCardRowText}>Time</Text>
-              <Text style={styles.reminderTimeValue}>{format12h(value!)}</Text>
-              <ChevronRight size={16} color={colors.textMuted} strokeWidth={1.75} />
-            </Pressable>
-          </>
-        ) : null}
-      </View>
-      {showPicker ? (
-        <DateTimePicker
-          value={pickerDate}
-          mode="time"
-          display={Platform.OS === "ios" ? "spinner" : "default"}
-          onChange={(_, selected) => {
-            if (Platform.OS === "android") setShowPicker(false);
-            if (selected) {
-              const h = selected.getHours().toString().padStart(2, "0");
-              const m = selected.getMinutes().toString().padStart(2, "0");
-              onChange(`${h}:${m}`);
-            }
-          }}
-        />
-      ) : null}
-      {showPicker && Platform.OS === "ios" ? (
-        <Pressable style={styles.reminderDone} onPress={() => setShowPicker(false)}>
-          <Text style={styles.reminderDoneText}>Done</Text>
-        </Pressable>
-      ) : null}
-    </View>
   );
 }
 
@@ -792,56 +710,6 @@ const styles = StyleSheet.create({
   activeDaysSection: {
     marginTop: spacing.xl,
     marginBottom: spacing.xl,
-  },
-  reminderSection: {
-    marginBottom: spacing.xl,
-  },
-  reminderLabel: {
-    fontSize: 13,
-    fontFamily: fontFamilies.bodyMedium,
-    color: colors.textMuted,
-    marginBottom: 8,
-    paddingLeft: 4,
-  },
-  reminderCard: {
-    backgroundColor: colors.surfaceCard,
-    borderRadius: radius.md,
-    boxShadow: shadows.inputField,
-    overflow: "hidden",
-  },
-  reminderCardRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.sm,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-  },
-  reminderCardRowText: {
-    flex: 1,
-    fontFamily: fontFamilies.body,
-    fontSize: 15,
-    color: colors.text,
-  },
-  reminderDivider: {
-    height: 1,
-    backgroundColor: colors.surface,
-    marginHorizontal: spacing.lg,
-  },
-  reminderTimeValue: {
-    fontFamily: fontFamilies.body,
-    fontSize: 15,
-    color: colors.textMuted,
-  },
-  reminderDone: {
-    alignSelf: "flex-end",
-    marginTop: spacing.sm,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-  },
-  reminderDoneText: {
-    fontFamily: fontFamilies.bodySemi,
-    fontSize: 15,
-    color: colors.primary,
   },
   formulaText: {
     fontFamily: fontFamilies.displaySemi,

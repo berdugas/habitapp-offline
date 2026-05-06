@@ -12,10 +12,11 @@ type OnboardingInputProps = {
   placeholder: string;
   value: string;
   onChangeText: (text: string) => void;
+  onBlur?: () => void;
 };
 
 export const OnboardingInput = forwardRef<TextInput, OnboardingInputProps>(
-  function OnboardingInput({ label, placeholder, value, onChangeText }, ref) {
+  function OnboardingInput({ label, placeholder, value, onChangeText, onBlur }, ref) {
     return (
       <View>
         <Text style={styles.label}>{label}</Text>
@@ -27,6 +28,7 @@ export const OnboardingInput = forwardRef<TextInput, OnboardingInputProps>(
             placeholderTextColor={colors.textFaint}
             style={styles.input}
             value={value}
+            onBlur={onBlur}
             onChangeText={onChangeText}
           />
         </View>

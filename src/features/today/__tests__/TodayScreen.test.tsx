@@ -153,26 +153,15 @@ describe("TodayScreen", () => {
     expect(screen.getByLabelText("Log Run")).toBeTruthy();
   });
 
-  it("renders 'Today is a fresh start.' when streak is 0", () => {
+  it("renders '1 remaining to complete' pill when one habit is incomplete", () => {
     useTodayHabits.mockReturnValue({
       error: null,
-      habits: [makeHabit({ streak: 0 })],
+      habits: [makeHabit({ streak: 0, todayStatus: null })],
       isLoading: false,
       upcomingHabits: [],
     });
     renderWithClient(<TodayScreen />);
-    expect(screen.getByText("Today is a fresh start.")).toBeTruthy();
-  });
-
-  it("renders 'Day one done. Come back tomorrow.' when streak is 1", () => {
-    useTodayHabits.mockReturnValue({
-      error: null,
-      habits: [makeHabit({ streak: 1, todayStatus: "done" })],
-      isLoading: false,
-      upcomingHabits: [],
-    });
-    renderWithClient(<TodayScreen />);
-    expect(screen.getByText("Day one done. Come back tomorrow.")).toBeTruthy();
+    expect(screen.getByText("1 remaining to complete")).toBeTruthy();
   });
 
   it("tapping the circle calls the mutation with status='done'", () => {

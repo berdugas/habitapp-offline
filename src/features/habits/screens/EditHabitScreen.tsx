@@ -1,26 +1,36 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import {
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { ArrowLeft, PenLine } from "lucide-react-native";
 
 import { LucideIcon, LucideIconPicker } from "@/components/LucideIconPicker";
-import { PrimaryButton } from "@/components/buttons/PrimaryButton";
-import { ReadOnlyBanner } from "@/components/ReadOnlyBanner";
-import { ZenCard } from "@/components/cards/ZenCard";
+import { ReminderPicker } from "@/components/forms/ReminderPicker";
 import { ErrorState } from "@/components/feedback/ErrorState";
 import { LoadingState } from "@/components/feedback/LoadingState";
 import { ActiveDaysPicker } from "@/components/forms/ActiveDaysPicker";
-import { ChoicePills } from "@/components/forms/ChoicePills";
-import { TextField } from "@/components/forms/TextField";
-import { Eyebrow } from "@/components/text/Eyebrow";
+import { ReadOnlyBanner } from "@/components/ReadOnlyBanner";
 import {
   useOwnedHabitQuery,
   useUpdateHabitMutation,
 } from "@/features/habits/hooks";
 import { parseActiveDays, ALL_DAYS } from "@/features/habits/activeDays";
-import { rescheduleAll } from "@/features/reminders/notifications";
+import {
+  cancelReminder,
+  rescheduleAll,
+  scheduleReminder,
+} from "@/features/reminders/notifications";
+import { getReminderByHabitId } from "@/lib/db/repositories/reminders";
 import { formatHabitFormula } from "@/features/habits/formatters";
+import { stripLeadingAfter, stripLeadingIWill } from "@/features/habits/formatters";
 import { useAuthSession } from "@/features/auth/hooks";
-import { PREFERRED_TIME_WINDOW_OPTIONS } from "@/features/habits/preferredTimeWindows";
 import {
   normalizeHabitSetupPayload,
   validateHabitSetupPayload,
@@ -29,6 +39,7 @@ import { getHabitSuggestionEditGuidance } from "@/features/recommendations/editG
 import { useTrialValidation } from "@/features/trial/hooks";
 import { colors } from "@/theme/colors";
 import { fontFamilies } from "@/theme/fontFamilies";
+import { radius } from "@/theme/radius";
 import { spacing } from "@/theme/spacing";
 import { typography } from "@/theme/typography";
 import {
@@ -43,8 +54,19 @@ export default function EditHabitScreen() {
     suggestionType?: string | string[];
     from?: string | string[];
   }>();
-  const fromRecovery =
-    (Array.isArray(from) ? from[0] : from) === "recovery";
+  const fromRecovery = (Array.isArray(from) ? from[0] : from) === "recovery";
+  const insets = useSafeAreaInsets();
+  const resolvedHabitId = Array.isArray(habitId) ? habitId[0] : habitId;
+
+  function handleBack() {
+    if (router.canGoBack()) {
+      router.back();
+    } else if (resolvedHabitId) {
+      router.replace(`/(app)/habits/${resolvedHabitId}`);
+    } else {
+      router.replace("/(app)/(tabs)/today");
+    }
+  }
   const ownedHabitQuery = useOwnedHabitQuery(habitId);
   const updateHabitMutation = useUpdateHabitMutation();
   const { accessMode, isValidating, refresh } = useTrialValidation();
@@ -62,8 +84,12 @@ export default function EditHabitScreen() {
   const [preferredTimeWindow, setPreferredTimeWindow] = useState("");
   const [icon, setIcon] = useState("");
   const [activeDays, setActiveDays] = useState<number[]>(ALL_DAYS);
-  const [showPicker, setShowPicker] = useState(false);
+  const [showIconPicker, setShowIconPicker] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+
+  const [reminderTime, setReminderTime] = useState<string | null>(null);
+  const [reminderReady, setReminderReady] = useState(false);
+  const reminderLoadRef = useRef<"pending" | "loaded" | "failed">("pending");
 
   const formPayload = {
     title,
@@ -78,13 +104,12 @@ export default function EditHabitScreen() {
   const normalizedPayload = normalizeHabitSetupPayload(formPayload);
   const validationErrors = useMemo(
     () => validateHabitSetupPayload(formPayload),
-    [formPayload],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [title, identityPhrase, cue, tinyAction, minimumViableAction, preferredTimeWindow, icon, activeDays],
   );
 
   useEffect(() => {
-    if (!ownedHabitQuery.data || hasHydratedFormRef.current) {
-      return;
-    }
+    if (!ownedHabitQuery.data || hasHydratedFormRef.current) return;
 
     setTitle(ownedHabitQuery.data.title);
     setIdentityPhrase(ownedHabitQuery.data.identity_phrase ?? "");
@@ -97,22 +122,31 @@ export default function EditHabitScreen() {
     hasHydratedFormRef.current = true;
 
     if (fromRecovery) {
-      // Give the layout a tick to settle before pulling up the keyboard.
-      setTimeout(() => {
-        tinyActionRef.current?.focus();
-      }, 0);
+      setTimeout(() => { tinyActionRef.current?.focus(); }, 0);
     }
-  }, [ownedHabitQuery.data, fromRecovery]);
+
+    // Load existing reminder — three-state sentinel prevents unknown state from cancelling it
+    const id = Array.isArray(habitId) ? habitId[0] : habitId;
+    if (id) {
+      getReminderByHabitId(id).then((reminder) => {
+        if (reminder && reminder.reminder_type !== "none" && reminder.reminder_time) {
+          setReminderTime(reminder.reminder_time);
+        }
+        reminderLoadRef.current = "loaded";
+        setReminderReady(true);
+      }).catch(() => {
+        // Load failed: we don't know if a reminder exists — mark as failed, not loaded
+        reminderLoadRef.current = "failed";
+        setReminderReady(true);
+      });
+    } else {
+      reminderLoadRef.current = "loaded";
+      setReminderReady(true);
+    }
+  }, [ownedHabitQuery.data, fromRecovery, habitId]);
 
   async function handleSave() {
-    if (
-      submitLockRef.current ||
-      updateHabitMutation.isPending ||
-      !ownedHabitQuery.data
-    ) {
-      return;
-    }
-
+    if (submitLockRef.current || updateHabitMutation.isPending || !ownedHabitQuery.data) return;
     setFormError(null);
 
     if (Object.keys(validationErrors).length > 0) {
@@ -127,10 +161,26 @@ export default function EditHabitScreen() {
         habitId: ownedHabitQuery.data.id,
         payload: normalizedPayload,
       });
-      // Reschedule reminder if active days changed
+
       if (user?.id) {
+        const loadState = reminderLoadRef.current;
+        if (reminderTime) {
+          // User explicitly set a time — safe to schedule regardless of load state
+          await scheduleReminder(
+            ownedHabitQuery.data.id,
+            user.id,
+            "daily",
+            reminderTime,
+            activeDays,
+          ).catch(() => {});
+        } else if (loadState === "loaded") {
+          // Load succeeded and reminderTime is null — user turned it off
+          await cancelReminder(ownedHabitQuery.data.id).catch(() => {});
+        }
+        // loadState "pending" or "failed": skip cancelReminder — state is unknown
         await rescheduleAll(user.id).catch(() => {});
       }
+
       router.replace(`/(app)/habits/${ownedHabitQuery.data.id}`);
     } catch {
       setFormError(getUpdateHabitErrorMessage());
@@ -139,10 +189,9 @@ export default function EditHabitScreen() {
     }
   }
 
-  const preview = formatHabitFormula(
-    normalizedPayload.cue,
-    normalizedPayload.tinyAction,
-  );
+  const cleanCue = stripLeadingAfter(normalizedPayload.cue);
+  const cleanAction = stripLeadingIWill(normalizedPayload.tinyAction);
+  const preview = formatHabitFormula(normalizedPayload.cue, normalizedPayload.tinyAction);
 
   if (ownedHabitQuery.isLoading) {
     return <LoadingState message="Loading habit details..." />;
@@ -150,14 +199,7 @@ export default function EditHabitScreen() {
 
   if (ownedHabitQuery.error || !ownedHabitQuery.data) {
     return (
-      <ScrollView
-        contentContainerStyle={styles.content}
-        contentInsetAdjustmentBehavior="automatic"
-        style={styles.screen}
-      >
-        <Text selectable style={styles.title}>
-          Edit Habit
-        </Text>
+      <ScrollView contentContainerStyle={styles.content} style={styles.screen}>
         <ErrorState message={getLoadHabitDetailErrorMessage()} />
       </ScrollView>
     );
@@ -170,214 +212,372 @@ export default function EditHabitScreen() {
       style={styles.screen}
     >
       {isReadOnly ? (
-        <ReadOnlyBanner
-          isReconnecting={isValidating}
-          onReconnect={() => void refresh()}
-        />
+        <ReadOnlyBanner isReconnecting={isValidating} onReconnect={() => void refresh()} />
       ) : null}
-      <Text selectable style={styles.title}>
-        Edit Habit
-      </Text>
 
+      {/* Header */}
+      <View style={{ paddingTop: insets.top + spacing.sm }}>
+        <Pressable hitSlop={12} onPress={handleBack} style={styles.backButton}>
+          <ArrowLeft size={20} color={colors.textMuted} strokeWidth={1.75} />
+        </Pressable>
+        <Text style={styles.headerTitle}>Edit habit</Text>
+      </View>
+
+      {/* Suggestion guidance */}
       {suggestionGuidance ? (
-        <ZenCard gap={spacing.sm}>
-          <Eyebrow label="Suggested adjustment" />
-          <Text style={styles.suggestionTitle}>
-            {suggestionGuidance.title}
-          </Text>
-          <Text style={styles.suggestionBody}>
-            {suggestionGuidance.body}
-          </Text>
-          <Text style={styles.suggestionDraftLabel}>
-            {suggestionGuidance.draftTitle}
-          </Text>
-          <Text style={styles.suggestionDraftBody}>
-            {suggestionGuidance.draftBody}
-          </Text>
-          <Text style={styles.suggestionReasonLabel}>
-            Why this suggestion
-          </Text>
-          <Text style={styles.suggestionReason}>
-            {suggestionGuidance.reason}
-          </Text>
-        </ZenCard>
+        <View style={styles.suggestionCard}>
+          <Text style={styles.suggestionEyebrow}>SUGGESTED ADJUSTMENT</Text>
+          <Text style={styles.suggestionTitle}>{suggestionGuidance.title}</Text>
+          <Text style={styles.suggestionBody}>{suggestionGuidance.body}</Text>
+          <Text style={styles.suggestionDraftLabel}>{suggestionGuidance.draftTitle}</Text>
+          <Text style={styles.suggestionDraftBody}>{suggestionGuidance.draftBody}</Text>
+          <Text style={styles.suggestionReasonLabel}>Why this suggestion</Text>
+          <Text style={styles.suggestionReason}>{suggestionGuidance.reason}</Text>
+        </View>
       ) : null}
 
-      <ZenCard gap={spacing.lg}>
-        {formError ? <ErrorState message={formError} /> : null}
-        <TextField
-          error={validationErrors.title}
-          label="Habit name"
-          onChangeText={setTitle}
-          placeholder="Reading"
-          value={title}
-        />
-        <TextField
-          error={validationErrors.identityPhrase}
-          label="Identity phrase"
-          onChangeText={setIdentityPhrase}
-          placeholder="Become someone who reads daily"
-          value={identityPhrase}
-        />
-        <TextField
-          error={validationErrors.cue}
-          label="Cue"
-          onChangeText={setCue}
-          placeholder="After I brush my teeth"
-          value={cue}
-        />
-        <TextField
-          ref={tinyActionRef}
-          error={validationErrors.tinyAction}
-          label="Tiny action"
-          onChangeText={setTinyAction}
-          placeholder="Read 1 page"
-          value={tinyAction}
-        />
-        <TextField
-          error={validationErrors.minimumViableAction}
-          label="Minimum viable action (optional)"
-          onChangeText={setMinimumViableAction}
-          placeholder="Just open the book"
-          value={minimumViableAction}
-        />
-        <ChoicePills
-          label="Preferred time window"
-          onChange={setPreferredTimeWindow}
-          options={PREFERRED_TIME_WINDOW_OPTIONS}
-          value={preferredTimeWindow}
-        />
-        <ActiveDaysPicker
-          value={activeDays}
-          disabled={isReadOnly}
-          onChange={setActiveDays}
-        />
-        <View style={styles.iconRow}>
-          <Text style={styles.iconLabel}>Icon</Text>
-          <Pressable
-            onPress={() => setShowPicker((v) => !v)}
-            style={styles.iconCircle}
-          >
+      {/* Identity card */}
+      {identityPhrase ? (
+        <View style={styles.identityCard}>
+          <Text style={styles.identityEyebrow}>IDENTITY</Text>
+          <Text style={styles.identityPhrase}>{identityPhrase}</Text>
+          <Text style={styles.identityHint}>Part of a goal · change in goal settings</Text>
+        </View>
+      ) : null}
+
+      {/* Habit name + icon */}
+      <View style={styles.section}>
+        <Text style={styles.fieldLabel}>Habit name</Text>
+        <View style={[styles.fieldRow, validationErrors.title ? styles.fieldError : null]}>
+          <PenLine size={16} color={colors.primary} strokeWidth={1.5} />
+          <TextInput
+            style={styles.fieldInput}
+            value={title}
+            onChangeText={setTitle}
+            placeholder="Reading"
+            placeholderTextColor={colors.textFaint}
+            editable={!isReadOnly}
+          />
+          <Pressable onPress={() => setShowIconPicker((v) => !v)} style={styles.iconButton}>
             <LucideIcon
               name={icon || "Sparkles"}
-              size={20}
+              size={18}
               color={icon ? colors.primary : colors.textFaint}
               strokeWidth={1.8}
             />
           </Pressable>
         </View>
-        {showPicker ? (
+        {validationErrors.title ? (
+          <Text style={styles.errorText}>{validationErrors.title}</Text>
+        ) : null}
+        {showIconPicker ? (
           <LucideIconPicker
             selected={icon || null}
-            onSelect={(name) => {
-              setIcon(name);
-              setShowPicker(false);
-            }}
+            onSelect={(name) => { setIcon(name); setShowIconPicker(false); }}
           />
         ) : null}
-        {/* TODO(S15): reminder settings */}
-      </ZenCard>
+      </View>
 
-      <ZenCard gap={spacing.sm}>
-        <Eyebrow label="Preview" tone="primary" />
-        <Text selectable style={styles.previewText}>
-          {preview}
+      {/* Cue */}
+      <View style={styles.section}>
+        <Text style={styles.fieldLabel}>
+          Cue <Text style={styles.fieldHint}>— what triggers this habit?</Text>
         </Text>
-      </ZenCard>
+        <View style={[styles.fieldRow, validationErrors.cue ? styles.fieldError : null]}>
+          <PenLine size={16} color={colors.primary} strokeWidth={1.5} />
+          <TextInput
+            style={styles.fieldInput}
+            value={cue}
+            onChangeText={setCue}
+            placeholder="After I brush my teeth"
+            placeholderTextColor={colors.textFaint}
+            editable={!isReadOnly}
+          />
+        </View>
+        {validationErrors.cue ? (
+          <Text style={styles.errorText}>{validationErrors.cue}</Text>
+        ) : null}
+      </View>
 
-      <PrimaryButton
+      {/* Tiny action */}
+      <View style={styles.section}>
+        <Text style={styles.fieldLabel}>
+          Tiny action <Text style={styles.fieldHint}>— the smallest version</Text>
+        </Text>
+        <View style={[styles.fieldRow, validationErrors.tinyAction ? styles.fieldError : null]}>
+          <PenLine size={16} color={colors.primary} strokeWidth={1.5} />
+          <TextInput
+            ref={tinyActionRef}
+            style={styles.fieldInput}
+            value={tinyAction}
+            onChangeText={setTinyAction}
+            placeholder="Read 1 page"
+            placeholderTextColor={colors.textFaint}
+            editable={!isReadOnly}
+          />
+        </View>
+        {validationErrors.tinyAction ? (
+          <Text style={styles.errorText}>{validationErrors.tinyAction}</Text>
+        ) : null}
+      </View>
+
+      {/* Formula preview */}
+      {preview !== "" ? (
+        <View style={styles.formulaCard}>
+          <Text style={styles.formulaEyebrow}>YOUR FORMULA</Text>
+          <Text style={styles.formulaText}>
+            After <Text style={styles.formulaHighlight}>{cleanCue}</Text>
+            {", "}I will <Text style={styles.formulaHighlight}>{cleanAction}</Text>.
+          </Text>
+        </View>
+      ) : null}
+
+      {formError ? (
+        <View style={styles.formErrorWrap}>
+          <ErrorState message={formError} />
+        </View>
+      ) : null}
+
+      <View style={styles.divider} />
+
+      {/* Active days */}
+      <View style={styles.section}>
+        <ActiveDaysPicker value={activeDays} disabled={isReadOnly} onChange={setActiveDays} />
+      </View>
+
+      <View style={styles.divider} />
+
+      {/* Reminder */}
+      <ReminderPicker value={reminderTime} onChange={setReminderTime} disabled={!reminderReady} />
+
+      {/* Save */}
+      <Pressable
+        style={({ pressed }) => [
+          styles.saveButton,
+          (updateHabitMutation.isPending || isReadOnly) && styles.saveButtonDisabled,
+          pressed && styles.saveButtonPressed,
+        ]}
         disabled={updateHabitMutation.isPending || isReadOnly}
-        label={updateHabitMutation.isPending ? "Saving changes..." : "Save changes"}
         onPress={() => void handleSave()}
-      />
-      {isReadOnly ? (
-        <Text selectable style={styles.readOnlyHelper}>
-          Reconnect to edit habits.
+      >
+        <Text style={styles.saveButtonText}>
+          {updateHabitMutation.isPending ? "Saving…" : "Save changes"}
         </Text>
+      </Pressable>
+
+      {isReadOnly ? (
+        <Text style={styles.readOnlyHelper}>Reconnect to edit habits.</Text>
       ) : null}
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  content: {
-    gap: spacing.xl,
-    padding: spacing.xl,
-  },
-  previewText: {
-    color: colors.text,
-    fontFamily: fontFamilies.bodySemi,
-    fontSize: 18,
-    lineHeight: 26,
-  },
   screen: {
     backgroundColor: colors.bg,
     flex: 1,
   },
-  suggestionBody: {
-    color: colors.textMuted,
-    fontFamily: fontFamilies.body,
-    fontSize: 14,
-    lineHeight: 20,
+  content: {
+    paddingHorizontal: spacing.xl,
+    paddingBottom: spacing.xxxl,
+    gap: spacing.lg,
   },
-  suggestionDraftBody: {
-    color: colors.textMuted,
+  backButton: {
+    width: 32,
+    height: 32,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: spacing.sm,
+  },
+  headerTitle: {
+    fontFamily: fontFamilies.displayBold,
+    fontSize: 26,
+    lineHeight: 32,
+    color: colors.text,
+    marginBottom: spacing.sm,
+  },
+  // Suggestion card
+  suggestionCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
+    padding: spacing.lg,
+    gap: spacing.sm,
+  },
+  suggestionEyebrow: {
+    fontFamily: fontFamilies.bodyMedium,
+    fontSize: 11,
+    color: colors.textFaint,
+    letterSpacing: 0.5,
+  },
+  suggestionTitle: {
+    fontFamily: fontFamilies.displaySemi,
+    fontSize: typography.headlineMd,
+    color: colors.text,
+  },
+  suggestionBody: {
     fontFamily: fontFamilies.body,
     fontSize: 14,
     lineHeight: 20,
+    color: colors.textMuted,
   },
   suggestionDraftLabel: {
-    color: colors.text,
     fontFamily: fontFamilies.bodySemi,
     fontSize: 13,
     lineHeight: 20,
+    color: colors.text,
   },
-  suggestionReason: {
-    color: colors.textMuted,
+  suggestionDraftBody: {
     fontFamily: fontFamilies.body,
     fontSize: 14,
-    lineHeight: 24,
-    marginBottom: spacing.xs,
+    lineHeight: 20,
+    color: colors.textMuted,
   },
   suggestionReasonLabel: {
-    color: colors.text,
     fontFamily: fontFamilies.bodySemi,
     fontSize: 13,
     lineHeight: 22,
-  },
-  suggestionTitle: {
     color: colors.text,
-    fontFamily: fontFamilies.displaySemi,
-    fontSize: typography.headlineMd,
   },
-  title: {
+  suggestionReason: {
+    fontFamily: fontFamilies.body,
+    fontSize: 14,
+    lineHeight: 24,
+    color: colors.textMuted,
+  },
+  // Identity card
+  identityCard: {
+    backgroundColor: colors.primarySoft,
+    borderRadius: radius.md,
+    padding: spacing.lg,
+    gap: 2,
+  },
+  identityEyebrow: {
+    fontFamily: fontFamilies.bodyMedium,
+    fontSize: 11,
+    color: colors.primary,
+    letterSpacing: 0.5,
+    marginBottom: 2,
+  },
+  identityPhrase: {
+    fontFamily: fontFamilies.bodySemi,
+    fontSize: 15,
     color: colors.text,
-    fontFamily: fontFamilies.displaySemi,
-    fontSize: typography.headlineMd,
+  },
+  identityHint: {
+    fontFamily: fontFamilies.body,
+    fontSize: 12,
+    color: colors.primary,
+    opacity: 0.8,
+    marginTop: 2,
+  },
+  // Fields
+  section: {
+    gap: spacing.sm,
+  },
+  fieldLabel: {
+    fontFamily: fontFamilies.bodyMedium,
+    fontSize: 13,
+    color: colors.textMuted,
+  },
+  fieldHint: {
+    fontFamily: fontFamilies.body,
+    fontSize: 13,
+    color: colors.textFaint,
+  },
+  fieldRow: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+  },
+  fieldError: {
+    borderWidth: 1,
+    borderColor: colors.danger,
+  },
+  fieldInput: {
+    flex: 1,
+    fontFamily: fontFamilies.body,
+    fontSize: 15,
+    color: colors.text,
+  },
+  iconButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 8,
+    backgroundColor: colors.surfaceCard,
+    borderWidth: 0.5,
+    borderColor: colors.offDayBorder,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  errorText: {
+    fontFamily: fontFamilies.body,
+    fontSize: 12,
+    color: colors.danger,
+    marginTop: -spacing.xs,
+  },
+  // Formula card
+  formulaCard: {
+    backgroundColor: colors.surfaceCard,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.offDayBorder,
+    padding: spacing.lg,
+    gap: spacing.sm,
+  },
+  formulaEyebrow: {
+    fontFamily: fontFamilies.bodyMedium,
+    fontSize: 11,
+    color: colors.textFaint,
+    letterSpacing: 0.5,
+  },
+  formulaText: {
+    fontFamily: fontFamilies.body,
+    fontSize: 15,
+    color: colors.text,
+    fontStyle: "italic",
+    lineHeight: 22,
+  },
+  formulaHighlight: {
+    fontFamily: fontFamilies.bodySemi,
+    color: colors.primary,
+    fontStyle: "italic",
+  },
+  formErrorWrap: {
+    marginTop: -spacing.sm,
+  },
+  // Divider
+  divider: {
+    height: 1,
+    backgroundColor: colors.offDayBorder,
+    marginVertical: spacing.sm,
+  },
+  // Save button
+  saveButton: {
+    backgroundColor: colors.primary,
+    borderRadius: 24,
+    paddingVertical: 14,
+    alignItems: "center",
+    marginTop: spacing.sm,
+  },
+  saveButtonDisabled: {
+    opacity: 0.5,
+  },
+  saveButtonPressed: {
+    opacity: 0.85,
+  },
+  saveButtonText: {
+    fontFamily: fontFamilies.bodySemi,
+    fontSize: 15,
+    color: colors.primaryText,
   },
   readOnlyHelper: {
     color: colors.textMuted,
     fontFamily: fontFamilies.body,
     fontSize: 14,
-    lineHeight: 20,
     textAlign: "center",
-  },
-  iconRow: {
-    alignItems: "center",
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  iconLabel: {
-    color: colors.textMuted,
-    fontFamily: fontFamilies.bodyMedium,
-    fontSize: 13,
-  },
-  iconCircle: {
-    alignItems: "center",
-    backgroundColor: colors.surface,
-    borderRadius: 20,
-    height: 40,
-    justifyContent: "center",
-    width: 40,
   },
 });

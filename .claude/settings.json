@@ -48,7 +48,8 @@
       "Bash(Select-Object -ExpandProperty FullName)",
       "Bash(node -e ' *)",
       "Bash(node -e \"require\\('./node_modules/jest-expo'\\)\")",
-      "Bash(gh pr *)"
+      "Bash(gh pr *)",
+      "Bash(powershell -Command \"Get-ChildItem -Path 'src\\\\features\\\\today' -Recurse -Include '*.tsx' -Name\")"
     ],
     "additionalDirectories": [
       "C:\\Users\\daddy\\appium-test"

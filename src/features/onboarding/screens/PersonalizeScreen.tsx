@@ -7,6 +7,7 @@ import { SecondaryButton } from "@/components/buttons/SecondaryButton";
 import { OnboardingLayout } from "@/components/layouts/OnboardingLayout";
 import { OnboardingHeader } from "@/components/navigation/OnboardingHeader";
 import { useOnboarding } from "@/features/onboarding/OnboardingProvider";
+import { stripLeadingAfter, stripLeadingIWill } from "@/features/habits/formatters";
 import {
   LucideIcon,
   LucideIconPicker,
@@ -133,9 +134,9 @@ export default function PersonalizeScreen() {
 
         <Text style={styles.formula}>
           After{" "}
-          <Text style={styles.formulaBold}>{draft.cueExisting}</Text>
+          <Text style={styles.formulaBold}>{stripLeadingAfter(draft.cueExisting)}</Text>
           {", "}I will{" "}
-          <Text style={styles.formulaBold}>{draft.tinyAction}</Text>
+          <Text style={styles.formulaBold}>{stripLeadingIWill(draft.tinyAction)}</Text>
         </Text>
 
         {draft.becomingPhrase ? (

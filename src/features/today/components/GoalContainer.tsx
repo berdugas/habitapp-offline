@@ -44,7 +44,7 @@ export function GoalContainer({
           <Text style={styles.streakText}>{streakCopy}</Text>
           {remainingCount > 0 ? (
             <View style={styles.pill}>
-              <Text style={styles.pillText}>{remainingCount} remaining</Text>
+              <Text style={styles.pillText}>{remainingCount} remaining to complete</Text>
             </View>
           ) : (
             <View style={[styles.pill, styles.pillComplete]}>

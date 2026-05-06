@@ -1,6 +1,7 @@
 import { ScrollView, StyleSheet, Text, View, Pressable } from "react-native";
 import { ChevronLeft } from "lucide-react-native";
 import { router, useLocalSearchParams } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { MiniHeatmapStrip } from "@/components/MiniHeatmapStrip";
 import { ReadOnlyBanner } from "@/components/ReadOnlyBanner";
@@ -24,6 +25,7 @@ import { typography } from "@/theme/typography";
 export default function GoalDetailScreen() {
   const { identityPhrase: rawParam } = useLocalSearchParams<{ identityPhrase?: string }>();
   const identityPhrase = rawParam ? decodeURIComponent(rawParam as string) : undefined;
+  const insets = useSafeAreaInsets();
 
   const { accessMode, isValidating, refresh } = useTrialValidation();
   const isReadOnly = accessMode === "read_only";
@@ -80,8 +82,8 @@ export default function GoalDetailScreen() {
       ) : null}
 
       {/* Header */}
-      <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.backButton}>
+      <View style={[styles.header, { paddingTop: insets.top }]}>
+        <Pressable hitSlop={12} onPress={() => router.back()} style={styles.backButton}>
           <ChevronLeft color={colors.textMuted} size={22} strokeWidth={1.75} />
         </Pressable>
         <Text style={styles.headlineText}>

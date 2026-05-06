@@ -7,6 +7,7 @@ import { OnboardingInput } from "@/components/forms/OnboardingInput";
 import { OnboardingLayout } from "@/components/layouts/OnboardingLayout";
 import { OnboardingHeader } from "@/components/navigation/OnboardingHeader";
 import { useOnboarding } from "@/features/onboarding/OnboardingProvider";
+import { normaliseBecomingPhrase } from "@/utils/normalisePhrase";
 import { colors } from "@/theme/colors";
 import { fontFamilies } from "@/theme/fontFamilies";
 
@@ -24,7 +25,8 @@ export default function BecomingScreen() {
   const { draft, update } = useOnboarding();
 
   const handleContinue = () => {
-    update({ step: "action-insight" });
+    const fixed = normaliseBecomingPhrase(draft.becomingPhrase);
+    update({ becomingPhrase: fixed, step: "action-insight" });
     router.push("/(onboarding)/action-insight");
   };
 
@@ -63,6 +65,10 @@ export default function BecomingScreen() {
         placeholder="Describe who you are becoming..."
         value={draft.becomingPhrase}
         onChangeText={(text) => update({ becomingPhrase: text })}
+        onBlur={() => {
+          const fixed = normaliseBecomingPhrase(draft.becomingPhrase);
+          if (fixed !== draft.becomingPhrase) update({ becomingPhrase: fixed });
+        }}
       />
 
       <Text style={styles.chipsLabel}>Try one of these</Text>

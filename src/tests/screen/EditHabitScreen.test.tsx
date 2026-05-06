@@ -46,6 +46,16 @@ jest.mock("@/features/auth/hooks", () => ({
   useAuthSession: jest.fn(() => ({ user: { id: "user-1" } })),
 }));
 
+jest.mock("@/lib/db/repositories/reminders", () => ({
+  getReminderByHabitId: jest.fn().mockResolvedValue(null),
+}));
+
+jest.mock("@/features/reminders/notifications", () => ({
+  scheduleReminder: jest.fn().mockResolvedValue(undefined),
+  cancelReminder: jest.fn().mockResolvedValue(undefined),
+  rescheduleAll: jest.fn().mockResolvedValue(undefined),
+}));
+
 const baseHabitData = {
   active_days: "[1,2,3,4,5,6,7]",
   id: "habit-1",
@@ -124,12 +134,10 @@ describe("EditHabitScreen", () => {
     expect(mockUseOwnedHabitQuery).toHaveBeenCalledWith("habit-1");
     expect(screen.queryByText("SUGGESTED ADJUSTMENT")).toBeNull();
     expect(screen.getByDisplayValue("Reading")).toBeTruthy();
-    expect(screen.getByDisplayValue("Become a reader")).toBeTruthy();
+    // identityPhrase is now a read-only card, not an editable input
+    expect(screen.getByText("Become a reader")).toBeTruthy();
     expect(screen.getByDisplayValue("After I brush my teeth")).toBeTruthy();
     expect(screen.getByDisplayValue("Read 1 page")).toBeTruthy();
-    expect(
-      screen.getByLabelText("Evening preferred time window selected"),
-    ).toBeTruthy();
   });
 
   it("shows tiny-action suggestion guidance without changing hydrated fields", () => {
@@ -142,8 +150,6 @@ describe("EditHabitScreen", () => {
 
     expect(screen.getByText("SUGGESTED ADJUSTMENT")).toBeTruthy();
     expect(screen.getByText("Make the action smaller")).toBeTruthy();
-    expect(screen.getByText("Why this suggestion")).toBeTruthy();
-    expect(screen.getByText("Suggested draft")).toBeTruthy();
     expect(screen.queryByText(aiRewriteHelperCopy)).toBeNull();
     expect(screen.queryByText("Generate rewrite")).toBeNull();
     expect(screen.queryByText("AI rewrite idea")).toBeNull();
@@ -153,11 +159,13 @@ describe("EditHabitScreen", () => {
         "Try choosing a tiny action that feels almost effortless for one week.",
       ),
     ).toBeTruthy();
+    expect(screen.getByText("Suggested draft")).toBeTruthy();
     expect(
       screen.getByText(
         "Look at your Tiny action field and make it smaller. For example, change a big action into one small step you can do in under two minutes.",
       ),
     ).toBeTruthy();
+    expect(screen.getByText("Why this suggestion")).toBeTruthy();
     expect(
       screen.getByText("You answered that the tiny action was too hard."),
     ).toBeTruthy();
@@ -176,8 +184,6 @@ describe("EditHabitScreen", () => {
 
     expect(screen.getByText("SUGGESTED ADJUSTMENT")).toBeTruthy();
     expect(screen.getByText("Choose a clearer trigger")).toBeTruthy();
-    expect(screen.getByText("Why this suggestion")).toBeTruthy();
-    expect(screen.getByText("Suggested draft")).toBeTruthy();
     expect(screen.queryByText(aiRewriteHelperCopy)).toBeNull();
     expect(screen.queryByText("Generate rewrite")).toBeNull();
     expect(screen.queryByText("AI rewrite idea")).toBeNull();
@@ -187,11 +193,13 @@ describe("EditHabitScreen", () => {
         "Try attaching this habit to a specific moment that already happens every day.",
       ),
     ).toBeTruthy();
+    expect(screen.getByText("Suggested draft")).toBeTruthy();
     expect(
       screen.getByText(
         "Look at your Stack trigger field and make it more specific. Try a clear moment like after breakfast or after brushing your teeth.",
       ),
     ).toBeTruthy();
+    expect(screen.getByText("Why this suggestion")).toBeTruthy();
     expect(
       screen.getByText("You answered that the trigger did not work."),
     ).toBeTruthy();
@@ -212,9 +220,6 @@ describe("EditHabitScreen", () => {
       screen.getByText(
         "Try choosing a tiny action that feels almost effortless for one week.",
       ),
-    ).toBeTruthy();
-    expect(
-      screen.getByText("You answered that the tiny action was too hard."),
     ).toBeTruthy();
     expect(screen.queryByText("Generate rewrite")).toBeNull();
     expect(mockGenerateRewriteMutateAsync).not.toHaveBeenCalled();
@@ -278,18 +283,12 @@ describe("EditHabitScreen", () => {
 
     render(<EditHabitScreen />);
 
-    expect(screen.getByText("Suggested draft")).toBeTruthy();
     fireEvent.changeText(screen.getByDisplayValue("Reading"), "  Reading habit  ");
-    fireEvent.changeText(
-      screen.getByDisplayValue("Become a reader"),
-      "  ",
-    );
     fireEvent.changeText(
       screen.getByDisplayValue("After I brush my teeth"),
       "  After breakfast  ",
     );
     fireEvent.changeText(screen.getByDisplayValue("Read 1 page"), "  Read 2 pages  ");
-    fireEvent.press(screen.getByLabelText("No preference preferred time window"));
 
     fireEvent.press(screen.getByText("Save changes"));
 
@@ -299,17 +298,64 @@ describe("EditHabitScreen", () => {
         payload: {
           activeDays: [1, 2, 3, 4, 5, 6, 7],
           title: "Reading habit",
-          identityPhrase: "",
+          identityPhrase: "Become a reader",
           cue: "breakfast",
           tinyAction: "Read 2 pages",
           minimumViableAction: "",
-          preferredTimeWindow: "",
+          preferredTimeWindow: "Evening",
           icon: "",
         },
       });
     });
 
     expect(mockReplace).toHaveBeenCalledWith("/(app)/habits/habit-1");
+  });
+
+  it("preserves preferred_time_window from the original habit on save (P1 regression)", async () => {
+    render(<EditHabitScreen />);
+
+    fireEvent.press(screen.getByText("Save changes"));
+
+    await waitFor(() => {
+      expect(mockMutateAsync).toHaveBeenCalledWith(
+        expect.objectContaining({
+          payload: expect.objectContaining({
+            preferredTimeWindow: "Evening",
+          }),
+        }),
+      );
+    });
+  });
+
+  it("does not cancel an existing reminder when saving before reminder load completes (P2 regression)", async () => {
+    const { cancelReminder } = require("@/features/reminders/notifications");
+    const { getReminderByHabitId } = require("@/lib/db/repositories/reminders");
+    // Never resolves — simulates save happening before DB read finishes
+    getReminderByHabitId.mockReturnValue(new Promise(() => {}));
+
+    render(<EditHabitScreen />);
+    fireEvent.press(screen.getByText("Save changes"));
+
+    await waitFor(() => { expect(mockMutateAsync).toHaveBeenCalled(); });
+
+    expect(cancelReminder).not.toHaveBeenCalled();
+  });
+
+  it("does not cancel an existing reminder when the reminder load fails (P2 regression)", async () => {
+    const { cancelReminder } = require("@/features/reminders/notifications");
+    const { getReminderByHabitId } = require("@/lib/db/repositories/reminders");
+    // Rejects — simulates DB read error
+    getReminderByHabitId.mockRejectedValue(new Error("db error"));
+
+    render(<EditHabitScreen />);
+
+    await waitFor(() => { expect(getReminderByHabitId).toHaveBeenCalled(); });
+
+    fireEvent.press(screen.getByText("Save changes"));
+
+    await waitFor(() => { expect(mockMutateAsync).toHaveBeenCalled(); });
+
+    expect(cancelReminder).not.toHaveBeenCalled();
   });
 
   it("preserves user input when save fails", async () => {
