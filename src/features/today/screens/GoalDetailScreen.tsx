@@ -241,8 +241,9 @@ const styles = StyleSheet.create({
   },
   headlineText: {
     color: colors.text,
-    fontFamily: fontFamilies.displayBold,
-    fontSize: typography.headlineLg,
+    fontFamily: fontFamilies.bodyMedium,
+    fontSize: 21,
+    fontWeight: "500",
   },
   metricCard: {
     flex: 1,

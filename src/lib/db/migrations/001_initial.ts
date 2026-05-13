@@ -3,8 +3,6 @@
  *
  * Creates the three Sprint 1 tables. Future tables (SRHI, weekly reviews,
  * reminder settings) land in their own migrations when those features ship.
- *
- * See docs/tech-handoff-core-v1.md section 4 for the full schema spec.
  */
 
 export const migration001 = {
