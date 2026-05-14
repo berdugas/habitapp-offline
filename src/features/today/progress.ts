@@ -35,9 +35,9 @@ function getLogRecency(log: HabitLogRecord) {
   return 0;
 }
 
-type DayStatus = "done" | "skipped" | "missed";
+export type DayStatus = "done" | "skipped" | "missed";
 
-function computeForgivingStreak(sequence: DayStatus[]): number {
+export function computeForgivingStreak(sequence: DayStatus[]): number {
   // Remove skipped days before evaluating consecutive misses (§8.3)
   const cleaned = sequence.filter((s) => s !== "skipped");
 

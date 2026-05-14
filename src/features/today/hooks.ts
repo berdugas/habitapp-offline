@@ -17,14 +17,14 @@ import {
 } from "@/features/habits/hooks";
 import { formatHabitFormula } from "@/features/habits/formatters";
 import { summarizeHabitProgress } from "@/features/today/progress";
-import { avgConsistencyRate, oldestStreak } from "@/features/today/goalMetrics";
+import { avgConsistencyRate, computeGoalStreak } from "@/features/today/goalMetrics";
 import { logger } from "@/services/logger";
 import {
   addDeviceDays,
   getTrailingDateRangeStrings,
   toDeviceDateString,
 } from "@/utils/dates";
-import { TODAY_PROGRESS_WINDOW_DAYS } from "@/features/today/constants";
+import { NO_GOAL_KEY, TODAY_PROGRESS_WINDOW_DAYS } from "@/features/today/constants";
 import {
   listLogsForHabitInRange,
   listLogsForHabitsInRange,
@@ -99,6 +99,30 @@ export function useTodayHabits() {
     logsByHabitId.set(log.habit_id, existingLogs);
   }
 
+  const habitsByIdentity = new Map<string, typeof eligibleHabits>();
+  for (const habit of eligibleHabits) {
+    const key = habit.identity_phrase || NO_GOAL_KEY;
+    const arr = habitsByIdentity.get(key) ?? [];
+    arr.push(habit);
+    habitsByIdentity.set(key, arr);
+  }
+
+  const goalStreaks: Record<string, number> = {};
+  for (const [key, groupHabits] of habitsByIdentity) {
+    goalStreaks[key] = computeGoalStreak(
+      groupHabits.map((habit) => ({
+        activeDays: parseActiveDays(habit.active_days),
+        logs: (logsByHabitId.get(habit.id) ?? []).map((l) => ({
+          log_date: l.log_date,
+          status: l.status,
+        })),
+        startDate: habit.start_date,
+      })),
+      TODAY_PROGRESS_WINDOW_DAYS,
+      historyWindowEndDate,
+    );
+  }
+
   return {
     ...historyLogsQuery,
     error:
@@ -106,6 +130,7 @@ export function useTodayHabits() {
       upcomingHabitsQuery.error ??
       historyLogsQuery.error ??
       null,
+    goalStreaks,
     habits: eligibleHabits.map<TodayHabitCardData>((habit) => {
       const activeDays = parseActiveDays(habit.active_days);
       const offDay = !isActiveDay(todayDateString(), activeDays);
@@ -306,7 +331,7 @@ export function useGoalDetail(identityPhrase: string | undefined) {
   return {
     error: allHabitsQuery.error ?? logsQuery.error ?? null,
     goalConsistencyRate: avgConsistencyRate(habits),
-    goalStreak: oldestStreak(habits),
+    goalStreak: computeGoalStreak(habits, TODAY_PROGRESS_WINDOW_DAYS, endDateObj),
     habits,
     identityPhrase: identityPhrase ?? "",
     isLoading: allHabitsQuery.isLoading || logsQuery.isLoading,

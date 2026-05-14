@@ -35,7 +35,8 @@ import { colors } from "@/theme/colors";
 import { fontFamilies } from "@/theme/fontFamilies";
 import { spacing } from "@/theme/spacing";
 import { typography } from "@/theme/typography";
-import { avgConsistencyRate, oldestStreak } from "@/features/today/goalMetrics";
+import { avgConsistencyRate } from "@/features/today/goalMetrics";
+import { NO_GOAL_KEY } from "@/features/today/constants";
 import {
   getLoadHabitsErrorMessage,
   getSaveTodayStatusErrorMessage,
@@ -44,10 +45,6 @@ import {
 import type { TodayHabitCardData } from "@/features/today/types";
 import type { HabitLogStatus } from "@/features/habits/types";
 import type { HabitLog } from "@/lib/db/repositories/habit_logs";
-
-// Sentinel key for habits that have no identity phrase. Used only as a Map key —
-// never stored in the DB or passed as a route param.
-const NO_GOAL_KEY = "(no goal)";
 
 type GoalGroup = {
   identityPhrase: string;
@@ -91,7 +88,7 @@ function AppHeader() {
 export default function TodayScreen() {
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
-  const { error, habits, isLoading } = useTodayHabits();
+  const { error, goalStreaks, habits, isLoading } = useTodayHabits();
   const upsertTodayHabitStatusMutation = useUpsertTodayHabitStatusMutation();
   const deleteTodayHabitLogMutation = useDeleteTodayHabitLogMutation();
   const archiveHabitMutation = useArchiveHabitMutation();
@@ -277,7 +274,7 @@ export default function TodayScreen() {
                       })
                   : undefined
               }
-              streak={oldestStreak(group.habits)}
+              streak={goalStreaks[group.identityPhrase] ?? 0}
             >
               {group.habits.map((habit) => (
                 <HabitRow

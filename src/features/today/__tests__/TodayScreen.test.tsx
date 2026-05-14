@@ -132,6 +132,7 @@ describe("TodayScreen", () => {
       habits: [],
       isLoading: false,
       upcomingHabits: [],
+      goalStreaks: {},
     });
     renderWithClient(<TodayScreen />);
     expect(screen.getByText("No active habits yet")).toBeTruthy();
@@ -144,10 +145,11 @@ describe("TodayScreen", () => {
       habits: [makeHabit()],
       isLoading: false,
       upcomingHabits: [],
+      goalStreaks: { "a runner": 12 },
     });
     renderWithClient(<TodayScreen />);
     expect(screen.getByText("Become a runner")).toBeTruthy();
-    // streak=12 → 12 % 5 = 2 → "12-day streak. One day at a time."
+    // goalStreaks["a runner"]=12 → 12 % 5 = 2 → "12-day streak. One day at a time."
     expect(screen.getByText("12-day streak. One day at a time.")).toBeTruthy();
     expect(screen.getByText("Run")).toBeTruthy();
     expect(screen.getByLabelText("Log Run")).toBeTruthy();
@@ -159,6 +161,7 @@ describe("TodayScreen", () => {
       habits: [makeHabit({ streak: 0, todayStatus: null })],
       isLoading: false,
       upcomingHabits: [],
+      goalStreaks: {},
     });
     renderWithClient(<TodayScreen />);
     expect(screen.getByText("1 remaining to complete")).toBeTruthy();
@@ -176,6 +179,7 @@ describe("TodayScreen", () => {
       habits: [makeHabit()],
       isLoading: false,
       upcomingHabits: [],
+      goalStreaks: {},
     });
     renderWithClient(<TodayScreen />);
     fireEvent.press(screen.getByLabelText("Log Run"));
@@ -194,6 +198,7 @@ describe("TodayScreen", () => {
       habits: [makeHabit()],
       isLoading: false,
       upcomingHabits: [],
+      goalStreaks: {},
     });
     renderWithClient(<TodayScreen />);
     fireEvent(screen.getByLabelText("Log Run"), "longPress");
@@ -206,6 +211,7 @@ describe("TodayScreen", () => {
       habits: [makeHabit()],
       isLoading: false,
       upcomingHabits: [],
+      goalStreaks: {},
     });
     renderWithClient(<TodayScreen />);
     fireEvent.press(screen.getByLabelText("Open Run"));
@@ -221,6 +227,7 @@ describe("TodayScreen", () => {
       habits: [makeHabit({ todayStatus: "done" })],
       isLoading: false,
       upcomingHabits: [],
+      goalStreaks: {},
     });
     renderWithClient(<TodayScreen />);
     expect(screen.getByLabelText("Run — done")).toBeTruthy();
@@ -232,6 +239,7 @@ describe("TodayScreen", () => {
       habits: [makeHabit()],
       isLoading: false,
       upcomingHabits: [],
+      goalStreaks: {},
     });
     renderWithClient(<TodayScreen />);
     expect(screen.queryByText("Missed")).toBeNull();
@@ -243,6 +251,7 @@ describe("TodayScreen", () => {
       habits: [],
       isLoading: false,
       upcomingHabits: [],
+      goalStreaks: {},
     });
     renderWithClient(<TodayScreen />);
     expect(screen.getByText(getLoadHabitsErrorMessage())).toBeTruthy();
@@ -254,6 +263,7 @@ describe("TodayScreen", () => {
       habits: [makeHabit()],
       isLoading: false,
       upcomingHabits: [],
+      goalStreaks: {},
     });
     useUpsertTodayHabitStatusMutation.mockReturnValue({
       error: new Error("Save failed"),
@@ -270,6 +280,7 @@ describe("TodayScreen", () => {
       habits: [makeHabit()],
       isLoading: false,
       upcomingHabits: [],
+      goalStreaks: {},
     });
     renderWithClient(<TodayScreen />);
     expect(screen.queryByText(/Yesterday was a miss/)).toBeNull();
@@ -281,6 +292,7 @@ describe("TodayScreen", () => {
       habits: [makeHabit()],
       isLoading: false,
       upcomingHabits: [],
+      goalStreaks: {},
     });
     useSingleMissBanner.mockReturnValue({
       showBanner: true,
@@ -297,6 +309,7 @@ describe("TodayScreen", () => {
       habits: [makeHabit()],
       isLoading: false,
       upcomingHabits: [],
+      goalStreaks: {},
     });
     useSingleMissBanner.mockReturnValue({
       showBanner: true,
@@ -319,6 +332,7 @@ describe("TodayScreen", () => {
       habits: [makeHabit({ todayStatus: "done" })],
       isLoading: false,
       upcomingHabits: [],
+      goalStreaks: {},
     });
     renderWithClient(<TodayScreen />);
     expect(screen.getByText("You showed up today.")).toBeTruthy();
@@ -330,6 +344,7 @@ describe("TodayScreen", () => {
       habits: [makeHabit({ todayStatus: "done" }), makeHabit({ id: "habit-2", todayStatus: null })],
       isLoading: false,
       upcomingHabits: [],
+      goalStreaks: {},
     });
     renderWithClient(<TodayScreen />);
     expect(screen.queryByText("You showed up today.")).toBeNull();
@@ -341,6 +356,7 @@ describe("TodayScreen", () => {
       habits: [makeHabit()],
       isLoading: false,
       upcomingHabits: [],
+      goalStreaks: {},
     });
     useRecoveryCheck.mockReturnValue({
       shouldShowModal: true,
@@ -361,6 +377,7 @@ describe("TodayScreen", () => {
       habits: [makeHabit()],
       isLoading: false,
       upcomingHabits: [],
+      goalStreaks: {},
     });
     renderWithClient(<TodayScreen />);
     expect(screen.queryByText("Restart as-is")).toBeNull();
@@ -372,6 +389,7 @@ describe("TodayScreen", () => {
       habits: [makeHabit()],
       isLoading: false,
       upcomingHabits: [],
+      goalStreaks: {},
     });
     useRecoveryCheck.mockReturnValue({
       shouldShowModal: true,
@@ -460,6 +478,7 @@ describe("TodayScreen", () => {
       habits: [makeHabit({ identityPhrase: "a runner" })],
       isLoading: false,
       upcomingHabits: [],
+      goalStreaks: {},
     });
     renderWithClient(<TodayScreen />);
     fireEvent.press(screen.getByText("Become a runner"));
@@ -477,6 +496,7 @@ describe("TodayScreen", () => {
       habits: [makeHabit()],
       isLoading: false,
       upcomingHabits: [],
+      goalStreaks: {},
     });
     renderWithClient(<TodayScreen />);
     expect(screen.getByText("Goal consistency")).toBeTruthy();
@@ -488,6 +508,7 @@ describe("TodayScreen", () => {
       habits: [makeHabit({ identityPhrase: "" })],
       isLoading: false,
       upcomingHabits: [],
+      goalStreaks: {},
     });
     renderWithClient(<TodayScreen />);
     // The header Pressable is disabled (onGoalPress=undefined). Even if we trigger
@@ -504,6 +525,7 @@ describe("TodayScreen", () => {
       habits: [makeHabit({ identityPhrase: "" })],
       isLoading: false,
       upcomingHabits: [],
+      goalStreaks: {},
     });
     renderWithClient(<TodayScreen />);
     fireEvent.press(screen.getByLabelText("Add a habit"));

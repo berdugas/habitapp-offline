@@ -131,6 +131,7 @@ describe("TodayScreen", () => {
       habits: [],
       isLoading: true,
       upcomingHabits: [],
+      goalStreaks: {},
     });
 
     renderWithClient(<TodayScreen />);
@@ -145,6 +146,7 @@ describe("TodayScreen", () => {
       habits: [],
       isLoading: false,
       upcomingHabits: [],
+      goalStreaks: {},
     });
 
     renderWithClient(<TodayScreen />);
@@ -161,6 +163,7 @@ describe("TodayScreen", () => {
       habits: [],
       isLoading: false,
       upcomingHabits: [],
+      goalStreaks: {},
     });
 
     renderWithClient(<TodayScreen />);
@@ -180,6 +183,7 @@ describe("TodayScreen", () => {
       habits: [],
       isLoading: false,
       upcomingHabits: [],
+      goalStreaks: {},
     });
 
     renderWithClient(<TodayScreen />);
@@ -202,6 +206,7 @@ describe("TodayScreen", () => {
       habits: [buildFocusHabit()],
       isLoading: false,
       upcomingHabits: [],
+      goalStreaks: {},
     });
 
     renderWithClient(<TodayScreen />);
