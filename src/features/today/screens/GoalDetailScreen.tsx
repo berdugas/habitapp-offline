@@ -5,18 +5,19 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { MiniHeatmapStrip } from "@/components/MiniHeatmapStrip";
 import { ReadOnlyBanner } from "@/components/ReadOnlyBanner";
-import { SecondaryButton } from "@/components/buttons/SecondaryButton";
+import { TertiaryButton } from "@/components/buttons/TertiaryButton";
 import { ZenCard } from "@/components/cards/ZenCard";
 import { ErrorState } from "@/components/feedback/ErrorState";
 import { LoadingState } from "@/components/feedback/LoadingState";
 import { Eyebrow } from "@/components/text/Eyebrow";
 import { LucideIcon } from "@/components/LucideIconPicker";
 import { ConsistencyDonut } from "@/features/today/components/ConsistencyDonut";
+import { GoalStreakStrip } from "@/features/today/components/GoalStreakStrip";
+import { WeeklyConsistencyChart } from "@/features/today/components/WeeklyConsistencyChart";
+import { getGoalNarrative } from "@/features/today/goalNarrativeCopy";
 import { useGoalDetail } from "@/features/today/hooks";
 import { getStreakCopy } from "@/features/today/streakCopy";
-import { isActiveDay } from "@/features/habits/activeDays";
 import { useTrialValidation } from "@/features/trial/hooks";
-import { now } from "@/utils/clock";
 import { colors } from "@/theme/colors";
 import { fontFamilies } from "@/theme/fontFamilies";
 import { spacing } from "@/theme/spacing";
@@ -30,7 +31,16 @@ export default function GoalDetailScreen() {
   const { accessMode, isValidating, refresh } = useTrialValidation();
   const isReadOnly = accessMode === "read_only";
 
-  const { error, goalConsistencyRate, goalStreak, habits, isLoading } = useGoalDetail(identityPhrase);
+  const {
+    error,
+    goalConsistencyRate,
+    goalDailyStates,
+    goalStreak,
+    habits,
+    isLoading,
+    oldestActiveDaysCount,
+    weeklyData,
+  } = useGoalDetail(identityPhrase);
 
   if (isLoading) {
     return <LoadingState message="Loading goal..." />;
@@ -45,28 +55,10 @@ export default function GoalDetailScreen() {
           </Pressable>
         </View>
         <ErrorState message="We couldn't load this goal right now. Try again." />
-        <SecondaryButton label="Back to Today" onPress={() => router.push("/(app)/(tabs)/today")} />
+        <TertiaryButton label="Back to Today" onPress={() => router.push("/(app)/(tabs)/today")} />
       </ScrollView>
     );
   }
-
-  // Determine consistency suppression: oldest habit's active day count
-  const oldestActiveDaysCount = (() => {
-    if (habits.length === 0) return 0;
-    const oldest = [...habits].sort((a, b) => a.startDate.localeCompare(b.startDate))[0];
-    if (!oldest) return 0;
-    const start = new Date(`${oldest.startDate}T12:00:00`);
-    const today = now();
-    today.setHours(0, 0, 0, 0);
-    let count = 0;
-    const d = new Date(start);
-    d.setHours(0, 0, 0, 0);
-    while (d <= today) {
-      if (isActiveDay(d, oldest.activeDays)) count++;
-      d.setDate(d.getDate() + 1);
-    }
-    return count;
-  })();
 
   return (
     <ScrollView
@@ -92,27 +84,26 @@ export default function GoalDetailScreen() {
         <Text style={styles.streakCopyText}>{getStreakCopy(goalStreak)}</Text>
       </View>
 
-      {/* Goal metrics */}
-      <View style={styles.metricsRow}>
-        <ZenCard style={styles.metricCard}>
-          <Eyebrow label="Goal consistency" />
-          <View style={styles.metricCenter}>
-            {goalConsistencyRate !== null && oldestActiveDaysCount >= 7 ? (
-              <ConsistencyDonut rate={goalConsistencyRate} size={40} label="" />
-            ) : (
-              <Text style={styles.tooEarlyText}>
-                Too early to tell — keep showing up
-              </Text>
-            )}
-          </View>
-        </ZenCard>
-        <ZenCard style={styles.metricCard}>
-          <Eyebrow label="Goal streak" />
-          <View style={styles.metricCenter}>
-            <Text style={styles.streakLargeNumber}>{goalStreak}</Text>
-          </View>
-        </ZenCard>
-      </View>
+      {/* Journey Card */}
+      <ZenCard style={styles.journeyCard}>
+        <View style={styles.journeyTop}>
+          <ConsistencyDonut
+            rate={goalConsistencyRate ?? 0}
+            size={56}
+            label=""
+            suppressed={oldestActiveDaysCount < 7}
+          />
+          <Text style={styles.narrativeText}>
+            {getGoalNarrative(goalConsistencyRate, oldestActiveDaysCount)}
+          </Text>
+        </View>
+
+        {weeklyData.length >= 2 ? (
+          <WeeklyConsistencyChart weeklyData={weeklyData} />
+        ) : null}
+
+        <GoalStreakStrip dailyStates={goalDailyStates} streak={goalStreak} />
+      </ZenCard>
 
       {/* Habits in this goal */}
       {habits.length > 0 ? (
@@ -164,7 +155,7 @@ export default function GoalDetailScreen() {
         </ZenCard>
       )}
 
-      <SecondaryButton
+      <TertiaryButton
         label="Back to Today"
         onPress={() => router.push("/(app)/(tabs)/today")}
       />
@@ -245,18 +236,22 @@ const styles = StyleSheet.create({
     fontSize: 21,
     fontWeight: "500",
   },
-  metricCard: {
-    flex: 1,
+  journeyCard: {
+    borderRadius: 24,
+    gap: spacing.md,
   },
-  metricCenter: {
-    alignItems: "center",
-    justifyContent: "center",
-    marginTop: spacing.sm,
-    minHeight: 60,
-  },
-  metricsRow: {
+  journeyTop: {
+    alignItems: "flex-start",
     flexDirection: "row",
     gap: spacing.md,
+  },
+  narrativeText: {
+    color: colors.textMuted,
+    flex: 1,
+    fontFamily: fontFamilies.body,
+    fontSize: typography.bodyMd,
+    lineHeight: 22,
+    paddingTop: 4,
   },
   screen: {
     backgroundColor: colors.bg,
@@ -267,17 +262,5 @@ const styles = StyleSheet.create({
     fontFamily: fontFamilies.body,
     fontStyle: "italic",
     fontSize: typography.bodyMd,
-  },
-  streakLargeNumber: {
-    color: colors.text,
-    fontFamily: fontFamilies.displayBold,
-    fontSize: typography.headlineLg,
-  },
-  tooEarlyText: {
-    color: colors.textMuted,
-    fontFamily: fontFamilies.body,
-    fontSize: typography.bodyMd,
-    fontStyle: "italic",
-    textAlign: "center",
   },
 });

@@ -60,61 +60,68 @@ afterEach(() => {
   resetClockForTesting();
 });
 
+function baseDetail(overrides: Partial<Record<string, unknown>> = {}) {
+  return {
+    error: null,
+    goalConsistencyRate: 0,
+    goalDailyStates: Array(14).fill("off"),
+    goalStreak: 0,
+    habits: [],
+    identityPhrase: "a reader",
+    isLoading: false,
+    oldestActiveDaysCount: 0,
+    weeklyData: [],
+    ...overrides,
+  };
+}
+
 describe("GoalDetailScreen", () => {
   it("renders loading state", () => {
-    useGoalDetail.mockReturnValue({
-      error: null,
-      goalConsistencyRate: 0,
-      goalStreak: 0,
-      habits: [],
-      identityPhrase: "a reader",
-      isLoading: true,
-    });
+    useGoalDetail.mockReturnValue(baseDetail({ isLoading: true }));
     renderWithClient(<GoalDetailScreen />);
     expect(screen.getByText("Loading goal...")).toBeTruthy();
   });
 
   it("renders goal headline and streak copy", () => {
-    useGoalDetail.mockReturnValue({
-      error: null,
-      goalConsistencyRate: 0.75,
-      goalStreak: 12,
-      habits: [makeHabit()],
-      identityPhrase: "a reader",
-      isLoading: false,
-    });
+    useGoalDetail.mockReturnValue(
+      baseDetail({
+        goalConsistencyRate: 0.75,
+        goalStreak: 12,
+        habits: [makeHabit()],
+        oldestActiveDaysCount: 30,
+      }),
+    );
     renderWithClient(<GoalDetailScreen />);
     expect(screen.getByText("Become a reader")).toBeTruthy();
-    // streak copy for 12 → "12-day streak. One day at a time."
     expect(screen.getByText("12-day streak. One day at a time.")).toBeTruthy();
   });
 
   it("renders habit rows with name and metrics", () => {
-    useGoalDetail.mockReturnValue({
-      error: null,
-      goalConsistencyRate: 0.8,
-      goalStreak: 5,
-      habits: [
-        makeHabit({ id: "h1", name: "Read", consistencyRate: 0.8, streak: 5 }),
-        makeHabit({ id: "h2", name: "Run", consistencyRate: 0.6, streak: 3 }),
-      ],
-      identityPhrase: "a reader",
-      isLoading: false,
-    });
+    useGoalDetail.mockReturnValue(
+      baseDetail({
+        goalConsistencyRate: 0.8,
+        goalStreak: 5,
+        habits: [
+          makeHabit({ id: "h1", name: "Read", consistencyRate: 0.8, streak: 5 }),
+          makeHabit({ id: "h2", name: "Run", consistencyRate: 0.6, streak: 3 }),
+        ],
+        oldestActiveDaysCount: 30,
+      }),
+    );
     renderWithClient(<GoalDetailScreen />);
     expect(screen.getByText("Read")).toBeTruthy();
     expect(screen.getByText("Run")).toBeTruthy();
   });
 
   it("navigates to HabitDetail with goalConsistency when a habit row is tapped", () => {
-    useGoalDetail.mockReturnValue({
-      error: null,
-      goalConsistencyRate: 0.75,
-      goalStreak: 5,
-      habits: [makeHabit({ id: "h1", name: "Read" })],
-      identityPhrase: "a reader",
-      isLoading: false,
-    });
+    useGoalDetail.mockReturnValue(
+      baseDetail({
+        goalConsistencyRate: 0.75,
+        goalStreak: 5,
+        habits: [makeHabit({ id: "h1", name: "Read" })],
+        oldestActiveDaysCount: 30,
+      }),
+    );
     renderWithClient(<GoalDetailScreen />);
     fireEvent.press(screen.getByText("Read"));
     expect(mockPush).toHaveBeenCalledWith(
@@ -126,44 +133,31 @@ describe("GoalDetailScreen", () => {
   });
 
   it("shows empty state when no habits match the identity phrase", () => {
-    useGoalDetail.mockReturnValue({
-      error: null,
-      goalConsistencyRate: 0,
-      goalStreak: 0,
-      habits: [],
-      identityPhrase: "a reader",
-      isLoading: false,
-    });
+    useGoalDetail.mockReturnValue(baseDetail());
     renderWithClient(<GoalDetailScreen />);
     expect(screen.getByText("No habits found for this goal.")).toBeTruthy();
   });
 
-  it("shows 'Too early to tell' when oldest habit has <7 active days", () => {
-    // startDate = today → 0 active days counted
-    useGoalDetail.mockReturnValue({
-      error: null,
-      goalConsistencyRate: 0.5,
-      goalStreak: 1,
-      habits: [makeHabit({ startDate: "2026-05-05" })],
-      identityPhrase: "a reader",
-      isLoading: false,
-    });
+  it("renders a suppressed narrative when oldest habit has <7 active days", () => {
+    useGoalDetail.mockReturnValue(
+      baseDetail({
+        goalConsistencyRate: 0.5,
+        goalStreak: 1,
+        habits: [makeHabit({ startDate: "2026-05-05" })],
+        oldestActiveDaysCount: 0,
+      }),
+    );
     renderWithClient(<GoalDetailScreen />);
-    expect(screen.getByText("Too early to tell — keep showing up")).toBeTruthy();
+    expect(
+      screen.getByText(
+        "Day one done. Keep showing up — a picture will form after a week.",
+      ),
+    ).toBeTruthy();
   });
 
   it("decodes URL-encoded identityPhrase param", () => {
-    // useLocalSearchParams returns "a%20reader" → decoded to "a reader"
-    useGoalDetail.mockReturnValue({
-      error: null,
-      goalConsistencyRate: 0,
-      goalStreak: 0,
-      habits: [],
-      identityPhrase: "a reader",
-      isLoading: false,
-    });
+    useGoalDetail.mockReturnValue(baseDetail());
     renderWithClient(<GoalDetailScreen />);
-    // useGoalDetail should have been called with the decoded phrase
     expect(useGoalDetail).toHaveBeenCalledWith("a reader");
   });
 });

@@ -13,6 +13,7 @@ type ConsistencyDonutProps = {
   onPress?: () => void;
   rate: number;
   size?: number;
+  suppressed?: boolean;
 };
 
 export function ConsistencyDonut({
@@ -20,6 +21,7 @@ export function ConsistencyDonut({
   onPress,
   rate,
   size = DEFAULT_SIZE,
+  suppressed = false,
 }: ConsistencyDonutProps) {
   const radius = (size - STROKE_WIDTH) / 2;
   const circumference = 2 * Math.PI * radius;
@@ -39,22 +41,47 @@ export function ConsistencyDonut({
             strokeWidth={STROKE_WIDTH}
             fill="none"
           />
-          <Circle
-            cx={center}
-            cy={center}
-            r={radius}
-            stroke={colors.primary}
-            strokeWidth={STROKE_WIDTH}
-            fill="none"
-            strokeDasharray={`${circumference} ${circumference}`}
-            strokeDashoffset={offset}
-            strokeLinecap="round"
-            transform={`rotate(-90, ${center}, ${center})`}
-          />
+          {suppressed ? (
+            <Circle
+              cx={center}
+              cy={center}
+              r={radius}
+              stroke={colors.primary}
+              strokeOpacity={0.15}
+              strokeWidth={STROKE_WIDTH}
+              fill="none"
+              transform={`rotate(-90, ${center}, ${center})`}
+            />
+          ) : (
+            <Circle
+              cx={center}
+              cy={center}
+              r={radius}
+              stroke={colors.primary}
+              strokeWidth={STROKE_WIDTH}
+              fill="none"
+              strokeDasharray={`${circumference} ${circumference}`}
+              strokeDashoffset={offset}
+              strokeLinecap="round"
+              transform={`rotate(-90, ${center}, ${center})`}
+            />
+          )}
         </Svg>
         <View style={StyleSheet.absoluteFill}>
           <View style={styles.pctOverlay}>
-            <Text style={[styles.pctText, { fontSize: Math.round(size * 0.23) }]}>{pct}%</Text>
+            {suppressed ? (
+              <Text
+                style={[
+                  styles.pctText,
+                  styles.suppressedText,
+                  { fontSize: Math.round(size * 0.28) },
+                ]}
+              >
+                —
+              </Text>
+            ) : (
+              <Text style={[styles.pctText, { fontSize: Math.round(size * 0.23) }]}>{pct}%</Text>
+            )}
           </View>
         </View>
       </View>
@@ -99,5 +126,8 @@ const styles = StyleSheet.create({
   pctText: {
     color: colors.text,
     fontFamily: fontFamilies.bodyMedium,
+  },
+  suppressedText: {
+    color: colors.textFaint,
   },
 });

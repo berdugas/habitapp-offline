@@ -17,14 +17,24 @@ import {
 } from "@/features/habits/hooks";
 import { formatHabitFormula } from "@/features/habits/formatters";
 import { summarizeHabitProgress } from "@/features/today/progress";
-import { avgConsistencyRate, computeGoalStreak } from "@/features/today/goalMetrics";
+import {
+  avgConsistencyRate,
+  computeGoalDailyStates,
+  computeGoalStreak,
+  computeWeeklyConsistency,
+} from "@/features/today/goalMetrics";
 import { logger } from "@/services/logger";
 import {
   addDeviceDays,
   getTrailingDateRangeStrings,
+  getWeekStartDate,
   toDeviceDateString,
 } from "@/utils/dates";
-import { NO_GOAL_KEY, TODAY_PROGRESS_WINDOW_DAYS } from "@/features/today/constants";
+import {
+  GOAL_DETAIL_WINDOW_DAYS,
+  NO_GOAL_KEY,
+  TODAY_PROGRESS_WINDOW_DAYS,
+} from "@/features/today/constants";
 import {
   listLogsForHabitInRange,
   listLogsForHabitsInRange,
@@ -296,7 +306,7 @@ export function useGoalDetail(identityPhrase: string | undefined) {
   );
 
   const habitIds = goalHabits.map((h) => h.id);
-  const logsQuery = useHabitLogsForHabitsInRange(habitIds, TODAY_PROGRESS_WINDOW_DAYS);
+  const logsQuery = useHabitLogsForHabitsInRange(habitIds, GOAL_DETAIL_WINDOW_DAYS);
   const allLogs = logsQuery.data ?? [];
 
   const logsByHabitId = new Map<string, HabitLogRecord[]>();
@@ -328,12 +338,55 @@ export function useGoalDetail(identityPhrase: string | undefined) {
     };
   });
 
+  const oldestActiveDaysCount = (() => {
+    if (habits.length === 0) return 0;
+    const oldest = [...habits].sort((a, b) =>
+      a.startDate.localeCompare(b.startDate),
+    )[0];
+    if (!oldest) return 0;
+    const start = new Date(`${oldest.startDate}T12:00:00`);
+    start.setHours(0, 0, 0, 0);
+    const today = now();
+    today.setHours(0, 0, 0, 0);
+    let count = 0;
+    const cursor = new Date(start);
+    while (cursor <= today) {
+      if (isActiveDay(cursor, oldest.activeDays)) count++;
+      cursor.setDate(cursor.getDate() + 1);
+    }
+    return count;
+  })();
+
+  const thisWeekMonday = getWeekStartDate(now());
+  const elevenWeeksBackMonday = addDeviceDays(thisWeekMonday, -11 * 7);
+  const elevenWeeksBackMondayIso = toDeviceDateString(elevenWeeksBackMonday);
+
+  const oldestStartIso =
+    habits.length > 0
+      ? [...habits].sort((a, b) => a.startDate.localeCompare(b.startDate))[0]
+          .startDate
+      : toDeviceDateString(now());
+  const oldestStartMondayIso = toDeviceDateString(
+    getWeekStartDate(new Date(`${oldestStartIso}T12:00:00`)),
+  );
+
+  const chartStartIso =
+    oldestStartMondayIso > elevenWeeksBackMondayIso
+      ? oldestStartMondayIso
+      : elevenWeeksBackMondayIso;
+
+  const weeklyData = computeWeeklyConsistency(habits, chartStartIso, endDateObj);
+  const goalDailyStates = computeGoalDailyStates(habits, 14);
+
   return {
     error: allHabitsQuery.error ?? logsQuery.error ?? null,
     goalConsistencyRate: avgConsistencyRate(habits),
+    goalDailyStates,
     goalStreak: computeGoalStreak(habits, TODAY_PROGRESS_WINDOW_DAYS, endDateObj),
     habits,
     identityPhrase: identityPhrase ?? "",
     isLoading: allHabitsQuery.isLoading || logsQuery.isLoading,
+    oldestActiveDaysCount,
+    weeklyData,
   };
 }
