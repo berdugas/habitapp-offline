@@ -20,4 +20,6 @@ export const colors = {
   heatSkipped: '#e6d3a8',
   heatMissed: '#ede9e0',
   offDayBorder: '#e8e3d8',
+  graduatedCircle: '#6b9e7d',
+  graduatedBadge: '#c6ebd5',
 };

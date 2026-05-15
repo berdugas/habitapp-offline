@@ -14,6 +14,7 @@ type ConsistencyDonutProps = {
   rate: number;
   size?: number;
   suppressed?: boolean;
+  tint?: string;
 };
 
 export function ConsistencyDonut({
@@ -22,6 +23,7 @@ export function ConsistencyDonut({
   rate,
   size = DEFAULT_SIZE,
   suppressed = false,
+  tint = colors.primary,
 }: ConsistencyDonutProps) {
   const radius = (size - STROKE_WIDTH) / 2;
   const circumference = 2 * Math.PI * radius;
@@ -46,7 +48,7 @@ export function ConsistencyDonut({
               cx={center}
               cy={center}
               r={radius}
-              stroke={colors.primary}
+              stroke={tint}
               strokeOpacity={0.15}
               strokeWidth={STROKE_WIDTH}
               fill="none"
@@ -57,7 +59,7 @@ export function ConsistencyDonut({
               cx={center}
               cy={center}
               r={radius}
-              stroke={colors.primary}
+              stroke={tint}
               strokeWidth={STROKE_WIDTH}
               fill="none"
               strokeDasharray={`${circumference} ${circumference}`}

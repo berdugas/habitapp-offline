@@ -92,3 +92,88 @@ describe("TodayScreen integration — log round-trip", () => {
     );
   });
 });
+
+describe("TodayScreen integration — goalGraduated over full active set", () => {
+  beforeEach(async () => {
+    setNowForTesting(new Date("2026-04-30T10:00:00.000Z"));
+    await initDb();
+  });
+
+  afterEach(async () => {
+    await closeDb();
+    resetClockForTesting();
+  });
+
+  it("does NOT show (Graduated) when the goal has an automatic started habit + an upcoming habit", async () => {
+    // Started + automatic
+    await createHabit({
+      user_id: "user-1",
+      title: "Run",
+      identity_phrase: "a runner",
+      cue: "morning coffee",
+      tiny_action: "run for 2 minutes",
+      minimum_viable_action: null,
+      preferred_time_window: null,
+      start_date: "2026-04-01",
+      habit_state: "automatic",
+      status: "active",
+    });
+    // Upcoming, same goal — by definition habit_state="active"
+    await createHabit({
+      user_id: "user-1",
+      title: "Stretch",
+      identity_phrase: "a runner",
+      cue: "after run",
+      tiny_action: "stretch for 1 minute",
+      minimum_viable_action: null,
+      preferred_time_window: null,
+      start_date: "2999-01-01",
+      habit_state: "active",
+      status: "active",
+    });
+
+    renderWithClient(<TodayScreen />);
+
+    await waitFor(() => {
+      expect(screen.getByLabelText("Log Run")).toBeTruthy();
+    });
+
+    expect(screen.queryByText("(Graduated)")).toBeNull();
+  });
+
+  it("shows (Graduated) when every started AND upcoming habit in the goal is automatic", async () => {
+    // Two started + automatic habits, no upcoming → marker visible
+    await createHabit({
+      user_id: "user-1",
+      title: "Run",
+      identity_phrase: "a runner",
+      cue: "morning coffee",
+      tiny_action: "run for 2 minutes",
+      minimum_viable_action: null,
+      preferred_time_window: null,
+      start_date: "2026-04-01",
+      habit_state: "automatic",
+      status: "active",
+    });
+    await createHabit({
+      user_id: "user-1",
+      title: "Walk",
+      identity_phrase: "a runner",
+      cue: "evening",
+      tiny_action: "walk 5 minutes",
+      minimum_viable_action: null,
+      preferred_time_window: null,
+      start_date: "2026-04-05",
+      habit_state: "automatic",
+      status: "active",
+    });
+
+    renderWithClient(<TodayScreen />);
+
+    await waitFor(() => {
+      expect(screen.getByLabelText("Log Run")).toBeTruthy();
+    });
+
+    expect(screen.getByText("(Graduated)")).toBeTruthy();
+  });
+});

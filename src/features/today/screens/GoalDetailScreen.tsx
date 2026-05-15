@@ -35,6 +35,7 @@ export default function GoalDetailScreen() {
     error,
     goalConsistencyRate,
     goalDailyStates,
+    goalGraduated,
     goalStreak,
     habits,
     isLoading,
@@ -78,8 +79,13 @@ export default function GoalDetailScreen() {
         <Pressable hitSlop={12} onPress={() => router.back()} style={styles.backButton}>
           <ChevronLeft color={colors.textMuted} size={22} strokeWidth={1.75} />
         </Pressable>
-        <Text style={styles.headlineText}>
+        <Text
+          style={[styles.headlineText, goalGraduated && styles.headlineTextGraduated]}
+        >
           Become {identityPhrase ?? ""}
+          {goalGraduated ? (
+            <Text style={styles.graduatedSuffix}> (Graduated)</Text>
+          ) : null}
         </Text>
         <Text style={styles.streakCopyText}>{getStreakCopy(goalStreak)}</Text>
       </View>
@@ -92,6 +98,7 @@ export default function GoalDetailScreen() {
             size={56}
             label=""
             suppressed={oldestActiveDaysCount < 7}
+            tint={goalGraduated ? colors.graduatedCircle : undefined}
           />
           <Text style={styles.narrativeText}>
             {getGoalNarrative(goalConsistencyRate, oldestActiveDaysCount)}
@@ -235,6 +242,16 @@ const styles = StyleSheet.create({
     fontFamily: fontFamilies.bodyMedium,
     fontSize: 21,
     fontWeight: "500",
+  },
+  headlineTextGraduated: {
+    color: colors.graduatedCircle,
+  },
+  graduatedSuffix: {
+    color: colors.graduatedCircle,
+    fontFamily: fontFamilies.body,
+    fontSize: typography.micro,
+    fontStyle: "italic",
+    fontWeight: "400",
   },
   journeyCard: {
     borderRadius: 24,

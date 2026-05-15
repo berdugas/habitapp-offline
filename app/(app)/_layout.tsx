@@ -35,6 +35,10 @@ export default function ProtectedLayout() {
         name="reviews/[habitId]"
         options={{ title: "Weekly Review" }}
       />
+      <Stack.Screen
+        name="graduation/[habitId]"
+        options={{ headerShown: false }}
+      />
     </Stack>
   );
 }

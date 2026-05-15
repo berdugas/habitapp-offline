@@ -160,4 +160,49 @@ describe("GoalDetailScreen", () => {
     renderWithClient(<GoalDetailScreen />);
     expect(useGoalDetail).toHaveBeenCalledWith("a reader");
   });
+
+  it("shows the (Graduated) suffix on the headline when goalGraduated=true", () => {
+    useGoalDetail.mockReturnValue(
+      baseDetail({
+        goalConsistencyRate: 0.9,
+        goalGraduated: true,
+        goalStreak: 50,
+        habits: [makeHabit()],
+        oldestActiveDaysCount: 90,
+      }),
+    );
+    renderWithClient(<GoalDetailScreen />);
+    expect(screen.getByText("(Graduated)")).toBeTruthy();
+  });
+
+  it("hides the (Graduated) suffix when goalGraduated=false", () => {
+    useGoalDetail.mockReturnValue(
+      baseDetail({
+        goalConsistencyRate: 0.5,
+        goalGraduated: false,
+        goalStreak: 3,
+        habits: [makeHabit()],
+        oldestActiveDaysCount: 30,
+      }),
+    );
+    renderWithClient(<GoalDetailScreen />);
+    expect(screen.queryByText("(Graduated)")).toBeNull();
+  });
+
+  it("hides the (Graduated) suffix when an upcoming habit exists in the goal (hook reports goalGraduated=false)", () => {
+    // The screen trusts the hook's goalGraduated boolean; this test asserts
+    // the contract by passing the false value the upstream hook computes when
+    // upcoming habits are part of the goal.
+    useGoalDetail.mockReturnValue(
+      baseDetail({
+        goalConsistencyRate: 0.9,
+        goalGraduated: false,
+        goalStreak: 50,
+        habits: [makeHabit()],
+        oldestActiveDaysCount: 90,
+      }),
+    );
+    renderWithClient(<GoalDetailScreen />);
+    expect(screen.queryByText("(Graduated)")).toBeNull();
+  });
 });

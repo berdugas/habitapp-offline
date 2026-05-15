@@ -539,4 +539,73 @@ describe("TodayScreen", () => {
       }),
     );
   });
+
+  it("shows the (Graduated) suffix when all habits in a goal are automatic", () => {
+    useTodayHabits.mockReturnValue({
+      error: null,
+      goalGraduatedByIdentity: { "a runner": true },
+      goalStreaks: { "a runner": 5 },
+      habits: [
+        makeHabit({ habitState: "automatic", id: "h1" }),
+        makeHabit({ habitState: "automatic", id: "h2", name: "Stretch" }),
+      ],
+      isLoading: false,
+      upcomingHabits: [],
+    });
+    renderWithClient(<TodayScreen />);
+    expect(screen.getByText("(Graduated)")).toBeTruthy();
+  });
+
+  it("hides the (Graduated) suffix when only some habits in a goal are automatic", () => {
+    useTodayHabits.mockReturnValue({
+      error: null,
+      goalGraduatedByIdentity: { "a runner": false },
+      goalStreaks: { "a runner": 5 },
+      habits: [
+        makeHabit({ habitState: "automatic", id: "h1" }),
+        makeHabit({ habitState: "active", id: "h2", name: "Stretch" }),
+      ],
+      isLoading: false,
+      upcomingHabits: [],
+    });
+    renderWithClient(<TodayScreen />);
+    expect(screen.queryByText("(Graduated)")).toBeNull();
+  });
+
+  it("never shows the (Graduated) suffix for the no-goal bucket, even when all habits are automatic", () => {
+    useTodayHabits.mockReturnValue({
+      error: null,
+      goalGraduatedByIdentity: {},
+      goalStreaks: {},
+      habits: [
+        makeHabit({ habitState: "automatic", id: "h1", identityPhrase: "" }),
+        makeHabit({
+          habitState: "automatic",
+          id: "h2",
+          identityPhrase: "",
+          name: "Stretch",
+        }),
+      ],
+      isLoading: false,
+      upcomingHabits: [],
+    });
+    renderWithClient(<TodayScreen />);
+    expect(screen.queryByText("(Graduated)")).toBeNull();
+  });
+
+  it("hides the (Graduated) suffix when an upcoming (not-yet-started) habit exists in the goal", () => {
+    // All eligible habits are automatic, but the hook's goalGraduatedByIdentity
+    // computes over upcoming habits too — and reports false because the
+    // upcoming habit's habit_state is still 'active'.
+    useTodayHabits.mockReturnValue({
+      error: null,
+      goalGraduatedByIdentity: { "a runner": false },
+      goalStreaks: { "a runner": 5 },
+      habits: [makeHabit({ habitState: "automatic", id: "h1" })],
+      isLoading: false,
+      upcomingHabits: [{ formula: "soon", id: "u1", name: "Stretch", startDate: "2999-01-01" }],
+    });
+    renderWithClient(<TodayScreen />);
+    expect(screen.queryByText("(Graduated)")).toBeNull();
+  });
 });

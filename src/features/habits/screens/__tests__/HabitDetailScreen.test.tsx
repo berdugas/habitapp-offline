@@ -33,6 +33,14 @@ jest.mock("@/features/today/hooks", () => ({
   useHabitLogsForRange: jest.fn(),
 }));
 
+jest.mock("@/features/graduation/hooks", () => ({
+  useLatestSRHIQuery: jest.fn(() => ({
+    data: null,
+    isLoading: false,
+    isSuccess: true,
+  })),
+}));
+
 jest.mock("@/features/auth/hooks", () => ({
   useAuthSession: jest.fn(() => ({ user: { id: "user-1" } })),
 }));
@@ -62,6 +70,14 @@ const {
 const { useHabitLogsForRange } = jest.requireMock(
   "@/features/today/hooks",
 ) as { useHabitLogsForRange: jest.Mock };
+
+const { useLatestSRHIQuery } = jest.requireMock(
+  "@/features/graduation/hooks",
+) as { useLatestSRHIQuery: jest.Mock };
+
+const { useTrialValidation } = jest.requireMock(
+  "@/features/trial/hooks",
+) as { useTrialValidation: jest.Mock };
 
 function renderWithClient(ui: React.ReactElement) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -348,5 +364,235 @@ describe("HabitDetailScreen", () => {
     });
     renderWithClient(<HabitDetailScreen />);
     expect(screen.getAllByText("Become a runner").length).toBeGreaterThanOrEqual(1);
+  });
+
+  describe("graduation prompt card", () => {
+    // start_date well over 60 days before mocked "today" (2026-04-30)
+    const ELIGIBLE_HABIT = { start_date: "2026-01-01" };
+    const ELIGIBLE_PROGRESS = makeProgress({ consistencyRate: 0.85 });
+
+    it("renders the prompt card when the habit is eligible (>= 60 active days, consistency >= 0.75, no cooldown)", () => {
+      useHabitDetail.mockReturnValue({
+        error: null,
+        formula: "After morning coffee, I will run.",
+        habit: makeHabit(ELIGIBLE_HABIT),
+        isLoading: false,
+        isUpcoming: false,
+        latestReview: null,
+        progress: ELIGIBLE_PROGRESS,
+        recentLogs: [],
+      });
+      renderWithClient(<HabitDetailScreen />);
+      expect(screen.getByText(/Ready to check if it.s become automatic\?/)).toBeTruthy();
+      expect(screen.getByText("Start reflection")).toBeTruthy();
+    });
+
+    it("hides the card when the habit is too young (< 60 active days elapsed)", () => {
+      useHabitDetail.mockReturnValue({
+        error: null,
+        formula: "After morning coffee, I will run.",
+        habit: makeHabit({ start_date: "2026-04-01" }), // only 30 days
+        isLoading: false,
+        isUpcoming: false,
+        latestReview: null,
+        progress: ELIGIBLE_PROGRESS,
+        recentLogs: [],
+      });
+      renderWithClient(<HabitDetailScreen />);
+      expect(screen.queryByText("Start reflection")).toBeNull();
+    });
+
+    it("hides the card when habit_state is already 'automatic'", () => {
+      useHabitDetail.mockReturnValue({
+        error: null,
+        formula: "After morning coffee, I will run.",
+        habit: makeHabit({
+          ...ELIGIBLE_HABIT,
+          automated_at: "2026-04-25T00:00:00.000Z",
+          habit_state: "automatic",
+        }),
+        isLoading: false,
+        isUpcoming: false,
+        latestReview: null,
+        progress: ELIGIBLE_PROGRESS,
+        recentLogs: [],
+      });
+      renderWithClient(<HabitDetailScreen />);
+      expect(screen.queryByText("Start reflection")).toBeNull();
+    });
+
+    it("hides the card during the 14-day cooldown after a failed SRHI", () => {
+      // Today is 2026-04-30; a failing SRHI from 2026-04-25 is 5 days ago → cooldown
+      useLatestSRHIQuery.mockReturnValueOnce({
+        data: {
+          average_score: 2.33,
+          created_at: "2026-04-25T12:00:00.000Z",
+          graduated: false,
+          habit_id: "habit-1",
+          id: "srhi-1",
+          q1_score: 2,
+          q2_score: 3,
+          q3_score: 2,
+          user_id: "user-1",
+        },
+        isLoading: false,
+        isSuccess: true,
+      });
+      useHabitDetail.mockReturnValue({
+        error: null,
+        formula: "After morning coffee, I will run.",
+        habit: makeHabit(ELIGIBLE_HABIT),
+        isLoading: false,
+        isUpcoming: false,
+        latestReview: null,
+        progress: ELIGIBLE_PROGRESS,
+        recentLogs: [],
+      });
+      renderWithClient(<HabitDetailScreen />);
+      expect(screen.queryByText("Start reflection")).toBeNull();
+    });
+
+    it("hides the card in read-only access mode even when otherwise eligible", () => {
+      useTrialValidation.mockReturnValueOnce({
+        accessMode: "read_only",
+        entitlementStatus: "trial_expired",
+        isBootstrapping: false,
+        isValidating: false,
+        lastValidatedAt: null,
+        refresh: jest.fn().mockResolvedValue(undefined),
+        trialEndsAt: null,
+        trialStartedAt: null,
+      });
+      useHabitDetail.mockReturnValue({
+        error: null,
+        formula: "After morning coffee, I will run.",
+        habit: makeHabit(ELIGIBLE_HABIT),
+        isLoading: false,
+        isUpcoming: false,
+        latestReview: null,
+        progress: ELIGIBLE_PROGRESS,
+        recentLogs: [],
+      });
+      renderWithClient(<HabitDetailScreen />);
+      expect(screen.queryByText("Start reflection")).toBeNull();
+    });
+
+    it("hides the card while the latest SRHI query is still loading (avoids a flash for habits in cooldown)", () => {
+      useLatestSRHIQuery.mockReturnValueOnce({
+        data: undefined,
+        isLoading: true,
+        isSuccess: false,
+      });
+      useHabitDetail.mockReturnValue({
+        error: null,
+        formula: "After morning coffee, I will run.",
+        habit: makeHabit(ELIGIBLE_HABIT),
+        isLoading: false,
+        isUpcoming: false,
+        latestReview: null,
+        progress: ELIGIBLE_PROGRESS,
+        recentLogs: [],
+      });
+      renderWithClient(<HabitDetailScreen />);
+      expect(screen.queryByText("Start reflection")).toBeNull();
+    });
+
+    it("hides the card when the latest SRHI query errors (avoids silently treating failure as 'no prior response')", () => {
+      useLatestSRHIQuery.mockReturnValueOnce({
+        data: undefined,
+        error: new Error("network down"),
+        isLoading: false,
+        isSuccess: false,
+      });
+      useHabitDetail.mockReturnValue({
+        error: null,
+        formula: "After morning coffee, I will run.",
+        habit: makeHabit(ELIGIBLE_HABIT),
+        isLoading: false,
+        isUpcoming: false,
+        latestReview: null,
+        progress: ELIGIBLE_PROGRESS,
+        recentLogs: [],
+      });
+      renderWithClient(<HabitDetailScreen />);
+      expect(screen.queryByText("Start reflection")).toBeNull();
+    });
+
+    it("'Start reflection' navigates to /graduation/[habitId]", () => {
+      useHabitDetail.mockReturnValue({
+        error: null,
+        formula: "After morning coffee, I will run.",
+        habit: makeHabit(ELIGIBLE_HABIT),
+        isLoading: false,
+        isUpcoming: false,
+        latestReview: null,
+        progress: ELIGIBLE_PROGRESS,
+        recentLogs: [],
+      });
+      renderWithClient(<HabitDetailScreen />);
+      fireEvent.press(screen.getByText("Start reflection"));
+      const { router } = jest.requireMock("expo-router") as {
+        router: { push: jest.Mock };
+      };
+      expect(router.push).toHaveBeenCalledWith({
+        pathname: "/(app)/graduation/[habitId]",
+        params: { habitId: "habit-1" },
+      });
+    });
+  });
+
+  describe("graduated badge", () => {
+    it("renders 'Automatic since {month year}' when habit_state is automatic and automated_at is set", () => {
+      useHabitDetail.mockReturnValue({
+        error: null,
+        formula: "After morning coffee, I will run.",
+        habit: makeHabit({
+          automated_at: "2026-05-14T12:00:00.000Z",
+          habit_state: "automatic",
+        }),
+        isLoading: false,
+        isUpcoming: false,
+        latestReview: null,
+        progress: makeProgress(),
+        recentLogs: [],
+      });
+      renderWithClient(<HabitDetailScreen />);
+      expect(screen.getByText("Automatic since May 2026")).toBeTruthy();
+    });
+
+    it("hides the badge when habit_state is active", () => {
+      useHabitDetail.mockReturnValue({
+        error: null,
+        formula: "After morning coffee, I will run.",
+        habit: makeHabit({ habit_state: "active" }),
+        isLoading: false,
+        isUpcoming: false,
+        latestReview: null,
+        progress: makeProgress(),
+        recentLogs: [],
+      });
+      renderWithClient(<HabitDetailScreen />);
+      expect(screen.queryByText(/^Automatic/)).toBeNull();
+    });
+
+    it("falls back to plain 'Automatic' when habit_state is automatic but automated_at is null", () => {
+      useHabitDetail.mockReturnValue({
+        error: null,
+        formula: "After morning coffee, I will run.",
+        habit: makeHabit({
+          automated_at: null,
+          habit_state: "automatic",
+        }),
+        isLoading: false,
+        isUpcoming: false,
+        latestReview: null,
+        progress: makeProgress(),
+        recentLogs: [],
+      });
+      renderWithClient(<HabitDetailScreen />);
+      expect(screen.getByText("Automatic")).toBeTruthy();
+      // Must never render "Automatic since —" or "Automatic since "
+      expect(screen.queryByText(/Automatic since/)).toBeNull();
+    });
   });
 });

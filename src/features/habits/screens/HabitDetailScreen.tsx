@@ -17,6 +17,8 @@ import { LucideIcon } from "@/components/LucideIconPicker";
 import { isWithinRetroWindow } from "@/features/habits/api";
 import { isActiveDay, parseActiveDays } from "@/features/habits/activeDays";
 import { getFrequencyLabel } from "@/features/habits/formatters";
+import { checkGraduationEligibility } from "@/features/graduation/eligibility";
+import { useLatestSRHIQuery } from "@/features/graduation/hooks";
 import { ConsistencyDonut } from "@/features/today/components/ConsistencyDonut";
 import { cancelReminder, requestPermission } from "@/features/reminders/notifications";
 import { RetroLogSelector } from "@/features/habits/components/RetroLogSelector";
@@ -52,6 +54,11 @@ function formatDisplayTime(hhmm: string): string {
   const ampm = h < 12 ? "AM" : "PM";
   const displayH = h === 0 ? 12 : h > 12 ? h - 12 : h;
   return `${displayH}:${String(m).padStart(2, "0")} ${ampm}`;
+}
+
+function formatGraduationDate(isoString: string): string {
+  const date = new Date(isoString);
+  return date.toLocaleDateString("en-US", { month: "long", year: "numeric" });
 }
 
 export default function HabitDetailScreen() {
@@ -139,6 +146,19 @@ export default function HabitDetailScreen() {
     }
     return count;
   })();
+
+  // Gate on isSuccess: a loading/errored SRHI query would otherwise skip the cooldown branch and flash the prompt for a cooldown habit.
+  const latestSRHIQuery = useLatestSRHIQuery(habit?.id);
+  const graduationEligibility =
+    habit && latestSRHIQuery.isSuccess
+      ? checkGraduationEligibility({
+          activeDaysElapsed: activeDaysCount,
+          consistencyRate: progress.consistencyRate,
+          habit,
+          latestSRHI: latestSRHIQuery.data ?? null,
+          todayDate,
+        })
+      : null;
 
   // Count done/active days from start_date to today for the header counter
   const calendarDoneCount = (calendarLogs as HeatmapLog[]).filter((l) => l.status === "done").length;
@@ -298,6 +318,15 @@ export default function HabitDetailScreen() {
             <Pencil color={isReadOnly ? colors.textFaint : colors.primary} size={16} strokeWidth={1.75} />
           </Pressable>
         </View>
+        {habit.habit_state === "automatic" ? (
+          <View style={styles.graduatedBadge}>
+            <Text style={styles.graduatedBadgeText}>
+              {habit.automated_at
+                ? `Automatic since ${formatGraduationDate(habit.automated_at)}`
+                : "Automatic"}
+            </Text>
+          </View>
+        ) : null}
         <Text selectable style={styles.formulaText}>{formula}</Text>
         <Text selectable style={styles.frequencyText}>{frequencyLabel}</Text>
         {habit.preferred_time_window ? (
@@ -360,6 +389,25 @@ export default function HabitDetailScreen() {
             logs={calendarLogs as HeatmapLog[]}
             onCellPress={handleCellPress}
             startDate={habit.start_date}
+          />
+        </ZenCard>
+      ) : null}
+
+      {/* Graduation prompt card */}
+      {!isReadOnly && habit && graduationEligibility?.eligible ? (
+        <ZenCard>
+          <Eyebrow label="Graduation" />
+          <Text style={styles.graduationPromptText}>
+            This habit has been with you for a while. Ready to check if it&apos;s become automatic?
+          </Text>
+          <PrimaryButton
+            label="Start reflection"
+            onPress={() =>
+              router.push({
+                pathname: "/(app)/graduation/[habitId]",
+                params: { habitId: habit.id },
+              })
+            }
           />
         </ZenCard>
       ) : null}
@@ -499,6 +547,24 @@ const styles = StyleSheet.create({
     fontSize: typography.bodyLg,
     fontStyle: "italic",
     lineHeight: 22,
+  },
+  graduatedBadge: {
+    alignSelf: "flex-start",
+    backgroundColor: colors.graduatedBadge,
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.sm + 2,
+    paddingVertical: spacing.xs,
+  },
+  graduatedBadgeText: {
+    color: colors.graduatedCircle,
+    fontFamily: fontFamilies.bodySemi,
+    fontSize: typography.micro,
+  },
+  graduationPromptText: {
+    color: colors.textMuted,
+    fontFamily: fontFamilies.body,
+    fontSize: typography.bodyLg,
+    lineHeight: 24,
   },
   frequencyText: {
     color: colors.textFaint,

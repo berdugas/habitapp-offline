@@ -88,6 +88,14 @@ export function getSaveWeeklyReviewErrorMessage() {
   return "We couldn't save your weekly review right now. Try again.";
 }
 
+export function getLoadGraduationErrorMessage() {
+  return "We couldn't load this habit's graduation right now. Try again.";
+}
+
+export function getSaveGraduationErrorMessage() {
+  return "We couldn't save your graduation response right now. Try again.";
+}
+
 export function getSaveTodayStatusErrorMessage() {
   return "We couldn't save today's status right now. Try again.";
 }

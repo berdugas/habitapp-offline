@@ -16,6 +16,7 @@ import {
   useUpcomingActiveHabitsQuery,
 } from "@/features/habits/hooks";
 import { formatHabitFormula } from "@/features/habits/formatters";
+import { isGoalGraduated } from "@/features/graduation/graduation";
 import { summarizeHabitProgress } from "@/features/today/progress";
 import {
   avgConsistencyRate,
@@ -133,6 +134,22 @@ export function useTodayHabits() {
     );
   }
 
+  // Compute over eligible + upcoming so an upcoming habit (which can't be automatic yet) correctly suppresses the marker.
+  const upcomingHabits = upcomingHabitsQuery.data ?? [];
+  const allActiveByIdentity = new Map<string, typeof eligibleHabits>();
+  for (const habit of [...eligibleHabits, ...upcomingHabits]) {
+    const key = habit.identity_phrase || NO_GOAL_KEY;
+    const arr = allActiveByIdentity.get(key) ?? [];
+    arr.push(habit);
+    allActiveByIdentity.set(key, arr);
+  }
+  const goalGraduatedByIdentity: Record<string, boolean> = {};
+  for (const [key, allHabits] of allActiveByIdentity) {
+    goalGraduatedByIdentity[key] =
+      key !== NO_GOAL_KEY &&
+      isGoalGraduated(allHabits.map((h) => ({ habit_state: h.habit_state })));
+  }
+
   return {
     ...historyLogsQuery,
     error:
@@ -140,6 +157,7 @@ export function useTodayHabits() {
       upcomingHabitsQuery.error ??
       historyLogsQuery.error ??
       null,
+    goalGraduatedByIdentity,
     goalStreaks,
     habits: eligibleHabits.map<TodayHabitCardData>((habit) => {
       const activeDays = parseActiveDays(habit.active_days);
@@ -154,6 +172,7 @@ export function useTodayHabits() {
         activeDays,
         cue: habit.cue,
         formula: formatHabitFormula(habit.cue, habit.tiny_action),
+        habitState: habit.habit_state,
         icon: habit.icon ?? null,
         id: habit.id,
         identityPhrase: habit.identity_phrase ?? "",
@@ -301,7 +320,11 @@ export function useGoalDetail(identityPhrase: string | undefined) {
   const endDateObj = new Date(`${endDate}T12:00:00`);
 
   const allHabitsQuery = useEligibleHabitsQuery();
+  const upcomingHabitsQuery = useUpcomingActiveHabitsQuery();
   const goalHabits = (allHabitsQuery.data ?? []).filter(
+    (h) => h.identity_phrase === identityPhrase,
+  );
+  const upcomingGoalHabits = (upcomingHabitsQuery.data ?? []).filter(
     (h) => h.identity_phrase === identityPhrase,
   );
 
@@ -378,14 +401,30 @@ export function useGoalDetail(identityPhrase: string | undefined) {
   const weeklyData = computeWeeklyConsistency(habits, chartStartIso, endDateObj);
   const goalDailyStates = computeGoalDailyStates(habits, 14);
 
+  // Same eligible + upcoming merge as useTodayHabits, scoped to this goal.
+  const allActiveGoalHabits = [...goalHabits, ...upcomingGoalHabits];
+  const goalGraduated =
+    allActiveGoalHabits.length > 0 &&
+    isGoalGraduated(
+      allActiveGoalHabits.map((h) => ({ habit_state: h.habit_state })),
+    );
+
   return {
-    error: allHabitsQuery.error ?? logsQuery.error ?? null,
+    error:
+      allHabitsQuery.error ??
+      upcomingHabitsQuery.error ??
+      logsQuery.error ??
+      null,
     goalConsistencyRate: avgConsistencyRate(habits),
     goalDailyStates,
+    goalGraduated,
     goalStreak: computeGoalStreak(habits, TODAY_PROGRESS_WINDOW_DAYS, endDateObj),
     habits,
     identityPhrase: identityPhrase ?? "",
-    isLoading: allHabitsQuery.isLoading || logsQuery.isLoading,
+    isLoading:
+      allHabitsQuery.isLoading ||
+      upcomingHabitsQuery.isLoading ||
+      logsQuery.isLoading,
     oldestActiveDaysCount,
     weeklyData,
   };

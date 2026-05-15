@@ -1,4 +1,4 @@
-import type { HabitLogStatus } from "@/features/habits/types";
+import type { HabitLogStatus, HabitState } from "@/features/habits/types";
 
 export type TodayHabitCardData = {
   activeDays: number[];
@@ -6,6 +6,7 @@ export type TodayHabitCardData = {
   consistencyRate: number;
   cue: string;
   formula: string;
+  habitState: HabitState;
   icon: string | null;
   id: string;
   identityPhrase: string;

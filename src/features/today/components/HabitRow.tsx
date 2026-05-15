@@ -13,6 +13,7 @@ import type { TodayHabitCardData } from "@/features/today/types";
 
 type HabitRowProps = {
   disabled: boolean;
+  graduated?: boolean;
   habit: TodayHabitCardData;
   onDone: (habitId: string) => void;
   onNavigate: (habitId: string) => void;
@@ -23,6 +24,7 @@ type HabitRowProps = {
 
 export function HabitRow({
   disabled,
+  graduated = false,
   habit,
   onDone,
   onNavigate,
@@ -120,8 +122,12 @@ export function HabitRow({
         ) : isSkipped ? (
           <View style={styles.circleSkipped} />
         ) : (
-          <View style={styles.circlePending}>
-            <Check color={colors.primaryLight} size={16} strokeWidth={2.5} />
+          <View style={graduated ? styles.circleGraduated : styles.circlePending}>
+            <Check
+              color={graduated ? colors.graduatedBadge : colors.primaryLight}
+              size={16}
+              strokeWidth={2.5}
+            />
           </View>
         )}
       </Pressable>
@@ -147,10 +153,18 @@ export function HabitRow({
           {habit.name}
         </Text>
         <Text
-          style={[styles.formulaText, isSkipped && styles.formulaTextSkipped]}
+          style={[
+            styles.formulaText,
+            isSkipped && styles.formulaTextSkipped,
+            !isSkipped && graduated && styles.formulaTextGraduated,
+          ]}
           numberOfLines={1}
         >
-          {isSkipped ? "Skipped today" : habit.formula}
+          {isSkipped
+            ? "Skipped today"
+            : graduated
+              ? "Automatic"
+              : habit.formula}
         </Text>
       </View>
 
@@ -176,6 +190,15 @@ const styles = StyleSheet.create({
   circlePending: {
     alignItems: "center",
     borderColor: colors.primary,
+    borderRadius: CIRCLE_SIZE / 2,
+    borderWidth: 2,
+    height: CIRCLE_SIZE,
+    justifyContent: "center",
+    width: CIRCLE_SIZE,
+  },
+  circleGraduated: {
+    alignItems: "center",
+    borderColor: colors.graduatedCircle,
     borderRadius: CIRCLE_SIZE / 2,
     borderWidth: 2,
     height: CIRCLE_SIZE,
@@ -210,6 +233,10 @@ const styles = StyleSheet.create({
   },
   formulaTextSkipped: {
     color: colors.primary,
+    fontStyle: "italic",
+  },
+  formulaTextGraduated: {
+    color: colors.graduatedCircle,
     fontStyle: "italic",
   },
   habitName: {

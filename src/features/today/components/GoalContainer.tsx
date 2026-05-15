@@ -13,6 +13,7 @@ type GoalContainerProps = {
   banner?: React.ReactNode;
   children: React.ReactNode;
   consistencyRate: number | null;
+  goalGraduated?: boolean;
   identityPhrase: string;
   onAddHabit?: () => void;
   onGoalPress?: () => void;
@@ -24,6 +25,7 @@ export function GoalContainer({
   banner,
   children,
   consistencyRate,
+  goalGraduated = false,
   identityPhrase,
   onAddHabit,
   onGoalPress,
@@ -40,7 +42,14 @@ export function GoalContainer({
           style={styles.anchorSide}
           disabled={!onGoalPress}
         >
-          <Text style={styles.becomingText}>Become {identityPhrase}</Text>
+          <Text
+            style={[styles.becomingText, goalGraduated && styles.becomingTextGraduated]}
+          >
+            Become {identityPhrase}
+            {goalGraduated ? (
+              <Text style={styles.graduatedSuffix}> (Graduated)</Text>
+            ) : null}
+          </Text>
           <Text style={styles.streakText}>{streakCopy}</Text>
           {remainingCount > 0 ? (
             <View style={styles.pill}>
@@ -57,6 +66,7 @@ export function GoalContainer({
             label="Goal consistency"
             onPress={onGoalPress}
             rate={consistencyRate}
+            tint={goalGraduated ? colors.graduatedCircle : undefined}
           />
         ) : null}
       </View>
@@ -89,6 +99,16 @@ const styles = StyleSheet.create({
     fontFamily: fontFamilies.bodyMedium,
     fontSize: 21,
     fontWeight: "500",
+  },
+  becomingTextGraduated: {
+    color: colors.graduatedCircle,
+  },
+  graduatedSuffix: {
+    color: colors.graduatedCircle,
+    fontFamily: fontFamilies.body,
+    fontSize: typography.micro,
+    fontStyle: "italic",
+    fontWeight: "400",
   },
   container: {
     backgroundColor: colors.surface,

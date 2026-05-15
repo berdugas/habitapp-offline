@@ -88,7 +88,8 @@ function AppHeader() {
 export default function TodayScreen() {
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
-  const { error, goalStreaks, habits, isLoading } = useTodayHabits();
+  const { error, goalGraduatedByIdentity, goalStreaks, habits, isLoading } =
+    useTodayHabits();
   const upsertTodayHabitStatusMutation = useUpsertTodayHabitStatusMutation();
   const deleteTodayHabitLogMutation = useDeleteTodayHabitLogMutation();
   const archiveHabitMutation = useArchiveHabitMutation();
@@ -240,6 +241,9 @@ export default function TodayScreen() {
           activeHabits.every((h) => h.todayStatus !== null);
         const groupHasBanner =
           showBanner && group.habits.some((h) => h.id === missingHabitId);
+        const goalGraduated =
+          group.identityPhrase !== NO_GOAL_KEY &&
+          (goalGraduatedByIdentity?.[group.identityPhrase] ?? false);
 
         return (
           <React.Fragment key={group.identityPhrase}>
@@ -252,6 +256,7 @@ export default function TodayScreen() {
                 ) : null
               }
               consistencyRate={avgConsistencyRate(group.habits)}
+              goalGraduated={goalGraduated}
               identityPhrase={group.identityPhrase}
               remainingCount={group.habits.filter((h) => !h.offDay && h.todayStatus === null).length}
               onAddHabit={
@@ -284,6 +289,7 @@ export default function TodayScreen() {
                     deleteTodayHabitLogMutation.isPending ||
                     isReadOnly
                   }
+                  graduated={habit.habitState === "automatic"}
                   habit={habit}
                   offDay={habit.offDay}
                   onDone={(id) => void handleStatusPress(id, "done")}

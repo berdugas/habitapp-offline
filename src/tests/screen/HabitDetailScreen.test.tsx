@@ -6,6 +6,10 @@ jest.mock("@/features/reviews/hooks", () => ({
   }),
 }));
 
+jest.mock("@/features/graduation/hooks", () => ({
+  useLatestSRHIQuery: jest.fn().mockReturnValue({ data: null }),
+}));
+
 jest.mock("@/features/trial/hooks", () => ({
   useTrialValidation: jest.fn(() => ({
     isBootstrapping: false,
