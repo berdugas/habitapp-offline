@@ -1,4 +1,5 @@
 import {
+  daysBetweenDates,
   getTrailingDateRangeStrings,
   getWeekStartDateString,
   toDeviceDateString,
@@ -59,5 +60,38 @@ describe("date helpers", () => {
       endDate: "2026-04-23",
       startDate: "2026-03-25",
     });
+  });
+});
+
+describe("daysBetweenDates", () => {
+  it("returns 0 when both dates are the same calendar day", () => {
+    expect(daysBetweenDates("2026-05-14", "2026-05-14")).toBe(0);
+  });
+
+  it("returns 1 for consecutive days", () => {
+    expect(daysBetweenDates("2026-05-13", "2026-05-14")).toBe(1);
+  });
+
+  it("returns 14 for the cooldown boundary case", () => {
+    expect(daysBetweenDates("2026-05-01", "2026-05-15")).toBe(14);
+  });
+
+  it("accepts a full ISO timestamp on either side via truncation", () => {
+    expect(
+      daysBetweenDates("2026-05-01T08:15:32.521Z", "2026-05-15"),
+    ).toBe(14);
+    expect(
+      daysBetweenDates("2026-05-01", "2026-05-15T23:59:59.999Z"),
+    ).toBe(14);
+  });
+
+  it("returns 0 when a 23:00 timestamp shares the calendar day with a date-only input (R4 regression)", () => {
+    expect(
+      daysBetweenDates("2026-05-14T23:00:00.000Z", "2026-05-14"),
+    ).toBe(0);
+  });
+
+  it("returns a negative number when from is later than to", () => {
+    expect(daysBetweenDates("2026-05-14", "2026-05-07")).toBe(-7);
   });
 });

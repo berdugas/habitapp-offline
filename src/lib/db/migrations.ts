@@ -14,7 +14,10 @@ import { logger } from "@/services/logger";
  * Forward-only: there is no "down" path. To undo a migration, write a new
  * one that compensates.
  */
-export async function runMigrations(db: SQLiteDatabase): Promise<void> {
+export async function runMigrations(
+  db: SQLiteDatabase,
+  list: Migration[] = migrations,
+): Promise<void> {
   await db.execAsync(`
     CREATE TABLE IF NOT EXISTS schema_migrations (
       id INTEGER PRIMARY KEY,
@@ -28,7 +31,7 @@ export async function runMigrations(db: SQLiteDatabase): Promise<void> {
   );
   const appliedIds = new Set(appliedRows.map((row) => row.id));
 
-  const pending = migrations.filter((m) => !appliedIds.has(m.id));
+  const pending = list.filter((m) => !appliedIds.has(m.id));
 
   if (pending.length === 0) {
     logger.info("DB migrations: up to date", {

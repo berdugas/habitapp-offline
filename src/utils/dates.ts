@@ -41,3 +41,11 @@ export function getWeekStartDate(date = new Date()) {
 export function getWeekStartDateString(date = new Date()) {
   return toDeviceDateString(getWeekStartDate(date));
 }
+
+export function daysBetweenDates(fromDate: string, toDate: string): number {
+  const from = fromDate.length > 10 ? fromDate.slice(0, 10) : fromDate;
+  const to = toDate.length > 10 ? toDate.slice(0, 10) : toDate;
+  const a = new Date(`${from}T12:00:00`).getTime();
+  const b = new Date(`${to}T12:00:00`).getTime();
+  return Math.round((b - a) / 86_400_000);
+}
