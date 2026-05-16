@@ -8,11 +8,21 @@ describe("WeeklyConsistencyChart", () => {
     expect(toJSON()).toBeNull();
   });
 
-  it("renders null when given 1 data point", () => {
-    const { toJSON } = render(
+  it("renders a single dot (no line/area) when given 1 data point", () => {
+    render(
       <WeeklyConsistencyChart weeklyData={[{ weekLabel: "W1", rate: 0.5 }]} />,
     );
-    expect(toJSON()).toBeNull();
+    expect(screen.getByText("Weekly consistency")).toBeTruthy();
+    const circles = screen.UNSAFE_root.findAll(
+      (n: { type: unknown }) =>
+        typeof n.type === "string" && n.type === "RNSVGCircle",
+    );
+    expect(circles).toHaveLength(1);
+    const paths = screen.UNSAFE_root.findAll(
+      (n: { type: unknown }) =>
+        typeof n.type === "string" && n.type === "RNSVGPath",
+    );
+    expect(paths).toHaveLength(0);
   });
 
   it("renders the caption when given 2+ data points", () => {

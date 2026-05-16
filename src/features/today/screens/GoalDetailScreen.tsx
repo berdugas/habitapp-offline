@@ -102,7 +102,6 @@ export default function GoalDetailScreen() {
             rate={goalConsistencyRate ?? 0}
             size={56}
             label=""
-            suppressed={oldestActiveDaysCount < 7}
             tint={goalGraduated ? colors.graduatedCircle : undefined}
           />
           <Text style={styles.narrativeText}>
@@ -110,7 +109,7 @@ export default function GoalDetailScreen() {
           </Text>
         </View>
 
-        {weeklyData.length >= 2 ? (
+        {weeklyData.length >= 1 ? (
           <WeeklyConsistencyChart weeklyData={weeklyData} />
         ) : null}
 
@@ -191,7 +190,9 @@ export default function GoalDetailScreen() {
                   </Text>
                   <MiniHeatmapStrip
                     activeDays={habit.activeDays}
+                    cellSize={12}
                     logs={habit.logs}
+                    maxDays={14}
                     startDate={habit.startDate}
                   />
                 </View>
@@ -205,11 +206,6 @@ export default function GoalDetailScreen() {
           <Text style={styles.emptyText}>No habits found for this goal.</Text>
         </ZenCard>
       )}
-
-      <TertiaryButton
-        label="Back to Today"
-        onPress={() => router.push("/(app)/(tabs)/today")}
-      />
     </ScrollView>
   );
 }

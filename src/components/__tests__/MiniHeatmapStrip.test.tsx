@@ -28,6 +28,18 @@ describe("buildStripCells", () => {
     expect(cells).toHaveLength(30);
   });
 
+  it("respects an explicit maxDays cap (14)", () => {
+    const cells = buildStripCells([], ALL_DAYS, "2025-01-01", 14);
+    expect(cells).toHaveLength(14);
+  });
+
+  it("returns fewer than maxDays when the habit is younger than maxDays", () => {
+    // startDate = 3 days ago (May 2 → May 5 = 4 days)
+    const cells = buildStripCells([], ALL_DAYS, "2026-05-02", 14);
+    expect(cells.length).toBeLessThanOrEqual(14);
+    expect(cells).toHaveLength(4);
+  });
+
   it("marks a logged 'done' cell correctly", () => {
     const cells = buildStripCells(
       [{ log_date: "2026-05-04", status: "done" }],

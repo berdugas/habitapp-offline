@@ -1,7 +1,17 @@
-const SUPPRESSED = [
-  "Day one done. Keep showing up — a picture will form after a week.",
-  "Just getting started. Give it a week before the numbers mean anything.",
-  "Too early to measure. What matters now is showing up.",
+const EARLY_HIGH = [
+  "Day one done. Come back tomorrow.",
+  "Perfect so far. The real test is next week.",
+  "Strong start. The pattern will tell the story.",
+];
+
+const EARLY_MID = [
+  "Finding your rhythm. Give it a week to settle.",
+  "A few days in. The consistency picture is still forming.",
+];
+
+const EARLY_LOW = [
+  "Still early. One good day changes the number.",
+  "The first week is the hardest. Keep showing up.",
 ];
 
 const LOW = [
@@ -37,8 +47,14 @@ export function getGoalNarrative(
   consistencyRate: number | null,
   activeDaysElapsed: number,
 ): string {
-  if (activeDaysElapsed < 7 || consistencyRate === null) {
-    return pick(SUPPRESSED, activeDaysElapsed);
+  if (consistencyRate === null) {
+    return pick(EARLY_HIGH, activeDaysElapsed);
+  }
+
+  if (activeDaysElapsed < 7) {
+    if (consistencyRate >= 0.7) return pick(EARLY_HIGH, activeDaysElapsed);
+    if (consistencyRate >= 0.4) return pick(EARLY_MID, activeDaysElapsed);
+    return pick(EARLY_LOW, activeDaysElapsed);
   }
 
   if (consistencyRate < 0.4) return pick(LOW, activeDaysElapsed);

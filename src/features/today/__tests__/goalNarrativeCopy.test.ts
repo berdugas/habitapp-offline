@@ -1,9 +1,19 @@
 import { getGoalNarrative } from "@/features/today/goalNarrativeCopy";
 
-const SUPPRESSED_POOL = [
-  "Day one done. Keep showing up — a picture will form after a week.",
-  "Just getting started. Give it a week before the numbers mean anything.",
-  "Too early to measure. What matters now is showing up.",
+const EARLY_HIGH_POOL = [
+  "Day one done. Come back tomorrow.",
+  "Perfect so far. The real test is next week.",
+  "Strong start. The pattern will tell the story.",
+];
+
+const EARLY_MID_POOL = [
+  "Finding your rhythm. Give it a week to settle.",
+  "A few days in. The consistency picture is still forming.",
+];
+
+const EARLY_LOW_POOL = [
+  "Still early. One good day changes the number.",
+  "The first week is the hardest. Keep showing up.",
 ];
 
 const LOW_POOL = [
@@ -31,12 +41,20 @@ const STRONG_POOL = [
 ];
 
 describe("getGoalNarrative", () => {
-  it("activeDaysElapsed < 7 returns a suppressed variant", () => {
-    expect(SUPPRESSED_POOL).toContain(getGoalNarrative(0.8, 3));
+  it("day 1 with 100% returns an EARLY_HIGH variant (not suppressed)", () => {
+    expect(EARLY_HIGH_POOL).toContain(getGoalNarrative(1.0, 1));
   });
 
-  it("null consistencyRate returns a suppressed variant", () => {
-    expect(SUPPRESSED_POOL).toContain(getGoalNarrative(null, 30));
+  it("early days mid rate returns an EARLY_MID variant", () => {
+    expect(EARLY_MID_POOL).toContain(getGoalNarrative(0.5, 3));
+  });
+
+  it("early days low rate returns an EARLY_LOW variant", () => {
+    expect(EARLY_LOW_POOL).toContain(getGoalNarrative(0.3, 3));
+  });
+
+  it("null consistencyRate returns an EARLY_HIGH variant", () => {
+    expect(EARLY_HIGH_POOL).toContain(getGoalNarrative(null, 30));
   });
 
   it("rate < 0.40 with >=7 days returns a LOW variant", () => {
