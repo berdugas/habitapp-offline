@@ -23,13 +23,14 @@ export function buildStripCells(
   logs: HeatmapLog[],
   activeDays: number[],
   startDate: string,
+  maxDays: number = MAX_DAYS,
 ): StripCell[] {
   const today = todayDateString();
   const todayDate = new Date(`${today}T12:00:00`);
 
-  // Show up to MAX_DAYS, but no earlier than startDate
+  // Show up to maxDays, but no earlier than startDate
   const windowStart = new Date(todayDate);
-  windowStart.setDate(windowStart.getDate() - (MAX_DAYS - 1));
+  windowStart.setDate(windowStart.getDate() - (maxDays - 1));
   const effectiveStart = startDate > todayDateString()
     ? todayDate
     : new Date(`${startDate}T12:00:00`) > windowStart
@@ -96,17 +97,30 @@ function dotStyle(state: CellState): object {
 
 type MiniHeatmapStripProps = {
   activeDays: number[];
+  cellGap?: number;
+  cellSize?: number;
   logs: HeatmapLog[];
+  maxDays?: number;
   startDate: string;
 };
 
-export function MiniHeatmapStrip({ activeDays, logs, startDate }: MiniHeatmapStripProps) {
-  const cells = buildStripCells(logs, activeDays, startDate);
+export function MiniHeatmapStrip({
+  activeDays,
+  cellGap = CELL_GAP,
+  cellSize = CELL_SIZE,
+  logs,
+  maxDays = MAX_DAYS,
+  startDate,
+}: MiniHeatmapStripProps) {
+  const cells = buildStripCells(logs, activeDays, startDate, maxDays);
 
   return (
-    <View style={styles.strip}>
+    <View style={[styles.strip, { gap: cellGap }]}>
       {cells.map((cell, i) => (
-        <View key={i} style={[styles.dot, dotStyle(cell.state)]} />
+        <View
+          key={i}
+          style={[styles.dot, { height: cellSize, width: cellSize }, dotStyle(cell.state)]}
+        />
       ))}
     </View>
   );
@@ -115,13 +129,10 @@ export function MiniHeatmapStrip({ activeDays, logs, startDate }: MiniHeatmapStr
 const styles = StyleSheet.create({
   dot: {
     borderRadius: 2,
-    height: CELL_SIZE,
-    width: CELL_SIZE,
   },
   strip: {
     flexDirection: "row",
     flexWrap: "nowrap",
-    gap: CELL_GAP,
     justifyContent: "flex-end",
   },
 });

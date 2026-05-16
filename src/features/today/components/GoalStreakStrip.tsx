@@ -21,8 +21,8 @@ export function GoalStreakStrip({ dailyStates, streak }: GoalStreakStripProps) {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Eyebrow label="Last 14 days" />
         <Text style={styles.streakLabel}>{streakLabel}</Text>
+        <Eyebrow label="Last 14 days" />
       </View>
       <View style={styles.strip} testID="goal-strip">
         {dailyStates.map((state, index) => (
@@ -75,15 +75,12 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   header: {
-    alignItems: "center",
-    flexDirection: "row",
-    justifyContent: "space-between",
     marginBottom: 8,
   },
   streakLabel: {
-    color: colors.textMuted,
-    fontFamily: fontFamilies.bodyMedium,
-    fontSize: typography.bodyMd,
+    color: colors.primary,
+    fontFamily: fontFamilies.bodySemi,
+    fontSize: typography.bodyLg,
   },
   strip: {
     flexDirection: "row",

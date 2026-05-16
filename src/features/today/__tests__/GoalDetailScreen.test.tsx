@@ -220,7 +220,7 @@ describe("GoalDetailScreen", () => {
     expect(screen.getByText("No habits found for this goal.")).toBeTruthy();
   });
 
-  it("renders a suppressed narrative when oldest habit has <7 active days", () => {
+  it("renders an early-days narrative (rate-aware, not suppressed) when oldest habit has <7 active days", () => {
     useGoalDetail.mockReturnValue(
       baseDetail({
         goalConsistencyRate: 0.5,
@@ -231,9 +231,7 @@ describe("GoalDetailScreen", () => {
     );
     renderWithClient(<GoalDetailScreen />);
     expect(
-      screen.getByText(
-        "Day one done. Keep showing up — a picture will form after a week.",
-      ),
+      screen.getByText("Finding your rhythm. Give it a week to settle."),
     ).toBeTruthy();
   });
 
