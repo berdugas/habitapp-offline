@@ -13,22 +13,15 @@ import {
 } from "@/features/reviews/queryKeys";
 import { logger } from "@/services/logger";
 import { getWeekStartDateString } from "@/utils/dates";
+import { normalizeParam } from "@/utils/params";
 
 import type { UpsertWeeklyReviewPayload } from "@/features/reviews/types";
-
-function normalizeHabitId(habitId: string | string[] | undefined) {
-  if (Array.isArray(habitId)) {
-    return habitId[0];
-  }
-
-  return habitId;
-}
 
 export function useLatestWeeklyReviewQuery(
   habitIdParam: string | string[] | undefined,
 ) {
   const { user } = useAuthSession();
-  const habitId = normalizeHabitId(habitIdParam);
+  const habitId = normalizeParam(habitIdParam);
 
   return useQuery({
     enabled: Boolean(user?.id && habitId),
@@ -41,7 +34,7 @@ export function useCurrentWeeklyReviewQuery(
   habitIdParam: string | string[] | undefined,
 ) {
   const { user } = useAuthSession();
-  const habitId = normalizeHabitId(habitIdParam);
+  const habitId = normalizeParam(habitIdParam);
   const weekStart = getWeekStartDateString();
 
   return useQuery({

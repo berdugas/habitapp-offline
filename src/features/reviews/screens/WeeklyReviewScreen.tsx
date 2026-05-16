@@ -22,6 +22,7 @@ import { radius } from "@/theme/radius";
 import { spacing } from "@/theme/spacing";
 import { typography } from "@/theme/typography";
 import { getWeekStartDateString } from "@/utils/dates";
+import { normalizeParam } from "@/utils/params";
 import {
   getLoadWeeklyReviewErrorMessage,
   getSaveWeeklyReviewErrorMessage,
@@ -35,18 +36,8 @@ type NullableBooleanFieldProps = {
   value: boolean | null;
 };
 
-const REVIEW_SAVE_SUCCESS_DELAY_MS = 1500;
-
-function normalizeHabitId(habitId: string | string[] | undefined) {
-  if (Array.isArray(habitId)) {
-    return habitId[0];
-  }
-
-  return habitId;
-}
-
 function normalizeReturnTo(value: string | string[] | undefined) {
-  const normalized = Array.isArray(value) ? value[0] : value;
+  const normalized = normalizeParam(value);
 
   return normalized === "today" ? "today" : "habitDetail";
 }
@@ -106,7 +97,7 @@ export default function WeeklyReviewScreen() {
     habitId?: string | string[];
     returnTo?: string | string[];
   }>();
-  const habitId = normalizeHabitId(habitIdParam);
+  const habitId = normalizeParam(habitIdParam);
   const returnTo = normalizeReturnTo(returnToParam);
   const weekStart = getWeekStartDateString();
   const { accessMode } = useTrialValidation();
@@ -115,9 +106,6 @@ export default function WeeklyReviewScreen() {
   const currentReviewQuery = useCurrentWeeklyReviewQuery(habitId);
   const upsertWeeklyReviewMutation = useUpsertWeeklyReviewMutation();
   const saveSubmitLockRef = useRef(false);
-  const successNavigationTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
-    null,
-  );
 
   const [wentWell, setWentWell] = useState("");
   const [wasHard, setWasHard] = useState("");
@@ -131,14 +119,6 @@ export default function WeeklyReviewScreen() {
   const [reviewSaved, setReviewSaved] = useState(false);
   const [adjustmentSuggestion, setAdjustmentSuggestion] =
     useState<HabitAdjustmentSuggestion | null>(null);
-
-  useEffect(() => {
-    return () => {
-      if (successNavigationTimeoutRef.current) {
-        clearTimeout(successNavigationTimeoutRef.current);
-      }
-    };
-  }, []);
 
   useEffect(() => {
     const review = currentReviewQuery.data;
@@ -175,6 +155,9 @@ export default function WeeklyReviewScreen() {
       return;
     }
 
+    const currentHabit = habitDetail.habit;
+    const currentProgress = habitDetail.progress;
+
     saveSubmitLockRef.current = true;
 
     try {
@@ -187,23 +170,18 @@ export default function WeeklyReviewScreen() {
         weekStart,
         wentWell: wentWell.trim(),
       });
+
       const suggestions = getHabitAdjustmentSuggestions({
-        habit: habitDetail.habit,
+        habit: currentHabit,
         latestReview: savedReview,
-        progress: habitDetail.progress,
+        progress: currentProgress,
       });
       setAdjustmentSuggestion(suggestions[0] ?? null);
       setReviewSaved(true);
-
-      const destination =
-        returnTo === "today" ? "/(app)/(tabs)/today" : `/(app)/habits/${habitId}`;
-
-      successNavigationTimeoutRef.current = setTimeout(() => {
-        router.replace(destination);
-      }, REVIEW_SAVE_SUCCESS_DELAY_MS);
     } catch {
       setSaveError(true);
       setAdjustmentSuggestion(null);
+    } finally {
       saveSubmitLockRef.current = false;
     }
   }
@@ -244,6 +222,11 @@ export default function WeeklyReviewScreen() {
   }
 
   const isSaveBlocked = upsertWeeklyReviewMutation.isPending || reviewSaved;
+  const doneDestination: string | null = habitId
+    ? returnTo === "today"
+      ? "/(app)/(tabs)/today"
+      : `/(app)/habits/${habitId}`
+    : null;
 
   return (
     <ScrollView
@@ -274,40 +257,46 @@ export default function WeeklyReviewScreen() {
         <ErrorState message={getSaveWeeklyReviewErrorMessage()} />
       ) : null}
       <ZenCard>
-        <TextField
-          label="What went well this week?"
-          multiline
-          onChangeText={setWentWell}
-          placeholder="The moment that felt easiest"
-          value={wentWell}
-        />
-        <TextField
-          label="What was hard this week?"
-          multiline
-          onChangeText={setWasHard}
-          placeholder="The part that got in the way"
-          value={wasHard}
-        />
-        <Text selectable style={styles.booleanHelper}>
-          These answers help the app suggest what to adjust next week.
-        </Text>
-        <NullableBooleanField
-          label="Did your trigger work?"
-          onChange={setTriggerWorked}
-          value={triggerWorked}
-        />
-        <NullableBooleanField
-          label="Was the tiny action too hard?"
-          onChange={setTinyActionTooHard}
-          value={tinyActionTooHard}
-        />
-        <TextField
-          label="What small adjustment do you want to try next week?"
-          multiline
-          onChangeText={setAdjustmentNote}
-          placeholder="One small change for next week"
-          value={adjustmentNote}
-        />
+        <View style={styles.formSection}>
+          <TextField
+            label="What went well this week?"
+            multiline
+            onChangeText={setWentWell}
+            placeholder="The moment that felt easiest"
+            value={wentWell}
+          />
+          <TextField
+            label="What was hard this week?"
+            multiline
+            onChangeText={setWasHard}
+            placeholder="The part that got in the way"
+            value={wasHard}
+          />
+        </View>
+        <View style={styles.formSection}>
+          <Text selectable style={styles.booleanHelper}>
+            These answers help the app suggest what to adjust next week.
+          </Text>
+          <NullableBooleanField
+            label="Did your trigger work?"
+            onChange={setTriggerWorked}
+            value={triggerWorked}
+          />
+          <NullableBooleanField
+            label="Was the tiny action too hard?"
+            onChange={setTinyActionTooHard}
+            value={tinyActionTooHard}
+          />
+        </View>
+        <View style={styles.formSection}>
+          <TextField
+            label="What small adjustment do you want to try next week?"
+            multiline
+            onChangeText={setAdjustmentNote}
+            placeholder="One small change for next week"
+            value={adjustmentNote}
+          />
+        </View>
       </ZenCard>
 
       {reviewSaved ? (
@@ -322,9 +311,7 @@ export default function WeeklyReviewScreen() {
       ) : null}
       {adjustmentSuggestion ? (
         <ZenCard>
-          <Text selectable style={styles.suggestionEyebrow}>
-            Suggested adjustment
-          </Text>
+          <Eyebrow label="Suggested adjustment" />
           <Text selectable style={styles.suggestionTitle}>
             {adjustmentSuggestion.title}
           </Text>
@@ -340,15 +327,27 @@ export default function WeeklyReviewScreen() {
         </ZenCard>
       ) : null}
 
-      <PrimaryButton
-        disabled={isSaveBlocked}
-        label={
-          upsertWeeklyReviewMutation.isPending
-            ? "Saving review..."
-            : "Save weekly review"
-        }
-        onPress={() => void handleSavePress()}
-      />
+      {reviewSaved ? (
+        <PrimaryButton
+          disabled={!doneDestination}
+          label="Done"
+          onPress={() => {
+            if (doneDestination) {
+              router.replace(doneDestination);
+            }
+          }}
+        />
+      ) : (
+        <PrimaryButton
+          disabled={isSaveBlocked}
+          label={
+            upsertWeeklyReviewMutation.isPending
+              ? "Saving review..."
+              : "Save weekly review"
+          }
+          onPress={() => void handleSavePress()}
+        />
+      )}
     </ScrollView>
   );
 }
@@ -383,6 +382,9 @@ const styles = StyleSheet.create({
     gap: spacing.xl,
     padding: spacing.xl,
   },
+  formSection: {
+    gap: spacing.lg,
+  },
   header: {
     gap: spacing.sm,
   },
@@ -414,13 +416,6 @@ const styles = StyleSheet.create({
     fontFamily: fontFamilies.body,
     fontSize: typography.bodyMd,
     lineHeight: 20,
-  },
-  suggestionEyebrow: {
-    color: colors.textMuted,
-    fontFamily: fontFamilies.bodySemi,
-    fontSize: typography.micro,
-    letterSpacing: 1,
-    textTransform: "uppercase",
   },
   suggestionReason: {
     color: colors.textMuted,
