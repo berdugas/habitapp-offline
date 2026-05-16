@@ -40,6 +40,10 @@ yarn-error.*
 /ios
 /android
 
+# local tooling temp artifacts
+.claude/scheduled_tasks.lock
+.codex-temp/
+
 # project docs
 /docs/
 
