@@ -29,6 +29,11 @@ jest.mock("@/features/habits/hooks", () => ({
     userId: string | undefined,
     habitId: string | undefined,
   ) => ["habits", "detail", userId ?? "guest", habitId ?? "unknown"],
+  getLibraryQueryKey: (userId: string | undefined) => [
+    "habits",
+    "library",
+    userId ?? "guest",
+  ],
 }));
 
 jest.mock("@/lib/db/repositories/srhi_responses", () => ({
@@ -183,7 +188,7 @@ describe("graduation hooks", () => {
     });
   });
 
-  it("invalidates the four dependent query keys on successful graduation", async () => {
+  it("invalidates the five dependent query keys on successful graduation", async () => {
     useRecordGraduationMutation();
 
     const mutationOptions = mockUseMutation.mock.calls[0]?.[0] as {
@@ -209,6 +214,9 @@ describe("graduation hooks", () => {
     });
     expect(mockInvalidateQueries).toHaveBeenCalledWith({
       queryKey: getSRHIHistoryQueryKey("habit-1"),
+    });
+    expect(mockInvalidateQueries).toHaveBeenCalledWith({
+      queryKey: ["habits", "library", "user-1"],
     });
   });
 

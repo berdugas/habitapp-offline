@@ -1,26 +1,20 @@
 import { useState } from "react";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { router } from "expo-router";
+import { ChevronRight } from "lucide-react-native";
 import Constants from "expo-constants";
 
 import { TertiaryButton } from "@/components/buttons/TertiaryButton";
-import { HabitCard } from "@/components/cards/HabitCard";
 import { RowLV } from "@/components/cards/RowLV";
 import { ZenCard } from "@/components/cards/ZenCard";
-import { EmptyState } from "@/components/feedback/EmptyState";
-import { ErrorState } from "@/components/feedback/ErrorState";
-import { LoadingState } from "@/components/feedback/LoadingState";
 import { Eyebrow } from "@/components/text/Eyebrow";
 import { useAuthSession } from "@/features/auth/hooks";
-import { formatHabitFormula } from "@/features/habits/formatters";
-import { useInactiveHabitsQuery } from "@/features/habits/hooks";
 import { signOut } from "@/features/auth/api";
 import { useTrialValidation } from "@/features/trial/hooks";
 import { colors } from "@/theme/colors";
 import { fontFamilies } from "@/theme/fontFamilies";
 import { spacing } from "@/theme/spacing";
 import { typography } from "@/theme/typography";
-import { getLoadInactiveHabitsErrorMessage } from "@/utils/userFacingErrors";
 
 import type { TrialEntitlementStatus } from "@/features/trial/types";
 
@@ -37,7 +31,6 @@ function formatEntitlementStatus(status: TrialEntitlementStatus | null): string 
 
 export default function SettingsScreen() {
   const { user } = useAuthSession();
-  const inactiveHabitsQuery = useInactiveHabitsQuery();
   const { entitlementStatus } = useTrialValidation();
   const [isSigningOut, setIsSigningOut] = useState(false);
 
@@ -69,33 +62,15 @@ export default function SettingsScreen() {
         ) : null}
       </ZenCard>
 
-      <ZenCard>
-        <Eyebrow label="Your archived habits" />
-        <Text selectable style={styles.helper}>
-          Pause and resume habits without losing their history.
-        </Text>
-        {inactiveHabitsQuery.isLoading ? (
-          <LoadingState message="Loading archived habits..." />
-        ) : inactiveHabitsQuery.error ? (
-          <ErrorState message={getLoadInactiveHabitsErrorMessage()} />
-        ) : inactiveHabitsQuery.data?.length ? (
-          <View style={styles.inactiveList}>
-            {inactiveHabitsQuery.data.map((habit) => (
-              <HabitCard
-                formula={formatHabitFormula(habit.cue, habit.tiny_action)}
-                key={habit.id}
-                metaText="Archived habit"
-                name={habit.title}
-                onPress={() => router.push(`/(app)/habits/${habit.id}`)}
-              />
-            ))}
-          </View>
-        ) : (
-          <EmptyState
-            body="Habits you've paused will appear here so you can come back to them."
-            title="No archived habits"
-          />
-        )}
+      <ZenCard gap={0}>
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => router.push("/(app)/habits/backlog")}
+          style={styles.row}
+        >
+          <Text style={styles.rowLabel}>Manage habits</Text>
+          <ChevronRight color={colors.textFaint} size={18} strokeWidth={1.75} />
+        </Pressable>
       </ZenCard>
 
       <ZenCard>
@@ -123,14 +98,16 @@ const styles = StyleSheet.create({
     fontFamily: fontFamilies.body,
     fontSize: typography.bodyLg,
   },
-  helper: {
-    color: colors.textMuted,
-    fontFamily: fontFamilies.body,
-    fontSize: typography.bodyMd,
-    lineHeight: 22,
+  row: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingVertical: spacing.sm,
   },
-  inactiveList: {
-    gap: spacing.lg,
+  rowLabel: {
+    color: colors.text,
+    fontFamily: fontFamilies.body,
+    fontSize: typography.bodyLg,
   },
   screen: {
     backgroundColor: colors.bg,

@@ -18,14 +18,19 @@ jest.mock("expo-constants", () => ({
   },
 }));
 
-import { render, screen } from "@testing-library/react-native";
+import { fireEvent, render, screen } from "@testing-library/react-native";
 import React from "react";
 
 import SettingsScreen from "@/features/settings/screens/SettingsScreen";
 import { useTrialValidation } from "@/features/trial/hooks";
 
+const mockPush = jest.fn();
+
 jest.mock("expo-router", () => ({
-  router: { replace: jest.fn(), push: jest.fn() },
+  router: {
+    replace: jest.fn(),
+    push: (...args: unknown[]) => mockPush(...args),
+  },
 }));
 
 jest.mock("@/features/auth/hooks", () => ({
@@ -36,22 +41,14 @@ jest.mock("@/features/auth/api", () => ({
   signOut: jest.fn().mockResolvedValue(undefined),
 }));
 
-jest.mock("@/features/habits/hooks", () => ({
-  useInactiveHabitsQuery: jest.fn(),
-}));
-
 const { useAuthSession } = jest.requireMock("@/features/auth/hooks") as {
   useAuthSession: jest.Mock;
-};
-const { useInactiveHabitsQuery } = jest.requireMock("@/features/habits/hooks") as {
-  useInactiveHabitsQuery: jest.Mock;
 };
 const mockUseTrialValidation = useTrialValidation as jest.Mock;
 
 function defaultSetup(overrides: {
   email?: string | null;
   entitlementStatus?: string | null;
-  inactiveHabits?: unknown[];
 } = {}) {
   useAuthSession.mockReturnValue({
     user: overrides.email !== undefined ? { email: overrides.email } : { email: "test@example.com" },
@@ -67,11 +64,6 @@ function defaultSetup(overrides: {
     trialEndsAt: null,
     lastValidatedAt: null,
     refresh: jest.fn().mockResolvedValue(undefined),
-  });
-  useInactiveHabitsQuery.mockReturnValue({
-    data: overrides.inactiveHabits ?? [],
-    isLoading: false,
-    error: null,
   });
 }
 
@@ -107,17 +99,20 @@ describe("SettingsScreen", () => {
     expect(screen.queryByText("Active")).toBeNull();
   });
 
-  it("does not render the Foundation status card", () => {
+  it("does not render the legacy archived habits card", () => {
     render(<SettingsScreen />);
-    expect(screen.queryByText("Foundation status")).toBeNull();
+    expect(screen.queryByText("YOUR ARCHIVED HABITS")).toBeNull();
+    expect(
+      screen.queryByText("Pause and resume habits without losing their history."),
+    ).toBeNull();
   });
 
-  it("uses updated heading and helper text for archived habits section", () => {
+  it("shows a 'Manage habits' row that navigates to the backlog screen", () => {
     render(<SettingsScreen />);
-    expect(screen.getByText("YOUR ARCHIVED HABITS")).toBeTruthy();
-    expect(
-      screen.getByText("Pause and resume habits without losing their history."),
-    ).toBeTruthy();
+    const row = screen.getByText("Manage habits");
+    expect(row).toBeTruthy();
+    fireEvent.press(row);
+    expect(mockPush).toHaveBeenCalledWith("/(app)/habits/backlog");
   });
 
   it("About card shows the app version", () => {

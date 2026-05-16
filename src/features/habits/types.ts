@@ -37,6 +37,7 @@ export type HabitSetupPayload = {
 
 export type CreateHabitPayload = HabitSetupPayload & {
   habitState: HabitState;
+  status?: HabitStatus;
 };
 
 export type UpsertHabitLogPayload = {

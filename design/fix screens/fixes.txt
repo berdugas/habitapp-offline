@@ -1,0 +1,18 @@
+Graduation
+   -  there has to be a guide for this if its the first time that the user will do it
+   -  for the next habits to graduate do not show the onboarding screen for this 
+   -  there has to be a highlight or a UI effect to show the graduation option,  like a badge on the corner, 
+      or make the button animated, getting to this stage is a big achievement it has to be celebrated.
+   -  highlight also in the today screen that it is due for graduation review
+   - when i select an option we should highlight it more
+
+Weekly Review
+   -  there has to be an onboarding for the first time
+   -  highlight this when its due for review so the user does not forget, maybe also in the today screen.
+   - selecting the option for the did the trigger work does not fully highlight the choice, it should be more visible.
+   -  when i clicked on the save review it pushed to the habit detail, but i did not get to adjust anything, i think the weekly review is broken.
+
+goal detail
+   -  back to today is not a button, should it be a button?
+   -  the streak count text is not highlighted, it should be positioned better, maybe above the graphic
+   -  the habits inn this goal, should only show last 14 days

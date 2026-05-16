@@ -1,14 +1,21 @@
 import {
+  activateBacklogHabitRow,
   archiveHabit as archiveHabitRow,
   createHabit as createHabitRow,
+  deleteHabit as deleteHabitRow,
   getHabit,
   listHabits,
+  reactivateHabitRow,
   updateHabit as updateHabitRow,
 } from "@/lib/db/repositories/habits";
-import { ALL_DAYS, serializeActiveDays } from "@/features/habits/activeDays";
+import { ALL_DAYS, parseActiveDays, serializeActiveDays } from "@/features/habits/activeDays";
 
 import { deleteLogByHabitAndDate, listLogs, listLogsByUser, upsertLog } from "@/lib/db/repositories/habit_logs";
 import { RETRO_LOG_WINDOW_HOURS } from "@/features/habits/contract";
+import {
+  cancelReminder,
+  materializePendingReminder,
+} from "@/features/reminders/notifications";
 import { now, todayDateString } from "@/utils/clock";
 import { logger } from "@/services/logger";
 
@@ -103,6 +110,7 @@ export async function createHabit(
   userId: string,
   payload: CreateHabitPayload,
 ): Promise<Habit> {
+  const status = payload.status ?? "active";
   const input: CreateHabitInput = {
     user_id: userId,
     title: payload.title.trim(),
@@ -115,7 +123,8 @@ export async function createHabit(
     active_days: serializeActiveDays(payload.activeDays ?? ALL_DAYS),
     start_date: todayDateString(),
     habit_state: payload.habitState,
-    status: "active",
+    status,
+    backlog_at: status === "backlog" ? now().toISOString() : null,
   };
   return createHabitRow(input);
 }
@@ -146,6 +155,42 @@ export async function archiveHabit(
 ): Promise<void> {
   await getHabitById(userId, habitId);
   await archiveHabitRow(habitId);
+}
+
+export async function reactivateHabit(
+  userId: string,
+  habitId: string,
+): Promise<Habit> {
+  await getHabitById(userId, habitId);
+  return reactivateHabitRow(habitId, todayDateString());
+}
+
+export async function activateBacklogHabit(
+  userId: string,
+  habitId: string,
+): Promise<Habit> {
+  await getHabitById(userId, habitId);
+  const updated = await activateBacklogHabitRow(habitId, todayDateString());
+  // Best-effort: materialize any persisted reminder intent now that the habit
+  // is active. Never blocks activation on notification permission state.
+  await materializePendingReminder(
+    habitId,
+    userId,
+    parseActiveDays(updated.active_days),
+  );
+  return updated;
+}
+
+export async function deleteHabit(
+  userId: string,
+  habitId: string,
+): Promise<void> {
+  await getHabitById(userId, habitId);
+  // Cancel any OS-scheduled notifications BEFORE the row is deleted — the DB
+  // row cascades via FK but expo-notifications schedule entries live in the OS
+  // and would keep firing for an absent habit otherwise.
+  await cancelReminder(habitId).catch(() => {});
+  await deleteHabitRow(habitId);
 }
 
 // ─── Log reads ────────────────────────────────────────────────────────────────

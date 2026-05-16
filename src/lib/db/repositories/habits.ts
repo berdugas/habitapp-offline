@@ -43,6 +43,7 @@ export type CreateHabitInput = Omit<
   status?: HabitStatus;
   icon?: string | null;
   active_days?: string;
+  backlog_at?: string | null;
 };
 
 export type UpdateHabitPatch = Partial<
@@ -79,7 +80,7 @@ export async function createHabit(input: CreateHabitInput): Promise<Habit> {
       id, user_id, title, identity_phrase, cue, tiny_action,
       minimum_viable_action, preferred_time_window, icon, habit_state, status,
       active_days, start_date, created_at, updated_at, archived_at, automated_at, backlog_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, NULL)`,
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, ?)`,
     id,
     input.user_id,
     input.title,
@@ -95,6 +96,7 @@ export async function createHabit(input: CreateHabitInput): Promise<Habit> {
     input.start_date,
     now,
     now,
+    input.backlog_at ?? null,
   );
 
   return (await getHabit(id))!;
@@ -142,6 +144,70 @@ export async function updateHabit(
 
   if (result.changes === 0) {
     throw new Error(`Habit not found: ${id}`);
+  }
+
+  return (await getHabit(id))!;
+}
+
+export async function reactivateHabitRow(
+  id: string,
+  todayDate: string,
+): Promise<Habit> {
+  const db = getDb();
+  const now = new Date().toISOString();
+
+  const existing = await getHabit(id);
+  if (!existing) throw new Error(`Habit not found: ${id}`);
+  if (existing.habit_state !== "automatic") {
+    throw new Error(`Habit ${id} is not graduated — cannot reactivate`);
+  }
+  if (existing.status !== "active") {
+    // Defensive: an archived-and-graduated habit flipping habit_state to
+    // "active" without touching status would stay invisible from Today. Refuse
+    // until the caller restores status explicitly.
+    throw new Error(
+      `Habit ${id} is not active (status=${existing.status}) — cannot reactivate`,
+    );
+  }
+
+  await db.runAsync(
+    `UPDATE local_habits
+       SET habit_state = 'active',
+           automated_at = NULL,
+           start_date = ?,
+           updated_at = ?
+     WHERE id = ?`,
+    todayDate,
+    now,
+    id,
+  );
+
+  return (await getHabit(id))!;
+}
+
+export async function activateBacklogHabitRow(
+  id: string,
+  todayDate: string,
+): Promise<Habit> {
+  const db = getDb();
+  const now = new Date().toISOString();
+
+  const result = await db.runAsync(
+    `UPDATE local_habits
+       SET status = 'active',
+           backlog_at = NULL,
+           start_date = ?,
+           updated_at = ?
+     WHERE id = ? AND status = 'backlog'`,
+    todayDate,
+    now,
+    id,
+  );
+
+  if (result.changes === 0) {
+    const existing = await getHabit(id);
+    if (!existing) throw new Error(`Habit not found: ${id}`);
+    throw new Error(`Habit ${id} is not in backlog — cannot activate`);
   }
 
   return (await getHabit(id))!;

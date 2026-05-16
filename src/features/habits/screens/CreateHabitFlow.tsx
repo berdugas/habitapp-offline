@@ -1,5 +1,5 @@
 import { router, useLocalSearchParams } from "expo-router";
-import { AlertTriangle, ArrowLeft } from "lucide-react-native";
+import { ArrowLeft } from "lucide-react-native";
 import { useEffect, useRef, useState } from "react";
 import {
   Animated,
@@ -19,11 +19,13 @@ import { GoalContextChip } from "@/components/GoalContextChip";
 import { LucideIcon, LucideIconPicker } from "@/components/LucideIconPicker";
 import { PrimaryButton } from "@/components/buttons/PrimaryButton";
 import { SecondaryButton } from "@/components/buttons/SecondaryButton";
+import { TertiaryButton } from "@/components/buttons/TertiaryButton";
 import { OnboardingInput } from "@/components/forms/OnboardingInput";
 import { OnboardingLayout } from "@/components/layouts/OnboardingLayout";
 import { ErrorState } from "@/components/feedback/ErrorState";
 import { useAuthSession } from "@/features/auth/hooks";
 import { listEligibleHabitsForToday } from "@/features/habits/api";
+import { CapWarningCard } from "@/features/habits/components/CapWarningCard";
 import { assertCanCreateActiveHabit } from "@/features/habits/validators";
 import { formatHabitFormula, stripLeadingAfter, stripLeadingIWill } from "@/features/habits/formatters";
 import { normaliseBecomingPhrase } from "@/utils/normalisePhrase";
@@ -31,7 +33,10 @@ import {
   getEligibleHabitsQueryKey,
   useCreateHabitMutation,
 } from "@/features/habits/hooks";
-import { scheduleReminder } from "@/features/reminders/notifications";
+import {
+  persistReminderIntent,
+  scheduleReminder,
+} from "@/features/reminders/notifications";
 import { logger } from "@/services/logger";
 import { colors } from "@/theme/colors";
 import { fontFamilies } from "@/theme/fontFamilies";
@@ -142,7 +147,7 @@ export default function CreateHabitFlow() {
     advanceTo("build");
   }
 
-  async function handleSave() {
+  async function handleSave(mode: "active" | "backlog" = "active") {
     if (submitLockRef.current || createHabitMutation.isPending || !user?.id) return;
     setSaveError(null);
     submitLockRef.current = true;
@@ -159,17 +164,24 @@ export default function CreateHabitFlow() {
         icon: draft.icon.trim(),
         activeDays: draft.activeDays,
         habitState: "active",
+        status: mode,
       });
       hasSaved = true;
 
       if (draft.reminderTime) {
-        await scheduleReminder(
-          created.id,
-          user.id,
-          "daily",
-          draft.reminderTime,
-          draft.activeDays,
-        ).catch(() => {});
+        if (mode === "backlog") {
+          // Persist intent only — do NOT schedule OS notifications for a
+          // habit the user has explicitly deferred.
+          await persistReminderIntent(created.id, draft.reminderTime).catch(() => {});
+        } else {
+          await scheduleReminder(
+            created.id,
+            user.id,
+            "daily",
+            draft.reminderTime,
+            draft.activeDays,
+          ).catch(() => {});
+        }
       }
 
       const todayDate = toDeviceDateString();
@@ -179,11 +191,17 @@ export default function CreateHabitFlow() {
         queryFn: () => listEligibleHabitsForToday(user.id, todayDate),
         queryKey,
       });
-      router.replace("/(app)/(tabs)/today");
+      if (mode === "backlog") {
+        router.replace("/(app)/habits/backlog");
+      } else {
+        router.replace("/(app)/(tabs)/today");
+      }
     } catch (error) {
       if (hasSaved) {
         logger.warn("Eligible habits refresh failed after successful create", { error });
-        router.replace("/(app)/(tabs)/today");
+        router.replace(
+          mode === "backlog" ? "/(app)/habits/backlog" : "/(app)/(tabs)/today",
+        );
       } else {
         logger.error("CreateHabitFlow save failed", { error });
         setSaveError(getCreateHabitErrorMessage());
@@ -261,10 +279,11 @@ export default function CreateHabitFlow() {
         update={update}
         onBack={handleBack}
         onReturnToBuild={handleReturnToBuild}
-        onSave={() => void handleSave()}
+        onSave={(mode) => void handleSave(mode)}
         isSaving={createHabitMutation.isPending}
         saveError={saveError}
         showChip={showChip}
+        capWarning={capWarning}
       />
     );
   }
@@ -330,20 +349,6 @@ function ActionStep({ draft, update, onBack, onContinue, showChip, capWarning }:
       />
       {capWarning ? <CapWarningCard count={capWarning.count} /> : null}
     </OnboardingLayout>
-  );
-}
-
-// ─── Cap warning card ─────────────────────────────────────────────────────────
-
-function CapWarningCard({ count }: { count: number }) {
-  return (
-    <View style={styles.capWarning}>
-      <AlertTriangle color="#b45309" size={16} strokeWidth={1.75} />
-      <Text style={styles.capWarningText}>
-        You have {count} active habit{count !== 1 ? "s" : ""} for this goal. Research suggests
-        focusing on 3 or fewer for sustainable change. You can still add this one.
-      </Text>
-    </View>
   );
 }
 
@@ -459,10 +464,11 @@ type PersonalizeStepProps = {
   update: (patch: Partial<CreateHabitDraft>) => void;
   onBack: () => void;
   onReturnToBuild: () => void;
-  onSave: () => void;
+  onSave: (mode: "active" | "backlog") => void;
   isSaving: boolean;
   saveError: string | null;
   showChip: boolean;
+  capWarning: { count: number } | null;
 };
 
 type PersonalizePhase = "personalize" | "worstday";
@@ -476,6 +482,7 @@ function PersonalizeStep({
   isSaving,
   saveError,
   showChip,
+  capWarning,
 }: PersonalizeStepProps) {
   const insets = useSafeAreaInsets();
   const [phase, setPhase] = useState<PersonalizePhase>("personalize");
@@ -508,13 +515,31 @@ function PersonalizeStep({
         showArrow
         onPress={handleLooksGood}
       />
+    ) : capWarning ? (
+      <View style={styles.gateFooter}>
+        <PrimaryButton
+          disabled={isSaving}
+          label={isSaving ? "Saving..." : "Add to Today"}
+          showArrow
+          onPress={() => onSave("active")}
+        />
+        <SecondaryButton
+          disabled={isSaving}
+          label="Save for later"
+          onPress={() => onSave("backlog")}
+        />
+        <TertiaryButton
+          label="Let me make it smaller"
+          onPress={onReturnToBuild}
+        />
+      </View>
     ) : (
       <View style={styles.gateFooter}>
         <PrimaryButton
           disabled={isSaving}
           label={isSaving ? "Saving..." : "Yes, I could"}
           showArrow
-          onPress={onSave}
+          onPress={() => onSave("active")}
         />
         <SecondaryButton
           label="Let me make it smaller"
@@ -623,6 +648,7 @@ function PersonalizeStep({
           <Text style={styles.gateBody}>
             Imagine a low-energy day — would this still feel doable?
           </Text>
+          {capWarning ? <CapWarningCard count={capWarning.count} /> : null}
         </Animated.View>
 
         {saveError ? (
@@ -841,21 +867,5 @@ const styles = StyleSheet.create({
   },
   gateFooter: {
     gap: spacing.md,
-  },
-  capWarning: {
-    alignItems: "flex-start",
-    backgroundColor: "#fef3c7",
-    borderRadius: radius.md,
-    flexDirection: "row",
-    gap: spacing.sm,
-    marginTop: spacing.lg,
-    padding: spacing.md,
-  },
-  capWarningText: {
-    color: "#92400e",
-    flex: 1,
-    fontFamily: fontFamilies.body,
-    fontSize: 13,
-    lineHeight: 19,
   },
 });

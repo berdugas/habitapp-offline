@@ -2,16 +2,23 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { useAuthSession } from "@/features/auth/hooks";
 import {
+  activateBacklogHabit,
   archiveHabit,
   createHabit,
+  deleteHabit,
   getHabitById,
   getHabitLogsForHabitInRange,
   listArchivedHabits,
+  listBacklogHabits,
   listEligibleHabitsForToday,
   listUpcomingHabits,
   updateHabit,
   upsertHabitLog,
 } from "@/features/habits/api";
+import {
+  getLatestSRHIQueryKey,
+  getSRHIHistoryQueryKey,
+} from "@/features/graduation/queryKeys";
 import { parseActiveDays } from "@/features/habits/activeDays";
 import { getLatestWeeklyReview } from "@/features/reviews/api";
 import { getLatestWeeklyReviewQueryKey } from "@/features/reviews/queryKeys";
@@ -73,6 +80,14 @@ export function getHabitDetailLogsQueryKey(
     startDate,
     endDate,
   ];
+}
+
+export function getLibraryQueryKey(userId: string | undefined) {
+  return ["habits", "library", userId ?? "guest"] as const;
+}
+
+export function getBacklogQueryKey(userId: string | undefined) {
+  return ["habits", "backlog", userId ?? "guest"] as const;
 }
 
 export function useEligibleHabitsQuery() {
@@ -211,7 +226,7 @@ export function useCreateHabitMutation() {
   });
 }
 
-async function invalidateHabitSurfaceQueries(
+export async function invalidateHabitSurfaceQueries(
   userId: string,
   habitId: string,
   queryClient: ReturnType<typeof useQueryClient>,
@@ -234,6 +249,45 @@ async function invalidateHabitSurfaceQueries(
   await queryClient.invalidateQueries({
     queryKey: getInactiveHabitsQueryKey(userId),
   });
+  await queryClient.invalidateQueries({
+    queryKey: getLibraryQueryKey(userId),
+  });
+  await queryClient.invalidateQueries({
+    queryKey: getBacklogQueryKey(userId),
+  });
+}
+
+// Used by hard-delete paths. Invalidates list queries that may have shown the
+// habit, then drops every cache entry keyed to the now-gone habit id. Must NOT
+// call fetchQuery on the habit detail — getHabitById would throw post-delete.
+export async function invalidateHabitListQueries(
+  userId: string,
+  habitId: string,
+  queryClient: ReturnType<typeof useQueryClient>,
+) {
+  const todayDate = toDeviceDateString();
+
+  await queryClient.invalidateQueries({
+    queryKey: getEligibleHabitsQueryKey(userId, todayDate),
+  });
+  await queryClient.invalidateQueries({
+    queryKey: getUpcomingActiveHabitsQueryKey(userId, todayDate),
+  });
+  await queryClient.invalidateQueries({
+    queryKey: getInactiveHabitsQueryKey(userId),
+  });
+  await queryClient.invalidateQueries({
+    queryKey: getLibraryQueryKey(userId),
+  });
+  await queryClient.invalidateQueries({
+    queryKey: getBacklogQueryKey(userId),
+  });
+
+  queryClient.removeQueries({ queryKey: getHabitDetailQueryKey(userId, habitId) });
+  queryClient.removeQueries({ queryKey: ["habit-logs", "detail", userId, habitId] });
+  queryClient.removeQueries({ queryKey: ["habit-logs", "range", habitId] });
+  queryClient.removeQueries({ queryKey: getLatestSRHIQueryKey(habitId) });
+  queryClient.removeQueries({ queryKey: getSRHIHistoryQueryKey(habitId) });
 }
 
 type UpdateHabitMutationVariables = {
@@ -293,6 +347,70 @@ export function useArchiveHabitMutation() {
     },
     onError: (error, variables) => {
       logger.error("Habit archive mutation failed", {
+        error,
+        habitId: variables.habitId,
+        userId: user?.id ?? null,
+      });
+    },
+  });
+}
+
+export function useBacklogHabitsQuery() {
+  const { user } = useAuthSession();
+
+  return useQuery({
+    enabled: Boolean(user?.id),
+    queryFn: () => listBacklogHabits(user!.id),
+    queryKey: getBacklogQueryKey(user?.id),
+  });
+}
+
+export function useActivateBacklogHabitMutation() {
+  const { user } = useAuthSession();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ habitId }: { habitId: string }) => {
+      if (!user?.id) {
+        throw new Error(
+          "You need an account session before activating a habit.",
+        );
+      }
+      return activateBacklogHabit(user.id, habitId);
+    },
+    onSuccess: async (_result, variables) => {
+      if (!user?.id) return;
+      await invalidateHabitSurfaceQueries(user.id, variables.habitId, queryClient);
+    },
+    onError: (error, variables) => {
+      logger.error("Habit activate-backlog mutation failed", {
+        error,
+        habitId: variables.habitId,
+        userId: user?.id ?? null,
+      });
+    },
+  });
+}
+
+export function useDeleteHabitMutation() {
+  const { user } = useAuthSession();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ habitId }: { habitId: string }) => {
+      if (!user?.id) {
+        throw new Error(
+          "You need an account session before deleting a habit.",
+        );
+      }
+      await deleteHabit(user.id, habitId);
+    },
+    onSuccess: async (_result, variables) => {
+      if (!user?.id) return;
+      await invalidateHabitListQueries(user.id, variables.habitId, queryClient);
+    },
+    onError: (error, variables) => {
+      logger.error("Habit delete mutation failed", {
         error,
         habitId: variables.habitId,
         userId: user?.id ?? null,

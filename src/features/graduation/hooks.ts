@@ -4,8 +4,13 @@ import { useAuthSession } from "@/features/auth/hooks";
 import {
   getEligibleHabitsQueryKey,
   getHabitDetailQueryKey,
+  getLibraryQueryKey,
 } from "@/features/habits/hooks";
 import { recordAndProcessGraduation } from "@/features/graduation/graduation";
+import {
+  getLatestSRHIQueryKey,
+  getSRHIHistoryQueryKey,
+} from "@/features/graduation/queryKeys";
 import {
   getLatestSRHIResponse,
   getSRHIResponsesForHabit,
@@ -13,20 +18,14 @@ import {
 import { logger } from "@/services/logger";
 import { toDeviceDateString } from "@/utils/dates";
 
+export { getLatestSRHIQueryKey, getSRHIHistoryQueryKey };
+
 function normalizeHabitId(habitId: string | string[] | undefined) {
   if (Array.isArray(habitId)) {
     return habitId[0];
   }
 
   return habitId;
-}
-
-export function getLatestSRHIQueryKey(habitId: string | undefined) {
-  return ["srhi", "latest", habitId ?? "unknown"] as const;
-}
-
-export function getSRHIHistoryQueryKey(habitId: string | undefined) {
-  return ["srhi", "history", habitId ?? "unknown"] as const;
 }
 
 export function useLatestSRHIQuery(
@@ -98,6 +97,9 @@ export function useRecordGraduationMutation() {
       });
       await queryClient.invalidateQueries({
         queryKey: getSRHIHistoryQueryKey(variables.habit_id),
+      });
+      await queryClient.invalidateQueries({
+        queryKey: getLibraryQueryKey(user.id),
       });
     },
     onError: (error, variables) => {

@@ -90,6 +90,88 @@ export async function scheduleReminder(
   });
 }
 
+// Persists a user's chosen reminder time without scheduling OS notifications.
+// Used when a habit is created or edited but should not yet fire (e.g. saved
+// to the backlog from CreateHabitFlow). Pairs with `materializePendingReminder`
+// which reads the row and actually schedules.
+export async function persistReminderIntent(
+  habitId: string,
+  reminderTime: string,
+): Promise<void> {
+  await upsertReminder({
+    habit_id: habitId,
+    reminder_type: "none",
+    reminder_time: reminderTime,
+    notification_ids: "[]",
+  });
+}
+
+// Reads the persisted intent (if any) and schedules OS notifications.
+// Best-effort: never throws. Returns true iff at least one OS notification
+// was actually scheduled.
+//
+// Failure semantics matter: if scheduling fails (permission denied, no slots),
+// the original intent — reminder_type='none' + reminder_time — must remain in
+// the DB so a future activation or settings change can retry. `scheduleReminder`
+// unconditionally rewrites the row, so we read it back and, if no IDs landed,
+// restore the intent here.
+export async function materializePendingReminder(
+  habitId: string,
+  userId: string,
+  activeDays: number[],
+): Promise<boolean> {
+  const existing = await getReminderByHabitId(habitId).catch(() => null);
+  if (!existing) return false;
+  if (existing.reminder_type !== "none") return false;
+  if (!existing.reminder_time) return false;
+
+  const intent = existing.reminder_time;
+
+  try {
+    await scheduleReminder(habitId, userId, "daily", intent, activeDays);
+  } catch (err) {
+    logger.warn("materializePendingReminder: scheduleReminder threw", {
+      habitId,
+      err,
+    });
+    // Restore intent — scheduleReminder may have partially rewritten the row.
+    await upsertReminder({
+      habit_id: habitId,
+      reminder_type: "none",
+      reminder_time: intent,
+      notification_ids: "[]",
+    }).catch(() => {});
+    return false;
+  }
+
+  // scheduleReminder always upserts at the end; check whether any IDs landed.
+  const after = await getReminderByHabitId(habitId).catch(() => null);
+  let scheduledCount = 0;
+  try {
+    const ids = after?.notification_ids
+      ? (JSON.parse(after.notification_ids) as string[])
+      : [];
+    scheduledCount = ids.length;
+  } catch {
+    scheduledCount = 0;
+  }
+
+  if (scheduledCount === 0) {
+    // All per-day schedules failed — preserve the intent so a future retry can
+    // still pick it up. Without this, the row would be type='daily' with no IDs
+    // and the next call to materializePendingReminder would skip it entirely.
+    await upsertReminder({
+      habit_id: habitId,
+      reminder_type: "none",
+      reminder_time: intent,
+      notification_ids: "[]",
+    }).catch(() => {});
+    return false;
+  }
+
+  return true;
+}
+
 export async function cancelReminder(habitId: string): Promise<void> {
   const existing = await getReminderByHabitId(habitId);
   if (!existing) return;
