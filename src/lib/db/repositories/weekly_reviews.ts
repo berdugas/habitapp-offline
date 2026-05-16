@@ -62,6 +62,29 @@ export async function getLatestWeeklyReview(
   return row ? fromRow(row) : null;
 }
 
+export async function getLatestWeeklyReviewsForHabits(
+  userId: string,
+  habitIds: string[],
+): Promise<Map<string, WeeklyReviewRecord | null>> {
+  const result = new Map<string, WeeklyReviewRecord | null>();
+  if (habitIds.length === 0) return result;
+  const db = getDb();
+  const placeholders = habitIds.map(() => "?").join(",");
+  const rows = await db.getAllAsync<RawRow>(
+    `SELECT * FROM local_weekly_reviews
+     WHERE user_id = ? AND habit_id IN (${placeholders})
+     ORDER BY habit_id, week_start DESC`,
+    userId,
+    ...habitIds,
+  );
+  for (const id of habitIds) result.set(id, null);
+  for (const row of rows) {
+    if (result.get(row.habit_id)) continue;
+    result.set(row.habit_id, fromRow(row));
+  }
+  return result;
+}
+
 export async function getWeeklyReviewForWeek(
   userId: string,
   habitId: string,
@@ -78,12 +101,11 @@ export async function getWeeklyReviewForWeek(
   return row ? fromRow(row) : null;
 }
 
-export async function upsertWeeklyReview(
+async function upsertWeeklyReviewRow(
   input: UpsertWeeklyReviewInput,
-): Promise<WeeklyReviewRecord> {
+  now: string,
+): Promise<void> {
   const db = getDb();
-  const now = new Date().toISOString();
-  const id = crypto.randomUUID();
   const habit = await db.getFirstAsync<{ id: string }>(
     "SELECT id FROM local_habits WHERE id = ? AND user_id = ?",
     input.habitId,
@@ -108,7 +130,7 @@ export async function upsertWeeklyReview(
       trigger_worked = excluded.trigger_worked,
       tiny_action_too_hard = excluded.tiny_action_too_hard,
       updated_at = excluded.updated_at`,
-    id,
+    crypto.randomUUID(),
     input.habitId,
     input.userId,
     input.weekStart,
@@ -120,6 +142,40 @@ export async function upsertWeeklyReview(
     now,
     now,
   );
+}
 
+export async function upsertWeeklyReview(
+  input: UpsertWeeklyReviewInput,
+): Promise<WeeklyReviewRecord> {
+  const now = new Date().toISOString();
+  await upsertWeeklyReviewRow(input, now);
   return (await getWeeklyReviewForWeek(input.userId, input.habitId, input.weekStart))!;
+}
+
+/**
+ * Atomically upserts a batch of weekly review rows in a single transaction.
+ * If any row fails the entire batch rolls back, so a goal-level review either
+ * fully saves or leaves no partial state behind.
+ */
+export async function upsertWeeklyReviewsBatch(
+  inputs: UpsertWeeklyReviewInput[],
+): Promise<WeeklyReviewRecord[]> {
+  if (inputs.length === 0) return [];
+  const db = getDb();
+  const now = new Date().toISOString();
+  await db.withTransactionAsync(async () => {
+    for (const input of inputs) {
+      await upsertWeeklyReviewRow(input, now);
+    }
+  });
+  const saved: WeeklyReviewRecord[] = [];
+  for (const input of inputs) {
+    const row = await getWeeklyReviewForWeek(
+      input.userId,
+      input.habitId,
+      input.weekStart,
+    );
+    if (row) saved.push(row);
+  }
+  return saved;
 }

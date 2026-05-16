@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { MiniHeatmapStrip } from "@/components/MiniHeatmapStrip";
 import { ReadOnlyBanner } from "@/components/ReadOnlyBanner";
+import { SecondaryButton } from "@/components/buttons/SecondaryButton";
 import { TertiaryButton } from "@/components/buttons/TertiaryButton";
 import { ZenCard } from "@/components/cards/ZenCard";
 import { ErrorState } from "@/components/feedback/ErrorState";
@@ -15,6 +16,8 @@ import { ConsistencyDonut } from "@/features/today/components/ConsistencyDonut";
 import { GoalStreakStrip } from "@/features/today/components/GoalStreakStrip";
 import { WeeklyConsistencyChart } from "@/features/today/components/WeeklyConsistencyChart";
 import { getGoalNarrative } from "@/features/today/goalNarrativeCopy";
+import { PrimaryButton } from "@/components/buttons/PrimaryButton";
+import { useGoalReviewStatusQuery } from "@/features/reviews/hooks";
 import { useGoalDetail } from "@/features/today/hooks";
 import { getStreakCopy } from "@/features/today/streakCopy";
 import { useTrialValidation } from "@/features/trial/hooks";
@@ -42,6 +45,8 @@ export default function GoalDetailScreen() {
     oldestActiveDaysCount,
     weeklyData,
   } = useGoalDetail(identityPhrase);
+
+  const goalReviewStatus = useGoalReviewStatusQuery(identityPhrase);
 
   if (isLoading) {
     return <LoadingState message="Loading goal..." />;
@@ -111,6 +116,45 @@ export default function GoalDetailScreen() {
 
         <GoalStreakStrip dailyStates={goalDailyStates} streak={goalStreak} />
       </ZenCard>
+
+      {/* Weekly Review prompt */}
+      {!isReadOnly && goalReviewStatus.isError ? (
+        <ZenCard>
+          <Eyebrow label="Weekly Review" />
+          <Text style={styles.reviewErrorText}>
+            We couldn't check your review status.
+          </Text>
+          <SecondaryButton
+            disabled={goalReviewStatus.isFetching}
+            label={goalReviewStatus.isFetching ? "Retrying..." : "Retry"}
+            onPress={() => void goalReviewStatus.refetch()}
+          />
+        </ZenCard>
+      ) : !isReadOnly && identityPhrase && goalReviewStatus.data?.isDue ? (
+        <ZenCard>
+          <Eyebrow label="Weekly Review" />
+          <Text style={styles.reviewPromptText}>
+            Time to reflect on your week as {identityPhrase}.
+          </Text>
+          <PrimaryButton
+            label="Start review"
+            onPress={() =>
+              router.push({
+                params: {
+                  identityPhrase: encodeURIComponent(identityPhrase),
+                  returnTo: "goalDetail",
+                },
+                pathname: "/(app)/reviews/goal/[identityPhrase]",
+              })
+            }
+          />
+        </ZenCard>
+      ) : !isReadOnly && goalReviewStatus.data?.allReviewed ? (
+        <ZenCard>
+          <Eyebrow label="Weekly Review" />
+          <Text style={styles.reviewCompletedText}>Reviewed this week ✓</Text>
+        </ZenCard>
+      ) : null}
 
       {/* Habits in this goal */}
       {habits.length > 0 ? (
@@ -273,6 +317,23 @@ const styles = StyleSheet.create({
   screen: {
     backgroundColor: colors.bg,
     flex: 1,
+  },
+  reviewCompletedText: {
+    color: colors.primary,
+    fontFamily: fontFamilies.bodySemi,
+    fontSize: typography.bodyMd,
+  },
+  reviewErrorText: {
+    color: colors.danger,
+    fontFamily: fontFamilies.body,
+    fontSize: typography.bodyMd,
+    lineHeight: 20,
+  },
+  reviewPromptText: {
+    color: colors.text,
+    fontFamily: fontFamilies.body,
+    fontSize: typography.bodyMd,
+    lineHeight: 20,
   },
   streakCopyText: {
     color: colors.primary,

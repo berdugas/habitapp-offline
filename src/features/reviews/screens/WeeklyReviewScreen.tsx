@@ -1,3 +1,8 @@
+/**
+ * @deprecated Use GoalReviewScreen for goal-attached habits.
+ * This screen is retained as a fallback for orphan habits (no identity_phrase).
+ * Remove once all habits are guaranteed to have a goal.
+ */
 import { useEffect, useRef, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
@@ -172,7 +177,6 @@ export default function WeeklyReviewScreen() {
       });
 
       const suggestions = getHabitAdjustmentSuggestions({
-        habit: currentHabit,
         latestReview: savedReview,
         progress: currentProgress,
       });

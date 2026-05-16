@@ -155,6 +155,68 @@ describe("TodayScreen", () => {
     expect(screen.getByLabelText("Log Run")).toBeTruthy();
   });
 
+  it("shows 'Weekly review available' on the GoalContainer when reviewDue is true for the identity", () => {
+    useTodayHabits.mockReturnValue({
+      error: null,
+      habits: [makeHabit()],
+      isLoading: false,
+      upcomingHabits: [],
+      goalStreaks: { "a runner": 12 },
+      reviewDueByIdentity: { "a runner": true },
+    });
+    renderWithClient(<TodayScreen />);
+    expect(screen.getByText("Weekly review available")).toBeTruthy();
+  });
+
+  it("hides 'Weekly review available' when reviewDue is false for the identity", () => {
+    useTodayHabits.mockReturnValue({
+      error: null,
+      habits: [makeHabit()],
+      isLoading: false,
+      upcomingHabits: [],
+      goalStreaks: { "a runner": 12 },
+      reviewDueByIdentity: { "a runner": false },
+    });
+    renderWithClient(<TodayScreen />);
+    expect(screen.queryByText("Weekly review available")).toBeNull();
+  });
+
+  it("shows 'Review status unavailable' (not a false-positive due hint) when the goal-status query errored", () => {
+    useTodayHabits.mockReturnValue({
+      error: null,
+      habits: [makeHabit()],
+      isLoading: false,
+      upcomingHabits: [],
+      goalStreaks: { "a runner": 12 },
+      reviewDueByIdentity: { "a runner": false },
+      reviewStatusErrorByIdentity: { "a runner": true },
+    });
+    renderWithClient(<TodayScreen />);
+    // Distinct copy: the user must not be misled into thinking a review is
+    // actually due when we couldn't verify status.
+    expect(screen.getByText("Review status unavailable")).toBeTruthy();
+    expect(screen.queryByText("Weekly review available")).toBeNull();
+  });
+
+  it("error state wins over a stale cached reviewDue when both are true", () => {
+    // React Query retains the last-known data when a refetch fails, so this
+    // pairing (data.isDue=true AND isError=true) is reachable: the goal's
+    // status was due, then a later refetch errored. The error tone is the
+    // honest read.
+    useTodayHabits.mockReturnValue({
+      error: null,
+      habits: [makeHabit()],
+      isLoading: false,
+      upcomingHabits: [],
+      goalStreaks: { "a runner": 12 },
+      reviewDueByIdentity: { "a runner": true },
+      reviewStatusErrorByIdentity: { "a runner": true },
+    });
+    renderWithClient(<TodayScreen />);
+    expect(screen.getByText("Review status unavailable")).toBeTruthy();
+    expect(screen.queryByText("Weekly review available")).toBeNull();
+  });
+
   it("renders '1 remaining to complete' pill when one habit is incomplete", () => {
     useTodayHabits.mockReturnValue({
       error: null,

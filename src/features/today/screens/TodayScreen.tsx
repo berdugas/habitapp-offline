@@ -88,8 +88,15 @@ function AppHeader() {
 export default function TodayScreen() {
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
-  const { error, goalGraduatedByIdentity, goalStreaks, habits, isLoading } =
-    useTodayHabits();
+  const {
+    error,
+    goalGraduatedByIdentity,
+    goalStreaks,
+    habits,
+    isLoading,
+    reviewDueByIdentity,
+    reviewStatusErrorByIdentity,
+  } = useTodayHabits();
   const upsertTodayHabitStatusMutation = useUpsertTodayHabitStatusMutation();
   const deleteTodayHabitLogMutation = useDeleteTodayHabitLogMutation();
   const archiveHabitMutation = useArchiveHabitMutation();
@@ -278,6 +285,14 @@ export default function TodayScreen() {
                         params: { identityPhrase: encodeURIComponent(group.identityPhrase) },
                       })
                   : undefined
+              }
+              reviewDue={
+                group.identityPhrase !== NO_GOAL_KEY &&
+                (reviewDueByIdentity?.[group.identityPhrase] ?? false)
+              }
+              reviewStatusError={
+                group.identityPhrase !== NO_GOAL_KEY &&
+                (reviewStatusErrorByIdentity?.[group.identityPhrase] ?? false)
               }
               streak={goalStreaks[group.identityPhrase] ?? 0}
             >

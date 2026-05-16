@@ -1,8 +1,10 @@
 import { getHabitById } from "@/features/habits/api";
 import {
   getLatestWeeklyReview as dbGetLatest,
+  getLatestWeeklyReviewsForHabits as dbGetLatestForHabits,
   getWeeklyReviewForWeek as dbGetForWeek,
   upsertWeeklyReview as dbUpsert,
+  upsertWeeklyReviewsBatch as dbUpsertBatch,
 } from "@/lib/db/repositories/weekly_reviews";
 
 import type {
@@ -15,6 +17,13 @@ export async function getLatestWeeklyReview(
   habitId: string,
 ): Promise<WeeklyReviewRecord | null> {
   return dbGetLatest(userId, habitId);
+}
+
+export async function getLatestWeeklyReviewsForHabits(
+  userId: string,
+  habitIds: string[],
+): Promise<Map<string, WeeklyReviewRecord | null>> {
+  return dbGetLatestForHabits(userId, habitIds);
 }
 
 export async function getWeeklyReviewForWeek(
@@ -41,4 +50,25 @@ export async function upsertWeeklyReview(
     weekStart: payload.weekStart,
     wentWell: payload.wentWell,
   });
+}
+
+export async function upsertWeeklyReviewsBatch(
+  userId: string,
+  payloads: UpsertWeeklyReviewPayload[],
+): Promise<WeeklyReviewRecord[]> {
+  for (const p of payloads) {
+    await getHabitById(userId, p.habitId);
+  }
+  return dbUpsertBatch(
+    payloads.map((p) => ({
+      adjustmentNote: p.adjustmentNote,
+      habitId: p.habitId,
+      tinyActionTooHard: p.tinyActionTooHard,
+      triggerWorked: p.triggerWorked,
+      userId,
+      wasHard: p.wasHard,
+      weekStart: p.weekStart,
+      wentWell: p.wentWell,
+    })),
+  );
 }

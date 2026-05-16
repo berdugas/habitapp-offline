@@ -18,6 +18,8 @@ type GoalContainerProps = {
   onAddHabit?: () => void;
   onGoalPress?: () => void;
   remainingCount: number;
+  reviewDue?: boolean;
+  reviewStatusError?: boolean;
   streak: number;
 };
 
@@ -30,6 +32,8 @@ export function GoalContainer({
   onAddHabit,
   onGoalPress,
   remainingCount,
+  reviewDue = false,
+  reviewStatusError = false,
   streak,
 }: GoalContainerProps) {
   const streakCopy = useMemo(() => getStreakCopy(streak), [streak]);
@@ -51,6 +55,21 @@ export function GoalContainer({
             ) : null}
           </Text>
           <Text style={styles.streakText}>{streakCopy}</Text>
+          {/* Error wins over reviewDue: React Query keeps the last
+              successful data when a refetch fails, so an errored status
+              query can still expose data?.isDue=true. Showing "Review
+              status unavailable" is the honest read in that case. */}
+          {reviewStatusError ? (
+            <Pressable onPress={onGoalPress} disabled={!onGoalPress}>
+              <Text style={styles.reviewErrorHintText}>
+                Review status unavailable
+              </Text>
+            </Pressable>
+          ) : reviewDue ? (
+            <Pressable onPress={onGoalPress} disabled={!onGoalPress}>
+              <Text style={styles.reviewHintText}>Weekly review available</Text>
+            </Pressable>
+          ) : null}
           {remainingCount > 0 ? (
             <View style={styles.pill}>
               <Text style={styles.pillText}>{remainingCount} remaining to complete</Text>
@@ -160,6 +179,16 @@ const styles = StyleSheet.create({
   pillTextComplete: {
     color: colors.primary,
     fontFamily: fontFamilies.bodyMedium,
+  },
+  reviewHintText: {
+    color: colors.primary,
+    fontFamily: fontFamilies.bodySemi,
+    fontSize: typography.micro,
+  },
+  reviewErrorHintText: {
+    color: colors.danger,
+    fontFamily: fontFamilies.bodySemi,
+    fontSize: typography.micro,
   },
   streakText: {
     color: colors.primary,

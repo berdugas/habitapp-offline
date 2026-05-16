@@ -1,5 +1,6 @@
 import {
   useMutation,
+  useQueries,
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
@@ -17,6 +18,9 @@ import {
 } from "@/features/habits/hooks";
 import { formatHabitFormula } from "@/features/habits/formatters";
 import { isGoalGraduated } from "@/features/graduation/graduation";
+import { getLatestWeeklyReviewsForHabits } from "@/features/reviews/api";
+import { getGoalReviewStatus } from "@/features/reviews/due";
+import { getGoalReviewStatusQueryKey } from "@/features/reviews/queryKeys";
 import { summarizeHabitProgress } from "@/features/today/progress";
 import {
   avgConsistencyRate,
@@ -29,6 +33,7 @@ import {
   addDeviceDays,
   getTrailingDateRangeStrings,
   getWeekStartDate,
+  getWeekStartDateString,
   toDeviceDateString,
 } from "@/utils/dates";
 import {
@@ -150,6 +155,52 @@ export function useTodayHabits() {
       isGoalGraduated(allHabits.map((h) => ({ habit_state: h.habit_state })));
   }
 
+  const weekStartForReview = getWeekStartDateString(now());
+  const todayDateForReview = toDeviceDateString();
+  const reviewIdentityKeys = Array.from(habitsByIdentity.keys()).filter(
+    (key) => key !== NO_GOAL_KEY,
+  );
+  const reviewQueries = useQueries({
+    queries: reviewIdentityKeys.map((identity) => {
+      const groupHabits = habitsByIdentity.get(identity) ?? [];
+      return {
+        enabled: Boolean(user?.id),
+        queryFn: async () => {
+          const latestReviews = await getLatestWeeklyReviewsForHabits(
+            user!.id,
+            groupHabits.map((h) => h.id),
+          );
+          return getGoalReviewStatus({
+            currentWeekStart: weekStartForReview,
+            habits: groupHabits,
+            latestReviews,
+            todayDate: todayDateForReview,
+          });
+        },
+        queryKey: getGoalReviewStatusQueryKey(
+          user?.id,
+          identity,
+          weekStartForReview,
+          todayDateForReview,
+        ),
+      };
+    }),
+  });
+  const reviewDueByIdentity: Record<string, boolean> = {};
+  const reviewStatusErrorByIdentity: Record<string, boolean> = {};
+  reviewIdentityKeys.forEach((identity, i) => {
+    const q = reviewQueries[i];
+    reviewDueByIdentity[identity] = q?.data?.isDue ?? false;
+    if (q?.isError) {
+      reviewStatusErrorByIdentity[identity] = true;
+      logger.error("Goal review status query failed", {
+        error: q.error,
+        identityPhrase: identity,
+        userId: user?.id ?? null,
+      });
+    }
+  });
+
   return {
     ...historyLogsQuery,
     error:
@@ -159,6 +210,8 @@ export function useTodayHabits() {
       null,
     goalGraduatedByIdentity,
     goalStreaks,
+    reviewDueByIdentity,
+    reviewStatusErrorByIdentity,
     habits: eligibleHabits.map<TodayHabitCardData>((habit) => {
       const activeDays = parseActiveDays(habit.active_days);
       const offDay = !isActiveDay(todayDateString(), activeDays);

@@ -1,28 +1,6 @@
 import { getHabitAdjustmentSuggestions } from "@/features/recommendations/habitAdjustmentEngine";
 
-import type { HabitRecord } from "@/features/habits/types";
 import type { WeeklyReviewRecord } from "@/features/reviews/types";
-
-const baseHabit: HabitRecord = {
-  active_days: "[1,2,3,4,5,6,7]",
-  archived_at: null,
-  automated_at: null,
-  backlog_at: null,
-  created_at: "2026-04-01T00:00:00.000Z",
-  cue: "After breakfast",
-  habit_state: "active",
-  icon: null,
-  id: "habit-1",
-  identity_phrase: null,
-  minimum_viable_action: null,
-  preferred_time_window: null,
-  start_date: "2026-04-20",
-  status: "active",
-  tiny_action: "Read 1 page",
-  title: "Reading",
-  updated_at: "2026-04-01T00:00:00.000Z",
-  user_id: "user-1",
-};
 
 const baseReview: WeeklyReviewRecord = {
   adjustment_note: null,
@@ -52,7 +30,6 @@ function getSuggestions({
   review?: WeeklyReviewRecord;
 } = {}) {
   return getHabitAdjustmentSuggestions({
-    habit: baseHabit,
     latestReview: review,
     progress,
   });

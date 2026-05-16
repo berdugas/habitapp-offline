@@ -37,6 +37,10 @@ export default function ProtectedLayout() {
         options={{ title: "Weekly Review" }}
       />
       <Stack.Screen
+        name="reviews/goal/[identityPhrase]"
+        options={{ gestureEnabled: false, headerShown: false }}
+      />
+      <Stack.Screen
         name="graduation/[habitId]"
         options={{ headerShown: false }}
       />

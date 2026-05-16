@@ -45,6 +45,19 @@ jest.mock("@/features/auth/hooks", () => ({
   useAuthSession: jest.fn(() => ({ user: { id: "user-1" } })),
 }));
 
+jest.mock("@/features/reviews/hooks", () => ({
+  useLatestWeeklyReviewQuery: jest.fn(() => ({
+    data: null,
+    error: null,
+    isFetching: false,
+    refetch: jest.fn().mockResolvedValue(undefined),
+  })),
+}));
+
+const { useLatestWeeklyReviewQuery } = jest.requireMock(
+  "@/features/reviews/hooks",
+) as { useLatestWeeklyReviewQuery: jest.Mock };
+
 jest.mock("@/lib/db/repositories/reminders", () => ({
   getReminderByHabitId: jest.fn().mockResolvedValue(null),
 }));
@@ -131,6 +144,12 @@ describe("HabitDetailScreen", () => {
       error: null,
     });
     useHabitLogsForRange.mockReturnValue({ data: [] });
+    useLatestWeeklyReviewQuery.mockReturnValue({
+      data: null,
+      error: null,
+      isFetching: false,
+      refetch: jest.fn().mockResolvedValue(undefined),
+    });
   });
 
   afterEach(() => {
@@ -151,6 +170,38 @@ describe("HabitDetailScreen", () => {
     renderWithClient(<HabitDetailScreen />);
     // "Become a runner" appears in the header AND the goal breadcrumb below metrics
     expect(screen.getAllByText("Become a runner").length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("shows an explicit error card with an actionable Retry and suppresses the Start review prompt when the latest-review query errored", () => {
+    const refetch = jest.fn().mockResolvedValue(undefined);
+    useHabitDetail.mockReturnValue({
+      error: null,
+      formula: "After morning coffee, run for 2 minutes",
+      // Habit started 30+ days ago so isWeeklyReviewDue would normally return true
+      habit: makeHabit({ start_date: "2026-03-15" }),
+      isLoading: false,
+      isUpcoming: false,
+      latestReview: null,
+      progress: makeProgress(),
+      recentLogs: [],
+    });
+    useLatestWeeklyReviewQuery.mockReturnValue({
+      data: null,
+      error: new Error("DB read failed"),
+      isFetching: false,
+      refetch,
+    });
+    renderWithClient(<HabitDetailScreen />);
+    expect(
+      screen.getByText(/couldn't check your review status/i),
+    ).toBeTruthy();
+    // The screen must NOT fall open to "Start review" when we can't confirm
+    // that this week's review doesn't already exist.
+    expect(screen.queryByText("Start review")).toBeNull();
+
+    // Retry button calls the underlying query's refetch
+    fireEvent.press(screen.getByText("Retry"));
+    expect(refetch).toHaveBeenCalledTimes(1);
   });
 
   it("does not render the 'Become' header when identity_phrase is null", () => {

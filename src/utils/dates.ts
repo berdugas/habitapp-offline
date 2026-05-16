@@ -42,6 +42,20 @@ export function getWeekStartDateString(date = new Date()) {
   return toDeviceDateString(getWeekStartDate(date));
 }
 
+const DAY_NAMES: Record<number, string> = {
+  1: "Monday",
+  2: "Tuesday",
+  3: "Wednesday",
+  4: "Thursday",
+  5: "Friday",
+  6: "Saturday",
+  7: "Sunday",
+};
+
+export function getDayName(dayOfWeek: number): string {
+  return DAY_NAMES[dayOfWeek] ?? "";
+}
+
 export function daysBetweenDates(fromDate: string, toDate: string): number {
   const from = fromDate.length > 10 ? fromDate.slice(0, 10) : fromDate;
   const to = toDate.length > 10 ? toDate.slice(0, 10) : toDate;

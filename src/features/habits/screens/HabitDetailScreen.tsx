@@ -46,7 +46,7 @@ import {
   getUpdateHabitActiveStateErrorMessage,
 } from "@/utils/userFacingErrors";
 
-import type { HabitLogStatus } from "@/features/habits/types";
+import type { HabitLogStatus, HabitRecord } from "@/features/habits/types";
 import type { ReminderType } from "@/lib/db/repositories/reminders";
 
 function formatDisplayTime(hhmm: string): string {
@@ -103,10 +103,36 @@ export default function HabitDetailScreen() {
   const currentWeekStart = getWeekStartDateString(now());
   const latestReviewQuery = useLatestWeeklyReviewQuery(habitId);
   const latestReview = latestReviewQuery.data ?? null;
-  const isReviewDue = habit
-    ? isWeeklyReviewDue({ currentWeekStart, habit, latestReview, todayDate })
-    : false;
-  const isReviewedThisWeek = latestReview?.week_start === currentWeekStart;
+  const latestReviewErrored = Boolean(latestReviewQuery.error);
+  // Fail closed on read errors: if we can't confirm whether a review exists
+  // for this week, do NOT show "Start review" (which would let the user write
+  // a duplicate review row over an already-saved one). The goal-level surfaces
+  // make the same choice.
+  const isReviewDue =
+    habit && !latestReviewErrored
+      ? isWeeklyReviewDue({ currentWeekStart, habit, latestReview, todayDate })
+      : false;
+  const isReviewedThisWeek =
+    !latestReviewErrored && latestReview?.week_start === currentWeekStart;
+
+  // Habits with an identity_phrase open the goal-level review flow.
+  // Orphan habits fall back to the legacy per-habit review route.
+  function openReview(habitForReview: HabitRecord, _source: string) {
+    if (habitForReview.identity_phrase) {
+      router.push({
+        params: {
+          identityPhrase: encodeURIComponent(habitForReview.identity_phrase),
+          returnTo: "habitDetail",
+        },
+        pathname: "/(app)/reviews/goal/[identityPhrase]",
+      });
+      return;
+    }
+    router.push({
+      params: { habitId: habitForReview.id, returnTo: "habitDetail" },
+      pathname: "/(app)/reviews/[habitId]",
+    });
+  }
 
   // Reminder state
   const [reminderEnabled, setReminderEnabled] = useState(false);
@@ -413,6 +439,19 @@ export default function HabitDetailScreen() {
       ) : null}
 
       {/* Weekly Review card */}
+      {!isReadOnly && habit?.status === "active" && latestReviewErrored ? (
+        <ZenCard>
+          <Eyebrow label="Weekly Review" />
+          <Text style={styles.reviewErrorText}>
+            We couldn't check your review status.
+          </Text>
+          <SecondaryButton
+            disabled={latestReviewQuery.isFetching}
+            label={latestReviewQuery.isFetching ? "Retrying..." : "Retry"}
+            onPress={() => void latestReviewQuery.refetch()}
+          />
+        </ZenCard>
+      ) : null}
       {!isReadOnly && habit?.status === "active" && (isReviewDue || isReviewedThisWeek) ? (
         <ZenCard>
           <Eyebrow label="Weekly Review" />
@@ -423,25 +462,13 @@ export default function HabitDetailScreen() {
               </Text>
               <PrimaryButton
                 label="Start review"
-                onPress={() =>
-                  router.push({
-                    pathname: "/(app)/reviews/[habitId]",
-                    params: { habitId: habit.id, returnTo: "habitDetail" },
-                  })
-                }
+                onPress={() => openReview(habit, "Start review")}
               />
             </>
           ) : (
             <>
               <Text style={styles.reviewCompletedText}>Reviewed this week ✓</Text>
-              <Pressable
-                onPress={() =>
-                  router.push({
-                    pathname: "/(app)/reviews/[habitId]",
-                    params: { habitId: habit.id, returnTo: "habitDetail" },
-                  })
-                }
-              >
+              <Pressable onPress={() => openReview(habit, "Review again")}>
                 <Text style={styles.reviewAgainLink}>Review again</Text>
               </Pressable>
             </>
@@ -764,5 +791,11 @@ const styles = StyleSheet.create({
     color: colors.textFaint,
     fontFamily: fontFamilies.bodyMedium,
     fontSize: typography.bodyMd,
+  },
+  reviewErrorText: {
+    color: colors.danger,
+    fontFamily: fontFamilies.body,
+    fontSize: typography.bodyMd,
+    lineHeight: 20,
   },
 });

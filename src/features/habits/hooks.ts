@@ -255,6 +255,12 @@ export async function invalidateHabitSurfaceQueries(
   await queryClient.invalidateQueries({
     queryKey: getBacklogQueryKey(userId),
   });
+  // Goal-status caches a goal's habit membership implicitly. Any habit
+  // create/edit/archive/backlog can change which habits a goal contains, so
+  // every goal-status query has to refetch.
+  await queryClient.invalidateQueries({
+    queryKey: ["reviews", "goal-status"],
+  });
 }
 
 // Used by hard-delete paths. Invalidates list queries that may have shown the
@@ -281,6 +287,9 @@ export async function invalidateHabitListQueries(
   });
   await queryClient.invalidateQueries({
     queryKey: getBacklogQueryKey(userId),
+  });
+  await queryClient.invalidateQueries({
+    queryKey: ["reviews", "goal-status"],
   });
 
   queryClient.removeQueries({ queryKey: getHabitDetailQueryKey(userId, habitId) });

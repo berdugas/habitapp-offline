@@ -29,6 +29,14 @@ jest.mock("@/features/today/hooks", () => ({
   useGoalDetail: jest.fn(),
 }));
 
+jest.mock("@/features/reviews/hooks", () => ({
+  useGoalReviewStatusQuery: jest.fn(() => ({ data: undefined, isError: false })),
+}));
+
+const { useGoalReviewStatusQuery: mockUseGoalReviewStatusQuery } = jest.requireMock(
+  "@/features/reviews/hooks",
+) as { useGoalReviewStatusQuery: jest.Mock };
+
 const { useGoalDetail } = jest.requireMock("@/features/today/hooks") as {
   useGoalDetail: jest.Mock;
 };
@@ -54,6 +62,12 @@ function makeHabit(overrides: Partial<Record<string, unknown>> = {}) {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  mockUseGoalReviewStatusQuery.mockReturnValue({
+    data: undefined,
+    isError: false,
+    isFetching: false,
+    refetch: jest.fn().mockResolvedValue(undefined),
+  });
   setNowForTesting(new Date("2026-05-05T10:00:00.000Z"));
 });
 afterEach(() => {
@@ -76,6 +90,74 @@ function baseDetail(overrides: Partial<Record<string, unknown>> = {}) {
 }
 
 describe("GoalDetailScreen", () => {
+  it("renders the review prompt card when goal-review status reports isDue", () => {
+    useGoalDetail.mockReturnValue(
+      baseDetail({ habits: [makeHabit()], oldestActiveDaysCount: 30 }),
+    );
+    mockUseGoalReviewStatusQuery.mockReturnValue({
+      data: { allReviewed: false, habitsDue: ["h1"], habitsReviewed: [], isDue: true },
+      isError: false,
+    });
+    renderWithClient(<GoalDetailScreen />);
+    expect(screen.getByText(/Time to reflect on your week/)).toBeTruthy();
+  });
+
+  it("renders 'Reviewed this week' when goal-review status reports allReviewed", () => {
+    useGoalDetail.mockReturnValue(
+      baseDetail({ habits: [makeHabit()], oldestActiveDaysCount: 30 }),
+    );
+    mockUseGoalReviewStatusQuery.mockReturnValue({
+      data: { allReviewed: true, habitsDue: [], habitsReviewed: ["h1"], isDue: false },
+      isError: false,
+    });
+    renderWithClient(<GoalDetailScreen />);
+    expect(screen.getByText("Reviewed this week ✓")).toBeTruthy();
+  });
+
+  it("surfaces an explicit error card when the eligible-habits upstream query (not the status query itself) fails", () => {
+    const refetch = jest.fn().mockResolvedValue(undefined);
+    useGoalDetail.mockReturnValue(
+      baseDetail({ habits: [makeHabit()], oldestActiveDaysCount: 30 }),
+    );
+    // Status query never fires because upstream eligible-habits errored — but
+    // the hook composes both states, so isError is still true here.
+    mockUseGoalReviewStatusQuery.mockReturnValue({
+      data: undefined,
+      isError: true,
+      isFetching: false,
+      refetch,
+    });
+    renderWithClient(<GoalDetailScreen />);
+    expect(
+      screen.getByText(/couldn't check your review status/i),
+    ).toBeTruthy();
+    expect(screen.getByText("Retry")).toBeTruthy();
+  });
+
+  it("renders an explicit error card with an actionable Retry when the goal-review status query fails", () => {
+    const refetch = jest.fn().mockResolvedValue(undefined);
+    useGoalDetail.mockReturnValue(
+      baseDetail({ habits: [makeHabit()], oldestActiveDaysCount: 30 }),
+    );
+    mockUseGoalReviewStatusQuery.mockReturnValue({
+      data: undefined,
+      isError: true,
+      isFetching: false,
+      refetch,
+    });
+    renderWithClient(<GoalDetailScreen />);
+    expect(
+      screen.getByText(/couldn't check your review status/i),
+    ).toBeTruthy();
+    expect(screen.queryByText(/Time to reflect on your week/)).toBeNull();
+    expect(screen.queryByText("Reviewed this week ✓")).toBeNull();
+
+    // Retry button is wired to the query's refetch
+    const retryBtn = screen.getByText("Retry");
+    fireEvent.press(retryBtn);
+    expect(refetch).toHaveBeenCalledTimes(1);
+  });
+
   it("renders loading state", () => {
     useGoalDetail.mockReturnValue(baseDetail({ isLoading: true }));
     renderWithClient(<GoalDetailScreen />);

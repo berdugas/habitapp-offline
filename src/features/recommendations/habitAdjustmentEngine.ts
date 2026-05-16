@@ -12,6 +12,10 @@ function getSuggestion(
   return HABIT_ADJUSTMENT_SUGGESTIONS[type];
 }
 
+export function getKeepGoingSuggestion(): HabitAdjustmentSuggestion {
+  return getSuggestion("keep_going");
+}
+
 export function getHabitAdjustmentSuggestions({
   latestReview,
   progress,

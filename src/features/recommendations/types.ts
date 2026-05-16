@@ -1,4 +1,3 @@
-import type { HabitRecord } from "@/features/habits/types";
 import type { WeeklyReviewRecord } from "@/features/reviews/types";
 
 export type HabitAdjustmentSuggestionType =
@@ -24,8 +23,10 @@ export type HabitAdjustmentSuggestion = {
 };
 
 export type HabitAdjustmentInput = {
-  habit: HabitRecord;
-  latestReview: WeeklyReviewRecord;
+  latestReview: Pick<
+    WeeklyReviewRecord,
+    "trigger_worked" | "tiny_action_too_hard" | "was_hard"
+  >;
   progress: {
     consistencyRate: number;
     skipCount: number;
