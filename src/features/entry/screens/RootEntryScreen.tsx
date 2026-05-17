@@ -40,7 +40,7 @@ export default function RootEntryScreen() {
       hasHabits &&
       completed === false
     ) {
-      markOnboardingCompleted()
+      markOnboardingCompleted(user.id)
         .then(() => {
           logger.info("Backfilled onboarding completion for existing account");
           void queryClient.invalidateQueries({

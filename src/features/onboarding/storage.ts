@@ -9,8 +9,10 @@ import { nowIso } from "@/utils/clock";
 import {
   EMPTY_DRAFT,
   KNOWN_DRAFT_KEYS,
-  ONBOARDING_COMPLETED_AT_KEY,
-  ONBOARDING_DRAFT_KEY,
+  LEGACY_ONBOARDING_COMPLETED_AT_KEY,
+  LEGACY_ONBOARDING_DRAFT_KEY,
+  onboardingCompletedAtKey,
+  onboardingDraftKey,
   type OnboardingDraft,
 } from "./types";
 
@@ -28,8 +30,31 @@ function pickKnownDraftKeys(parsed: unknown): Partial<OnboardingDraft> {
   return result;
 }
 
-export async function loadOnboardingDraft(): Promise<OnboardingDraft> {
-  const raw = await getPreference(ONBOARDING_DRAFT_KEY);
+// Unscoped legacy rows cannot be attributed to the signed-in user — drop them
+// rather than adopt them, to avoid falsely marking a fresh account onboarded.
+async function dropLegacyRowIfPresent(legacyKey: string): Promise<void> {
+  try {
+    const legacy = await getPreference(legacyKey);
+    if (legacy !== null) {
+      await deletePreference(legacyKey);
+      logger.info("Dropped unscoped legacy onboarding preference", {
+        key: legacyKey,
+      });
+    }
+  } catch (error) {
+    logger.warn("Failed to clean up legacy onboarding preference", {
+      key: legacyKey,
+      error,
+    });
+  }
+}
+
+export async function loadOnboardingDraft(
+  userId: string,
+): Promise<OnboardingDraft> {
+  await dropLegacyRowIfPresent(LEGACY_ONBOARDING_DRAFT_KEY);
+
+  const raw = await getPreference(onboardingDraftKey(userId));
   if (raw === null) {
     return { ...EMPTY_DRAFT };
   }
@@ -44,23 +69,27 @@ export async function loadOnboardingDraft(): Promise<OnboardingDraft> {
   }
 }
 
-export async function saveOnboardingDraft(draft: OnboardingDraft): Promise<void> {
+export async function saveOnboardingDraft(
+  userId: string,
+  draft: OnboardingDraft,
+): Promise<void> {
   try {
-    await setPreference(ONBOARDING_DRAFT_KEY, JSON.stringify(draft));
+    await setPreference(onboardingDraftKey(userId), JSON.stringify(draft));
   } catch (error) {
     logger.warn("Failed to persist onboarding draft", { error });
   }
 }
 
-export async function clearOnboardingDraft(): Promise<void> {
-  await deletePreference(ONBOARDING_DRAFT_KEY);
+export async function clearOnboardingDraft(userId: string): Promise<void> {
+  await deletePreference(onboardingDraftKey(userId));
 }
 
-export async function isOnboardingCompleted(): Promise<boolean> {
-  const value = await getPreference(ONBOARDING_COMPLETED_AT_KEY);
+export async function isOnboardingCompleted(userId: string): Promise<boolean> {
+  await dropLegacyRowIfPresent(LEGACY_ONBOARDING_COMPLETED_AT_KEY);
+  const value = await getPreference(onboardingCompletedAtKey(userId));
   return value !== null;
 }
 
-export async function markOnboardingCompleted(): Promise<void> {
-  await setPreference(ONBOARDING_COMPLETED_AT_KEY, nowIso());
+export async function markOnboardingCompleted(userId: string): Promise<void> {
+  await setPreference(onboardingCompletedAtKey(userId), nowIso());
 }

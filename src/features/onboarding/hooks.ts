@@ -23,6 +23,9 @@ export function useOnboardingDraft(): {
   hydrated: boolean;
   update: (patch: Partial<OnboardingDraft>) => void;
 } {
+  const { user } = useAuthSession();
+  const userId = user?.id;
+
   const [draft, setDraft] = useState<OnboardingDraft>(EMPTY_DRAFT);
   const [hydrated, setHydrated] = useState(false);
 
@@ -30,16 +33,34 @@ export function useOnboardingDraft(): {
   // needing to put side effects inside a setDraft updater function.
   const draftRef = useRef<OnboardingDraft>(EMPTY_DRAFT);
   const pendingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Snapshot of the userId the pending timer / draftRef belongs to, so
+  // unmount-flush writes against the correct key after a session swap.
+  const pendingUserIdRef = useRef<string | undefined>(undefined);
 
   useEffect(() => {
+    // A session change invalidates anything queued for the previous user.
+    // Drop the pending write rather than flushing it — the queued intent
+    // captured the previous session and must not bleed into the new one.
+    if (pendingTimer.current !== null) {
+      clearTimeout(pendingTimer.current);
+      pendingTimer.current = null;
+    }
+    draftRef.current = EMPTY_DRAFT;
+    pendingUserIdRef.current = userId;
+    setDraft(EMPTY_DRAFT);
+    setHydrated(false);
+
+    if (!userId) {
+      return;
+    }
+
     let cancelled = false;
-    loadOnboardingDraft()
+    loadOnboardingDraft(userId)
       .then((loaded) => {
-        if (!cancelled) {
-          draftRef.current = loaded;
-          setDraft(loaded);
-          setHydrated(true);
-        }
+        if (cancelled) return;
+        draftRef.current = loaded;
+        setDraft(loaded);
+        setHydrated(true);
       })
       .catch((error: unknown) => {
         logger.warn("Failed to load onboarding draft", { error });
@@ -48,7 +69,7 @@ export function useOnboardingDraft(): {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [userId]);
 
   // Flush any pending write on unmount so navigation doesn't lose the last keystroke.
   useEffect(() => {
@@ -56,24 +77,35 @@ export function useOnboardingDraft(): {
       if (pendingTimer.current !== null) {
         clearTimeout(pendingTimer.current);
         pendingTimer.current = null;
-        void saveOnboardingDraft(draftRef.current);
+        const snapshotUserId = pendingUserIdRef.current;
+        if (snapshotUserId) {
+          void saveOnboardingDraft(snapshotUserId, draftRef.current);
+        }
       }
     };
   }, []);
 
-  const update = useCallback((patch: Partial<OnboardingDraft>) => {
-    const next = { ...draftRef.current, ...patch };
-    draftRef.current = next;
-    setDraft(next);
+  const update = useCallback(
+    (patch: Partial<OnboardingDraft>) => {
+      const next = { ...draftRef.current, ...patch };
+      draftRef.current = next;
+      setDraft(next);
 
-    if (pendingTimer.current !== null) {
-      clearTimeout(pendingTimer.current);
-    }
-    pendingTimer.current = setTimeout(() => {
-      void saveOnboardingDraft(draftRef.current);
-      pendingTimer.current = null;
-    }, 200);
-  }, []);
+      if (!userId) {
+        return;
+      }
+
+      if (pendingTimer.current !== null) {
+        clearTimeout(pendingTimer.current);
+      }
+      pendingUserIdRef.current = userId;
+      pendingTimer.current = setTimeout(() => {
+        void saveOnboardingDraft(userId, draftRef.current);
+        pendingTimer.current = null;
+      }, 200);
+    },
+    [userId],
+  );
 
   return { draft, hydrated, update };
 }
@@ -86,7 +118,7 @@ export function useIsOnboardingCompletedQuery() {
   const { user } = useAuthSession();
   return useQuery({
     queryKey: getIsOnboardingCompletedQueryKey(user?.id),
-    queryFn: isOnboardingCompleted,
+    queryFn: () => isOnboardingCompleted(user!.id),
     enabled: Boolean(user?.id),
     staleTime: Infinity,
   });

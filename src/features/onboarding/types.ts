@@ -54,8 +54,16 @@ export const KNOWN_DRAFT_KEYS = [
   "reminderTime",
 ] as const satisfies readonly (keyof OnboardingDraft)[];
 
-export const ONBOARDING_DRAFT_KEY = "onboarding.draft";
-export const ONBOARDING_COMPLETED_AT_KEY = "onboarding.completed_at";
+export const LEGACY_ONBOARDING_DRAFT_KEY = "onboarding.draft";
+export const LEGACY_ONBOARDING_COMPLETED_AT_KEY = "onboarding.completed_at";
+
+export function onboardingDraftKey(userId: string): string {
+  return `onboarding.draft:${userId}`;
+}
+
+export function onboardingCompletedAtKey(userId: string): string {
+  return `onboarding.completed_at:${userId}`;
+}
 export const WEEKLY_REVIEW_INTRO_SEEN_AT_KEY = "weekly_review.intro_seen_at";
 export const WEEKLY_REVIEW_FIRST_RUN_COMPLETED_AT_KEY =
   "weekly_review.first_run_completed_at";

@@ -16,7 +16,11 @@ import {
   loadOnboardingDraft,
   saveOnboardingDraft,
 } from "../storage";
-import { EMPTY_DRAFT } from "../types";
+import {
+  EMPTY_DRAFT,
+  onboardingCompletedAtKey,
+  onboardingDraftKey,
+} from "../types";
 
 jest.mock("@/lib/db/client");
 const mockGetDb = getDb as jest.Mock;
@@ -52,7 +56,7 @@ describe("finalizeOnboarding", () => {
 
   it("creates an active habit, marks completion, and clears the draft on success", async () => {
     const draft = makeReadyDraft();
-    await saveOnboardingDraft(draft);
+    await saveOnboardingDraft(TEST_USER_ID, draft);
 
     const habit = await finalizeOnboarding(TEST_USER_ID, draft);
 
@@ -66,10 +70,23 @@ describe("finalizeOnboarding", () => {
     expect(habit.start_date).toBe("2026-04-29");
 
     // Completion mark present.
-    expect(await isOnboardingCompleted()).toBe(true);
+    expect(await isOnboardingCompleted(TEST_USER_ID)).toBe(true);
 
     // Draft cleared.
-    expect(await loadOnboardingDraft()).toEqual(EMPTY_DRAFT);
+    expect(await loadOnboardingDraft(TEST_USER_ID)).toEqual(EMPTY_DRAFT);
+
+    // Both transactional writes landed under per-user keys: completion row
+    // exists, per-user draft row is gone.
+    const completionRow = await db.getFirstAsync<{ value: string }>(
+      "SELECT value FROM local_user_preferences WHERE key = ?",
+      onboardingCompletedAtKey(TEST_USER_ID),
+    );
+    expect(completionRow?.value).toBe("2026-04-29T10:00:00.000Z");
+    const draftRow = await db.getFirstAsync<{ value: string }>(
+      "SELECT value FROM local_user_preferences WHERE key = ?",
+      onboardingDraftKey(TEST_USER_ID),
+    );
+    expect(draftRow).toBeNull();
 
     // Active habits list shows the new habit.
     const active = await listActiveHabits(TEST_USER_ID);
@@ -79,7 +96,7 @@ describe("finalizeOnboarding", () => {
 
   it("throws cap_failed and writes nothing when the cap helper rejects", async () => {
     const draft = makeReadyDraft();
-    await saveOnboardingDraft(draft);
+    await saveOnboardingDraft(TEST_USER_ID, draft);
 
     jest
       .spyOn(habitsValidators, "assertCanCreateActiveHabit")
@@ -94,9 +111,9 @@ describe("finalizeOnboarding", () => {
     expect(err.reason).toBe("cap_failed");
 
     // Completion mark NOT written.
-    expect(await isOnboardingCompleted()).toBe(false);
+    expect(await isOnboardingCompleted(TEST_USER_ID)).toBe(false);
     // Draft preserved.
-    const reloaded = await loadOnboardingDraft();
+    const reloaded = await loadOnboardingDraft(TEST_USER_ID);
     expect(reloaded.tinyAction).toBe("Run for 2 minutes");
     // No habit row.
     const active = await listActiveHabits(TEST_USER_ID);
@@ -105,15 +122,15 @@ describe("finalizeOnboarding", () => {
 
   it("rolls back the habit insert if a later step in the transaction throws", async () => {
     const draft = makeReadyDraft();
-    await saveOnboardingDraft(draft);
+    await saveOnboardingDraft(TEST_USER_ID, draft);
 
     // Sabotage the second step in the transaction (setPreference for the
-    // completion key) so the transaction rolls back.
+    // per-user completion key) so the transaction rolls back.
     const realSetPreference = preferencesRepo.setPreference;
     jest
       .spyOn(preferencesRepo, "setPreference")
       .mockImplementation(async (key, value) => {
-        if (key === "onboarding.completed_at") {
+        if (key === onboardingCompletedAtKey(TEST_USER_ID)) {
           throw new Error("Simulated write failure");
         }
         return realSetPreference(key, value);
@@ -128,10 +145,10 @@ describe("finalizeOnboarding", () => {
     expect(active).toHaveLength(0);
 
     // Completion mark NOT written (the throw on this step triggered rollback).
-    expect(await isOnboardingCompleted()).toBe(false);
+    expect(await isOnboardingCompleted(TEST_USER_ID)).toBe(false);
 
     // Draft preserved (the delete was rolled back).
-    const reloaded = await loadOnboardingDraft();
+    const reloaded = await loadOnboardingDraft(TEST_USER_ID);
     expect(reloaded.tinyAction).toBe("Run for 2 minutes");
   });
 });

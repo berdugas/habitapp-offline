@@ -12,8 +12,8 @@ import { requestPermission, scheduleReminder } from "@/features/reminders/notifi
 
 import type { Habit } from "@/features/habits/types";
 import {
-  ONBOARDING_COMPLETED_AT_KEY,
-  ONBOARDING_DRAFT_KEY,
+  onboardingCompletedAtKey,
+  onboardingDraftKey,
   type OnboardingDraft,
 } from "./types";
 
@@ -65,8 +65,8 @@ export async function finalizeOnboarding(
         status: "active",
         start_date: today,
       });
-      await setPreference(ONBOARDING_COMPLETED_AT_KEY, completedAt);
-      await deletePreference(ONBOARDING_DRAFT_KEY);
+      await setPreference(onboardingCompletedAtKey(userId), completedAt);
+      await deletePreference(onboardingDraftKey(userId));
     });
   } catch (error) {
     logger.warn("Onboarding finalization transaction failed", { error });
