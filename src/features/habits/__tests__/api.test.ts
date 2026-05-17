@@ -13,6 +13,7 @@ import {
   activateBacklogHabit,
   archiveHabit,
   createHabit,
+  deleteGoal,
   deleteHabit,
   reactivateHabit,
 } from "@/features/habits/api";
@@ -294,6 +295,92 @@ describe("habits/api — new mutations", () => {
     it("throws when habit is not owned by user", async () => {
       const habit = await seedActiveHabit({ user_id: "user-1" });
       await expect(archiveHabit("user-2", habit.id)).rejects.toThrow(/not found/i);
+    });
+  });
+
+  describe("deleteGoal", () => {
+    it("returns deletedHabitCount=0 and skips cancelReminder when no habits match", async () => {
+      const result = await deleteGoal("user-1", "no such phrase");
+      expect(result.deletedHabitCount).toBe(0);
+      expect(mockCancelReminder).not.toHaveBeenCalled();
+    });
+
+    it("cancels reminders for every habit before the repo delete (any habit_state/status)", async () => {
+      // Seed: one active, one automatic, one archived, one backlog — all
+      // under the same identity_phrase. The api wrapper must cancel each
+      // before calling the repo's deleteGoal.
+      const active = await seedActiveHabit({
+        identity_phrase: "a runner",
+      });
+      const automatic = await createHabit("user-1", {
+        title: "Stretch",
+        identityPhrase: "a runner",
+        cue: "after run",
+        tinyAction: "stretch for 30s",
+        minimumViableAction: "",
+        preferredTimeWindow: "",
+        icon: "",
+        activeDays: [1, 2, 3, 4, 5, 6, 7],
+        habitState: "automatic",
+      });
+      // Archived and backlog rows need to be inserted directly — the api's
+      // createHabit forces status defaults. Use the repo to bypass that.
+      const archived = await habitsRepo.createHabit({
+        user_id: "user-1",
+        title: "Hydrate",
+        identity_phrase: "a runner",
+        cue: "after stretch",
+        tiny_action: "drink water",
+        minimum_viable_action: null,
+        preferred_time_window: null,
+        start_date: "2026-05-01",
+        status: "archived",
+      });
+      const backlog = await habitsRepo.createHabit({
+        user_id: "user-1",
+        title: "Foam roll",
+        identity_phrase: "a runner",
+        cue: "evening",
+        tiny_action: "foam roll for 1 min",
+        minimum_viable_action: null,
+        preferred_time_window: null,
+        start_date: "2026-05-01",
+        status: "backlog",
+      });
+
+      const deleteGoalSpy = jest.spyOn(habitsRepo, "deleteGoal");
+
+      const result = await deleteGoal("user-1", "a runner");
+
+      expect(result.deletedHabitCount).toBe(4);
+      expect(mockCancelReminder).toHaveBeenCalledTimes(4);
+      const cancelledIds = mockCancelReminder.mock.calls.map((c) => c[0]).sort();
+      expect(cancelledIds).toEqual(
+        [active.id, automatic.id, archived.id, backlog.id].sort(),
+      );
+
+      // All cancels happened before the repo delete fired.
+      const lastCancelOrder = Math.max(
+        ...mockCancelReminder.mock.invocationCallOrder,
+      );
+      const deleteOrder = deleteGoalSpy.mock.invocationCallOrder[0];
+      expect(lastCancelOrder).toBeLessThan(deleteOrder);
+
+      // Rows are gone.
+      for (const h of [active, automatic, archived, backlog]) {
+        expect(await getHabit(h.id)).toBeNull();
+      }
+
+      deleteGoalSpy.mockRestore();
+    });
+
+    it("does not throw when a cancelReminder rejects (best-effort)", async () => {
+      mockCancelReminder.mockRejectedValueOnce(new Error("permission denied"));
+      const habit = await seedActiveHabit({ identity_phrase: "a runner" });
+      await expect(deleteGoal("user-1", "a runner")).resolves.toEqual({
+        deletedHabitCount: 1,
+      });
+      expect(await getHabit(habit.id)).toBeNull();
     });
   });
 });

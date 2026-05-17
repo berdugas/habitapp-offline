@@ -2,6 +2,7 @@ import {
   activateBacklogHabitRow,
   archiveHabit as archiveHabitRow,
   createHabit as createHabitRow,
+  deleteGoal as deleteGoalRow,
   deleteHabit as deleteHabitRow,
   getHabit,
   listHabits,
@@ -191,6 +192,25 @@ export async function deleteHabit(
   // and would keep firing for an absent habit otherwise.
   await cancelReminder(habitId).catch(() => {});
   await deleteHabitRow(habitId);
+}
+
+export async function deleteGoal(
+  userId: string,
+  identityPhrase: string,
+): Promise<{ deletedHabitCount: number }> {
+  // listHabits with identity_phrase returns every row regardless of
+  // habit_state ("active" | "automatic") or status ("active" | "archived" |
+  // "backlog"). The cascade-delete fires on the DB layer; this layer's job
+  // is to clean up OS-level reminder schedules for each habit first.
+  const habits = await listHabits({
+    user_id: userId,
+    identity_phrase: identityPhrase,
+  });
+  if (habits.length === 0) return { deletedHabitCount: 0 };
+
+  await Promise.all(habits.map((h) => cancelReminder(h.id).catch(() => {})));
+
+  return deleteGoalRow(userId, identityPhrase);
 }
 
 // ─── Log reads ────────────────────────────────────────────────────────────────
