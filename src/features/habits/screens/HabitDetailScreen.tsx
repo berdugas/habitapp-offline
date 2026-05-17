@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Bell, ChevronLeft, Pencil } from "lucide-react-native";
 import { router, useLocalSearchParams } from "expo-router";
@@ -10,6 +10,7 @@ import { ReadOnlyBanner } from "@/components/ReadOnlyBanner";
 import { PrimaryButton } from "@/components/buttons/PrimaryButton";
 import { SecondaryButton } from "@/components/buttons/SecondaryButton";
 import { ZenCard } from "@/components/cards/ZenCard";
+import { DangerZone } from "@/components/sections/DangerZone";
 import { ErrorState } from "@/components/feedback/ErrorState";
 import { LoadingState } from "@/components/feedback/LoadingState";
 import { Eyebrow } from "@/components/text/Eyebrow";
@@ -31,6 +32,7 @@ import { cancelReminder, requestPermission } from "@/features/reminders/notifica
 import { RetroLogSelector } from "@/features/habits/components/RetroLogSelector";
 import {
   useArchiveHabitMutation,
+  useDeleteHabitMutation,
   useHabitDetail,
   useUpsertHabitLogMutation,
 } from "@/features/habits/hooks";
@@ -85,6 +87,8 @@ export default function HabitDetailScreen() {
     progress,
   } = useHabitDetail(habitId);
   const archiveHabitMutation = useArchiveHabitMutation();
+  const deleteHabitMutation = useDeleteHabitMutation();
+  const deleteSubmitLockRef = useRef(false);
   const upsertHabitLogMutation = useUpsertHabitLogMutation();
   const retroLogSubmitLockRef = useRef(false);
   const [selectorState, setSelectorState] = useState<{
@@ -300,6 +304,40 @@ export default function HabitDetailScreen() {
       await cancelReminder(habit.id).catch(() => {});
     } finally {
       activeStateSubmitLockRef.current = false;
+    }
+  }
+
+  function confirmDeleteHabit() {
+    if (!habit) return;
+    Alert.alert(
+      "Delete this habit?",
+      `"${habit.title}" and all its history will be permanently deleted. This cannot be undone.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: () => void handleDeleteHabit(),
+        },
+      ],
+    );
+  }
+
+  async function handleDeleteHabit() {
+    if (
+      !habit ||
+      deleteSubmitLockRef.current ||
+      deleteHabitMutation.isPending
+    )
+      return;
+    deleteSubmitLockRef.current = true;
+    try {
+      // api.ts deleteHabit cancels the OS reminder before deleting the row,
+      // so no extra cancelReminder call is needed here.
+      await deleteHabitMutation.mutateAsync({ habitId: habit.id });
+      router.replace("/(app)/(tabs)/today");
+    } finally {
+      deleteSubmitLockRef.current = false;
     }
   }
 
@@ -542,6 +580,16 @@ export default function HabitDetailScreen() {
           onPress={() => router.push("/(app)/(tabs)/today")}
         />
       </View>
+
+      {/* Danger zone — permanent delete (available for active AND archived habits) */}
+      <DangerZone
+        title="Delete habit"
+        body="Permanently removes this habit and all its history — logs, reviews, reminders. This cannot be undone."
+        buttonLabel="Delete habit"
+        disabled={isReadOnly}
+        isPending={deleteHabitMutation.isPending}
+        onPress={confirmDeleteHabit}
+      />
 
       {selectorState ? (
         <RetroLogSelector

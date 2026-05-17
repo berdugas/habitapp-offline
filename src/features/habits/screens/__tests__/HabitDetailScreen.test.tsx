@@ -25,6 +25,7 @@ jest.mock("expo-router", () => ({
 
 jest.mock("@/features/habits/hooks", () => ({
   useArchiveHabitMutation: jest.fn(),
+  useDeleteHabitMutation: jest.fn(),
   useHabitDetail: jest.fn(),
   useUpsertHabitLogMutation: jest.fn(),
 }));
@@ -73,10 +74,12 @@ jest.mock("@/features/reminders/notifications", () => ({
 const {
   useHabitDetail,
   useArchiveHabitMutation,
+  useDeleteHabitMutation,
   useUpsertHabitLogMutation,
 } = jest.requireMock("@/features/habits/hooks") as {
   useHabitDetail: jest.Mock;
   useArchiveHabitMutation: jest.Mock;
+  useDeleteHabitMutation: jest.Mock;
   useUpsertHabitLogMutation: jest.Mock;
 };
 
@@ -134,6 +137,11 @@ describe("HabitDetailScreen", () => {
     jest.clearAllMocks();
     setNowForTesting(new Date("2026-04-30T10:00:00.000Z"));
     useArchiveHabitMutation.mockReturnValue({
+      mutateAsync: jest.fn().mockResolvedValue(undefined),
+      isPending: false,
+      error: null,
+    });
+    useDeleteHabitMutation.mockReturnValue({
       mutateAsync: jest.fn().mockResolvedValue(undefined),
       isPending: false,
       error: null,
@@ -660,6 +668,117 @@ describe("HabitDetailScreen", () => {
       expect(screen.getByText("Automatic")).toBeTruthy();
       // Must never render "Automatic since —" or "Automatic since "
       expect(screen.queryByText(/Automatic since/)).toBeNull();
+    });
+  });
+
+  describe("DangerZone — permanent delete", () => {
+    function setupAlertSpy() {
+      // Alert.alert is a real Alert from react-native; spy on it.
+      const { Alert } = require("react-native");
+      return jest.spyOn(Alert, "alert").mockImplementation(() => undefined);
+    }
+
+    it("renders the danger zone for active habits", () => {
+      useHabitDetail.mockReturnValue({
+        error: null,
+        formula: "After morning coffee, I will run.",
+        habit: makeHabit(),
+        isLoading: false,
+        isUpcoming: false,
+        latestReview: null,
+        progress: makeProgress(),
+        recentLogs: [],
+      });
+      renderWithClient(<HabitDetailScreen />);
+      expect(screen.getByText("DELETE HABIT")).toBeTruthy();
+      expect(
+        screen.getByText(
+          /Permanently removes this habit and all its history/i,
+        ),
+      ).toBeTruthy();
+    });
+
+    it("renders the danger zone for archived habits", () => {
+      useHabitDetail.mockReturnValue({
+        error: null,
+        formula: "After morning coffee, I will run.",
+        habit: makeHabit({ status: "archived", archived_at: "2026-04-29T00:00:00.000Z" }),
+        isLoading: false,
+        isUpcoming: false,
+        latestReview: null,
+        progress: makeProgress(),
+        recentLogs: [],
+      });
+      renderWithClient(<HabitDetailScreen />);
+      expect(screen.getByText("DELETE HABIT")).toBeTruthy();
+    });
+
+    it("shows confirmation alert with habit title when delete is tapped", () => {
+      const alertSpy = setupAlertSpy();
+      useHabitDetail.mockReturnValue({
+        error: null,
+        formula: "After morning coffee, I will run.",
+        habit: makeHabit({ title: "Morning Run" }),
+        isLoading: false,
+        isUpcoming: false,
+        latestReview: null,
+        progress: makeProgress(),
+        recentLogs: [],
+      });
+      renderWithClient(<HabitDetailScreen />);
+      // Tap the danger button (the second occurrence — first is the eyebrow)
+      const deleteButton = screen.getByRole("button", { name: "Delete habit" });
+      fireEvent.press(deleteButton);
+      expect(alertSpy).toHaveBeenCalledWith(
+        "Delete this habit?",
+        expect.stringContaining("Morning Run"),
+        expect.any(Array),
+      );
+      alertSpy.mockRestore();
+    });
+
+    it("disables the danger button in read-only mode", () => {
+      const alertSpy = setupAlertSpy();
+      useTrialValidation.mockReturnValue({
+        accessMode: "read_only",
+        isValidating: false,
+        refresh: jest.fn(),
+      });
+      useHabitDetail.mockReturnValue({
+        error: null,
+        formula: "After morning coffee, I will run.",
+        habit: makeHabit(),
+        isLoading: false,
+        isUpcoming: false,
+        latestReview: null,
+        progress: makeProgress(),
+        recentLogs: [],
+      });
+      renderWithClient(<HabitDetailScreen />);
+      const deleteButton = screen.getByRole("button", { name: "Delete habit" });
+      fireEvent.press(deleteButton);
+      expect(alertSpy).not.toHaveBeenCalled();
+      alertSpy.mockRestore();
+    });
+
+    it("swaps the label to 'Deleting…' while the mutation is pending", () => {
+      useDeleteHabitMutation.mockReturnValue({
+        mutateAsync: jest.fn(),
+        isPending: true,
+        error: null,
+      });
+      useHabitDetail.mockReturnValue({
+        error: null,
+        formula: "After morning coffee, I will run.",
+        habit: makeHabit(),
+        isLoading: false,
+        isUpcoming: false,
+        latestReview: null,
+        progress: makeProgress(),
+        recentLogs: [],
+      });
+      renderWithClient(<HabitDetailScreen />);
+      expect(screen.getByText("Deleting…")).toBeTruthy();
     });
   });
 });
