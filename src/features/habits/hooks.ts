@@ -449,6 +449,59 @@ export function useDeleteHabitMutation() {
   });
 }
 
+export function useDeleteGoalMutation() {
+  const { user } = useAuthSession();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ identityPhrase }: { identityPhrase: string }) => {
+      if (!user?.id) {
+        throw new Error(
+          "You need an account session before deleting a goal.",
+        );
+      }
+      return deleteGoal(user.id, identityPhrase);
+    },
+    onSuccess: async (_result, variables) => {
+      if (!user?.id) return;
+      const todayDate = toDeviceDateString();
+
+      // Goal aggregations derive from the eligible + upcoming surfaces. Hit
+      // those plus the broad library/inactive/backlog and goal-status keys
+      // so every screen reflects the deletion.
+      await queryClient.invalidateQueries({
+        queryKey: getEligibleHabitsQueryKey(user.id, todayDate),
+      });
+      await queryClient.invalidateQueries({
+        queryKey: getUpcomingActiveHabitsQueryKey(user.id, todayDate),
+      });
+      await queryClient.invalidateQueries({
+        queryKey: getInactiveHabitsQueryKey(user.id),
+      });
+      await queryClient.invalidateQueries({
+        queryKey: getLibraryQueryKey(user.id),
+      });
+      await queryClient.invalidateQueries({
+        queryKey: getBacklogQueryKey(user.id),
+      });
+      await queryClient.invalidateQueries({
+        queryKey: ["reviews", "goal-status"],
+      });
+      // The dedicated count query for this specific goal phrase.
+      await queryClient.invalidateQueries({
+        queryKey: getGoalHabitCountQueryKey(user.id, variables.identityPhrase),
+      });
+    },
+    onError: (error, variables) => {
+      logger.error("Goal delete mutation failed", {
+        error,
+        identityPhrase: variables.identityPhrase,
+        userId: user?.id ?? null,
+      });
+    },
+  });
+}
+
 type UpsertHabitLogVariables = {
   habitId: string;
   logDate: string;
