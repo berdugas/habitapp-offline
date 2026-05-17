@@ -5,12 +5,14 @@ import {
   activateBacklogHabit,
   archiveHabit,
   createHabit,
+  deleteGoal,
   deleteHabit,
   getHabitById,
   getHabitLogsForHabitInRange,
   listArchivedHabits,
   listBacklogHabits,
   listEligibleHabitsForToday,
+  listGoalHabits,
   listUpcomingHabits,
   updateHabit,
   upsertHabitLog,
@@ -109,6 +111,25 @@ export function useUpcomingActiveHabitsQuery() {
     enabled: Boolean(user?.id),
     queryFn: () => listUpcomingHabits(user!.id, todayDate),
     queryKey: getUpcomingActiveHabitsQueryKey(user?.id, todayDate),
+  });
+}
+
+export function getGoalHabitCountQueryKey(
+  userId: string | undefined,
+  identityPhrase: string | undefined,
+) {
+  return ["habits", "goal-count", userId ?? "guest", identityPhrase ?? ""] as const;
+}
+
+export function useGoalHabitCountQuery(identityPhrase: string | undefined) {
+  const { user } = useAuthSession();
+  return useQuery({
+    enabled: Boolean(user?.id && identityPhrase),
+    queryFn: async () => {
+      const habits = await listGoalHabits(user!.id, identityPhrase!);
+      return habits.length;
+    },
+    queryKey: getGoalHabitCountQueryKey(user?.id, identityPhrase),
   });
 }
 
