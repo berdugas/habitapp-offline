@@ -213,6 +213,52 @@ describe("habits repository", () => {
     expect(logs).toHaveLength(0);
   });
 
+  it("deleteHabit cascades to local_srhi_responses via FK", async () => {
+    const habit = await createHabit(makeInput());
+    await db.runAsync(
+      `INSERT INTO local_srhi_responses
+         (id, habit_id, user_id,
+          q1_score, q2_score, q3_score, average_score,
+          graduated, created_at)
+       VALUES (?, ?, 'user-1', 4, 5, 4, 4.33, 0, datetime('now'))`,
+      `srhi-${habit.id}`,
+      habit.id,
+    );
+
+    await deleteHabit(habit.id);
+
+    const rows = await db.getAllAsync(
+      "SELECT * FROM local_srhi_responses WHERE habit_id = ?",
+      habit.id,
+    );
+    expect(rows).toHaveLength(0);
+  });
+
+  it("deleteHabit cascades to local_weekly_reviews via FK", async () => {
+    const habit = await createHabit(makeInput());
+    await db.runAsync(
+      `INSERT INTO local_weekly_reviews
+         (id, habit_id, user_id, week_start,
+          went_well, was_hard, adjustment_note,
+          trigger_worked, tiny_action_too_hard,
+          created_at, updated_at)
+       VALUES (?, ?, 'user-1', '2026-05-11',
+         'Good week', 'Tuesday was hard', null,
+         1, 0,
+         datetime('now'), datetime('now'))`,
+      `wr-${habit.id}`,
+      habit.id,
+    );
+
+    await deleteHabit(habit.id);
+
+    const rows = await db.getAllAsync(
+      "SELECT * FROM local_weekly_reviews WHERE habit_id = ?",
+      habit.id,
+    );
+    expect(rows).toHaveLength(0);
+  });
+
   it("declares habit_state and status constraints in the schema", async () => {
     const row = await db.getFirstAsync<{ sql: string }>(
       "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'local_habits'",
