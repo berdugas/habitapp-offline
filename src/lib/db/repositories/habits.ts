@@ -68,6 +68,7 @@ export type HabitFilter = {
   user_id: string;
   habit_state?: HabitState | HabitState[];
   status?: HabitStatus | HabitStatus[];
+  identity_phrase?: string;
 };
 
 export async function createHabit(input: CreateHabitInput): Promise<Habit> {
@@ -263,6 +264,11 @@ export async function listHabits(filter: HabitFilter): Promise<Habit[]> {
     params.push(...statuses);
   }
 
+  if (filter.identity_phrase !== undefined) {
+    conditions.push("identity_phrase = ?");
+    params.push(filter.identity_phrase);
+  }
+
   return db.getAllAsync<Habit>(
     `SELECT * FROM local_habits WHERE ${conditions.join(" AND ")} ORDER BY created_at DESC`,
     ...params,
@@ -273,4 +279,34 @@ export async function deleteHabit(id: string): Promise<boolean> {
   const db = getDb();
   const result = await db.runAsync("DELETE FROM local_habits WHERE id = ?", id);
   return result.changes > 0;
+}
+
+export async function deleteGoal(
+  userId: string,
+  identityPhrase: string,
+): Promise<{ deletedHabitCount: number }> {
+  const db = getDb();
+
+  const habits = await db.getAllAsync<{ id: string }>(
+    "SELECT id FROM local_habits WHERE user_id = ? AND identity_phrase = ?",
+    userId,
+    identityPhrase,
+  );
+
+  if (habits.length === 0) return { deletedHabitCount: 0 };
+
+  const ids = habits.map((h) => h.id);
+  const placeholders = ids.map(() => "?").join(",");
+
+  let deletedCount = 0;
+  await db.withTransactionAsync(async () => {
+    const result = await db.runAsync(
+      `DELETE FROM local_habits WHERE user_id = ? AND id IN (${placeholders})`,
+      userId,
+      ...ids,
+    );
+    deletedCount = result.changes;
+  });
+
+  return { deletedHabitCount: deletedCount };
 }

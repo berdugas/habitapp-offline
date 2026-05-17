@@ -5,6 +5,7 @@ import { createTestDb } from "@/tests/setup/createTestDb";
 import {
   archiveHabit,
   createHabit,
+  deleteGoal,
   deleteHabit,
   getHabit,
   listHabits,
@@ -257,6 +258,112 @@ describe("habits repository", () => {
       habit.id,
     );
     expect(rows).toHaveLength(0);
+  });
+
+  it("listHabits filters by identity_phrase across all habit_states and statuses", async () => {
+    const a = await createHabit(makeInput({ identity_phrase: "a runner", title: "A" }));
+    const b = await createHabit(makeInput({ identity_phrase: "a runner", title: "B" }));
+    const c = await createHabit(makeInput({ identity_phrase: "a writer", title: "C" }));
+
+    const matches = await listHabits({
+      user_id: "user-1",
+      identity_phrase: "a runner",
+    });
+
+    expect(matches.map((h) => h.id).sort()).toEqual([a.id, b.id].sort());
+    expect(matches.map((h) => h.id)).not.toContain(c.id);
+  });
+
+  describe("deleteGoal", () => {
+    it("deletes all habits sharing the identity_phrase for the user", async () => {
+      const a = await createHabit(makeInput({ identity_phrase: "a runner", title: "A" }));
+      const b = await createHabit(makeInput({ identity_phrase: "a runner", title: "B" }));
+      const c = await createHabit(makeInput({ identity_phrase: "a writer", title: "C" }));
+
+      const result = await deleteGoal("user-1", "a runner");
+
+      expect(result.deletedHabitCount).toBe(2);
+      expect(await getHabit(a.id)).toBeNull();
+      expect(await getHabit(b.id)).toBeNull();
+      expect(await getHabit(c.id)).not.toBeNull();
+    });
+
+    it("returns deletedHabitCount=0 when no habits match", async () => {
+      const result = await deleteGoal("user-1", "nonexistent phrase");
+      expect(result.deletedHabitCount).toBe(0);
+    });
+
+    it("cascades child rows for every deleted habit", async () => {
+      const a = await createHabit(makeInput({ identity_phrase: "a runner", title: "A" }));
+      const b = await createHabit(makeInput({ identity_phrase: "a runner", title: "B" }));
+      for (const h of [a, b]) {
+        await upsertLog({
+          habit_id: h.id,
+          user_id: "user-1",
+          log_date: "2026-05-10",
+          status: "done",
+        });
+      }
+
+      await deleteGoal("user-1", "a runner");
+
+      for (const h of [a, b]) {
+        const logs = await db.getAllAsync(
+          "SELECT * FROM local_habit_logs WHERE habit_id = ?",
+          h.id,
+        );
+        expect(logs).toHaveLength(0);
+      }
+    });
+
+    it("scopes by userId — does not touch another user's habits with the same phrase", async () => {
+      const mine = await createHabit(
+        makeInput({ user_id: "user-1", identity_phrase: "a runner", title: "Mine" }),
+      );
+      const theirs = await createHabit(
+        makeInput({ user_id: "user-2", identity_phrase: "a runner", title: "Theirs" }),
+      );
+
+      const result = await deleteGoal("user-1", "a runner");
+
+      expect(result.deletedHabitCount).toBe(1);
+      expect(await getHabit(mine.id)).toBeNull();
+      expect(await getHabit(theirs.id)).not.toBeNull();
+    });
+
+    it("deletes habits regardless of habit_state and status (active/automatic + active/archived/backlog)", async () => {
+      const active = await createHabit(
+        makeInput({ identity_phrase: "a runner", title: "Active" }),
+      );
+      const automatic = await createHabit(
+        makeInput({
+          identity_phrase: "a runner",
+          title: "Automatic",
+          habit_state: "automatic",
+        }),
+      );
+      const archived = await createHabit(
+        makeInput({
+          identity_phrase: "a runner",
+          title: "Archived",
+          status: "archived",
+        }),
+      );
+      const backlog = await createHabit(
+        makeInput({
+          identity_phrase: "a runner",
+          title: "Backlog",
+          status: "backlog",
+        }),
+      );
+
+      const result = await deleteGoal("user-1", "a runner");
+
+      expect(result.deletedHabitCount).toBe(4);
+      for (const h of [active, automatic, archived, backlog]) {
+        expect(await getHabit(h.id)).toBeNull();
+      }
+    });
   });
 
   it("declares habit_state and status constraints in the schema", async () => {
