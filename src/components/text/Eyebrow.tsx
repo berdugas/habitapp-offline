@@ -6,12 +6,18 @@ import { typography } from "@/theme/typography";
 
 type EyebrowProps = {
   label: string;
-  tone?: "default" | "primary";
+  tone?: "default" | "primary" | "danger";
 };
 
 export function Eyebrow({ label, tone = "default" }: EyebrowProps) {
   return (
-    <Text style={[styles.label, tone === "primary" && styles.labelPrimary]}>
+    <Text
+      style={[
+        styles.label,
+        tone === "primary" && styles.labelPrimary,
+        tone === "danger" && styles.labelDanger,
+      ]}
+    >
       {label.toUpperCase()}
     </Text>
   );
@@ -26,5 +32,8 @@ const styles = StyleSheet.create({
   },
   labelPrimary: {
     color: colors.primary,
+  },
+  labelDanger: {
+    color: colors.danger,
   },
 });

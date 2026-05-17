@@ -22,4 +22,11 @@ describe("Eyebrow", () => {
     const styles = (el.props.style as object[]).flat().filter(Boolean);
     expect(styles.some((s: { color?: string }) => s.color === colors.primary)).toBe(true);
   });
+
+  it("uses danger color when tone=danger", () => {
+    render(<Eyebrow label="delete habit" tone="danger" />);
+    const el = screen.getByText("DELETE HABIT");
+    const styles = (el.props.style as object[]).flat().filter(Boolean);
+    expect(styles.some((s: { color?: string }) => s.color === colors.danger)).toBe(true);
+  });
 });
