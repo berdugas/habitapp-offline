@@ -219,7 +219,7 @@ describe("HabitDetailScreen", () => {
     expect(screen.queryByText(/^Become /)).toBeNull();
   });
 
-  it("renders streak number in compact metric card", () => {
+  it("renders streak number inside the Journey Card streak strip", () => {
     useHabitDetail.mockReturnValue({
       error: null,
       formula: "After morning coffee, run for 2 minutes",
@@ -231,10 +231,10 @@ describe("HabitDetailScreen", () => {
       recentLogs: [],
     });
     renderWithClient(<HabitDetailScreen />);
-    expect(screen.getByText("12")).toBeTruthy();
+    expect(screen.getByText("12 day streak")).toBeTruthy();
   });
 
-  it("renders skip count below the streak number", () => {
+  it("does not render aggregate skip count (intentionally dropped in the Journey Card)", () => {
     useHabitDetail.mockReturnValue({
       error: null,
       formula: "After morning coffee, run for 2 minutes",
@@ -246,7 +246,7 @@ describe("HabitDetailScreen", () => {
       recentLogs: [],
     });
     renderWithClient(<HabitDetailScreen />);
-    expect(screen.getByText("2 skips")).toBeTruthy();
+    expect(screen.queryByText("2 skips")).toBeNull();
   });
 
   it("renders the calendar grid when logs are loaded", () => {
@@ -369,7 +369,7 @@ describe("HabitDetailScreen", () => {
     expect(screen.getAllByText("After morning coffee, I will run for 2 minutes.").length).toBeGreaterThanOrEqual(1);
   });
 
-  it("shows two metric cards side by side for non-upcoming habit", () => {
+  it("renders a single Journey Card with streak strip for non-upcoming habit", () => {
     useHabitDetail.mockReturnValue({
       error: null,
       formula: "After morning coffee, I will run.",
@@ -377,17 +377,23 @@ describe("HabitDetailScreen", () => {
       isLoading: false,
       isUpcoming: false,
       latestReview: null,
-      progress: makeProgress(),
+      progress: makeProgress({ streak: 5 }),
       recentLogs: [],
     });
     renderWithClient(<HabitDetailScreen />);
-    // Both eyebrow labels from the two metric cards must be present
-    expect(screen.getByText("HABIT CONSISTENCY")).toBeTruthy();
-    expect(screen.getByText("HABIT STREAK")).toBeTruthy();
+    // The Journey Card replaces the two side-by-side cards.
+    expect(screen.queryByText("HABIT CONSISTENCY")).toBeNull();
+    expect(screen.queryByText("HABIT STREAK")).toBeNull();
+    // It renders the streak strip's hero label.
+    expect(screen.getByText("5 day streak")).toBeTruthy();
+    // And the 14-day eyebrow.
+    expect(screen.getByText("LAST 14 DAYS")).toBeTruthy();
   });
 
-  it("shows 'Too early to tell' when activeDaysCount < 7", () => {
-    // start_date = today (2026-04-30) → 0 active days elapsed → suppression shown
+  it("renders early-days narrative copy without the legacy suppression text", () => {
+    // start_date = today (2026-04-30) → 0 active days elapsed → Journey Card
+    // shows the donut + early-days narrative from getGoalNarrative, NOT the
+    // old "Too early to tell" suppression text.
     useHabitDetail.mockReturnValue({
       error: null,
       formula: "After morning coffee, I will run.",
@@ -395,11 +401,21 @@ describe("HabitDetailScreen", () => {
       isLoading: false,
       isUpcoming: false,
       latestReview: null,
-      progress: makeProgress({ consistencyRate: 0.5 }),
+      progress: makeProgress({ consistencyRate: 1.0 }),
       recentLogs: [],
     });
     renderWithClient(<HabitDetailScreen />);
-    expect(screen.getByText("Too early to tell — keep showing up")).toBeTruthy();
+    expect(screen.queryByText("Too early to tell — keep showing up")).toBeNull();
+    // Some early-days narrative string must render. The exact one depends on
+    // consistencyRate + activeDaysCount; we assert that at least one of the
+    // known EARLY_HIGH pool strings is present.
+    const earlyHighMatches = [
+      "Day one done. Come back tomorrow.",
+      "Perfect so far. The real test is next week.",
+      "Strong start. The pattern will tell the story.",
+    ];
+    const hasEarly = earlyHighMatches.some((s) => screen.queryByText(s));
+    expect(hasEarly).toBe(true);
   });
 
   it("renders goal breadcrumb with identity phrase", () => {

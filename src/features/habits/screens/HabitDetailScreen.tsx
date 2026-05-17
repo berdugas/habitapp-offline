@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Bell, ChevronLeft, Pencil } from "lucide-react-native";
@@ -20,6 +20,13 @@ import { getFrequencyLabel } from "@/features/habits/formatters";
 import { checkGraduationEligibility } from "@/features/graduation/eligibility";
 import { useLatestSRHIQuery } from "@/features/graduation/hooks";
 import { ConsistencyDonut } from "@/features/today/components/ConsistencyDonut";
+import { GoalStreakStrip } from "@/features/today/components/GoalStreakStrip";
+import { WeeklyConsistencyChart } from "@/features/today/components/WeeklyConsistencyChart";
+import {
+  computeGoalDailyStates,
+  computeWeeklyConsistency,
+} from "@/features/today/goalMetrics";
+import { getGoalNarrative } from "@/features/today/goalNarrativeCopy";
 import { cancelReminder, requestPermission } from "@/features/reminders/notifications";
 import { RetroLogSelector } from "@/features/habits/components/RetroLogSelector";
 import {
@@ -172,6 +179,45 @@ export default function HabitDetailScreen() {
     }
     return count;
   })();
+
+  // Journey Card data — reuses the goal-level helpers with a one-element
+  // habit array, which degenerates to single-habit aggregation.
+  const weeklyData = useMemo(() => {
+    if (!habit) return [];
+    return computeWeeklyConsistency(
+      [
+        {
+          activeDays,
+          logs: (calendarLogs as HeatmapLog[]).map((l) => ({
+            log_date: l.log_date,
+            status: l.status as "done" | "skipped" | "missed",
+          })),
+          startDate: habit.start_date,
+        },
+      ],
+      habit.start_date,
+      now(),
+    );
+  }, [habit, calendarLogs, activeDays]);
+
+  const habitDailyStates = useMemo(() => {
+    if (!habit) return [];
+    return computeGoalDailyStates(
+      [
+        {
+          activeDays,
+          logs: (calendarLogs as HeatmapLog[]).map((l) => ({
+            log_date: l.log_date,
+            status: l.status as "done" | "skipped" | "missed",
+          })),
+          startDate: habit.start_date,
+        },
+      ],
+      14,
+    );
+  }, [habit, calendarLogs, activeDays]);
+
+  const narrativeText = getGoalNarrative(progress.consistencyRate, activeDaysCount);
 
   // Gate on isSuccess: a loading/errored SRHI query would otherwise skip the cooldown branch and flash the prompt for a cooldown habit.
   const latestSRHIQuery = useLatestSRHIQuery(habit?.id);
@@ -368,37 +414,23 @@ export default function HabitDetailScreen() {
         ) : null}
       </View>
 
-      {/* Metric cards */}
+      {/* Journey Card — mirrors GoalDetailScreen's pattern at the habit level */}
       {!isUpcoming ? (
-        <View style={styles.metricsRow}>
-          <ZenCard gap={spacing.sm} style={styles.metricCard}>
-            <Eyebrow label="Habit consistency" />
-            <View style={styles.metricCenter}>
-              {activeDaysCount >= 7 ? (
-                <ConsistencyDonut rate={progress.consistencyRate} size={36} label="" />
-              ) : (
-                <Text style={styles.tooEarlyText}>
-                  Too early to tell — keep showing up
-                </Text>
-              )}
-            </View>
-          </ZenCard>
-          <ZenCard gap={spacing.sm} style={styles.metricCard}>
-            <Eyebrow label="Habit streak" />
-            <View style={styles.metricCenter}>
-              {progress.streak === 0 && activeDaysCount === 0 ? (
-                <Text style={styles.metricEmpty}>—</Text>
-              ) : (
-                <>
-                  <Text style={styles.streakLargeNumber}>{progress.streak}</Text>
-                  {progress.skipCount > 0 ? (
-                    <Text style={styles.skipCountText}>{progress.skipCount} skips</Text>
-                  ) : null}
-                </>
-              )}
-            </View>
-          </ZenCard>
-        </View>
+        <ZenCard style={styles.journeyCard}>
+          <View style={styles.journeyTop}>
+            <ConsistencyDonut rate={progress.consistencyRate} size={56} label="" />
+            <Text style={styles.narrativeText}>{narrativeText}</Text>
+          </View>
+
+          {weeklyData.length >= 1 ? (
+            <WeeklyConsistencyChart weeklyData={weeklyData} />
+          ) : null}
+
+          <GoalStreakStrip
+            dailyStates={habitDailyStates}
+            streak={progress.streak}
+          />
+        </ZenCard>
       ) : null}
 
       {/* 30-day calendar */}
@@ -604,40 +636,21 @@ const styles = StyleSheet.create({
     fontSize: typography.bodyMd,
     textAlign: "center",
   },
-  metricsRow: {
+  journeyCard: {
+    gap: spacing.md,
+  },
+  journeyTop: {
+    alignItems: "flex-start",
     flexDirection: "row",
     gap: spacing.md,
   },
-  metricCard: {
+  narrativeText: {
+    color: colors.textMuted,
     flex: 1,
-  },
-  metricCenter: {
-    alignItems: "center",
-    justifyContent: "center",
-    minHeight: 36,
-  },
-  metricEmpty: {
-    fontFamily: fontFamilies.displayBold,
-    fontSize: 22,
-    color: colors.textFaint,
-  },
-  tooEarlyText: {
-    color: colors.textFaint,
     fontFamily: fontFamilies.body,
     fontSize: typography.bodyMd,
-    lineHeight: 18,
-    textAlign: "center",
-  },
-  streakLargeNumber: {
-    color: colors.text,
-    fontFamily: fontFamilies.displayBold,
-    fontSize: typography.headlineLg,
-  },
-  skipCountText: {
-    color: colors.textFaint,
-    fontFamily: fontFamilies.body,
-    fontSize: typography.micro,
-    marginTop: 2,
+    lineHeight: 22,
+    paddingTop: 4,
   },
   content: {
     gap: spacing.xl,
