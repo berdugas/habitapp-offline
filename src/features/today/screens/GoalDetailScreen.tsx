@@ -1,4 +1,4 @@
-import { ScrollView, StyleSheet, Text, View, Pressable } from "react-native";
+import { Alert, ScrollView, StyleSheet, Text, View, Pressable } from "react-native";
 import { ChevronLeft } from "lucide-react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -8,6 +8,7 @@ import { ReadOnlyBanner } from "@/components/ReadOnlyBanner";
 import { SecondaryButton } from "@/components/buttons/SecondaryButton";
 import { TertiaryButton } from "@/components/buttons/TertiaryButton";
 import { ZenCard } from "@/components/cards/ZenCard";
+import { DangerZone } from "@/components/sections/DangerZone";
 import { ErrorState } from "@/components/feedback/ErrorState";
 import { LoadingState } from "@/components/feedback/LoadingState";
 import { Eyebrow } from "@/components/text/Eyebrow";
@@ -17,6 +18,10 @@ import { GoalStreakStrip } from "@/features/today/components/GoalStreakStrip";
 import { WeeklyConsistencyChart } from "@/features/today/components/WeeklyConsistencyChart";
 import { getGoalNarrative } from "@/features/today/goalNarrativeCopy";
 import { PrimaryButton } from "@/components/buttons/PrimaryButton";
+import {
+  useDeleteGoalMutation,
+  useGoalHabitCountQuery,
+} from "@/features/habits/hooks";
 import { useGoalReviewStatusQuery } from "@/features/reviews/hooks";
 import { useGoalDetail } from "@/features/today/hooks";
 import { getStreakCopy } from "@/features/today/streakCopy";
@@ -47,6 +52,40 @@ export default function GoalDetailScreen() {
   } = useGoalDetail(identityPhrase);
 
   const goalReviewStatus = useGoalReviewStatusQuery(identityPhrase);
+
+  // All-status count for delete-goal scope. useGoalDetail.habits filters out
+  // archived/backlog rows, but the repo's deleteGoal wipes EVERY habit sharing
+  // this identity_phrase. The dialog and hide rule must reflect reality.
+  const goalHabitCountQuery = useGoalHabitCountQuery(identityPhrase);
+  const totalHabitCount = goalHabitCountQuery.data ?? 0;
+  const deleteGoalMutation = useDeleteGoalMutation();
+
+  function confirmDeleteGoal() {
+    Alert.alert(
+      "Delete this goal?",
+      `"Become ${identityPhrase ?? ""}" and all ${totalHabitCount} habit${
+        totalHabitCount !== 1 ? "s" : ""
+      } under it will be permanently deleted. This cannot be undone.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: () => void handleDeleteGoal(),
+        },
+      ],
+    );
+  }
+
+  async function handleDeleteGoal() {
+    if (!identityPhrase || deleteGoalMutation.isPending) return;
+    try {
+      await deleteGoalMutation.mutateAsync({ identityPhrase });
+      router.replace("/(app)/(tabs)/today");
+    } catch {
+      // Surfaced via mutation state; nothing to do here.
+    }
+  }
 
   if (isLoading) {
     return <LoadingState message="Loading goal..." />;
@@ -206,6 +245,19 @@ export default function GoalDetailScreen() {
           <Text style={styles.emptyText}>No habits found for this goal.</Text>
         </ZenCard>
       )}
+
+      {/* Danger zone — permanent delete (all-status scope) */}
+      {!isReadOnly && totalHabitCount > 0 ? (
+        <DangerZone
+          title="Delete goal"
+          body={`Permanently removes this goal and all ${totalHabitCount} habit${
+            totalHabitCount !== 1 ? "s" : ""
+          } under it — including logs, reviews, and reminders. This cannot be undone.`}
+          buttonLabel="Delete goal"
+          isPending={deleteGoalMutation.isPending}
+          onPress={confirmDeleteGoal}
+        />
+      ) : null}
     </ScrollView>
   );
 }

@@ -33,12 +33,25 @@ jest.mock("@/features/reviews/hooks", () => ({
   useGoalReviewStatusQuery: jest.fn(() => ({ data: undefined, isError: false })),
 }));
 
+jest.mock("@/features/habits/hooks", () => ({
+  useDeleteGoalMutation: jest.fn(),
+  useGoalHabitCountQuery: jest.fn(),
+}));
+
 const { useGoalReviewStatusQuery: mockUseGoalReviewStatusQuery } = jest.requireMock(
   "@/features/reviews/hooks",
 ) as { useGoalReviewStatusQuery: jest.Mock };
 
 const { useGoalDetail } = jest.requireMock("@/features/today/hooks") as {
   useGoalDetail: jest.Mock;
+};
+
+const {
+  useDeleteGoalMutation,
+  useGoalHabitCountQuery,
+} = jest.requireMock("@/features/habits/hooks") as {
+  useDeleteGoalMutation: jest.Mock;
+  useGoalHabitCountQuery: jest.Mock;
 };
 
 function renderWithClient(ui: React.ReactElement) {
@@ -67,6 +80,12 @@ beforeEach(() => {
     isError: false,
     isFetching: false,
     refetch: jest.fn().mockResolvedValue(undefined),
+  });
+  useGoalHabitCountQuery.mockReturnValue({ data: 0 });
+  useDeleteGoalMutation.mockReturnValue({
+    mutate: jest.fn(),
+    mutateAsync: jest.fn().mockResolvedValue({ deletedHabitCount: 0 }),
+    isPending: false,
   });
   setNowForTesting(new Date("2026-05-05T10:00:00.000Z"));
 });
@@ -284,5 +303,99 @@ describe("GoalDetailScreen", () => {
     );
     renderWithClient(<GoalDetailScreen />);
     expect(screen.queryByText("(Graduated)")).toBeNull();
+  });
+
+  describe("DangerZone — permanent delete", () => {
+    function setupAlertSpy() {
+      const { Alert } = require("react-native");
+      return jest.spyOn(Alert, "alert").mockImplementation(() => undefined);
+    }
+
+    it("renders the danger zone when count > 0 and not read-only", () => {
+      useGoalDetail.mockReturnValue(
+        baseDetail({ habits: [makeHabit()], oldestActiveDaysCount: 30 }),
+      );
+      useGoalHabitCountQuery.mockReturnValue({ data: 2 });
+      renderWithClient(<GoalDetailScreen />);
+      expect(screen.getByText("DELETE GOAL")).toBeTruthy();
+    });
+
+    it("renders the danger zone when only archived/backlog habits exist (eligible=0, count>0)", () => {
+      // useGoalDetail returns no eligible habits, but the count hook reports 1
+      // (representing an archived or backlog habit under the same phrase).
+      useGoalDetail.mockReturnValue(baseDetail({ habits: [] }));
+      useGoalHabitCountQuery.mockReturnValue({ data: 1 });
+      renderWithClient(<GoalDetailScreen />);
+      expect(screen.getByText("DELETE GOAL")).toBeTruthy();
+    });
+
+    it("hides the danger zone when count is 0", () => {
+      useGoalDetail.mockReturnValue(baseDetail({ habits: [makeHabit()] }));
+      useGoalHabitCountQuery.mockReturnValue({ data: 0 });
+      renderWithClient(<GoalDetailScreen />);
+      expect(screen.queryByText("DELETE GOAL")).toBeNull();
+    });
+
+    it("hides the danger zone while the count query is still loading (data undefined)", () => {
+      useGoalDetail.mockReturnValue(baseDetail({ habits: [makeHabit()] }));
+      useGoalHabitCountQuery.mockReturnValue({ data: undefined });
+      renderWithClient(<GoalDetailScreen />);
+      expect(screen.queryByText("DELETE GOAL")).toBeNull();
+    });
+
+    it("hides the danger zone in read-only mode", () => {
+      const { useTrialValidation } = jest.requireMock(
+        "@/features/trial/hooks",
+      ) as { useTrialValidation: jest.Mock };
+      useTrialValidation.mockReturnValueOnce({
+        accessMode: "read_only",
+        isValidating: false,
+        refresh: jest.fn(),
+      });
+      useGoalDetail.mockReturnValue(baseDetail({ habits: [makeHabit()] }));
+      useGoalHabitCountQuery.mockReturnValue({ data: 3 });
+      renderWithClient(<GoalDetailScreen />);
+      expect(screen.queryByText("DELETE GOAL")).toBeNull();
+    });
+
+    it("confirmation count reflects all-status count from useGoalHabitCountQuery", () => {
+      const alertSpy = setupAlertSpy();
+      useGoalDetail.mockReturnValue(baseDetail({ habits: [makeHabit()] }));
+      useGoalHabitCountQuery.mockReturnValue({ data: 3 });
+      renderWithClient(<GoalDetailScreen />);
+      fireEvent.press(screen.getByRole("button", { name: "Delete goal" }));
+      expect(alertSpy).toHaveBeenCalledWith(
+        "Delete this goal?",
+        expect.stringContaining("Become a reader"),
+        expect.any(Array),
+      );
+      const body = (alertSpy.mock.calls[0][1] ?? "") as string;
+      expect(body).toMatch(/3 habits/);
+      alertSpy.mockRestore();
+    });
+
+    it("uses singular 'habit' when total count is exactly 1", () => {
+      const alertSpy = setupAlertSpy();
+      useGoalDetail.mockReturnValue(baseDetail({ habits: [makeHabit()] }));
+      useGoalHabitCountQuery.mockReturnValue({ data: 1 });
+      renderWithClient(<GoalDetailScreen />);
+      fireEvent.press(screen.getByRole("button", { name: "Delete goal" }));
+      const body = (alertSpy.mock.calls[0][1] ?? "") as string;
+      expect(body).toMatch(/1 habit\b/);
+      expect(body).not.toMatch(/1 habits/);
+      alertSpy.mockRestore();
+    });
+
+    it("shows 'Deleting…' label while the mutation is pending", () => {
+      useGoalDetail.mockReturnValue(baseDetail({ habits: [makeHabit()] }));
+      useGoalHabitCountQuery.mockReturnValue({ data: 2 });
+      useDeleteGoalMutation.mockReturnValue({
+        mutate: jest.fn(),
+        mutateAsync: jest.fn(),
+        isPending: true,
+      });
+      renderWithClient(<GoalDetailScreen />);
+      expect(screen.getByText("Deleting…")).toBeTruthy();
+    });
   });
 });
