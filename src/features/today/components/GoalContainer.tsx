@@ -130,7 +130,7 @@ const styles = StyleSheet.create({
     fontWeight: "400",
   },
   container: {
-    backgroundColor: colors.surface,
+    backgroundColor: colors.surfaceMuted,
     borderRadius: 20,
     gap: spacing.md,
     padding: spacing.lg,
