@@ -61,4 +61,14 @@ describe("SettingsScreen", () => {
 
     expect(mockPush).toHaveBeenCalledWith("/(app)/habits/backlog");
   });
+
+  it("renders Export your data row and navigates to the export screen on press", () => {
+    render(<SettingsScreen />);
+
+    const row = screen.getByText("Export your data");
+    expect(row).toBeTruthy();
+    fireEvent.press(row);
+
+    expect(mockPush).toHaveBeenCalledWith("/(app)/settings/export");
+  });
 });

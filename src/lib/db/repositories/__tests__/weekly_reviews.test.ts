@@ -5,6 +5,7 @@ import { createTestDb } from "@/tests/setup/createTestDb";
 import {
   getLatestWeeklyReview,
   getWeeklyReviewForWeek,
+  listReviewsForUser,
   upsertWeeklyReview,
   type UpsertWeeklyReviewInput,
 } from "@/lib/db/repositories/weekly_reviews";
@@ -157,6 +158,44 @@ describe("weekly_reviews repository", () => {
     await expect(
       upsertWeeklyReview(makeInput("non-existent-habit-id")),
     ).rejects.toThrow();
+  });
+
+  it("listReviewsForUser returns all reviews for a user ordered by week_start DESC", async () => {
+    await upsertWeeklyReview(makeInput(habitId, { weekStart: "2026-04-14" }));
+    await upsertWeeklyReview(makeInput(habitId, { weekStart: "2026-04-28" }));
+    await upsertWeeklyReview(makeInput(habitId, { weekStart: "2026-04-21" }));
+
+    const reviews = await listReviewsForUser("user-1");
+
+    expect(reviews).toHaveLength(3);
+    expect(reviews.map((r) => r.week_start)).toEqual([
+      "2026-04-28",
+      "2026-04-21",
+      "2026-04-14",
+    ]);
+  });
+
+  it("listReviewsForUser maps boolean fields (not 0/1) and excludes other users", async () => {
+    await upsertWeeklyReview(
+      makeInput(habitId, { triggerWorked: true, tinyActionTooHard: false }),
+    );
+
+    const otherHabitId = await seedHabit(db, "user-2");
+    await upsertWeeklyReview(
+      makeInput(otherHabitId, { userId: "user-2", triggerWorked: false }),
+    );
+
+    const reviews = await listReviewsForUser("user-1");
+
+    expect(reviews).toHaveLength(1);
+    expect(reviews[0].user_id).toBe("user-1");
+    expect(reviews[0].trigger_worked).toBe(true);
+    expect(reviews[0].tiny_action_too_hard).toBe(false);
+  });
+
+  it("listReviewsForUser returns [] for users with no reviews", async () => {
+    const reviews = await listReviewsForUser("user-with-nothing");
+    expect(reviews).toEqual([]);
   });
 
   it("deleting a habit cascades and removes its weekly reviews", async () => {

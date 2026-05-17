@@ -46,6 +46,17 @@ function boolToInt(value: boolean | null): number | null {
   return value === null ? null : value ? 1 : 0;
 }
 
+export async function listReviewsForUser(
+  userId: string,
+): Promise<WeeklyReviewRecord[]> {
+  const db = getDb();
+  const rows = await db.getAllAsync<RawRow>(
+    "SELECT * FROM local_weekly_reviews WHERE user_id = ? ORDER BY week_start DESC",
+    userId,
+  );
+  return rows.map(fromRow);
+}
+
 export async function getLatestWeeklyReview(
   userId: string,
   habitId: string,

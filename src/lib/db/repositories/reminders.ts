@@ -71,3 +71,15 @@ export async function listAllReminders(): Promise<ReminderSetting[]> {
     "SELECT * FROM local_reminder_settings",
   );
 }
+
+export async function listRemindersForUser(
+  userId: string,
+): Promise<ReminderSetting[]> {
+  const db = getDb();
+  return db.getAllAsync<ReminderSetting>(
+    `SELECT r.* FROM local_reminder_settings r
+     INNER JOIN local_habits h ON r.habit_id = h.id
+     WHERE h.user_id = ?`,
+    userId,
+  );
+}

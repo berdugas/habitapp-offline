@@ -44,6 +44,10 @@ export default function ProtectedLayout() {
         name="graduation/[habitId]"
         options={{ headerShown: false }}
       />
+      <Stack.Screen
+        name="settings/export"
+        options={{ headerShown: false }}
+      />
     </Stack>
   );
 }
