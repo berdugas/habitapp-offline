@@ -45,6 +45,11 @@ jest.mock("@/features/habits/hooks", () => ({
   useHabitDetail: (habitId: string | string[] | undefined) =>
     mockUseHabitDetail(habitId),
   useArchiveHabitMutation: () => mockUseArchiveHabitMutation(),
+  useDeleteHabitMutation: () => ({
+    mutateAsync: jest.fn().mockResolvedValue(undefined),
+    isPending: false,
+    error: null,
+  }),
   useUpsertHabitLogMutation: () => ({
     mutateAsync: jest.fn().mockResolvedValue(undefined),
     isPending: false,
@@ -174,8 +179,8 @@ describe("HabitDetailScreen", () => {
     // "Become a reader" appears in header and breadcrumb
     expect(screen.getAllByText("Become a reader").length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText("Evening")).toBeTruthy();
-    // New design: streak shown as a large number in a metric card
-    expect(screen.getByText("2")).toBeTruthy();
+    // Journey Card shows streak as "{N} day streak" label in the streak strip
+    expect(screen.getByText("2 day streak")).toBeTruthy();
     // Setup card shows active days label (may appear in multiple places)
     expect(screen.getAllByText("Every day").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Archive habit").length).toBeGreaterThan(0);
