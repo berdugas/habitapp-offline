@@ -23,7 +23,7 @@ describe("useDeleteGoalMutation", () => {
   beforeEach(() => jest.clearAllMocks());
 
   it("calls api.deleteGoal with userId + identityPhrase", async () => {
-    (api.deleteGoal as jest.Mock).mockResolvedValue({ deletedHabitCount: 2 });
+    (api.deleteGoal as jest.Mock).mockResolvedValue({ deletedHabitCount: 2, deletedHabitIds: ["h1", "h2"] });
     const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     const { result } = renderHook(() => useDeleteGoalMutation(), {
       wrapper: wrapWith(qc),
@@ -36,7 +36,7 @@ describe("useDeleteGoalMutation", () => {
   });
 
   it("invalidates the goal-habit-count query for the deleted phrase on success", async () => {
-    (api.deleteGoal as jest.Mock).mockResolvedValue({ deletedHabitCount: 1 });
+    (api.deleteGoal as jest.Mock).mockResolvedValue({ deletedHabitCount: 1, deletedHabitIds: ["h1"] });
     const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     const invalidateSpy = jest.spyOn(qc, "invalidateQueries");
     const { result } = renderHook(() => useDeleteGoalMutation(), {
@@ -53,7 +53,7 @@ describe("useDeleteGoalMutation", () => {
   });
 
   it("invalidates the broad habit surface queries on success", async () => {
-    (api.deleteGoal as jest.Mock).mockResolvedValue({ deletedHabitCount: 1 });
+    (api.deleteGoal as jest.Mock).mockResolvedValue({ deletedHabitCount: 1, deletedHabitIds: ["h1"] });
     const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     const invalidateSpy = jest.spyOn(qc, "invalidateQueries");
     const { result } = renderHook(() => useDeleteGoalMutation(), {

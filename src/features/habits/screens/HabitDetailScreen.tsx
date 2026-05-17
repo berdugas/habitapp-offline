@@ -51,6 +51,7 @@ import { radius } from "@/theme/radius";
 import { spacing } from "@/theme/spacing";
 import { typography } from "@/theme/typography";
 import {
+  getDeleteHabitErrorMessage,
   getLoadHabitDetailErrorMessage,
   getUpdateHabitActiveStateErrorMessage,
 } from "@/utils/userFacingErrors";
@@ -186,6 +187,12 @@ export default function HabitDetailScreen() {
 
   // Journey Card data — reuses the goal-level helpers with a one-element
   // habit array, which degenerates to single-habit aggregation.
+  //
+  // now() is intentionally NOT in the deps list: it's used as the chart's
+  // end-of-window cursor and only crosses a meaningful boundary across days,
+  // not renders. Adding it would force a fresh `Date` per render and defeat
+  // memoization entirely. The memo invalidates correctly when `habit` /
+  // `calendarLogs` / `activeDays` change, which is what we actually care about.
   const weeklyData = useMemo(() => {
     if (!habit) return [];
     return computeWeeklyConsistency(
@@ -582,14 +589,19 @@ export default function HabitDetailScreen() {
       </View>
 
       {/* Danger zone — permanent delete (available for active AND archived habits) */}
-      <DangerZone
-        title="Delete habit"
-        body="Permanently removes this habit and all its history — logs, reviews, reminders. This cannot be undone."
-        buttonLabel="Delete habit"
-        disabled={isReadOnly}
-        isPending={deleteHabitMutation.isPending}
-        onPress={confirmDeleteHabit}
-      />
+      <View style={styles.dangerZoneContainer}>
+        <DangerZone
+          title="Delete habit"
+          body="Permanently removes this habit and all its history — logs, reviews, reminders. This cannot be undone."
+          buttonLabel="Delete habit"
+          disabled={isReadOnly}
+          isPending={deleteHabitMutation.isPending}
+          onPress={confirmDeleteHabit}
+        />
+        {deleteHabitMutation.error ? (
+          <ErrorState message={getDeleteHabitErrorMessage()} />
+        ) : null}
+      </View>
 
       {selectorState ? (
         <RetroLogSelector
@@ -683,6 +695,9 @@ const styles = StyleSheet.create({
     fontFamily: fontFamilies.body,
     fontSize: typography.bodyMd,
     textAlign: "center",
+  },
+  dangerZoneContainer: {
+    gap: spacing.sm,
   },
   journeyCard: {
     gap: spacing.md,

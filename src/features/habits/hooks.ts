@@ -271,6 +271,12 @@ export async function invalidateHabitSurfaceQueries(
     queryKey: getInactiveHabitsQueryKey(userId),
   });
   await queryClient.invalidateQueries({
+    // Any habit mutation that touches identity_phrase / state / status can
+    // change which habits a goal contains, so invalidate the all-status
+    // goal-count cache broadly. Hits every cached identity_phrase at once.
+    queryKey: ["habits", "goal-count"],
+  });
+  await queryClient.invalidateQueries({
     queryKey: getLibraryQueryKey(userId),
   });
   await queryClient.invalidateQueries({
@@ -311,6 +317,10 @@ export async function invalidateHabitListQueries(
   });
   await queryClient.invalidateQueries({
     queryKey: ["reviews", "goal-status"],
+  });
+  await queryClient.invalidateQueries({
+    // Single-habit delete can shrink the goal-count for its identity_phrase.
+    queryKey: ["habits", "goal-count"],
   });
 
   queryClient.removeQueries({ queryKey: getHabitDetailQueryKey(userId, habitId) });
@@ -462,32 +472,18 @@ export function useDeleteGoalMutation() {
       }
       return deleteGoal(user.id, identityPhrase);
     },
-    onSuccess: async (_result, variables) => {
+    onSuccess: async (result, variables) => {
       if (!user?.id) return;
-      const todayDate = toDeviceDateString();
 
-      // Goal aggregations derive from the eligible + upcoming surfaces. Hit
-      // those plus the broad library/inactive/backlog and goal-status keys
-      // so every screen reflects the deletion.
-      await queryClient.invalidateQueries({
-        queryKey: getEligibleHabitsQueryKey(user.id, todayDate),
-      });
-      await queryClient.invalidateQueries({
-        queryKey: getUpcomingActiveHabitsQueryKey(user.id, todayDate),
-      });
-      await queryClient.invalidateQueries({
-        queryKey: getInactiveHabitsQueryKey(user.id),
-      });
-      await queryClient.invalidateQueries({
-        queryKey: getLibraryQueryKey(user.id),
-      });
-      await queryClient.invalidateQueries({
-        queryKey: getBacklogQueryKey(user.id),
-      });
-      await queryClient.invalidateQueries({
-        queryKey: ["reviews", "goal-status"],
-      });
+      // Per-habit detail / log / SRHI caches are now stale. Drop them for
+      // every deleted habit ID — same hygiene as single-habit delete.
+      for (const habitId of result.deletedHabitIds) {
+        await invalidateHabitListQueries(user.id, habitId, queryClient);
+      }
+
       // The dedicated count query for this specific goal phrase.
+      // (invalidateHabitListQueries hits the broad ["habits", "goal-count"]
+      // prefix already, but invalidating the exact key is a no-op + clearer.)
       await queryClient.invalidateQueries({
         queryKey: getGoalHabitCountQueryKey(user.id, variables.identityPhrase),
       });

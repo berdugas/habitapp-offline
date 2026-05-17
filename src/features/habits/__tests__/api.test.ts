@@ -299,9 +299,9 @@ describe("habits/api — new mutations", () => {
   });
 
   describe("deleteGoal", () => {
-    it("returns deletedHabitCount=0 and skips cancelReminder when no habits match", async () => {
+    it("returns count=0 + empty deletedHabitIds and skips cancelReminder when no habits match", async () => {
       const result = await deleteGoal("user-1", "no such phrase");
-      expect(result.deletedHabitCount).toBe(0);
+      expect(result).toEqual({ deletedHabitCount: 0, deletedHabitIds: [] });
       expect(mockCancelReminder).not.toHaveBeenCalled();
     });
 
@@ -353,6 +353,9 @@ describe("habits/api — new mutations", () => {
       const result = await deleteGoal("user-1", "a runner");
 
       expect(result.deletedHabitCount).toBe(4);
+      expect(result.deletedHabitIds.sort()).toEqual(
+        [active.id, automatic.id, archived.id, backlog.id].sort(),
+      );
       expect(mockCancelReminder).toHaveBeenCalledTimes(4);
       const cancelledIds = mockCancelReminder.mock.calls.map((c) => c[0]).sort();
       expect(cancelledIds).toEqual(
@@ -379,6 +382,7 @@ describe("habits/api — new mutations", () => {
       const habit = await seedActiveHabit({ identity_phrase: "a runner" });
       await expect(deleteGoal("user-1", "a runner")).resolves.toEqual({
         deletedHabitCount: 1,
+        deletedHabitIds: [habit.id],
       });
       expect(await getHabit(habit.id)).toBeNull();
     });

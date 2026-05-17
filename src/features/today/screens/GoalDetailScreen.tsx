@@ -11,6 +11,7 @@ import { ZenCard } from "@/components/cards/ZenCard";
 import { DangerZone } from "@/components/sections/DangerZone";
 import { ErrorState } from "@/components/feedback/ErrorState";
 import { LoadingState } from "@/components/feedback/LoadingState";
+import { getDeleteGoalErrorMessage } from "@/utils/userFacingErrors";
 import { Eyebrow } from "@/components/text/Eyebrow";
 import { LucideIcon } from "@/components/LucideIconPicker";
 import { ConsistencyDonut } from "@/features/today/components/ConsistencyDonut";
@@ -248,15 +249,20 @@ export default function GoalDetailScreen() {
 
       {/* Danger zone — permanent delete (all-status scope) */}
       {!isReadOnly && totalHabitCount > 0 ? (
-        <DangerZone
-          title="Delete goal"
-          body={`Permanently removes this goal and all ${totalHabitCount} habit${
-            totalHabitCount !== 1 ? "s" : ""
-          } under it — including logs, reviews, and reminders. This cannot be undone.`}
-          buttonLabel="Delete goal"
-          isPending={deleteGoalMutation.isPending}
-          onPress={confirmDeleteGoal}
-        />
+        <View style={styles.dangerZoneContainer}>
+          <DangerZone
+            title="Delete goal"
+            body={`Permanently removes this goal and all ${totalHabitCount} habit${
+              totalHabitCount !== 1 ? "s" : ""
+            } under it — including logs, reviews, and reminders. This cannot be undone.`}
+            buttonLabel="Delete goal"
+            isPending={deleteGoalMutation.isPending}
+            onPress={confirmDeleteGoal}
+          />
+          {deleteGoalMutation.error ? (
+            <ErrorState message={getDeleteGoalErrorMessage()} />
+          ) : null}
+        </View>
       ) : null}
     </ScrollView>
   );
@@ -280,6 +286,9 @@ const styles = StyleSheet.create({
   content: {
     gap: spacing.xl,
     padding: spacing.xl,
+  },
+  dangerZoneContainer: {
+    gap: spacing.sm,
   },
   emptyText: {
     color: colors.textMuted,

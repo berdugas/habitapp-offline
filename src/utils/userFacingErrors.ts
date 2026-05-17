@@ -108,6 +108,14 @@ export function getUpdateHabitActiveStateErrorMessage() {
   return "We couldn't update this habit right now. Try again.";
 }
 
+export function getDeleteHabitErrorMessage() {
+  return "We couldn't delete this habit right now. Try again.";
+}
+
+export function getDeleteGoalErrorMessage() {
+  return "We couldn't delete this goal right now. Try again.";
+}
+
 export function getGenerateHabitRewriteErrorMessage() {
   return "We couldn't generate a rewrite right now. You can still edit this habit manually.";
 }
