@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import {
   Pressable,
   ScrollView,
@@ -18,6 +19,11 @@ import {
   useBacklogHabitsQuery,
   useInactiveHabitsQuery,
 } from "@/features/habits/hooks";
+import {
+  isArchiveIntroSeen,
+  markArchiveIntroSeen,
+} from "@/features/habits/onboardingStorage";
+import { FirstRunTipBanner } from "@/features/reviews/components/FirstRunTipBanner";
 import { colors } from "@/theme/colors";
 import { fontFamilies } from "@/theme/fontFamilies";
 import { spacing } from "@/theme/spacing";
@@ -30,6 +36,27 @@ export default function BacklogScreen() {
 
   const backlogHabits = backlogQuery.data ?? [];
   const archivedHabits = archivedQuery.data ?? [];
+
+  // Tri-state: null while the preference read is in flight, false/true after.
+  // Banner only renders when explicitly false — null suppresses to avoid a
+  // flash before storage resolves.
+  const [archiveIntroSeen, setArchiveIntroSeen] = useState<boolean | null>(
+    null,
+  );
+  useEffect(() => {
+    isArchiveIntroSeen()
+      .then(setArchiveIntroSeen)
+      .catch(() => setArchiveIntroSeen(true));
+  }, []);
+
+  async function handleDismissArchiveIntro() {
+    // Optimistically hide so the dismiss feels instant; revert if the write
+    // fails so the user gets another chance and the onboarding isn't falsely
+    // consumed.
+    setArchiveIntroSeen(true);
+    const persisted = await markArchiveIntroSeen();
+    if (!persisted) setArchiveIntroSeen(false);
+  }
 
   const isLoading = backlogQuery.isLoading || archivedQuery.isLoading;
   const hasError = backlogQuery.error || archivedQuery.error;
@@ -81,6 +108,13 @@ export default function BacklogScreen() {
           {archivedHabits.length > 0 ? (
             <View style={styles.archivedSection}>
               {backlogHabits.length > 0 ? <Eyebrow label="Archived" /> : null}
+              {archiveIntroSeen === false ? (
+                <FirstRunTipBanner
+                  message="Tap an archived habit to view its history or delete it permanently."
+                  onDismiss={() => void handleDismissArchiveIntro()}
+                  testID="archive-intro-banner"
+                />
+              ) : null}
               <View style={styles.cardList}>
                 {archivedHabits.map((habit) => (
                   <ArchivedHabitCard key={habit.id} habit={habit} />

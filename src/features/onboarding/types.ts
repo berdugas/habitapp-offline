@@ -59,3 +59,4 @@ export const ONBOARDING_COMPLETED_AT_KEY = "onboarding.completed_at";
 export const WEEKLY_REVIEW_INTRO_SEEN_AT_KEY = "weekly_review.intro_seen_at";
 export const WEEKLY_REVIEW_FIRST_RUN_COMPLETED_AT_KEY =
   "weekly_review.first_run_completed_at";
+export const HABITS_ARCHIVE_INTRO_SEEN_AT_KEY = "habits.archive_intro_seen_at";

@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
-import { StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
+import { router } from "expo-router";
 
 import { LucideIcon } from "@/components/LucideIconPicker";
 import { useAuthSession } from "@/features/auth/hooks";
@@ -50,7 +51,12 @@ export function ArchivedHabitCard({ habit }: ArchivedHabitCardProps) {
   const lifetimeDays = inclusiveDayCount(habit.start_date, archivedDay);
 
   return (
-    <View style={styles.card}>
+    <Pressable
+      accessibilityLabel={`Open ${habit.title}`}
+      accessibilityRole="button"
+      onPress={() => router.push(`/(app)/habits/${habit.id}`)}
+      style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
+    >
       <View style={styles.titleRow}>
         {habit.icon ? (
           <LucideIcon
@@ -72,7 +78,7 @@ export function ArchivedHabitCard({ habit }: ArchivedHabitCardProps) {
           {lifetimeDays} day{lifetimeDays === 1 ? "" : "s"}
         </Text>
       ) : null}
-    </View>
+    </Pressable>
   );
 }
 
@@ -82,6 +88,9 @@ const styles = StyleSheet.create({
     borderRadius: radius.sm,
     gap: spacing.xs,
     padding: spacing.lg,
+  },
+  cardPressed: {
+    opacity: 0.7,
   },
   goalText: {
     color: colors.textFaint,

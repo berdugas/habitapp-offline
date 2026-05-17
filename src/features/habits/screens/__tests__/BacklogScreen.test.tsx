@@ -10,6 +10,13 @@ const mockDeleteMutate = jest.fn();
 const mockAssertCanCreateActiveHabit = jest.fn();
 const mockUseAuthSession = jest.fn();
 const mockUseQuery = jest.fn();
+const mockIsArchiveIntroSeen = jest.fn();
+const mockMarkArchiveIntroSeen = jest.fn();
+
+jest.mock("@/features/habits/onboardingStorage", () => ({
+  isArchiveIntroSeen: () => mockIsArchiveIntroSeen(),
+  markArchiveIntroSeen: () => mockMarkArchiveIntroSeen(),
+}));
 
 const mockActivateState = { isPending: false, isError: false };
 const mockDeleteState = { isPending: false, isError: false };
@@ -102,6 +109,10 @@ describe("BacklogScreen", () => {
     mockDeleteState.isError = false;
     mockUseAuthSession.mockReturnValue({ user: { id: "user-1" } });
     mockUseQuery.mockReturnValue({ data: [], isSuccess: true });
+    // Default: banner already dismissed in a prior session. Tests that
+    // exercise the first-run path override this explicitly.
+    mockIsArchiveIntroSeen.mockResolvedValue(true);
+    mockMarkArchiveIntroSeen.mockResolvedValue(true);
   });
 
   it("renders the empty state when both lists are empty", () => {
@@ -263,5 +274,132 @@ describe("BacklogScreen", () => {
     expect(screen.getByText("Old habit")).toBeTruthy();
     // Empty state must NOT also render — archived habits count as content.
     expect(screen.queryByText("No habit ideas yet")).toBeNull();
+  });
+
+  describe("first-run archive intro banner", () => {
+    it("renders when the intro flag is false AND archived habits exist", async () => {
+      mockIsArchiveIntroSeen.mockResolvedValue(false);
+      mockUseBacklogHabitsQuery.mockReturnValue({ data: [], isLoading: false, error: null });
+      mockUseInactiveHabitsQuery.mockReturnValue({
+        data: [makeArchivedHabit()],
+        isLoading: false,
+        error: null,
+      });
+      render(<BacklogScreen />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId("archive-intro-banner")).toBeTruthy();
+      });
+    });
+
+    it("does NOT render when the intro flag is true", async () => {
+      mockIsArchiveIntroSeen.mockResolvedValue(true);
+      mockUseInactiveHabitsQuery.mockReturnValue({
+        data: [makeArchivedHabit()],
+        isLoading: false,
+        error: null,
+      });
+      mockUseBacklogHabitsQuery.mockReturnValue({ data: [], isLoading: false, error: null });
+      render(<BacklogScreen />);
+
+      // Wait for the flag read to resolve.
+      await waitFor(() => {
+        expect(mockIsArchiveIntroSeen).toHaveBeenCalled();
+      });
+      expect(screen.queryByTestId("archive-intro-banner")).toBeNull();
+    });
+
+    it("does NOT render when there are no archived habits, even if the flag is false", async () => {
+      mockIsArchiveIntroSeen.mockResolvedValue(false);
+      mockUseBacklogHabitsQuery.mockReturnValue({
+        data: [makeBacklogHabit()],
+        isLoading: false,
+        error: null,
+      });
+      mockUseInactiveHabitsQuery.mockReturnValue({ data: [], isLoading: false, error: null });
+      render(<BacklogScreen />);
+
+      await waitFor(() => {
+        expect(mockIsArchiveIntroSeen).toHaveBeenCalled();
+      });
+      expect(screen.queryByTestId("archive-intro-banner")).toBeNull();
+    });
+
+    it("does NOT render while the flag is still loading (null) — avoids a flash", () => {
+      // Promise that never resolves keeps the flag at null.
+      mockIsArchiveIntroSeen.mockReturnValue(new Promise(() => {}));
+      mockUseBacklogHabitsQuery.mockReturnValue({ data: [], isLoading: false, error: null });
+      mockUseInactiveHabitsQuery.mockReturnValue({
+        data: [makeArchivedHabit()],
+        isLoading: false,
+        error: null,
+      });
+      render(<BacklogScreen />);
+      expect(screen.queryByTestId("archive-intro-banner")).toBeNull();
+    });
+
+    it("dismissing the banner calls markArchiveIntroSeen and hides it", async () => {
+      mockIsArchiveIntroSeen.mockResolvedValue(false);
+      mockMarkArchiveIntroSeen.mockResolvedValue(true);
+      mockUseBacklogHabitsQuery.mockReturnValue({ data: [], isLoading: false, error: null });
+      mockUseInactiveHabitsQuery.mockReturnValue({
+        data: [makeArchivedHabit()],
+        isLoading: false,
+        error: null,
+      });
+      render(<BacklogScreen />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId("archive-intro-banner")).toBeTruthy();
+      });
+
+      fireEvent.press(screen.getByLabelText("Dismiss tip"));
+
+      await waitFor(() => {
+        expect(mockMarkArchiveIntroSeen).toHaveBeenCalled();
+        expect(screen.queryByTestId("archive-intro-banner")).toBeNull();
+      });
+    });
+
+    it("re-renders the banner when the persist fails (optimistic hide is reverted)", async () => {
+      mockIsArchiveIntroSeen.mockResolvedValue(false);
+      mockMarkArchiveIntroSeen.mockResolvedValue(false); // write failure
+      mockUseBacklogHabitsQuery.mockReturnValue({ data: [], isLoading: false, error: null });
+      mockUseInactiveHabitsQuery.mockReturnValue({
+        data: [makeArchivedHabit()],
+        isLoading: false,
+        error: null,
+      });
+      render(<BacklogScreen />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId("archive-intro-banner")).toBeTruthy();
+      });
+
+      fireEvent.press(screen.getByLabelText("Dismiss tip"));
+
+      // After the failed write, the banner comes back so the user can try again.
+      await waitFor(() => {
+        expect(mockMarkArchiveIntroSeen).toHaveBeenCalled();
+        expect(screen.getByTestId("archive-intro-banner")).toBeTruthy();
+      });
+    });
+  });
+
+  it("tapping an archived card navigates to /(app)/habits/{id}", () => {
+    mockUseBacklogHabitsQuery.mockReturnValue({ data: [], isLoading: false, error: null });
+    mockUseInactiveHabitsQuery.mockReturnValue({
+      data: [makeArchivedHabit({ id: "arch-42", title: "Old habit" })],
+      isLoading: false,
+      error: null,
+    });
+    render(<BacklogScreen />);
+
+    fireEvent.press(screen.getByText("Old habit"));
+
+    const { router } = jest.requireMock("expo-router") as {
+      router: { push: jest.Mock };
+    };
+    expect(router.push).toHaveBeenCalledWith("/(app)/habits/arch-42");
   });
 });

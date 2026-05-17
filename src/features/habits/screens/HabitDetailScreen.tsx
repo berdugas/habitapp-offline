@@ -10,7 +10,6 @@ import { ReadOnlyBanner } from "@/components/ReadOnlyBanner";
 import { PrimaryButton } from "@/components/buttons/PrimaryButton";
 import { SecondaryButton } from "@/components/buttons/SecondaryButton";
 import { ZenCard } from "@/components/cards/ZenCard";
-import { DangerZone } from "@/components/sections/DangerZone";
 import { ErrorState } from "@/components/feedback/ErrorState";
 import { LoadingState } from "@/components/feedback/LoadingState";
 import { Eyebrow } from "@/components/text/Eyebrow";
@@ -20,6 +19,8 @@ import { isActiveDay, parseActiveDays } from "@/features/habits/activeDays";
 import { getFrequencyLabel } from "@/features/habits/formatters";
 import { checkGraduationEligibility } from "@/features/graduation/eligibility";
 import { useLatestSRHIQuery } from "@/features/graduation/hooks";
+import { HabitDetailActions } from "@/features/habits/components/HabitDetailActions";
+import { isArchiveIntroSeen } from "@/features/habits/onboardingStorage";
 import { ConsistencyDonut } from "@/features/today/components/ConsistencyDonut";
 import { GoalStreakStrip } from "@/features/today/components/GoalStreakStrip";
 import { WeeklyConsistencyChart } from "@/features/today/components/WeeklyConsistencyChart";
@@ -51,11 +52,7 @@ import { fontFamilies } from "@/theme/fontFamilies";
 import { radius } from "@/theme/radius";
 import { spacing } from "@/theme/spacing";
 import { typography } from "@/theme/typography";
-import {
-  getDeleteHabitErrorMessage,
-  getLoadHabitDetailErrorMessage,
-  getUpdateHabitActiveStateErrorMessage,
-} from "@/utils/userFacingErrors";
+import { getLoadHabitDetailErrorMessage } from "@/utils/userFacingErrors";
 
 import type { HabitLogStatus, HabitRecord } from "@/features/habits/types";
 import type { ReminderType } from "@/lib/db/repositories/reminders";
@@ -110,6 +107,20 @@ export default function HabitDetailScreen() {
   const calendarLogs = useHabitLogsForRange(habit?.id, calendarDays).data ?? [];
   const { accessMode, isValidating, refresh } = useTrialValidation();
   const isReadOnly = accessMode === "read_only";
+
+  // Archive intro onboarding: tri-state (null = not yet loaded). The flag is
+  // only written by the banner's dismiss on BacklogScreen — never here — so
+  // archiving repeatedly before dismiss keeps re-triggering the onboarding.
+  // On read failure we behave as if seen (conservative: don't bounce the user
+  // to Backlog if storage is broken).
+  const [archiveIntroSeen, setArchiveIntroSeen] = useState<boolean | null>(
+    null,
+  );
+  useEffect(() => {
+    isArchiveIntroSeen()
+      .then(setArchiveIntroSeen)
+      .catch(() => setArchiveIntroSeen(true));
+  }, []);
 
   // Weekly review state
   const todayDate = toDeviceDateString(now());
@@ -302,11 +313,22 @@ export default function HabitDetailScreen() {
 
   async function handleArchivePress() {
     if (!habit || activeStateSubmitLockRef.current || archiveHabitMutation.isPending) return;
+    // Belt-and-suspenders: the Archive button is already disabled while
+    // archiveIntroSeen === null (see HabitDetailActions). Guarding here too
+    // ensures a first-time archive never slips through without the Backlog
+    // redirect that drives the onboarding banner.
+    if (archiveIntroSeen === null) return;
     activeStateSubmitLockRef.current = true;
     try {
       await archiveHabitMutation.mutateAsync({ habitId: habit.id });
       // Cancel any scheduled reminder after archive (non-fatal)
       await cancelReminder(habit.id).catch(() => {});
+      // First-time archive: route to Backlog so the user discovers where
+      // archived habits live (and that delete now lives there). The intro
+      // flag is written by the banner's dismiss on Backlog, NOT here.
+      if (archiveIntroSeen === false) {
+        router.replace("/(app)/habits/backlog");
+      }
     } finally {
       activeStateSubmitLockRef.current = false;
     }
@@ -553,53 +575,24 @@ export default function HabitDetailScreen() {
 
 
 
-      {/* Archive */}
-      <View style={styles.actions}>
-        {archiveHabitMutation.error ? (
-          <ErrorState message={getUpdateHabitActiveStateErrorMessage()} />
-        ) : null}
-        {habit.status === "active" ? (
-          <>
-            <View style={styles.actionHelperCard}>
-              <Text selectable style={styles.actionHelperTitle}>Archive habit</Text>
-              <Text selectable style={styles.actionHelperBody}>
-                This removes the habit from Today, but keeps its history.
-              </Text>
-            </View>
-            <SecondaryButton
-              disabled={archiveHabitMutation.isPending || isReadOnly}
-              label="Archive habit"
-              onPress={() => void handleArchivePress()}
-            />
-          </>
-        ) : (
-          <View style={styles.actionHelperCard}>
-            <Text selectable style={styles.actionHelperTitle}>Archived</Text>
-            <Text selectable style={styles.actionHelperBody}>
-              This habit is archived. Reactivation coming in a future release.
-            </Text>
-          </View>
-        )}
-        <SecondaryButton
-          label="Back to Today"
-          onPress={() => router.push("/(app)/(tabs)/today")}
-        />
-      </View>
-
-      {/* Danger zone — permanent delete (available for active AND archived habits) */}
-      <View style={styles.dangerZoneContainer}>
-        <DangerZone
-          title="Delete habit"
-          body="Permanently removes this habit and all its history — logs, reviews, reminders. This cannot be undone."
-          buttonLabel="Delete habit"
-          disabled={isReadOnly}
-          isPending={deleteHabitMutation.isPending}
-          onPress={confirmDeleteHabit}
-        />
-        {deleteHabitMutation.error ? (
-          <ErrorState message={getDeleteHabitErrorMessage()} />
-        ) : null}
-      </View>
+      <HabitDetailActions
+        habit={habit}
+        isReadOnly={isReadOnly}
+        archivePending={archiveHabitMutation.isPending}
+        archiveIntroLoading={archiveIntroSeen === null}
+        archiveError={Boolean(archiveHabitMutation.error)}
+        deletePending={deleteHabitMutation.isPending}
+        deleteError={Boolean(deleteHabitMutation.error)}
+        onArchivePress={() => void handleArchivePress()}
+        onDeletePress={confirmDeleteHabit}
+        onBackPress={() =>
+          router.push(
+            habit.status === "active"
+              ? "/(app)/(tabs)/today"
+              : "/(app)/habits/backlog",
+          )
+        }
+      />
 
       {selectorState ? (
         <RetroLogSelector
@@ -618,26 +611,6 @@ export default function HabitDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-  actionHelperBody: {
-    color: colors.textMuted,
-    fontFamily: fontFamilies.body,
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  actionHelperCard: {
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    gap: spacing.xs,
-    padding: spacing.lg,
-  },
-  actionHelperTitle: {
-    color: colors.text,
-    fontFamily: fontFamilies.bodySemi,
-    fontSize: 16,
-  },
-  actions: {
-    gap: spacing.md,
-  },
   backButton: {
     alignItems: "center",
     height: 36,
@@ -693,9 +666,6 @@ const styles = StyleSheet.create({
     fontFamily: fontFamilies.body,
     fontSize: typography.bodyMd,
     textAlign: "center",
-  },
-  dangerZoneContainer: {
-    gap: spacing.sm,
   },
   journeyCard: {
     gap: spacing.md,

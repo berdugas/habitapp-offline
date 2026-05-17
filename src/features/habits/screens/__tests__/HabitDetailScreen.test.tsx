@@ -11,16 +11,32 @@ jest.mock("@/features/trial/hooks", () => ({
   })),
 }));
 
-import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import React from "react";
+
+// Flushes pending microtasks + React state commits inside an act() wrapper so
+// the next synchronous render sees state updates that were scheduled inside
+// effects (e.g., the isArchiveIntroSeen async read). A setImmediate boundary
+// runs AFTER microtasks, so chained .then callbacks all complete first.
+async function flushAsyncState() {
+  await act(async () => {
+    await new Promise((resolve) => setImmediate(resolve));
+  });
+}
 
 import HabitDetailScreen from "@/features/habits/screens/HabitDetailScreen";
 import { resetClockForTesting, setNowForTesting } from "@/utils/clock";
 
 jest.mock("expo-router", () => ({
-  router: { push: jest.fn() },
+  router: { push: jest.fn(), replace: jest.fn() },
   useLocalSearchParams: () => ({ habitId: "habit-1" }),
+}));
+
+const mockIsArchiveIntroSeen = jest.fn();
+jest.mock("@/features/habits/onboardingStorage", () => ({
+  isArchiveIntroSeen: () => mockIsArchiveIntroSeen(),
+  markArchiveIntroSeen: jest.fn(),
 }));
 
 jest.mock("@/features/habits/hooks", () => ({
@@ -158,6 +174,23 @@ describe("HabitDetailScreen", () => {
       isFetching: false,
       refetch: jest.fn().mockResolvedValue(undefined),
     });
+    // jest.clearAllMocks() clears call history but does NOT reset
+    // mockReturnValue, so a "read_only" override from one test would leak
+    // into the next and silently disable buttons. Reset to the default here.
+    useTrialValidation.mockReturnValue({
+      isBootstrapping: false,
+      isValidating: false,
+      accessMode: "full",
+      entitlementStatus: "trial",
+      trialStartedAt: null,
+      trialEndsAt: null,
+      lastValidatedAt: null,
+      refresh: jest.fn().mockResolvedValue(undefined),
+    });
+    // Default: intro already seen — existing tests don't care about the
+    // first-archive auto-nav path. Tests that exercise that path override
+    // this mock explicitly.
+    mockIsArchiveIntroSeen.mockResolvedValue(true);
   });
 
   afterEach(() => {
@@ -671,14 +704,25 @@ describe("HabitDetailScreen", () => {
     });
   });
 
-  describe("DangerZone — permanent delete", () => {
+  describe("permanent delete (active AND archived habits)", () => {
+    // Per sprint-19c-tickets.md S19c-02: delete is available on both active
+    // and archived habits, styled as a tinted danger zone with an eyebrow
+    // and explanatory copy.
+
     function setupAlertSpy() {
-      // Alert.alert is a real Alert from react-native; spy on it.
       const { Alert } = require("react-native");
       return jest.spyOn(Alert, "alert").mockImplementation(() => undefined);
     }
 
-    it("renders the danger zone for active habits", () => {
+    function archivedHabit(overrides: Partial<Record<string, unknown>> = {}) {
+      return makeHabit({
+        status: "archived",
+        archived_at: "2026-04-29T00:00:00.000Z",
+        ...overrides,
+      });
+    }
+
+    it("renders the danger zone (eyebrow + body + button) for active habits", () => {
       useHabitDetail.mockReturnValue({
         error: null,
         formula: "After morning coffee, I will run.",
@@ -696,13 +740,14 @@ describe("HabitDetailScreen", () => {
           /Permanently removes this habit and all its history/i,
         ),
       ).toBeTruthy();
+      expect(screen.getByRole("button", { name: "Delete habit" })).toBeTruthy();
     });
 
-    it("renders the danger zone for archived habits", () => {
+    it("renders the danger zone (eyebrow + body + button) for archived habits", () => {
       useHabitDetail.mockReturnValue({
         error: null,
         formula: "After morning coffee, I will run.",
-        habit: makeHabit({ status: "archived", archived_at: "2026-04-29T00:00:00.000Z" }),
+        habit: archivedHabit(),
         isLoading: false,
         isUpcoming: false,
         latestReview: null,
@@ -711,6 +756,12 @@ describe("HabitDetailScreen", () => {
       });
       renderWithClient(<HabitDetailScreen />);
       expect(screen.getByText("DELETE HABIT")).toBeTruthy();
+      expect(
+        screen.getByText(
+          /Permanently removes this habit and all its history/i,
+        ),
+      ).toBeTruthy();
+      expect(screen.getByRole("button", { name: "Delete habit" })).toBeTruthy();
     });
 
     it("shows confirmation alert with habit title when delete is tapped", () => {
@@ -726,9 +777,7 @@ describe("HabitDetailScreen", () => {
         recentLogs: [],
       });
       renderWithClient(<HabitDetailScreen />);
-      // Tap the danger button (the second occurrence — first is the eyebrow)
-      const deleteButton = screen.getByRole("button", { name: "Delete habit" });
-      fireEvent.press(deleteButton);
+      fireEvent.press(screen.getByRole("button", { name: "Delete habit" }));
       expect(alertSpy).toHaveBeenCalledWith(
         "Delete this habit?",
         expect.stringContaining("Morning Run"),
@@ -737,7 +786,7 @@ describe("HabitDetailScreen", () => {
       alertSpy.mockRestore();
     });
 
-    it("disables the danger button in read-only mode", () => {
+    it("disables the Delete button in read-only mode", () => {
       const alertSpy = setupAlertSpy();
       useTrialValidation.mockReturnValue({
         accessMode: "read_only",
@@ -755,8 +804,7 @@ describe("HabitDetailScreen", () => {
         recentLogs: [],
       });
       renderWithClient(<HabitDetailScreen />);
-      const deleteButton = screen.getByRole("button", { name: "Delete habit" });
-      fireEvent.press(deleteButton);
+      fireEvent.press(screen.getByRole("button", { name: "Delete habit" }));
       expect(alertSpy).not.toHaveBeenCalled();
       alertSpy.mockRestore();
     });
@@ -779,6 +827,120 @@ describe("HabitDetailScreen", () => {
       });
       renderWithClient(<HabitDetailScreen />);
       expect(screen.getByText("Deleting…")).toBeTruthy();
+    });
+  });
+
+  describe("first-archive auto-nav to Backlog", () => {
+    const { router } = jest.requireMock("expo-router") as {
+      router: { push: jest.Mock; replace: jest.Mock };
+    };
+
+    it("routes to /(app)/habits/backlog when the intro flag has not been seen", async () => {
+      mockIsArchiveIntroSeen.mockResolvedValue(false);
+      const archiveMutate = jest.fn().mockResolvedValue(undefined);
+      useArchiveHabitMutation.mockReturnValue({
+        mutateAsync: archiveMutate,
+        isPending: false,
+        error: null,
+      });
+      useHabitDetail.mockReturnValue({
+        error: null,
+        formula: "After morning coffee, I will run.",
+        habit: makeHabit(),
+        isLoading: false,
+        isUpcoming: false,
+        latestReview: null,
+        progress: makeProgress(),
+        recentLogs: [],
+      });
+      renderWithClient(<HabitDetailScreen />);
+      // The intro-seen read is async. We need the state to actually flip
+      // from null to false before pressing — otherwise the conditional in
+      // handleArchivePress sees `null` and skips the redirect. Flushing
+      // microtasks via a no-op act() lets the .then(setArchiveIntroSeen)
+      // run AND the re-render commit before we touch the button.
+      await waitFor(() => {
+        expect(mockIsArchiveIntroSeen).toHaveBeenCalled();
+      });
+      await flushAsyncState();
+
+      fireEvent.press(screen.getByRole("button", { name: "Archive habit" }));
+
+      await waitFor(() => {
+        expect(archiveMutate).toHaveBeenCalledWith({ habitId: "habit-1" });
+        expect(router.replace).toHaveBeenCalledWith("/(app)/habits/backlog");
+      });
+
+      // The handler does NOT mark the intro seen — that's the banner's job.
+      const { markArchiveIntroSeen } = jest.requireMock(
+        "@/features/habits/onboardingStorage",
+      ) as { markArchiveIntroSeen: jest.Mock };
+      expect(markArchiveIntroSeen).not.toHaveBeenCalled();
+    });
+
+    it("does NOT route when the intro flag has already been seen — screen re-renders in archived mode", async () => {
+      mockIsArchiveIntroSeen.mockResolvedValue(true);
+      const archiveMutate = jest.fn().mockResolvedValue(undefined);
+      useArchiveHabitMutation.mockReturnValue({
+        mutateAsync: archiveMutate,
+        isPending: false,
+        error: null,
+      });
+      useHabitDetail.mockReturnValue({
+        error: null,
+        formula: "After morning coffee, I will run.",
+        habit: makeHabit(),
+        isLoading: false,
+        isUpcoming: false,
+        latestReview: null,
+        progress: makeProgress(),
+        recentLogs: [],
+      });
+      renderWithClient(<HabitDetailScreen />);
+      await waitFor(() => {
+        expect(mockIsArchiveIntroSeen).toHaveBeenCalled();
+      });
+      await flushAsyncState();
+
+      fireEvent.press(screen.getByRole("button", { name: "Archive habit" }));
+
+      await waitFor(() => {
+        expect(archiveMutate).toHaveBeenCalled();
+      });
+      expect(router.replace).not.toHaveBeenCalled();
+    });
+
+    it("disables the Archive button while the intro flag is still loading (race-prevention)", async () => {
+      // Promise that never resolves keeps the flag at null. The Archive
+      // button must stay disabled so the user can't archive before we know
+      // whether to redirect — otherwise a first-time archive would silently
+      // skip the Backlog onboarding hop.
+      mockIsArchiveIntroSeen.mockReturnValue(new Promise(() => {}));
+      const archiveMutate = jest.fn().mockResolvedValue(undefined);
+      useArchiveHabitMutation.mockReturnValue({
+        mutateAsync: archiveMutate,
+        isPending: false,
+        error: null,
+      });
+      useHabitDetail.mockReturnValue({
+        error: null,
+        formula: "After morning coffee, I will run.",
+        habit: makeHabit(),
+        isLoading: false,
+        isUpcoming: false,
+        latestReview: null,
+        progress: makeProgress(),
+        recentLogs: [],
+      });
+      renderWithClient(<HabitDetailScreen />);
+
+      const archiveButton = screen.getByRole("button", { name: "Archive habit" });
+      fireEvent.press(archiveButton);
+
+      // Button is disabled → press is a no-op. The mutation does NOT fire
+      // and no navigation happens.
+      expect(archiveMutate).not.toHaveBeenCalled();
+      expect(router.replace).not.toHaveBeenCalled();
     });
   });
 });

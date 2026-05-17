@@ -23,7 +23,13 @@ jest.mock("@/features/trial/hooks", () => ({
   })),
 }));
 
-import { fireEvent, render, screen } from "@testing-library/react-native";
+import { act, fireEvent, render, screen } from "@testing-library/react-native";
+
+async function flushAsyncState() {
+  await act(async () => {
+    await new Promise((resolve) => setImmediate(resolve));
+  });
+}
 
 import HabitDetailScreen from "@/features/habits/screens/HabitDetailScreen";
 import { useTrialValidation } from "@/features/trial/hooks";
@@ -37,8 +43,14 @@ const mockUseLocalSearchParams = jest.fn();
 jest.mock("expo-router", () => ({
   router: {
     push: (...args: unknown[]) => mockPush(...args),
+    replace: jest.fn(),
   },
   useLocalSearchParams: () => mockUseLocalSearchParams(),
+}));
+
+jest.mock("@/features/habits/onboardingStorage", () => ({
+  isArchiveIntroSeen: jest.fn().mockResolvedValue(true),
+  markArchiveIntroSeen: jest.fn().mockResolvedValue(true),
 }));
 
 jest.mock("@/features/habits/hooks", () => ({
@@ -243,7 +255,7 @@ describe("HabitDetailScreen", () => {
     expect(screen.queryByText("CURRENT STREAK")).toBeNull();
   });
 
-  it("shows archive button for active habits and calls archiveHabitMutation on press", () => {
+  it("shows archive button for active habits and calls archiveHabitMutation on press", async () => {
     mockUseHabitDetail.mockReturnValue({
       error: null,
       formula: "After breakfast, I will Read 1 page.",
@@ -255,6 +267,10 @@ describe("HabitDetailScreen", () => {
     });
 
     render(<HabitDetailScreen />);
+    // The Archive button is disabled until the archive-intro preference read
+    // resolves (race-prevention). Flush microtasks + the resulting re-render
+    // before pressing.
+    await flushAsyncState();
 
     // The screen renders a title "Archive habit" and a button "Archive habit".
     // Press the last one (the SecondaryButton).
