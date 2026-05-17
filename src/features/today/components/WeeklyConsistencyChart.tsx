@@ -13,6 +13,7 @@ const Y_MIN = 0.3;
 const Y_MAX = 1.0;
 const LABEL_HEIGHT = 16;
 const HORIZONTAL_PADDING = 12;
+const LEFT_LABEL_WIDTH = 26;
 const TOP_PADDING = 10;
 const TENSION = 0.35;
 
@@ -28,12 +29,13 @@ export function WeeklyConsistencyChart({ weeklyData }: WeeklyConsistencyChartPro
   if (weeklyData.length < 1) return null;
 
   const width = measuredWidth > 0 ? measuredWidth : FALLBACK_WIDTH;
-  const innerWidth = Math.max(0, width - HORIZONTAL_PADDING * 2);
+  const plotLeft = LEFT_LABEL_WIDTH + HORIZONTAL_PADDING;
+  const innerWidth = Math.max(0, width - plotLeft - HORIZONTAL_PADDING);
   const innerHeight = CHART_HEIGHT;
 
   const points = weeklyData.map((d, i) => {
     const x =
-      HORIZONTAL_PADDING +
+      plotLeft +
       (weeklyData.length === 1
         ? innerWidth / 2
         : (innerWidth * i) / (weeklyData.length - 1));
@@ -58,6 +60,26 @@ export function WeeklyConsistencyChart({ weeklyData }: WeeklyConsistencyChartPro
       style={styles.container}
     >
       <Svg width={width} height={TOP_PADDING + CHART_HEIGHT + LABEL_HEIGHT}>
+        <SvgText
+          x={LEFT_LABEL_WIDTH - 4}
+          y={TOP_PADDING + 4}
+          fill={colors.textFaint}
+          fontSize={typography.micro}
+          fontFamily={fontFamilies.body}
+          textAnchor="end"
+        >
+          100%
+        </SvgText>
+        <SvgText
+          x={LEFT_LABEL_WIDTH - 4}
+          y={TOP_PADDING + CHART_HEIGHT}
+          fill={colors.textFaint}
+          fontSize={typography.micro}
+          fontFamily={fontFamilies.body}
+          textAnchor="end"
+        >
+          30%
+        </SvgText>
         {!isSinglePoint && (
           <>
             <Path d={areaPath} fill="rgba(68, 102, 85, 0.08)" />

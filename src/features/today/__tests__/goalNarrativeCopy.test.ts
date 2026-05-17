@@ -40,6 +40,8 @@ const STRONG_POOL = [
   "Consistency like this is rare. You've earned it.",
 ];
 
+const NOT_STARTED_POOL = ["This goal hasn't started yet."];
+
 describe("getGoalNarrative", () => {
   it("day 1 with 100% returns an EARLY_HIGH variant (not suppressed)", () => {
     expect(EARLY_HIGH_POOL).toContain(getGoalNarrative(1.0, 1));
@@ -53,8 +55,8 @@ describe("getGoalNarrative", () => {
     expect(EARLY_LOW_POOL).toContain(getGoalNarrative(0.3, 3));
   });
 
-  it("null consistencyRate returns an EARLY_HIGH variant", () => {
-    expect(EARLY_HIGH_POOL).toContain(getGoalNarrative(null, 30));
+  it("null consistencyRate returns the NOT_STARTED copy (pre-start or off-duty-today)", () => {
+    expect(NOT_STARTED_POOL).toContain(getGoalNarrative(null, 30));
   });
 
   it("rate < 0.40 with >=7 days returns a LOW variant", () => {

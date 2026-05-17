@@ -23,10 +23,10 @@ import { getGoalReviewStatus } from "@/features/reviews/due";
 import { getGoalReviewStatusQueryKey } from "@/features/reviews/queryKeys";
 import { summarizeHabitProgress } from "@/features/today/progress";
 import {
-  avgConsistencyRate,
   computeGoalDailyStates,
   computeGoalStreak,
   computeWeeklyConsistency,
+  pooledConsistencyRate,
 } from "@/features/today/goalMetrics";
 import { logger } from "@/services/logger";
 import {
@@ -124,19 +124,26 @@ export function useTodayHabits() {
   }
 
   const goalStreaks: Record<string, number> = {};
+  const consistencyByIdentity: Record<string, number | null> = {};
   for (const [key, groupHabits] of habitsByIdentity) {
-    goalStreaks[key] = computeGoalStreak(
-      groupHabits.map((habit) => ({
-        activeDays: parseActiveDays(habit.active_days),
-        logs: (logsByHabitId.get(habit.id) ?? []).map((l) => ({
-          log_date: l.log_date,
-          status: l.status,
-        })),
-        startDate: habit.start_date,
+    const rawHabits = groupHabits.map((habit) => ({
+      activeDays: parseActiveDays(habit.active_days),
+      logs: (logsByHabitId.get(habit.id) ?? []).map((l) => ({
+        log_date: l.log_date,
+        status: l.status,
       })),
+      startDate: habit.start_date,
+    }));
+    goalStreaks[key] = computeGoalStreak(
+      rawHabits,
       TODAY_PROGRESS_WINDOW_DAYS,
       historyWindowEndDate,
     );
+    consistencyByIdentity[key] = pooledConsistencyRate({
+      habits: rawHabits,
+      endDate: historyWindowEndDate,
+      windowDays: TODAY_PROGRESS_WINDOW_DAYS,
+    });
   }
 
   // Compute over eligible + upcoming so an upcoming habit (which can't be automatic yet) correctly suppresses the marker.
@@ -208,6 +215,7 @@ export function useTodayHabits() {
       upcomingHabitsQuery.error ??
       historyLogsQuery.error ??
       null,
+    consistencyByIdentity,
     goalGraduatedByIdentity,
     goalStreaks,
     reviewDueByIdentity,
@@ -468,7 +476,11 @@ export function useGoalDetail(identityPhrase: string | undefined) {
       upcomingHabitsQuery.error ??
       logsQuery.error ??
       null,
-    goalConsistencyRate: avgConsistencyRate(habits),
+    goalConsistencyRate: pooledConsistencyRate({
+      habits,
+      endDate: endDateObj,
+      windowDays: TODAY_PROGRESS_WINDOW_DAYS,
+    }),
     goalDailyStates,
     goalGraduated,
     goalStreak: computeGoalStreak(habits, TODAY_PROGRESS_WINDOW_DAYS, endDateObj),

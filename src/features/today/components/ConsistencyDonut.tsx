@@ -14,6 +14,7 @@ type ConsistencyDonutProps = {
   rate: number;
   size?: number;
   suppressed?: boolean;
+  testID?: string;
   tint?: string;
 };
 
@@ -23,6 +24,7 @@ export function ConsistencyDonut({
   rate,
   size = DEFAULT_SIZE,
   suppressed = false,
+  testID,
   tint = colors.primary,
 }: ConsistencyDonutProps) {
   const radius = (size - STROKE_WIDTH) / 2;
@@ -32,7 +34,7 @@ export function ConsistencyDonut({
   const pct = Math.round(rate * 100);
 
   const content = (
-    <View style={styles.container}>
+    <View style={styles.container} testID={testID}>
       <View style={[styles.donutWrap, { height: size, width: size }]}>
         <Svg width={size} height={size}>
           <Circle

@@ -35,7 +35,6 @@ import { colors } from "@/theme/colors";
 import { fontFamilies } from "@/theme/fontFamilies";
 import { spacing } from "@/theme/spacing";
 import { typography } from "@/theme/typography";
-import { avgConsistencyRate } from "@/features/today/goalMetrics";
 import { NO_GOAL_KEY } from "@/features/today/constants";
 import {
   getLoadHabitsErrorMessage,
@@ -89,6 +88,7 @@ export default function TodayScreen() {
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
   const {
+    consistencyByIdentity,
     error,
     goalGraduatedByIdentity,
     goalStreaks,
@@ -262,7 +262,7 @@ export default function TodayScreen() {
                   />
                 ) : null
               }
-              consistencyRate={avgConsistencyRate(group.habits)}
+              consistencyRate={consistencyByIdentity?.[group.identityPhrase] ?? null}
               goalGraduated={goalGraduated}
               identityPhrase={group.identityPhrase}
               remainingCount={group.habits.filter((h) => !h.offDay && h.todayStatus === null).length}

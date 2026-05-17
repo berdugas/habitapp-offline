@@ -38,6 +38,8 @@ const STRONG = [
   "Consistency like this is rare. You've earned it.",
 ];
 
+const NOT_STARTED = ["This goal hasn't started yet."];
+
 function pick(pool: string[], seed: number): string {
   const index = ((seed % pool.length) + pool.length) % pool.length;
   return pool[index];
@@ -48,7 +50,7 @@ export function getGoalNarrative(
   activeDaysElapsed: number,
 ): string {
   if (consistencyRate === null) {
-    return pick(EARLY_HIGH, activeDaysElapsed);
+    return pick(NOT_STARTED, activeDaysElapsed);
   }
 
   if (activeDaysElapsed < 7) {

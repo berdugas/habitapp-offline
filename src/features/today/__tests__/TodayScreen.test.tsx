@@ -155,6 +155,19 @@ describe("TodayScreen", () => {
     expect(screen.getByLabelText("Log Run")).toBeTruthy();
   });
 
+  it("renders the goal consistency donut with the pooled rate from consistencyByIdentity (regression for 1-of-2-done → 50%)", () => {
+    useTodayHabits.mockReturnValue({
+      consistencyByIdentity: { "a runner": 0.5 },
+      error: null,
+      habits: [makeHabit()],
+      isLoading: false,
+      upcomingHabits: [],
+      goalStreaks: { "a runner": 12 },
+    });
+    renderWithClient(<TodayScreen />);
+    expect(screen.getByText("50%")).toBeTruthy();
+  });
+
   it("shows 'Weekly review available' on the GoalContainer when reviewDue is true for the identity", () => {
     useTodayHabits.mockReturnValue({
       error: null,
@@ -554,6 +567,7 @@ describe("TodayScreen", () => {
 
   it("shows 'Goal consistency' label on the ConsistencyDonut", () => {
     useTodayHabits.mockReturnValue({
+      consistencyByIdentity: { "a runner": 0.9 },
       error: null,
       habits: [makeHabit()],
       isLoading: false,

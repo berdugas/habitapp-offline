@@ -254,6 +254,34 @@ describe("GoalDetailScreen", () => {
     ).toBeTruthy();
   });
 
+  it("renders the goal consistency donut at the pooled rate (regression for 1-of-2-done → 50%)", () => {
+    useGoalDetail.mockReturnValue(
+      baseDetail({
+        goalConsistencyRate: 0.5,
+        goalStreak: 0,
+        habits: [makeHabit()],
+        oldestActiveDaysCount: 30,
+      }),
+    );
+    renderWithClient(<GoalDetailScreen />);
+    expect(screen.getByTestId("goal-consistency-donut")).toBeTruthy();
+    expect(screen.getByText("50%")).toBeTruthy();
+  });
+
+  it("hides the donut and shows NOT_STARTED copy when goalConsistencyRate is null", () => {
+    useGoalDetail.mockReturnValue(
+      baseDetail({
+        goalConsistencyRate: null,
+        goalStreak: 0,
+        habits: [makeHabit()],
+        oldestActiveDaysCount: 0,
+      }),
+    );
+    renderWithClient(<GoalDetailScreen />);
+    expect(screen.queryByTestId("goal-consistency-donut")).toBeNull();
+    expect(screen.getByText("This goal hasn't started yet.")).toBeTruthy();
+  });
+
   it("decodes URL-encoded identityPhrase param", () => {
     useGoalDetail.mockReturnValue(baseDetail());
     renderWithClient(<GoalDetailScreen />);

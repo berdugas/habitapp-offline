@@ -13,22 +13,68 @@ export type GoalDayState =
   | "today"
   | "pre-start";
 
-type HabitForMetrics = {
-  consistencyDenominator: number;
-  consistencyRate: number;
-};
-
-export function avgConsistencyRate(habits: HabitForMetrics[]): number | null {
-  const habitsWithData = habits.filter((h) => h.consistencyDenominator > 0);
-  if (habitsWithData.length === 0) return null;
-  return habitsWithData.reduce((sum, h) => sum + h.consistencyRate, 0) / habitsWithData.length;
-}
-
 export type GoalStreakHabit = {
   activeDays: number[];
   logs: { log_date: string; status: "done" | "skipped" | "missed" }[];
   startDate: string;
 };
+
+type PooledConsistencyOptions = {
+  habits: GoalStreakHabit[];
+  endDate: Date;
+  windowDays: number;
+};
+
+export function pooledConsistencyRate({
+  habits,
+  endDate,
+  windowDays,
+}: PooledConsistencyOptions): number | null {
+  if (habits.length === 0) return null;
+
+  const normalizedEnd = new Date(endDate);
+  normalizedEnd.setHours(0, 0, 0, 0);
+
+  const logsByHabit = habits.map((h) => {
+    const map = new Map<string, "done" | "skipped" | "missed">();
+    for (const log of h.logs) {
+      map.set(log.log_date, log.status);
+    }
+    return map;
+  });
+
+  let numerator = 0;
+  let denominator = 0;
+
+  for (let offset = 0; offset < windowDays; offset++) {
+    const dateString = toDeviceDateString(
+      addDeviceDays(normalizedEnd, -offset),
+    );
+
+    for (let i = 0; i < habits.length; i++) {
+      const habit = habits[i];
+      if (dateString < habit.startDate) continue;
+      if (!isActiveDay(dateString, habit.activeDays)) continue;
+
+      const status = logsByHabit[i].get(dateString);
+
+      if (status === "skipped") continue;
+
+      if (status === "done") {
+        numerator++;
+        denominator++;
+      } else {
+        // "missed" log, or no log at all on an active scheduled day (past
+        // unlogged or today unlogged). All depress the rate, matching the
+        // denominator semantics in computeWeeklyConsistency.
+        denominator++;
+      }
+    }
+  }
+
+  if (denominator === 0) return null;
+  return numerator / denominator;
+}
 
 export function computeGoalStreak(
   habits: GoalStreakHabit[],

@@ -1,9 +1,9 @@
 import { resetClockForTesting, setNowForTesting } from "@/utils/clock";
 import {
-  avgConsistencyRate,
   computeGoalDailyStates,
   computeGoalStreak,
   computeWeeklyConsistency,
+  pooledConsistencyRate,
 } from "@/features/today/goalMetrics";
 
 import type { GoalStreakHabit } from "@/features/today/goalMetrics";
@@ -36,32 +36,93 @@ function habit(
   };
 }
 
-const consistency = (
-  consistencyRate: number,
-  consistencyDenominator: number,
-) => ({ consistencyDenominator, consistencyRate });
+describe("pooledConsistencyRate", () => {
+  // 2026-04-23 is Thursday (ISO weekday 4).
+  const endDate = new Date("2026-04-23T12:00:00");
+  const todayIso = iso(2026, 4, 23);
+  const OFF_TODAY_DAYS = [1, 2, 3, 5, 6, 7]; // every weekday except Thursday.
 
-describe("avgConsistencyRate", () => {
-  it("returns null for empty array", () => {
-    expect(avgConsistencyRate([])).toBeNull();
-  });
-
-  it("returns null when all habits have no data (denominator = 0)", () => {
-    expect(avgConsistencyRate([consistency(0, 0)])).toBeNull();
-  });
-
-  it("excludes no-data habits from the average", () => {
-    expect(avgConsistencyRate([consistency(0, 0), consistency(1, 10)])).toBe(1);
-  });
-
-  it("averages only habits with data", () => {
+  it("returns null for empty habits", () => {
     expect(
-      avgConsistencyRate([
-        consistency(0, 0),
-        consistency(0.6, 8),
-        consistency(1.0, 5),
-      ]),
-    ).toBeCloseTo(0.8);
+      pooledConsistencyRate({ habits: [], endDate, windowDays: 30 }),
+    ).toBeNull();
+  });
+
+  it("user's screenshot scenario: two daily habits started today, one done, one unlogged → 0.5", () => {
+    const done = habit([{ log_date: todayIso, status: "done" }], {
+      startDate: todayIso,
+    });
+    const unlogged = habit([], { startDate: todayIso });
+    expect(
+      pooledConsistencyRate({
+        habits: [done, unlogged],
+        endDate,
+        windowDays: 30,
+      }),
+    ).toBe(0.5);
+  });
+
+  it("brand-new daily goal, no checks yet → 0 (accepted day-one trade-off)", () => {
+    const a = habit([], { startDate: todayIso });
+    const b = habit([], { startDate: todayIso });
+    expect(
+      pooledConsistencyRate({ habits: [a, b], endDate, windowDays: 30 }),
+    ).toBe(0);
+  });
+
+  it("reachable null: single habit started today is off-duty today → null", () => {
+    // M/W/F habit added on a Thursday — eligible by start_date <= today but
+    // not active today. No past active days. denominator = 0 → null.
+    const offToday = habit([], {
+      startDate: todayIso,
+      activeDays: OFF_TODAY_DAYS,
+    });
+    expect(
+      pooledConsistencyRate({ habits: [offToday], endDate, windowDays: 30 }),
+    ).toBeNull();
+  });
+
+  it("pre-start unit edge: every habit's startDate is after the window end → null", () => {
+    const future = habit([], { startDate: iso(2026, 5, 1) });
+    expect(
+      pooledConsistencyRate({ habits: [future], endDate, windowDays: 30 }),
+    ).toBeNull();
+  });
+
+  it("past active days with no log count toward denominator as misses", () => {
+    // 4 days of history, all unlogged. 4 active days, 0 done → 0.
+    const h = habit([], { startDate: daysAgo(3) });
+    expect(
+      pooledConsistencyRate({ habits: [h], endDate, windowDays: 30 }),
+    ).toBe(0);
+  });
+
+  it("mixed activeDays: one habit on-duty today, one off-duty today", () => {
+    // 'on' is daily, started 1 day ago. 'off' is M/W/F (excludes Thu), started today.
+    // 'on' contributes: yesterday (Wed, active, unlogged → miss), today (Thu, active, unlogged → miss).
+    //    Of yesterday + today: 2 active days, 0 done.
+    // 'off' contributes: today off-duty, started today so no past days → 0 active days.
+    // Pool: 0 / 2 = 0.
+    const on = habit([], { startDate: daysAgo(1) });
+    const off = habit([], { startDate: todayIso, activeDays: OFF_TODAY_DAYS });
+    expect(
+      pooledConsistencyRate({ habits: [on, off], endDate, windowDays: 30 }),
+    ).toBe(0);
+  });
+
+  it("skipped days are neutral (no num, no denom)", () => {
+    const h = habit(
+      [
+        { log_date: todayIso, status: "skipped" },
+        { log_date: daysAgo(1), status: "done" },
+      ],
+      { startDate: daysAgo(1) },
+    );
+    // 2 days in window for this habit: today skipped (neutral), yesterday done.
+    // 1 done / 1 active = 1.0.
+    expect(
+      pooledConsistencyRate({ habits: [h], endDate, windowDays: 30 }),
+    ).toBe(1);
   });
 });
 

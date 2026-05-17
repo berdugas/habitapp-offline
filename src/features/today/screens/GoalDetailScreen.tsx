@@ -139,12 +139,17 @@ export default function GoalDetailScreen() {
       {/* Journey Card */}
       <ZenCard style={styles.journeyCard}>
         <View style={styles.journeyTop}>
-          <ConsistencyDonut
-            rate={goalConsistencyRate ?? 0}
-            size={56}
-            label=""
-            tint={goalGraduated ? colors.graduatedCircle : undefined}
-          />
+          {goalConsistencyRate !== null ? (
+            <ConsistencyDonut
+              rate={goalConsistencyRate}
+              size={56}
+              label=""
+              testID="goal-consistency-donut"
+              tint={goalGraduated ? colors.graduatedCircle : undefined}
+            />
+          ) : (
+            <View style={styles.donutPlaceholder} />
+          )}
           <Text style={styles.narrativeText}>
             {getGoalNarrative(goalConsistencyRate, oldestActiveDaysCount)}
           </Text>
@@ -360,6 +365,10 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
     flexDirection: "row",
     gap: spacing.md,
+  },
+  donutPlaceholder: {
+    height: 56,
+    width: 56,
   },
   narrativeText: {
     color: colors.textMuted,

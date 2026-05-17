@@ -37,7 +37,7 @@ describe("WeeklyConsistencyChart", () => {
     expect(screen.getByText("Weekly consistency")).toBeTruthy();
   });
 
-  it("renders one point circle and one label per data point", () => {
+  it("renders one point circle and one label per data point, plus the two Y-axis end labels", () => {
     render(
       <WeeklyConsistencyChart
         weeklyData={[
@@ -56,6 +56,28 @@ describe("WeeklyConsistencyChart", () => {
       (n: { type: unknown }) =>
         typeof n.type === "string" && n.type === "RNSVGText",
     );
-    expect(texts).toHaveLength(3);
+    // 3 week labels + 2 Y-axis end labels ("100%", "30%")
+    expect(texts).toHaveLength(5);
+  });
+
+  it("renders the Y-axis end labels at 100% and 30% regardless of data-point count", () => {
+    render(
+      <WeeklyConsistencyChart
+        weeklyData={[{ weekLabel: "W1", rate: 0.5 }]}
+      />,
+    );
+    // react-native-svg renders <Text> as RNSVGText > RNSVGTSpan; the literal
+    // string is stashed under RNSVGTSpan's props.content.
+    const tspans = screen.UNSAFE_root.findAll(
+      (n: { type: unknown }) =>
+        typeof n.type === "string" && n.type === "RNSVGTSpan",
+    );
+    const contents = tspans
+      .map(
+        (n: { props?: { content?: unknown } }) => n.props?.content,
+      )
+      .filter((c: unknown): c is string => typeof c === "string");
+    expect(contents).toContain("100%");
+    expect(contents).toContain("30%");
   });
 });
