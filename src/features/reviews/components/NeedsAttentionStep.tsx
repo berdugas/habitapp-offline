@@ -1,6 +1,7 @@
 import { StyleSheet, Text, View } from "react-native";
 
 import { Eyebrow } from "@/components/text/Eyebrow";
+import { FirstRunTipBanner } from "@/features/reviews/components/FirstRunTipBanner";
 import { HabitDiagnosticCard } from "@/features/reviews/components/HabitDiagnosticCard";
 import { colors } from "@/theme/colors";
 import { fontFamilies } from "@/theme/fontFamilies";
@@ -18,15 +19,26 @@ type NeedsAttentionStepProps = {
     field: "triggerWorked" | "tinyActionTooHard",
     value: boolean | null,
   ) => void;
+  showFirstRunTip?: boolean;
+  onDismissFirstRunTip?: () => void;
 };
 
 export function NeedsAttentionStep({
   attentionHabits,
   diagnostics,
   onUpdateDiagnostic,
+  showFirstRunTip,
+  onDismissFirstRunTip,
 }: NeedsAttentionStepProps) {
   return (
     <View style={styles.container}>
+      {showFirstRunTip && onDismissFirstRunTip ? (
+        <FirstRunTipBanner
+          message="These didn't stick this week. That's a clue, not a verdict — next step we'll diagnose what's getting in the way."
+          onDismiss={onDismissFirstRunTip}
+          testID="needs-attention-first-run-tip"
+        />
+      ) : null}
       <View style={styles.intro}>
         <Eyebrow label="What needs attention" />
         <Text style={styles.helper}>

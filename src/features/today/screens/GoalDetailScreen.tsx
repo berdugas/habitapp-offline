@@ -24,6 +24,7 @@ import {
   useGoalHabitCountQuery,
 } from "@/features/habits/hooks";
 import { useGoalReviewStatusQuery } from "@/features/reviews/hooks";
+import { openGoalWeeklyReview } from "@/features/reviews/openReview";
 import { useGoalDetail } from "@/features/today/hooks";
 import { getStreakCopy } from "@/features/today/streakCopy";
 import { useTrialValidation } from "@/features/trial/hooks";
@@ -178,12 +179,9 @@ export default function GoalDetailScreen() {
           <PrimaryButton
             label="Start review"
             onPress={() =>
-              router.push({
-                params: {
-                  identityPhrase: encodeURIComponent(identityPhrase),
-                  returnTo: "goalDetail",
-                },
-                pathname: "/(app)/reviews/goal/[identityPhrase]",
+              void openGoalWeeklyReview({
+                identityPhrase,
+                returnTo: "goalDetail",
               })
             }
           />

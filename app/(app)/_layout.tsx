@@ -41,6 +41,10 @@ export default function ProtectedLayout() {
         options={{ gestureEnabled: false, headerShown: false }}
       />
       <Stack.Screen
+        name="reviews/intro"
+        options={{ gestureEnabled: false, headerShown: false }}
+      />
+      <Stack.Screen
         name="graduation/[habitId]"
         options={{ headerShown: false }}
       />

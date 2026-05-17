@@ -9,6 +9,10 @@ const mockMutateAsync = jest.fn();
 const mockNavigationDispatch = jest.fn();
 const mockNavigationListeners: ((event: unknown) => void)[] = [];
 const mockActualPop = jest.fn();
+const mockIsWeeklyReviewFirstRunCompleted = jest.fn();
+const mockMarkWeeklyReviewFirstRunCompleted = jest.fn();
+const mockTrackEvent = jest.fn();
+const mockLoggerWarn = jest.fn();
 
 // Simulate real React Navigation: a back navigation fires beforeRemove first.
 // If any listener calls preventDefault, the pop is cancelled; otherwise the
@@ -83,6 +87,24 @@ jest.mock("@/components/LucideIconPicker", () => ({
   LucideIconPicker: () => null,
 }));
 
+jest.mock("@/features/reviews/onboardingStorage", () => ({
+  isWeeklyReviewFirstRunCompleted: () => mockIsWeeklyReviewFirstRunCompleted(),
+  markWeeklyReviewFirstRunCompleted: () =>
+    mockMarkWeeklyReviewFirstRunCompleted(),
+}));
+
+jest.mock("@/services/analytics", () => ({
+  trackEvent: (...args: unknown[]) => mockTrackEvent(...args),
+}));
+
+jest.mock("@/services/logger", () => ({
+  logger: {
+    info: jest.fn(),
+    warn: (...args: unknown[]) => mockLoggerWarn(...args),
+    error: jest.fn(),
+  },
+}));
+
 import GoalReviewScreen from "@/features/reviews/screens/GoalReviewScreen";
 
 import type { GoalWeekSummary, HabitWeekSummary } from "@/features/reviews/buildGoalWeekSummary";
@@ -143,19 +165,52 @@ function renderScreen() {
   );
 }
 
+// Settles the first-run flag loading gate so tests can immediately drive
+// the multi-step UI. The screen now renders a loading state until
+// isWeeklyReviewFirstRunCompleted() resolves — without this, a test that
+// presses "Continue" right after render fails because the screen still
+// shows "Loading your week...". The loading-state test that intentionally
+// mocks isLoading: true continues to use renderScreen() directly.
+async function renderAndSettle() {
+  const result = renderScreen();
+  await act(async () => {
+    await flushAsync();
+  });
+  return result;
+}
+
 beforeEach(() => {
   jest.clearAllMocks();
   mockNavigationListeners.length = 0;
   // jest.clearAllMocks resets implementations on jest.fn(...), so restore
   // the back→navigateBack glue every test.
   mockRouterBack.mockImplementation(() => navigateBack());
+  // Default: existing tests assume a repeat-user world (no first-run
+  // banners, no first-run write). Individual tests can override.
+  mockIsWeeklyReviewFirstRunCompleted.mockResolvedValue(true);
+  // Mark helper now returns Promise<boolean> indicating persist success.
+  // Default to true (write succeeded) — tests for the persist-failure
+  // path override to false explicitly.
+  mockMarkWeeklyReviewFirstRunCompleted.mockResolvedValue(true);
 });
 
+async function flushAsync() {
+  for (let i = 0; i < 5; i++) {
+    await Promise.resolve();
+  }
+}
+
 describe("GoalReviewScreen", () => {
-  it("shows loading state while summary is fetching", () => {
+  it("shows loading state while summary is fetching", async () => {
     mockUseGoalWeekSummary.mockReturnValue({ data: null, isLoading: true });
     renderScreen();
     expect(screen.queryByText(/Loading your week/)).toBeTruthy();
+    // Settle pending state updates from the first-run useEffect before the
+    // test ends, so React's act() warning doesn't fire on the unawaited
+    // setState that lands after the synchronous assertion.
+    await act(async () => {
+      await flushAsync();
+    });
   });
 
   it("skips Step 2 'What's Working' when no strong habits", async () => {
@@ -170,7 +225,7 @@ describe("GoalReviewScreen", () => {
       data: makeSummary(habit),
       isLoading: false,
     });
-    renderScreen();
+    await renderAndSettle();
 
     // Step 1 → Continue should go to needs_attention (no whats_working)
     await act(async () => {
@@ -193,7 +248,7 @@ describe("GoalReviewScreen", () => {
       isLoading: false,
     });
     mockMutateAsync.mockResolvedValue([]);
-    renderScreen();
+    await renderAndSettle();
 
     // Step 1 → Step 3 (no Step 2 since habit is not strong)
     await act(async () => {
@@ -230,7 +285,7 @@ describe("GoalReviewScreen", () => {
       isLoading: false,
     });
     mockMutateAsync.mockResolvedValue([]);
-    renderScreen();
+    await renderAndSettle();
 
     // Step sequence with all-strong: week_overview → whats_working → adjustment → complete
     await act(async () => {
@@ -269,7 +324,7 @@ describe("GoalReviewScreen", () => {
     };
     mockUseGoalWeekSummary.mockReturnValue({ data: summary, isLoading: false });
     mockMutateAsync.mockResolvedValue([]);
-    renderScreen();
+    await renderAndSettle();
 
     // week_overview → whats_working → adjustment → save
     await act(async () => {
@@ -305,7 +360,7 @@ describe("GoalReviewScreen", () => {
     };
     mockUseGoalWeekSummary.mockReturnValue({ data: summary, isLoading: false });
     mockMutateAsync.mockResolvedValue([]);
-    renderScreen();
+    await renderAndSettle();
 
     await act(async () => {
       fireEvent.press(screen.getByText("Continue"));
@@ -347,7 +402,7 @@ describe("GoalReviewScreen", () => {
       isLoading: false,
     });
     mockMutateAsync.mockRejectedValue(new Error("DB write failed"));
-    renderScreen();
+    await renderAndSettle();
 
     await act(async () => {
       fireEvent.press(screen.getByText("Continue"));
@@ -385,7 +440,7 @@ describe("GoalReviewScreen", () => {
       .mockRejectedValueOnce(new Error("DB write failed"))
       .mockReturnValueOnce(secondCall);
 
-    renderScreen();
+    await renderAndSettle();
 
     await act(async () => {
       fireEvent.press(screen.getByText("Continue"));
@@ -445,7 +500,7 @@ describe("GoalReviewScreen", () => {
       .mockImplementation((_title, _msg, buttons) => {
         capturedButtons = (buttons ?? null) as AlertButton[] | null;
       });
-    renderScreen();
+    await renderAndSettle();
 
     // Walk through to Step 4 and trigger a save that fails so we land on
     // Step 5 with saveError=true, but no successful save yet.
@@ -508,7 +563,7 @@ describe("GoalReviewScreen", () => {
       isLoading: false,
     });
     const alertSpy = jest.spyOn(Alert, "alert").mockImplementation(() => {});
-    renderScreen();
+    await renderAndSettle();
 
     // Advance to Step 3 and answer a diagnostic so state is dirty.
     await act(async () => {
@@ -528,7 +583,7 @@ describe("GoalReviewScreen", () => {
     alertSpy.mockRestore();
   });
 
-  it("allows beforeRemove to proceed (no preventDefault) when the flow is clean and there is no unsaved work", () => {
+  it("allows beforeRemove to proceed (no preventDefault) when the flow is clean and there is no unsaved work", async () => {
     const habit = makeHabitSummary();
     mockUseGoalWeekSummary.mockReturnValue({
       data: makeSummary(habit),
@@ -539,6 +594,10 @@ describe("GoalReviewScreen", () => {
     // No diagnostics entered, no custom text → not dirty.
     const event = emitBeforeRemove();
     expect(event.preventDefault).not.toHaveBeenCalled();
+    // Settle pending state updates from the first-run useEffect.
+    await act(async () => {
+      await flushAsync();
+    });
   });
 
   it("prompts for confirmation when closing after a failed save on the all-strong path (no diagnostics, no custom text)", async () => {
@@ -552,7 +611,7 @@ describe("GoalReviewScreen", () => {
     });
     mockMutateAsync.mockRejectedValue(new Error("DB write failed"));
     const alertSpy = jest.spyOn(Alert, "alert").mockImplementation(() => {});
-    renderScreen();
+    await renderAndSettle();
 
     // Walk: week_overview → whats_working → adjustment → Save & finish
     // No diagnostic answers, no custom note — accept default keep_going.
@@ -587,7 +646,7 @@ describe("GoalReviewScreen", () => {
     mockMutateAsync
       .mockRejectedValueOnce(new Error("DB write failed"))
       .mockResolvedValueOnce([]);
-    renderScreen();
+    await renderAndSettle();
 
     await act(async () => {
       fireEvent.press(screen.getByText("Continue"));
@@ -612,5 +671,291 @@ describe("GoalReviewScreen", () => {
     });
     expect(screen.queryByText("Done")).toBeTruthy();
     expect(mockMutateAsync).toHaveBeenCalledTimes(2);
+  });
+
+  // --- First-run onboarding tip banners ---
+
+  const NEEDS_ATTENTION_TIP_COPY =
+    /That's a clue, not a verdict/;
+  const ADJUSTMENT_TIP_COPY = /Honest 'no' answers are the most useful/;
+
+  function setupAttentionFlow() {
+    const habit = makeHabitSummary({
+      doneCount: 3,
+      missCount: 4,
+      weekConsistency: 3 / 7,
+      isStrong: false,
+      needsAttention: true,
+    });
+    mockUseGoalWeekSummary.mockReturnValue({
+      data: makeSummary(habit),
+      isLoading: false,
+    });
+    mockMutateAsync.mockResolvedValue([]);
+  }
+
+  it("shows both first-run banners during the first review and hides them on dismiss", async () => {
+    mockIsWeeklyReviewFirstRunCompleted.mockResolvedValue(false);
+    setupAttentionFlow();
+    await renderAndSettle();
+    // Let the mount-effect read resolve before we drive the flow.
+    await act(async () => {
+      await flushAsync();
+    });
+
+    // Advance week_overview → needs_attention
+    await act(async () => {
+      fireEvent.press(screen.getByText("Continue"));
+    });
+    expect(screen.queryByText(NEEDS_ATTENTION_TIP_COPY)).toBeTruthy();
+
+    // Dismiss the needs-attention banner.
+    await act(async () => {
+      fireEvent.press(
+        screen.getByTestId("needs-attention-first-run-tip").findByProps({
+          accessibilityLabel: "Dismiss tip",
+        }),
+      );
+    });
+    expect(screen.queryByText(NEEDS_ATTENTION_TIP_COPY)).toBeNull();
+    expect(mockTrackEvent).toHaveBeenCalledWith(
+      "weekly_review_tip_dismissed",
+      { step: "needs_attention" },
+    );
+
+    // Answer diagnostics so Continue advances to adjustment.
+    await act(async () => {
+      fireEvent.press(screen.getAllByText("Yes")[0]!);
+    });
+    await act(async () => {
+      fireEvent.press(screen.getAllByText("No")[1]!);
+    });
+    await act(async () => {
+      fireEvent.press(screen.getByText("Continue"));
+    });
+
+    expect(screen.queryByText(ADJUSTMENT_TIP_COPY)).toBeTruthy();
+
+    await act(async () => {
+      fireEvent.press(
+        screen.getByTestId("adjustment-first-run-tip").findByProps({
+          accessibilityLabel: "Dismiss tip",
+        }),
+      );
+    });
+    expect(screen.queryByText(ADJUSTMENT_TIP_COPY)).toBeNull();
+    expect(mockTrackEvent).toHaveBeenCalledWith(
+      "weekly_review_tip_dismissed",
+      { step: "adjustment" },
+    );
+  });
+
+  it("marks first run completed exactly once on save success during the first review", async () => {
+    mockIsWeeklyReviewFirstRunCompleted.mockResolvedValue(false);
+    setupAttentionFlow();
+    await renderAndSettle();
+    await act(async () => {
+      await flushAsync();
+    });
+
+    // Drive through to save success.
+    await act(async () => {
+      fireEvent.press(screen.getByText("Continue"));
+    });
+    await act(async () => {
+      fireEvent.press(screen.getAllByText("Yes")[0]!);
+    });
+    await act(async () => {
+      fireEvent.press(screen.getAllByText("No")[1]!);
+    });
+    await act(async () => {
+      fireEvent.press(screen.getByText("Continue"));
+    });
+    await act(async () => {
+      fireEvent.press(screen.getByText("Save & finish"));
+    });
+    await act(async () => {
+      await flushAsync();
+    });
+
+    expect(mockMarkWeeklyReviewFirstRunCompleted).toHaveBeenCalledTimes(1);
+    expect(mockTrackEvent).toHaveBeenCalledWith(
+      "weekly_review_first_run_completed",
+    );
+  });
+
+  it("does NOT show banners or mark the first-run flag when isWeeklyReviewFirstRunCompleted resolves true (repeat user)", async () => {
+    // Default beforeEach sets this to true; reassert for clarity.
+    mockIsWeeklyReviewFirstRunCompleted.mockResolvedValue(true);
+    setupAttentionFlow();
+    await renderAndSettle();
+    await act(async () => {
+      await flushAsync();
+    });
+
+    await act(async () => {
+      fireEvent.press(screen.getByText("Continue"));
+    });
+    expect(screen.queryByText(NEEDS_ATTENTION_TIP_COPY)).toBeNull();
+
+    await act(async () => {
+      fireEvent.press(screen.getAllByText("Yes")[0]!);
+    });
+    await act(async () => {
+      fireEvent.press(screen.getAllByText("No")[1]!);
+    });
+    await act(async () => {
+      fireEvent.press(screen.getByText("Continue"));
+    });
+    expect(screen.queryByText(ADJUSTMENT_TIP_COPY)).toBeNull();
+
+    await act(async () => {
+      fireEvent.press(screen.getByText("Save & finish"));
+    });
+    await act(async () => {
+      await flushAsync();
+    });
+
+    expect(mockMarkWeeklyReviewFirstRunCompleted).not.toHaveBeenCalled();
+  });
+
+  it("save-path uses authoritative storage, not the in-memory mirror", async () => {
+    // Mount-effect read returns true so the screen unblocks the loading
+    // gate AND the in-memory mirror reflects "first run done" (banners
+    // hidden). But the save-path re-read returns false (e.g. another
+    // process wrote, or the storage truth differs from the mount snapshot).
+    // The save-path must use the storage truth, not the in-memory mirror,
+    // and therefore write the flag — proving the in-memory boolean is
+    // for rendering only, never for guarding persistence.
+    mockIsWeeklyReviewFirstRunCompleted
+      .mockResolvedValueOnce(true) // mount-effect read
+      .mockResolvedValueOnce(false); // save-path re-read
+    setupAttentionFlow();
+    await renderAndSettle();
+
+    // Banners should NOT be visible (mount-effect mirror says first run done).
+    await act(async () => {
+      fireEvent.press(screen.getByText("Continue"));
+    });
+    expect(screen.queryByText(NEEDS_ATTENTION_TIP_COPY)).toBeNull();
+
+    // Drive through to save success.
+    await act(async () => {
+      fireEvent.press(screen.getAllByText("Yes")[0]!);
+    });
+    await act(async () => {
+      fireEvent.press(screen.getAllByText("No")[1]!);
+    });
+    await act(async () => {
+      fireEvent.press(screen.getByText("Continue"));
+    });
+    await act(async () => {
+      fireEvent.press(screen.getByText("Save & finish"));
+    });
+    await act(async () => {
+      await flushAsync();
+    });
+
+    // The save-path re-read saw "not completed" and wrote the flag,
+    // independent of the in-memory mirror.
+    expect(mockMarkWeeklyReviewFirstRunCompleted).toHaveBeenCalledTimes(1);
+  });
+
+  it("logs and stays banner-less when the mount-effect read rejects", async () => {
+    mockIsWeeklyReviewFirstRunCompleted.mockRejectedValue(
+      new Error("db locked"),
+    );
+    setupAttentionFlow();
+    await renderAndSettle();
+    await act(async () => {
+      await flushAsync();
+    });
+
+    await act(async () => {
+      fireEvent.press(screen.getByText("Continue"));
+    });
+    expect(screen.queryByText(NEEDS_ATTENTION_TIP_COPY)).toBeNull();
+
+    expect(mockLoggerWarn).toHaveBeenCalledWith(
+      "GoalReviewScreen: first-run read failed on mount",
+      expect.objectContaining({ err: expect.any(Error) }),
+    );
+  });
+
+  it("suppresses 'first_run_completed' analytics when the mark write fails to persist", async () => {
+    mockIsWeeklyReviewFirstRunCompleted.mockResolvedValue(false);
+    mockMarkWeeklyReviewFirstRunCompleted.mockResolvedValue(false); // persistence failure
+    setupAttentionFlow();
+    await renderAndSettle();
+
+    // Drive through to save success.
+    await act(async () => {
+      fireEvent.press(screen.getByText("Continue"));
+    });
+    await act(async () => {
+      fireEvent.press(screen.getAllByText("Yes")[0]!);
+    });
+    await act(async () => {
+      fireEvent.press(screen.getAllByText("No")[1]!);
+    });
+    await act(async () => {
+      fireEvent.press(screen.getByText("Continue"));
+    });
+    await act(async () => {
+      fireEvent.press(screen.getByText("Save & finish"));
+    });
+    await act(async () => {
+      await flushAsync();
+    });
+
+    // mark was called (we tried to persist), but analytics is suppressed
+    // because the write didn't actually land — next session will still
+    // see the user as in first-run state, so claiming "completed" would
+    // create an inconsistency.
+    expect(mockMarkWeeklyReviewFirstRunCompleted).toHaveBeenCalledTimes(1);
+    expect(mockTrackEvent).not.toHaveBeenCalledWith(
+      "weekly_review_first_run_completed",
+    );
+  });
+
+  it("skips the first-run write and logs when the save-path read rejects", async () => {
+    // First call (mount) resolves false; second call (save-path) rejects.
+    mockIsWeeklyReviewFirstRunCompleted
+      .mockResolvedValueOnce(false)
+      .mockRejectedValueOnce(new Error("db locked"));
+    setupAttentionFlow();
+    await renderAndSettle();
+    await act(async () => {
+      await flushAsync();
+    });
+
+    await act(async () => {
+      fireEvent.press(screen.getByText("Continue"));
+    });
+    await act(async () => {
+      fireEvent.press(screen.getAllByText("Yes")[0]!);
+    });
+    await act(async () => {
+      fireEvent.press(screen.getAllByText("No")[1]!);
+    });
+    await act(async () => {
+      fireEvent.press(screen.getByText("Continue"));
+    });
+    await act(async () => {
+      fireEvent.press(screen.getByText("Save & finish"));
+    });
+    await act(async () => {
+      await flushAsync();
+    });
+
+    expect(mockMarkWeeklyReviewFirstRunCompleted).not.toHaveBeenCalled();
+    expect(mockLoggerWarn).toHaveBeenCalledWith(
+      "GoalReviewScreen: first-run save-path read failed",
+      expect.objectContaining({ err: expect.any(Error) }),
+    );
+    // Save success path still completed — user reaches the complete step.
+    await waitFor(() => {
+      expect(screen.queryByText(/Week reviewed/i)).toBeTruthy();
+    });
   });
 });

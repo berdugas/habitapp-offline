@@ -39,6 +39,7 @@ import {
 import { getStreakCopy } from "@/features/today/streakCopy";
 import { isWeeklyReviewDue } from "@/features/reviews/due";
 import { useLatestWeeklyReviewQuery } from "@/features/reviews/hooks";
+import { openGoalWeeklyReview } from "@/features/reviews/openReview";
 import { useTrialValidation } from "@/features/trial/hooks";
 import { useHabitLogsForRange } from "@/features/today/hooks";
 import { getReminderByHabitId } from "@/lib/db/repositories/reminders";
@@ -131,12 +132,9 @@ export default function HabitDetailScreen() {
   // Orphan habits fall back to the legacy per-habit review route.
   function openReview(habitForReview: HabitRecord, _source: string) {
     if (habitForReview.identity_phrase) {
-      router.push({
-        params: {
-          identityPhrase: encodeURIComponent(habitForReview.identity_phrase),
-          returnTo: "habitDetail",
-        },
-        pathname: "/(app)/reviews/goal/[identityPhrase]",
+      void openGoalWeeklyReview({
+        identityPhrase: habitForReview.identity_phrase,
+        returnTo: "habitDetail",
       });
       return;
     }

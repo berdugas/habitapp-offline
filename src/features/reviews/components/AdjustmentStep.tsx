@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { ZenCard } from "@/components/cards/ZenCard";
 import { TextField } from "@/components/forms/TextField";
 import { Eyebrow } from "@/components/text/Eyebrow";
+import { FirstRunTipBanner } from "@/features/reviews/components/FirstRunTipBanner";
 import { colors } from "@/theme/colors";
 import { fontFamilies } from "@/theme/fontFamilies";
 import { radius } from "@/theme/radius";
@@ -19,6 +20,8 @@ type AdjustmentStepProps = {
   onCustomAdjustmentChange: (text: string) => void;
   useCustom: boolean;
   onToggleCustom: () => void;
+  showFirstRunTip?: boolean;
+  onDismissFirstRunTip?: () => void;
 };
 
 export function AdjustmentStep({
@@ -28,8 +31,18 @@ export function AdjustmentStep({
   onCustomAdjustmentChange,
   useCustom,
   onToggleCustom,
+  showFirstRunTip,
+  onDismissFirstRunTip,
 }: AdjustmentStepProps) {
   return (
+    <View style={styles.wrapper}>
+      {showFirstRunTip && onDismissFirstRunTip ? (
+        <FirstRunTipBanner
+          message="Two questions per habit. Honest 'no' answers are the most useful — they tell us what to change next week."
+          onDismiss={onDismissFirstRunTip}
+          testID="adjustment-first-run-tip"
+        />
+      ) : null}
     <ZenCard>
       <Eyebrow label="One thing to try" />
 
@@ -104,6 +117,7 @@ export function AdjustmentStep({
         />
       ) : null}
     </ZenCard>
+    </View>
   );
 }
 
@@ -163,5 +177,8 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontFamily: fontFamilies.displaySemi,
     fontSize: typography.titleMd,
+  },
+  wrapper: {
+    gap: spacing.md,
   },
 });

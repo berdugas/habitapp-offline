@@ -27,13 +27,19 @@ import { WeekCompleteStep } from "@/features/reviews/components/WeekCompleteStep
 import { WeekOverviewStep } from "@/features/reviews/components/WeekOverviewStep";
 import { WhatsWorkingStep } from "@/features/reviews/components/WhatsWorkingStep";
 import { useUpsertGoalReviewsMutation } from "@/features/reviews/hooks";
+import {
+  isWeeklyReviewFirstRunCompleted,
+  markWeeklyReviewFirstRunCompleted,
+} from "@/features/reviews/onboardingStorage";
+import { normalizeReturnTo } from "@/features/reviews/reviewRoutes";
 import { useGoalWeekSummary } from "@/features/reviews/useGoalWeekSummary";
+import { trackEvent } from "@/services/analytics";
+import { logger } from "@/services/logger";
 import { colors } from "@/theme/colors";
 import { fontFamilies } from "@/theme/fontFamilies";
 import { spacing } from "@/theme/spacing";
 import { typography } from "@/theme/typography";
 import { getWeekStartDateString } from "@/utils/dates";
-import { normalizeParam } from "@/utils/params";
 
 import type {
   GoalWeekSummary,
@@ -56,15 +62,6 @@ type HabitDiagnosticData = {
   triggerWorked: boolean | null;
   tinyActionTooHard: boolean | null;
 };
-
-type ReturnTo = "today" | "habitDetail" | "goalDetail";
-
-function normalizeReturnTo(value: string | string[] | undefined): ReturnTo {
-  const v = normalizeParam(value);
-  if (v === "today") return "today";
-  if (v === "habitDetail") return "habitDetail";
-  return "goalDetail";
-}
 
 function getStepSequence(summary: GoalWeekSummary): ReviewStep[] {
   const steps: ReviewStep[] = ["week_overview"];
@@ -162,6 +159,35 @@ export default function GoalReviewScreen() {
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState(false);
   const saveLockRef = useRef(false);
+
+  // First-run banner gating. The screen renders a loading state until the
+  // flag has been read (success OR failure), so we never hit the "user
+  // taps past week_overview before .then resolves" race that would skip
+  // banners entirely. The save-path write does NOT trust the in-memory
+  // mirror — it re-reads storage authoritatively at save time so a fast
+  // user can't beat the mount-effect read and skip the persistence.
+  const [firstRunCompletedLoaded, setFirstRunCompletedLoaded] = useState(false);
+  const [isFirstRunIncomplete, setIsFirstRunIncomplete] = useState(false);
+  const [needsAttentionTipDismissed, setNeedsAttentionTipDismissed] =
+    useState(false);
+  const [adjustmentTipDismissed, setAdjustmentTipDismissed] = useState(false);
+
+  useEffect(() => {
+    isWeeklyReviewFirstRunCompleted()
+      .then((completed) => {
+        setIsFirstRunIncomplete(!completed);
+        setFirstRunCompletedLoaded(true);
+      })
+      .catch((err) => {
+        logger.warn("GoalReviewScreen: first-run read failed on mount", {
+          err,
+        });
+        // Failure case: still proceed past the loading gate with banners
+        // hidden (safe default). The save-path re-read will retry the
+        // read at the moment that matters for persistence.
+        setFirstRunCompletedLoaded(true);
+      });
+  }, []);
 
   // Intercept Android hardware back and iOS swipe-back so the same
   // unsaved-work / in-flight-save guards apply that the X button enforces.
@@ -292,6 +318,29 @@ export default function GoalReviewScreen() {
         queryClient.invalidateQueries({ queryKey: ["habit-logs"] }),
       ]);
 
+      // First-run completion: re-read storage authoritatively (not the
+      // in-memory mirror, which may not have resolved yet) so a fast user
+      // can't beat the mount read and end up stuck in first-run state.
+      // Only emit "completed" analytics and flip the local mirror when
+      // the write actually persisted — otherwise the user is still in
+      // first-run state and a future review should still mark/track.
+      void (async () => {
+        try {
+          const completed = await isWeeklyReviewFirstRunCompleted();
+          if (!completed) {
+            const persisted = await markWeeklyReviewFirstRunCompleted();
+            if (persisted) {
+              trackEvent("weekly_review_first_run_completed");
+              setIsFirstRunIncomplete(false);
+            }
+          }
+        } catch (err) {
+          logger.warn("GoalReviewScreen: first-run save-path read failed", {
+            err,
+          });
+        }
+      })();
+
       setCurrentStep("complete");
     } catch {
       // Per S18b-07, surface the error on Step 5 with a Retry button rather
@@ -337,7 +386,11 @@ export default function GoalReviewScreen() {
     return <ErrorState message="No goal selected for review." />;
   }
 
-  if (summaryQuery.isLoading) {
+  // Gate the multi-step UI on BOTH the summary query AND the first-run flag
+  // read. Without the second condition, a fast user could advance past
+  // week_overview before .then resolves and never see the first-run banners
+  // on needs_attention/adjustment — defeating the onboarding entirely.
+  if (summaryQuery.isLoading || !firstRunCompletedLoaded) {
     return <LoadingState message="Loading your week..." />;
   }
 
@@ -400,14 +453,30 @@ export default function GoalReviewScreen() {
           <NeedsAttentionStep
             attentionHabits={summary.attentionHabits}
             diagnostics={diagnostics}
+            onDismissFirstRunTip={() => {
+              setNeedsAttentionTipDismissed(true);
+              trackEvent("weekly_review_tip_dismissed", {
+                step: "needs_attention",
+              });
+            }}
             onUpdateDiagnostic={updateDiagnostic}
+            showFirstRunTip={
+              isFirstRunIncomplete && !needsAttentionTipDismissed
+            }
           />
         ) : null}
         {currentStep === "adjustment" ? (
           <AdjustmentStep
             customAdjustment={customAdjustment}
             onCustomAdjustmentChange={setCustomAdjustment}
+            onDismissFirstRunTip={() => {
+              setAdjustmentTipDismissed(true);
+              trackEvent("weekly_review_tip_dismissed", {
+                step: "adjustment",
+              });
+            }}
             onToggleCustom={() => setUseCustom((v) => !v)}
+            showFirstRunTip={isFirstRunIncomplete && !adjustmentTipDismissed}
             suggestion={primarySuggestion}
             targetHabit={targetHabit}
             useCustom={useCustom}

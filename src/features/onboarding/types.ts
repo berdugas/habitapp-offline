@@ -56,3 +56,6 @@ export const KNOWN_DRAFT_KEYS = [
 
 export const ONBOARDING_DRAFT_KEY = "onboarding.draft";
 export const ONBOARDING_COMPLETED_AT_KEY = "onboarding.completed_at";
+export const WEEKLY_REVIEW_INTRO_SEEN_AT_KEY = "weekly_review.intro_seen_at";
+export const WEEKLY_REVIEW_FIRST_RUN_COMPLETED_AT_KEY =
+  "weekly_review.first_run_completed_at";

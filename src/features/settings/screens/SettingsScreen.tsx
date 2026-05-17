@@ -10,7 +10,9 @@ import { ZenCard } from "@/components/cards/ZenCard";
 import { Eyebrow } from "@/components/text/Eyebrow";
 import { useAuthSession } from "@/features/auth/hooks";
 import { signOut } from "@/features/auth/api";
+import { clearWeeklyReviewIntroSeen } from "@/features/reviews/onboardingStorage";
 import { useTrialValidation } from "@/features/trial/hooks";
+import { trackEvent } from "@/services/analytics";
 import { colors } from "@/theme/colors";
 import { fontFamilies } from "@/theme/fontFamilies";
 import { spacing } from "@/theme/spacing";
@@ -44,6 +46,18 @@ export default function SettingsScreen() {
     router.replace("/");
   }
 
+  async function handleReplayWeeklyReviewIntro() {
+    // Navigate to the intro either way (no dead tap). Only emit "replayed"
+    // analytics when the clear actually persisted — if the delete failed,
+    // the user is still in "intro seen" state at the storage layer and
+    // subsequent normal entries won't see this replay reflected.
+    const cleared = await clearWeeklyReviewIntroSeen();
+    if (cleared) {
+      trackEvent("weekly_review_intro_replayed");
+    }
+    router.push("/(app)/reviews/intro");
+  }
+
   return (
     <ScrollView
       contentContainerStyle={styles.content}
@@ -69,6 +83,17 @@ export default function SettingsScreen() {
           style={styles.row}
         >
           <Text style={styles.rowLabel}>Manage habits</Text>
+          <ChevronRight color={colors.textFaint} size={18} strokeWidth={1.75} />
+        </Pressable>
+      </ZenCard>
+
+      <ZenCard gap={0}>
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => void handleReplayWeeklyReviewIntro()}
+          style={styles.row}
+        >
+          <Text style={styles.rowLabel}>Show Weekly Review intro again</Text>
           <ChevronRight color={colors.textFaint} size={18} strokeWidth={1.75} />
         </Pressable>
       </ZenCard>
