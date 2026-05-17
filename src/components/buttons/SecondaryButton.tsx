@@ -9,12 +9,14 @@ import { typography } from "@/theme/typography";
 
 type SecondaryButtonProps = {
   disabled?: boolean;
+  isDanger?: boolean;
   label: string;
   onPress: () => void;
 };
 
 export function SecondaryButton({
   disabled = false,
+  isDanger = false,
   label,
   onPress,
 }: SecondaryButtonProps) {
@@ -29,7 +31,7 @@ export function SecondaryButton({
         pressed && !disabled && styles.buttonPressed,
       ]}
     >
-      <Text style={styles.label}>{label}</Text>
+      <Text style={[styles.label, isDanger && styles.labelDanger]}>{label}</Text>
     </Pressable>
   );
 }
@@ -53,5 +55,8 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontFamily: fontFamilies.bodySemi,
     fontSize: typography.bodyLg,
+  },
+  labelDanger: {
+    color: colors.danger,
   },
 });
