@@ -73,6 +73,18 @@ export default function SettingsScreen() {
         </Pressable>
       </ZenCard>
 
+      <ZenCard gap={spacing.md}>
+        <Eyebrow label="Privacy & Data" />
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => router.push("/(app)/settings/export")}
+          style={styles.row}
+        >
+          <Text style={styles.rowLabel}>Export your data</Text>
+          <ChevronRight color={colors.textFaint} size={18} strokeWidth={1.75} />
+        </Pressable>
+      </ZenCard>
+
       <ZenCard>
         <Eyebrow label="About" />
         <RowLV label="Version" value={appVersion} />

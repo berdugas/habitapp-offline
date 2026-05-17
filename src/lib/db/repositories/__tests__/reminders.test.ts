@@ -7,6 +7,7 @@ import {
   deleteReminderByHabitId,
   getReminderByHabitId,
   listAllReminders,
+  listRemindersForUser,
   upsertReminder,
 } from "@/lib/db/repositories/reminders";
 
@@ -101,6 +102,61 @@ describe("reminders repository", () => {
 
   it("deleteReminderByHabitId is a no-op for a non-existent habit_id", async () => {
     await expect(deleteReminderByHabitId("ghost-habit")).resolves.not.toThrow();
+  });
+
+  it("listRemindersForUser returns reminders for a user via habit join", async () => {
+    await makeHabit(db, "habit-2");
+    await upsertReminder({
+      habit_id: "habit-1",
+      reminder_type: "backup",
+      reminder_time: "09:00",
+      notification_ids: "[]",
+    });
+    await upsertReminder({
+      habit_id: "habit-2",
+      reminder_type: "daily",
+      reminder_time: "20:00",
+      notification_ids: "[]",
+    });
+
+    const reminders = await listRemindersForUser(USER);
+
+    expect(reminders).toHaveLength(2);
+    expect(reminders.map((r) => r.habit_id).sort()).toEqual([
+      "habit-1",
+      "habit-2",
+    ]);
+  });
+
+  it("listRemindersForUser excludes other users' reminders", async () => {
+    await db.runAsync(
+      `INSERT INTO local_habits (id, user_id, title, cue, tiny_action, start_date, habit_state, status, created_at, updated_at)
+       VALUES ('habit-other', 'user-other', 'Read', 'After lunch', '1 page', '2026-04-01', 'active', 'active', datetime('now'), datetime('now'))`,
+    );
+    await upsertReminder({
+      habit_id: "habit-1",
+      reminder_type: "backup",
+      reminder_time: "09:00",
+      notification_ids: "[]",
+    });
+    await upsertReminder({
+      habit_id: "habit-other",
+      reminder_type: "daily",
+      reminder_time: "21:00",
+      notification_ids: "[]",
+    });
+
+    const mine = await listRemindersForUser(USER);
+    expect(mine).toHaveLength(1);
+    expect(mine[0].habit_id).toBe("habit-1");
+
+    const theirs = await listRemindersForUser("user-other");
+    expect(theirs).toHaveLength(1);
+    expect(theirs[0].habit_id).toBe("habit-other");
+  });
+
+  it("listRemindersForUser returns [] when the user has no reminders", async () => {
+    expect(await listRemindersForUser("nobody")).toEqual([]);
   });
 
   it("ON DELETE CASCADE removes the reminder when the habit is deleted", async () => {

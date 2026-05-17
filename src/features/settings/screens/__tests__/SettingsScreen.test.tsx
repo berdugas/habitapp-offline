@@ -115,6 +115,19 @@ describe("SettingsScreen", () => {
     expect(mockPush).toHaveBeenCalledWith("/(app)/habits/backlog");
   });
 
+  it("shows a 'Privacy & Data' section with an 'Export your data' row", () => {
+    render(<SettingsScreen />);
+    expect(screen.getByText("PRIVACY & DATA")).toBeTruthy();
+    expect(screen.getByText("Export your data")).toBeTruthy();
+  });
+
+  it("tapping 'Export your data' navigates to the export screen", () => {
+    render(<SettingsScreen />);
+    const row = screen.getByText("Export your data");
+    fireEvent.press(row);
+    expect(mockPush).toHaveBeenCalledWith("/(app)/settings/export");
+  });
+
   it("About card shows the app version", () => {
     render(<SettingsScreen />);
     expect(screen.getByText("1.2.3")).toBeTruthy();
