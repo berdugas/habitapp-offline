@@ -191,8 +191,8 @@ describe("HabitDetailScreen", () => {
     // "Become a reader" appears in header and breadcrumb
     expect(screen.getAllByText("Become a reader").length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText("Evening")).toBeTruthy();
-    // Journey Card shows streak as "{N} day streak" label in the streak strip
-    expect(screen.getByText("2 day streak")).toBeTruthy();
+    // Journey Card shows streak as "{N} day Habit streak" label in the streak strip
+    expect(screen.getByText("2 day Habit streak")).toBeTruthy();
     // Setup card shows active days label (may appear in multiple places)
     expect(screen.getAllByText("Every day").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Archive habit").length).toBeGreaterThan(0);

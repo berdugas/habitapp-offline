@@ -4,7 +4,6 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Bell, ChevronLeft, Pencil } from "lucide-react-native";
 import { router, useLocalSearchParams } from "expo-router";
 
-import { CalendarGrid } from "@/components/CalendarGrid";
 import type { HeatmapLog } from "@/components/CalendarGrid";
 import { ReadOnlyBanner } from "@/components/ReadOnlyBanner";
 import { PrimaryButton } from "@/components/buttons/PrimaryButton";
@@ -233,7 +232,7 @@ export default function HabitDetailScreen() {
           startDate: habit.start_date,
         },
       ],
-      14,
+      28,
     );
   }, [habit, calendarLogs, activeDays]);
 
@@ -251,25 +250,6 @@ export default function HabitDetailScreen() {
           todayDate,
         })
       : null;
-
-  // Count done/active days from start_date to today for the header counter
-  const calendarDoneCount = (calendarLogs as HeatmapLog[]).filter((l) => l.status === "done").length;
-  const calendarActiveDayCount = (() => {
-    if (!habit) return 0;
-    const start = habit.start_date
-      ? new Date(`${habit.start_date}T12:00:00`)
-      : (() => { const d = now(); d.setDate(d.getDate() - 29); return d; })();
-    const today = now();
-    today.setHours(0, 0, 0, 0);
-    let count = 0;
-    const d = new Date(start);
-    d.setHours(0, 0, 0, 0);
-    while (d <= today) {
-      if (isActiveDay(d, activeDays)) count++;
-      d.setDate(d.getDate() + 1);
-    }
-    return count;
-  })();
 
   function handleCellPress(date: string) {
     if (!habit) return;
@@ -488,30 +468,15 @@ export default function HabitDetailScreen() {
           </View>
 
           {weeklyData.length >= 1 ? (
-            <WeeklyConsistencyChart weeklyData={weeklyData} />
+            <WeeklyConsistencyChart scope="habit" weeklyData={weeklyData} />
           ) : null}
 
           <GoalStreakStrip
             dailyStates={habitDailyStates}
+            scope="habit"
             streak={progress.streak}
-          />
-        </ZenCard>
-      ) : null}
-
-      {/* 30-day calendar */}
-      {!isUpcoming ? (
-        <ZenCard>
-          <View style={styles.calendarHeader}>
-            <Eyebrow label="Activity" />
-            <Text style={styles.calendarCounter}>
-              {calendarDoneCount} of {calendarActiveDayCount} active days
-            </Text>
-          </View>
-          <CalendarGrid
-            activeDays={activeDays}
-            logs={calendarLogs as HeatmapLog[]}
-            onCellPress={handleCellPress}
             startDate={habit.start_date}
+            onCellPress={handleCellPress}
           />
         </ZenCard>
       ) : null}
@@ -616,17 +581,6 @@ const styles = StyleSheet.create({
     height: 36,
     justifyContent: "center",
     width: 36,
-  },
-  calendarCounter: {
-    color: colors.textFaint,
-    fontFamily: fontFamilies.body,
-    fontSize: 12,
-  },
-  calendarHeader: {
-    alignItems: "center",
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: spacing.sm,
   },
   backRow: {
     marginBottom: spacing.sm,
