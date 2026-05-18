@@ -308,6 +308,12 @@ export function useUpsertTodayHabitStatusMutation() {
       await queryClient.invalidateQueries({
         queryKey: ["habit-logs", "detail", user.id, variables.habitId],
       });
+
+      // Goal Detail reads from ["habit-logs", "bulk-range", habitIds, ...];
+      // without this, the goal screen stays on the snapshot taken before this tap.
+      await queryClient.invalidateQueries({
+        queryKey: ["habit-logs", "bulk-range"],
+      });
     },
     onError: (error, variables) => {
       logger.error("Today status mutation failed", {
@@ -352,6 +358,12 @@ export function useDeleteTodayHabitLogMutation() {
       // Invalidate the habit detail logs so progress metrics stay in sync.
       await queryClient.invalidateQueries({
         queryKey: ["habit-logs", "detail", user.id, habitId],
+      });
+
+      // Goal Detail reads from ["habit-logs", "bulk-range", habitIds, ...];
+      // without this, the goal screen stays on the snapshot taken before this undo.
+      await queryClient.invalidateQueries({
+        queryKey: ["habit-logs", "bulk-range"],
       });
     },
     onError: (error, habitId) => {
