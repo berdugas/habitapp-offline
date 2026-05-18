@@ -49,7 +49,7 @@ import { getWeekStartDateString, toDeviceDateString } from "@/utils/dates";
 import { colors } from "@/theme/colors";
 import { fontFamilies } from "@/theme/fontFamilies";
 import { radius } from "@/theme/radius";
-import { spacing } from "@/theme/spacing";
+import { SCREEN_TOP_PADDING, spacing } from "@/theme/spacing";
 import { typography } from "@/theme/typography";
 import { getLoadHabitDetailErrorMessage } from "@/utils/userFacingErrors";
 
@@ -355,7 +355,7 @@ export default function HabitDetailScreen() {
   if (error || !habit) {
     return (
       <ScrollView
-        contentContainerStyle={[styles.content, { paddingTop: top + spacing.xl }]}
+        contentContainerStyle={[styles.content, { paddingTop: top + SCREEN_TOP_PADDING }]}
         style={styles.screen}
       >
         <View style={styles.backRow}>
@@ -381,7 +381,7 @@ export default function HabitDetailScreen() {
 
   return (
     <ScrollView
-      contentContainerStyle={[styles.content, { paddingTop: top + spacing.xl }]}
+      contentContainerStyle={[styles.content, { paddingTop: top + SCREEN_TOP_PADDING }]}
       style={styles.screen}
     >
       {isReadOnly ? (

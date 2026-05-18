@@ -30,7 +30,7 @@ import { getStreakCopy } from "@/features/today/streakCopy";
 import { useTrialValidation } from "@/features/trial/hooks";
 import { colors } from "@/theme/colors";
 import { fontFamilies } from "@/theme/fontFamilies";
-import { spacing } from "@/theme/spacing";
+import { SCREEN_TOP_PADDING, spacing } from "@/theme/spacing";
 import { typography } from "@/theme/typography";
 
 export default function GoalDetailScreen() {
@@ -122,7 +122,7 @@ export default function GoalDetailScreen() {
       ) : null}
 
       {/* Header */}
-      <View style={[styles.header, { paddingTop: insets.top }]}>
+      <View style={[styles.header, { paddingTop: insets.top + SCREEN_TOP_PADDING }]}>
         <Pressable hitSlop={12} onPress={() => router.back()} style={styles.backButton}>
           <ChevronLeft color={colors.textMuted} size={22} strokeWidth={1.75} />
         </Pressable>

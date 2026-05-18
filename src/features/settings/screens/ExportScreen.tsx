@@ -6,7 +6,7 @@ import {
   View,
 } from "react-native";
 import { router } from "expo-router";
-import { ArrowLeft } from "lucide-react-native";
+import { ChevronLeft } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { PrimaryButton } from "@/components/buttons/PrimaryButton";
@@ -15,7 +15,7 @@ import { Eyebrow } from "@/components/text/Eyebrow";
 import { useExportData } from "@/features/settings/hooks";
 import { colors } from "@/theme/colors";
 import { fontFamilies } from "@/theme/fontFamilies";
-import { spacing } from "@/theme/spacing";
+import { SCREEN_TOP_PADDING, spacing } from "@/theme/spacing";
 import { typography } from "@/theme/typography";
 
 export default function ExportScreen() {
@@ -31,7 +31,7 @@ export default function ExportScreen() {
       <ScrollView
         contentContainerStyle={[
           styles.content,
-          { paddingTop: insets.top + spacing.lg },
+          { paddingTop: insets.top + SCREEN_TOP_PADDING },
         ]}
         style={styles.scroll}
       >
@@ -42,7 +42,7 @@ export default function ExportScreen() {
             onPress={() => router.back()}
             style={styles.backButton}
           >
-            <ArrowLeft color={colors.textMuted} size={20} strokeWidth={1.75} />
+            <ChevronLeft color={colors.textMuted} size={22} strokeWidth={1.75} />
           </Pressable>
           <Text style={styles.title}>Export Your Data</Text>
         </View>

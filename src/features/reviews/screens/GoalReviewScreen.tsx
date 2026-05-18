@@ -37,7 +37,7 @@ import { trackEvent } from "@/services/analytics";
 import { logger } from "@/services/logger";
 import { colors } from "@/theme/colors";
 import { fontFamilies } from "@/theme/fontFamilies";
-import { spacing } from "@/theme/spacing";
+import { SCREEN_TOP_PADDING, spacing } from "@/theme/spacing";
 import { typography } from "@/theme/typography";
 import { getWeekStartDateString } from "@/utils/dates";
 
@@ -421,7 +421,7 @@ export default function GoalReviewScreen() {
   const showContinue = currentStep !== "complete";
 
   return (
-    <View style={[styles.screen, { paddingTop: insets.top }]}>
+    <View style={[styles.screen, { paddingTop: insets.top + SCREEN_TOP_PADDING }]}>
       <View style={styles.header}>
         <Pressable
           accessibilityLabel="Close review"

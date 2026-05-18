@@ -7,14 +7,14 @@ import { PrimaryButton } from "@/components/buttons/PrimaryButton";
 import { SecondaryButton } from "@/components/buttons/SecondaryButton";
 import { colors } from "@/theme/colors";
 import { fontFamilies } from "@/theme/fontFamilies";
-import { spacing } from "@/theme/spacing";
+import { SCREEN_TOP_PADDING, spacing } from "@/theme/spacing";
 
 export default function WelcomeScreen() {
   const insets = useSafeAreaInsets();
   return (
     <View style={styles.screen}>
       {/* Header: small logo + app name */}
-      <View style={[styles.header, { paddingTop: insets.top + spacing.sm }]}>
+      <View style={[styles.header, { paddingTop: insets.top + SCREEN_TOP_PADDING }]}>
         <AppLogo size={24} />
         <Text style={styles.appName}>Habitapp</Text>
       </View>

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
-import Svg, { Circle, Path, Text as SvgText } from "react-native-svg";
+import Svg, { Circle, Line, Path, Text as SvgText } from "react-native-svg";
 
 import { colors } from "@/theme/colors";
 import { fontFamilies } from "@/theme/fontFamilies";
@@ -9,13 +9,16 @@ import { typography } from "@/theme/typography";
 const CHART_HEIGHT = 72;
 const POINT_RADIUS = 3;
 const STROKE_WIDTH = 2;
-const Y_MIN = 0.3;
+// Fixed 0–100% axis. Consistency rate has absolute semantic anchors so the
+// y-axis stays predictable across weeks rather than auto-scaling to the data.
+const Y_MIN = 0;
 const Y_MAX = 1.0;
 const LABEL_HEIGHT = 16;
 const HORIZONTAL_PADDING = 12;
-const LEFT_LABEL_WIDTH = 26;
+const RIGHT_LABEL_WIDTH = 28;
 const TOP_PADDING = 10;
 const TENSION = 0.35;
+const AXIS_LABEL_FONT_SIZE = 9;
 
 type WeeklyConsistencyChartProps = {
   scope: "habit" | "goal";
@@ -33,9 +36,14 @@ export function WeeklyConsistencyChart({
   if (weeklyData.length < 1) return null;
 
   const width = measuredWidth > 0 ? measuredWidth : FALLBACK_WIDTH;
-  const plotLeft = LEFT_LABEL_WIDTH + HORIZONTAL_PADDING;
-  const innerWidth = Math.max(0, width - plotLeft - HORIZONTAL_PADDING);
+  const plotLeft = HORIZONTAL_PADDING;
+  const innerWidth = Math.max(
+    0,
+    width - plotLeft - RIGHT_LABEL_WIDTH - HORIZONTAL_PADDING,
+  );
   const innerHeight = CHART_HEIGHT;
+  const labelX = width - RIGHT_LABEL_WIDTH + 4;
+  const midY = TOP_PADDING + innerHeight / 2;
 
   const points = weeklyData.map((d, i) => {
     const x =
@@ -64,25 +72,44 @@ export function WeeklyConsistencyChart({
       style={styles.container}
     >
       <Svg width={width} height={TOP_PADDING + CHART_HEIGHT + LABEL_HEIGHT}>
+        <Line
+          x1={plotLeft}
+          y1={midY}
+          x2={plotLeft + innerWidth}
+          y2={midY}
+          stroke={colors.offDayBorder}
+          strokeWidth={1}
+          strokeDasharray="3 4"
+        />
         <SvgText
-          x={LEFT_LABEL_WIDTH - 4}
+          x={labelX}
           y={TOP_PADDING + 4}
           fill={colors.textFaint}
-          fontSize={typography.micro}
+          fontSize={AXIS_LABEL_FONT_SIZE}
           fontFamily={fontFamilies.body}
-          textAnchor="end"
+          textAnchor="start"
         >
           100%
         </SvgText>
         <SvgText
-          x={LEFT_LABEL_WIDTH - 4}
+          x={labelX}
+          y={midY + 3}
+          fill={colors.textFaint}
+          fontSize={AXIS_LABEL_FONT_SIZE}
+          fontFamily={fontFamilies.body}
+          textAnchor="start"
+        >
+          50%
+        </SvgText>
+        <SvgText
+          x={labelX}
           y={TOP_PADDING + CHART_HEIGHT}
           fill={colors.textFaint}
-          fontSize={typography.micro}
+          fontSize={AXIS_LABEL_FONT_SIZE}
           fontFamily={fontFamilies.body}
-          textAnchor="end"
+          textAnchor="start"
         >
-          30%
+          0%
         </SvgText>
         {!isSinglePoint && (
           <>

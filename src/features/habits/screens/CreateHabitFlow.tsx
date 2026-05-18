@@ -1,5 +1,5 @@
 import { router, useLocalSearchParams } from "expo-router";
-import { ArrowLeft } from "lucide-react-native";
+import { ChevronLeft } from "lucide-react-native";
 import { useEffect, useRef, useState } from "react";
 import {
   Animated,
@@ -42,7 +42,7 @@ import { colors } from "@/theme/colors";
 import { fontFamilies } from "@/theme/fontFamilies";
 import { radius } from "@/theme/radius";
 import { shadows } from "@/theme/shadows";
-import { spacing } from "@/theme/spacing";
+import { SCREEN_TOP_PADDING, spacing } from "@/theme/spacing";
 import { toDeviceDateString } from "@/utils/dates";
 import { getCreateHabitErrorMessage } from "@/utils/userFacingErrors";
 
@@ -306,7 +306,7 @@ function BackRow({ onBack }: { onBack: () => void }) {
   return (
     <View style={styles.backRow}>
       <Pressable onPress={onBack} style={styles.backButton} accessibilityLabel="Go back">
-        <ArrowLeft color={colors.textMuted} size={20} strokeWidth={1.75} />
+        <ChevronLeft color={colors.textMuted} size={22} strokeWidth={1.75} />
       </Pressable>
     </View>
   );
@@ -554,7 +554,7 @@ function PersonalizeStep({
         ref={scrollRef}
         contentContainerStyle={[
           styles.personalizeScroll,
-          { paddingTop: insets.top + spacing.lg },
+          { paddingTop: insets.top + SCREEN_TOP_PADDING },
         ]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}

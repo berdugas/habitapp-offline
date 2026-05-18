@@ -9,7 +9,7 @@ import {
 } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { ArrowLeft, PenLine } from "lucide-react-native";
+import { ChevronLeft, PenLine } from "lucide-react-native";
 
 import { LucideIcon, LucideIconPicker } from "@/components/LucideIconPicker";
 import { ReminderPicker } from "@/components/forms/ReminderPicker";
@@ -40,7 +40,7 @@ import { useTrialValidation } from "@/features/trial/hooks";
 import { colors } from "@/theme/colors";
 import { fontFamilies } from "@/theme/fontFamilies";
 import { radius } from "@/theme/radius";
-import { spacing } from "@/theme/spacing";
+import { SCREEN_TOP_PADDING, spacing } from "@/theme/spacing";
 import { typography } from "@/theme/typography";
 import {
   getLoadHabitDetailErrorMessage,
@@ -216,9 +216,9 @@ export default function EditHabitScreen() {
       ) : null}
 
       {/* Header */}
-      <View style={{ paddingTop: insets.top + spacing.sm }}>
+      <View style={{ paddingTop: insets.top + SCREEN_TOP_PADDING }}>
         <Pressable hitSlop={12} onPress={handleBack} style={styles.backButton}>
-          <ArrowLeft size={20} color={colors.textMuted} strokeWidth={1.75} />
+          <ChevronLeft size={22} color={colors.textMuted} strokeWidth={1.75} />
         </Pressable>
         <Text style={styles.headerTitle}>Edit habit</Text>
       </View>

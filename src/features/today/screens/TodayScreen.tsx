@@ -33,7 +33,7 @@ import { useTrialValidation } from "@/features/trial/hooks";
 import { setPreference } from "@/lib/db/repositories/preferences";
 import { colors } from "@/theme/colors";
 import { fontFamilies } from "@/theme/fontFamilies";
-import { spacing } from "@/theme/spacing";
+import { SCREEN_TOP_PADDING_HERO, spacing } from "@/theme/spacing";
 import { typography } from "@/theme/typography";
 import { NO_GOAL_KEY } from "@/features/today/constants";
 import {
@@ -205,7 +205,7 @@ export default function TodayScreen() {
   if (habits.length === 0) {
     return (
       <ScrollView
-        contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing.xxl }]}
+        contentContainerStyle={[styles.content, { paddingTop: insets.top + SCREEN_TOP_PADDING_HERO }]}
         style={styles.screen}
       >
         <AppHeader />
@@ -229,7 +229,7 @@ export default function TodayScreen() {
 
   return (
     <ScrollView
-      contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing.xxl }]}
+      contentContainerStyle={[styles.content, { paddingTop: insets.top + SCREEN_TOP_PADDING_HERO }]}
       style={styles.screen}
     >
       <AppHeader />

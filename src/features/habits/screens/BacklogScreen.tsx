@@ -7,7 +7,7 @@ import {
   View,
 } from "react-native";
 import { router } from "expo-router";
-import { ArrowLeft, Lightbulb } from "lucide-react-native";
+import { ChevronLeft, Lightbulb } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { ErrorState } from "@/components/feedback/ErrorState";
@@ -26,7 +26,7 @@ import {
 import { FirstRunTipBanner } from "@/features/reviews/components/FirstRunTipBanner";
 import { colors } from "@/theme/colors";
 import { fontFamilies } from "@/theme/fontFamilies";
-import { spacing } from "@/theme/spacing";
+import { SCREEN_TOP_PADDING, spacing } from "@/theme/spacing";
 import { typography } from "@/theme/typography";
 
 export default function BacklogScreen() {
@@ -66,7 +66,7 @@ export default function BacklogScreen() {
     <ScrollView
       contentContainerStyle={[
         styles.content,
-        { paddingTop: insets.top + spacing.lg },
+        { paddingTop: insets.top + SCREEN_TOP_PADDING },
       ]}
       style={styles.screen}
     >
@@ -77,7 +77,7 @@ export default function BacklogScreen() {
           onPress={() => router.back()}
           style={styles.backButton}
         >
-          <ArrowLeft color={colors.textMuted} size={20} strokeWidth={1.75} />
+          <ChevronLeft color={colors.textMuted} size={22} strokeWidth={1.75} />
         </Pressable>
         <Text style={styles.title}>Habit Ideas</Text>
       </View>

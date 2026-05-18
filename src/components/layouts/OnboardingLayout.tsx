@@ -3,7 +3,7 @@ import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 're
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { colors } from '@/theme/colors';
-import { spacing } from '@/theme/spacing';
+import { SCREEN_TOP_PADDING, spacing } from '@/theme/spacing';
 
 type OnboardingLayoutProps = {
   children: React.ReactNode;
@@ -24,7 +24,7 @@ export function OnboardingLayout({
       keyboardShouldPersistTaps="handled"
       showsVerticalScrollIndicator={false}
     >
-      <View style={[styles.body, { paddingTop: insets.top + spacing.lg }]}>
+      <View style={[styles.body, { paddingTop: insets.top + SCREEN_TOP_PADDING }]}>
         {children}
       </View>
     </ScrollView>

@@ -41,7 +41,7 @@ describe("WeeklyConsistencyChart", () => {
     expect(screen.getByText("Weekly Goal Consistency")).toBeTruthy();
   });
 
-  it("renders one point circle and one label per data point, plus the two Y-axis end labels", () => {
+  it("renders one point circle and one label per data point, plus three Y-axis labels", () => {
     render(
       <WeeklyConsistencyChart
         scope="habit"
@@ -61,11 +61,11 @@ describe("WeeklyConsistencyChart", () => {
       (n: { type: unknown }) =>
         typeof n.type === "string" && n.type === "RNSVGText",
     );
-    // 3 week labels + 2 Y-axis end labels ("100%", "30%")
-    expect(texts).toHaveLength(5);
+    // 3 week labels (W1/W2/W3) + 3 Y-axis labels (100%, 50%, 0%)
+    expect(texts).toHaveLength(6);
   });
 
-  it("renders the Y-axis end labels at 100% and 30% regardless of data-point count", () => {
+  it("renders fixed Y-axis labels at 100%, 50%, and 0% regardless of data range", () => {
     render(
       <WeeklyConsistencyChart
         scope="habit"
@@ -84,6 +84,7 @@ describe("WeeklyConsistencyChart", () => {
       )
       .filter((c: unknown): c is string => typeof c === "string");
     expect(contents).toContain("100%");
-    expect(contents).toContain("30%");
+    expect(contents).toContain("50%");
+    expect(contents).toContain("0%");
   });
 });

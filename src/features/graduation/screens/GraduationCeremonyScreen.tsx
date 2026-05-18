@@ -17,7 +17,7 @@ import { useHabitDetail } from "@/features/habits/hooks";
 import { useTrialValidation } from "@/features/trial/hooks";
 import { colors } from "@/theme/colors";
 import { fontFamilies } from "@/theme/fontFamilies";
-import { spacing } from "@/theme/spacing";
+import { SCREEN_TOP_PADDING, spacing } from "@/theme/spacing";
 import { typography } from "@/theme/typography";
 import { now } from "@/utils/clock";
 import { daysBetweenDates, toDeviceDateString } from "@/utils/dates";
@@ -87,7 +87,7 @@ export default function GraduationCeremonyScreen() {
   if (habitDetail.error || !habitDetail.habit) {
     return (
       <ScrollView
-        contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing.xl }]}
+        contentContainerStyle={[styles.content, { paddingTop: insets.top + SCREEN_TOP_PADDING }]}
         contentInsetAdjustmentBehavior="automatic"
         style={styles.screen}
       >
@@ -157,7 +157,7 @@ export default function GraduationCeremonyScreen() {
 
   return (
     <ScrollView
-      contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing.xl }]}
+      contentContainerStyle={[styles.content, { paddingTop: insets.top + SCREEN_TOP_PADDING }]}
       contentInsetAdjustmentBehavior="automatic"
       style={styles.screen}
     >
@@ -247,7 +247,7 @@ function BlockedState({
 }) {
   return (
     <ScrollView
-      contentContainerStyle={[styles.content, { paddingTop: topInset + spacing.xl }]}
+      contentContainerStyle={[styles.content, { paddingTop: topInset + SCREEN_TOP_PADDING }]}
       contentInsetAdjustmentBehavior="automatic"
       style={styles.screen}
     >

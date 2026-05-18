@@ -6,6 +6,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
+import { View } from "react-native";
 import * as SplashScreen from "expo-splash-screen";
 import * as Notifications from "expo-notifications";
 import { useFonts } from "expo-font";
@@ -107,18 +108,24 @@ export default function RootLayout() {
       <SafeAreaProvider>
         <AppProviders>
           <NotificationHandler />
-          <StatusBar style="dark" />
-          <Stack
-            screenOptions={{
-              contentStyle: { backgroundColor: colors.bg },
-              headerBackButtonDisplayMode: "minimal",
-            }}
-          >
-            <Stack.Screen name="index" options={{ headerShown: false }} />
-            <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-            <Stack.Screen name="(app)" options={{ headerShown: false }} />
-            <Stack.Screen name="(onboarding)" options={{ headerShown: false }} />
-          </Stack>
+          <StatusBar
+            backgroundColor={colors.surface}
+            style="dark"
+            translucent={false}
+          />
+          <View style={{ flex: 1 }}>
+            <Stack
+              screenOptions={{
+                contentStyle: { backgroundColor: colors.bg },
+                headerBackButtonDisplayMode: "minimal",
+              }}
+            >
+              <Stack.Screen name="index" options={{ headerShown: false }} />
+              <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+              <Stack.Screen name="(app)" options={{ headerShown: false }} />
+              <Stack.Screen name="(onboarding)" options={{ headerShown: false }} />
+            </Stack>
+          </View>
         </AppProviders>
       </SafeAreaProvider>
     </GestureHandlerRootView>
