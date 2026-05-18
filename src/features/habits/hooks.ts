@@ -3,17 +3,20 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuthSession } from "@/features/auth/hooks";
 import {
   activateBacklogHabit,
+  archiveGoal,
   archiveHabit,
   createHabit,
   deleteGoal,
   deleteHabit,
   getHabitById,
   getHabitLogsForHabitInRange,
+  listArchivedGoals,
   listArchivedHabits,
   listBacklogHabits,
   listEligibleHabitsForToday,
   listGoalHabits,
   listUpcomingHabits,
+  restoreGoal,
   updateHabit,
   upsertHabitLog,
 } from "@/features/habits/api";
@@ -90,6 +93,22 @@ export function getLibraryQueryKey(userId: string | undefined) {
 
 export function getBacklogQueryKey(userId: string | undefined) {
   return ["habits", "backlog", userId ?? "guest"] as const;
+}
+
+export function getArchivedGoalsQueryKey(userId: string | undefined) {
+  return ["habits", "archived-goals", userId ?? "guest"] as const;
+}
+
+export function getArchivedGoalDetailQueryKey(
+  userId: string | undefined,
+  identityPhrase: string | undefined,
+) {
+  return [
+    "habits",
+    "archived-goal-detail",
+    userId ?? "guest",
+    identityPhrase ?? "",
+  ] as const;
 }
 
 export function useEligibleHabitsQuery() {
@@ -282,6 +301,17 @@ export async function invalidateHabitSurfaceQueries(
   await queryClient.invalidateQueries({
     queryKey: getBacklogQueryKey(userId),
   });
+  await queryClient.invalidateQueries({
+    // Any habit mutation that flips status into or out of 'archived' can
+    // change whether a goal qualifies as fully-archived. Refetch broadly.
+    queryKey: getArchivedGoalsQueryKey(userId),
+  });
+  await queryClient.invalidateQueries({
+    // Cascade count (active+backlog under each phrase) changes whenever
+    // a habit's status flips. Broad prefix invalidation hits every cached
+    // identity_phrase at once.
+    queryKey: ["habits", "goal-cascade-count"],
+  });
   // Goal-status caches a goal's habit membership implicitly. Any habit
   // create/edit/archive/backlog can change which habits a goal contains, so
   // every goal-status query has to refetch.
@@ -321,6 +351,15 @@ export async function invalidateHabitListQueries(
   await queryClient.invalidateQueries({
     // Single-habit delete can shrink the goal-count for its identity_phrase.
     queryKey: ["habits", "goal-count"],
+  });
+  await queryClient.invalidateQueries({
+    // Deleting the last archived habit under a goal removes the goal from
+    // the Archive list; deleting habits more broadly can also flip a goal
+    // into the archived state if it leaves zero active+backlog rows.
+    queryKey: getArchivedGoalsQueryKey(userId),
+  });
+  await queryClient.invalidateQueries({
+    queryKey: ["habits", "goal-cascade-count"],
   });
 
   queryClient.removeQueries({ queryKey: getHabitDetailQueryKey(userId, habitId) });
@@ -544,6 +583,14 @@ export function useUpsertHabitLogMutation() {
       await queryClient.invalidateQueries({
         queryKey: getHabitDetailQueryKey(user.id, variables.habitId),
       });
+
+      // 5) Goal Detail's bulk-range metrics — keyed on habitIds+dateRange,
+      //    so prefix-invalidate to cover every cached goal. Without this,
+      //    a retro-log from Habit Detail leaves the goal's chart, streak,
+      //    and consistency stale for up to staleTime.
+      await queryClient.invalidateQueries({
+        queryKey: ["habit-logs", "bulk-range"],
+      });
     },
     onError: (error, variables) => {
       logger.error("Retro log mutation failed", {
@@ -551,6 +598,149 @@ export function useUpsertHabitLogMutation() {
         habitId: variables.habitId,
         logDate: variables.logDate,
         status: variables.status,
+        userId: user?.id ?? null,
+      });
+    },
+  });
+}
+
+// ─── Goal archive / restore ───────────────────────────────────────────────────
+
+export function useArchivedGoalsQuery() {
+  const { user } = useAuthSession();
+
+  return useQuery({
+    enabled: Boolean(user?.id),
+    queryFn: () => listArchivedGoals(user!.id),
+    queryKey: getArchivedGoalsQueryKey(user?.id),
+  });
+}
+
+// Returns ALL habits under the phrase (every status). The screen uses this
+// to gate render + delete on "fully archived" — i.e. the phrase has at
+// least one archived habit AND zero active/backlog habits. Without that
+// gate, a direct-open or stale-stack mount on a mixed-state phrase would
+// show an archived-only view but the delete button (which hard-deletes
+// across every status) would still wipe the live habits.
+export function useArchivedGoalDetailQuery(identityPhrase: string | undefined) {
+  const { user } = useAuthSession();
+
+  return useQuery({
+    enabled: Boolean(user?.id && identityPhrase),
+    queryFn: () => listGoalHabits(user!.id, identityPhrase!),
+    queryKey: getArchivedGoalDetailQueryKey(user?.id, identityPhrase),
+  });
+}
+
+// Count of habits the archive cascade would actually touch — i.e. active
+// + backlog only, mirroring archiveGoal's WHERE clause. Used by the live
+// Goal Detail Archive card so the body copy + hide rule reflect what the
+// cascade truly moves (already-archived habits aren't part of the move).
+export function getGoalCascadeCountQueryKey(
+  userId: string | undefined,
+  identityPhrase: string | undefined,
+) {
+  return [
+    "habits",
+    "goal-cascade-count",
+    userId ?? "guest",
+    identityPhrase ?? "",
+  ] as const;
+}
+
+export function useGoalCascadeCountQuery(identityPhrase: string | undefined) {
+  const { user } = useAuthSession();
+
+  return useQuery({
+    enabled: Boolean(user?.id && identityPhrase),
+    queryFn: async () => {
+      const habits = await listGoalHabits(user!.id, identityPhrase!);
+      return habits.filter(
+        (h) => h.status === "active" || h.status === "backlog",
+      ).length;
+    },
+    queryKey: getGoalCascadeCountQueryKey(user?.id, identityPhrase),
+  });
+}
+
+export function useArchiveGoalMutation() {
+  const { user } = useAuthSession();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ identityPhrase }: { identityPhrase: string }) => {
+      if (!user?.id) {
+        throw new Error(
+          "You need an account session before archiving a goal.",
+        );
+      }
+      return archiveGoal(user.id, identityPhrase);
+    },
+    onSuccess: async (result, variables) => {
+      if (!user?.id) return;
+
+      // Surviving-row mutation: every cascaded habit is still in the DB
+      // (status='archived'), so we refresh its per-habit caches the same way
+      // we would after archive/edit. Same shape as useDeleteGoalMutation's
+      // loop but using the surface helper, not the list helper.
+      for (const habitId of result.cascadedHabitIds) {
+        await invalidateHabitSurfaceQueries(user.id, habitId, queryClient);
+      }
+
+      await queryClient.invalidateQueries({
+        queryKey: getGoalHabitCountQueryKey(user.id, variables.identityPhrase),
+      });
+      await queryClient.invalidateQueries({
+        queryKey: getArchivedGoalDetailQueryKey(
+          user.id,
+          variables.identityPhrase,
+        ),
+      });
+    },
+    onError: (error, variables) => {
+      logger.error("Goal archive mutation failed", {
+        error,
+        identityPhrase: variables.identityPhrase,
+        userId: user?.id ?? null,
+      });
+    },
+  });
+}
+
+export function useRestoreGoalMutation() {
+  const { user } = useAuthSession();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ identityPhrase }: { identityPhrase: string }) => {
+      if (!user?.id) {
+        throw new Error(
+          "You need an account session before restoring a goal.",
+        );
+      }
+      return restoreGoal(user.id, identityPhrase);
+    },
+    onSuccess: async (result, variables) => {
+      if (!user?.id) return;
+
+      for (const habitId of result.restoredHabitIds) {
+        await invalidateHabitSurfaceQueries(user.id, habitId, queryClient);
+      }
+
+      await queryClient.invalidateQueries({
+        queryKey: getGoalHabitCountQueryKey(user.id, variables.identityPhrase),
+      });
+      await queryClient.invalidateQueries({
+        queryKey: getArchivedGoalDetailQueryKey(
+          user.id,
+          variables.identityPhrase,
+        ),
+      });
+    },
+    onError: (error, variables) => {
+      logger.error("Goal restore mutation failed", {
+        error,
+        identityPhrase: variables.identityPhrase,
         userId: user?.id ?? null,
       });
     },

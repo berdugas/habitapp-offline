@@ -16,6 +16,8 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react-nativ
 import EditHabitScreen from "@/features/habits/screens/EditHabitScreen";
 
 const mockReplace = jest.fn();
+const mockBack = jest.fn();
+const mockCanGoBack = jest.fn(() => true);
 const mockUseLocalSearchParams = jest.fn();
 const mockUseOwnedHabitQuery = jest.fn();
 const mockUseUpdateHabitMutation = jest.fn();
@@ -28,6 +30,8 @@ const aiRewriteHelperCopy =
 jest.mock("expo-router", () => ({
   router: {
     replace: (...args: unknown[]) => mockReplace(...args),
+    back: (...args: unknown[]) => mockBack(...args),
+    canGoBack: () => mockCanGoBack(),
   },
   useLocalSearchParams: () => mockUseLocalSearchParams(),
 }));
@@ -73,6 +77,10 @@ const baseHabitData = {
 describe("EditHabitScreen", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    // clearAllMocks wipes implementations too — restore the default
+    // canGoBack=true so handleSave's back-stack hygiene goes through
+    // router.back() instead of the deep-link replace fallback.
+    mockCanGoBack.mockReturnValue(true);
     mockUseLocalSearchParams.mockReturnValue({
       habitId: "habit-1",
     });
@@ -308,7 +316,11 @@ describe("EditHabitScreen", () => {
       });
     });
 
-    expect(mockReplace).toHaveBeenCalledWith("/(app)/habits/habit-1");
+    // Save uses router.back() (not router.replace) when canGoBack=true so
+    // the EditHabit entry is popped instead of swapping into a duplicate
+    // HabitDetail entry — see EditHabitScreen-post-save-navigation tests.
+    expect(mockBack).toHaveBeenCalledTimes(1);
+    expect(mockReplace).not.toHaveBeenCalled();
   });
 
   it("preserves preferred_time_window from the original habit on save (P1 regression)", async () => {

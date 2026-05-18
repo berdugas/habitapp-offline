@@ -3,12 +3,14 @@ import type { SQLiteDatabase } from "expo-sqlite";
 import { getDb } from "@/lib/db/client";
 import { createTestDb } from "@/tests/setup/createTestDb";
 import {
+  archiveGoal,
   archiveHabit,
   createHabit,
   deleteGoal,
   deleteHabit,
   getHabit,
   listHabits,
+  restoreGoal,
   updateHabit,
   type CreateHabitInput,
 } from "@/lib/db/repositories/habits";
@@ -363,6 +365,209 @@ describe("habits repository", () => {
       for (const h of [active, automatic, archived, backlog]) {
         expect(await getHabit(h.id)).toBeNull();
       }
+    });
+  });
+
+  describe("archiveGoal", () => {
+    it("flips active and backlog habits to archived; leaves already-archived rows alone", async () => {
+      const active = await createHabit(
+        makeInput({ identity_phrase: "a writer", title: "A", status: "active" }),
+      );
+      const backlog = await createHabit(
+        makeInput({
+          identity_phrase: "a writer",
+          title: "B",
+          status: "backlog",
+        }),
+      );
+      const alreadyArchived = await createHabit(
+        makeInput({
+          identity_phrase: "a writer",
+          title: "C",
+          status: "archived",
+        }),
+      );
+      // The repo's createHabit does not stamp backlog_at automatically (the
+      // API layer does, at api.ts:128). Stamp it here to mirror real-world
+      // state and verify the archive cascade preserves the marker.
+      const originalBacklogAt = "2020-01-15T08:00:00.000Z";
+      await getDb().runAsync(
+        "UPDATE local_habits SET backlog_at = ? WHERE id = ?",
+        originalBacklogAt,
+        backlog.id,
+      );
+      // Force archived_at + bump updated_at so we can assert the cascade
+      // doesn't trample the original archive timestamp on prior-archived rows.
+      const originalArchivedAt = "2020-01-01T00:00:00.000Z";
+      await getDb().runAsync(
+        "UPDATE local_habits SET archived_at = ? WHERE id = ?",
+        originalArchivedAt,
+        alreadyArchived.id,
+      );
+
+      const result = await archiveGoal("user-1", "a writer");
+
+      expect(result.cascadedHabitCount).toBe(2);
+      expect((await getHabit(active.id))!.status).toBe("archived");
+      expect((await getHabit(backlog.id))!.status).toBe("archived");
+
+      // backlog_at preserved on the ex-backlog row — required as the marker
+      // restoreGoal uses to drive the ex-backlog branch.
+      expect((await getHabit(backlog.id))!.backlog_at).toBe(originalBacklogAt);
+
+      // Already-archived row untouched (original archived_at preserved).
+      const stillArchived = await getHabit(alreadyArchived.id);
+      expect(stillArchived!.status).toBe("archived");
+      expect(stillArchived!.archived_at).toBe(originalArchivedAt);
+    });
+
+    it("returns zero count when nothing in cascade scope exists", async () => {
+      await createHabit(
+        makeInput({
+          identity_phrase: "a writer",
+          status: "archived",
+        }),
+      );
+      const result = await archiveGoal("user-1", "a writer");
+      expect(result.cascadedHabitCount).toBe(0);
+    });
+
+    it("scopes by userId — does not touch another user's habits with the same phrase", async () => {
+      const mine = await createHabit(
+        makeInput({ user_id: "user-1", identity_phrase: "a runner" }),
+      );
+      const theirs = await createHabit(
+        makeInput({ user_id: "user-2", identity_phrase: "a runner" }),
+      );
+
+      await archiveGoal("user-1", "a runner");
+
+      expect((await getHabit(mine.id))!.status).toBe("archived");
+      expect((await getHabit(theirs.id))!.status).toBe("active");
+    });
+  });
+
+  describe("restoreGoal", () => {
+    it("restores ex-active habits with start_date preserved", async () => {
+      const habit = await createHabit(
+        makeInput({
+          identity_phrase: "a writer",
+          status: "active",
+          start_date: "2020-01-15",
+        }),
+      );
+      await archiveGoal("user-1", "a writer");
+
+      const result = await restoreGoal("user-1", "a writer", "2030-12-31");
+
+      expect(result.restoredExActive).toHaveLength(1);
+      expect(result.restoredExBacklog).toHaveLength(0);
+      const restored = await getHabit(habit.id);
+      expect(restored!.status).toBe("active");
+      expect(restored!.archived_at).toBeNull();
+      // start_date preserved for ex-active rows — streak/log accounting
+      // continues from the original creation date.
+      expect(restored!.start_date).toBe("2020-01-15");
+    });
+
+    it("restores ex-backlog habits with start_date=today and backlog_at cleared", async () => {
+      const habit = await createHabit(
+        makeInput({
+          identity_phrase: "a writer",
+          status: "backlog",
+          start_date: "2020-01-15",
+        }),
+      );
+      // backlog_at gets stamped by the API layer at create-time, but the
+      // repo test directly mirrors what would be in-place at archive time:
+      await getDb().runAsync(
+        "UPDATE local_habits SET backlog_at = ? WHERE id = ?",
+        "2020-01-15T08:00:00.000Z",
+        habit.id,
+      );
+      await archiveGoal("user-1", "a writer");
+
+      const result = await restoreGoal("user-1", "a writer", "2030-12-31");
+
+      expect(result.restoredExBacklog).toHaveLength(1);
+      expect(result.restoredExActive).toHaveLength(0);
+      const restored = await getHabit(habit.id);
+      expect(restored!.status).toBe("active");
+      expect(restored!.archived_at).toBeNull();
+      expect(restored!.backlog_at).toBeNull();
+      // start_date reset matches activateBacklogHabitRow semantics —
+      // without it, a previously-backlog habit revives looking like an old
+      // active habit and fabricates "missed" days.
+      expect(restored!.start_date).toBe("2030-12-31");
+    });
+
+    it("splits a mixed cascade into ex-active and ex-backlog branches correctly", async () => {
+      const activeHabit = await createHabit(
+        makeInput({
+          identity_phrase: "a writer",
+          title: "A",
+          status: "active",
+          start_date: "2020-01-15",
+        }),
+      );
+      const backlogHabit = await createHabit(
+        makeInput({
+          identity_phrase: "a writer",
+          title: "B",
+          status: "backlog",
+        }),
+      );
+      await getDb().runAsync(
+        "UPDATE local_habits SET backlog_at = ? WHERE id = ?",
+        "2020-01-15T08:00:00.000Z",
+        backlogHabit.id,
+      );
+      await archiveGoal("user-1", "a writer");
+
+      const result = await restoreGoal("user-1", "a writer", "2030-12-31");
+
+      expect(result.restoredExActive.map((h) => h.id)).toEqual([activeHabit.id]);
+      expect(result.restoredExBacklog.map((h) => h.id)).toEqual([
+        backlogHabit.id,
+      ]);
+      // Returned rows are post-update — caller relies on full row data
+      // (notably active_days) to call materializePendingReminder.
+      const exBacklog = result.restoredExBacklog[0];
+      expect(exBacklog.status).toBe("active");
+      expect(exBacklog.backlog_at).toBeNull();
+      expect(exBacklog.start_date).toBe("2030-12-31");
+    });
+
+    it("leaves non-archived rows untouched", async () => {
+      const activeHabit = await createHabit(
+        makeInput({ identity_phrase: "a writer", status: "active" }),
+      );
+      await archiveGoal("user-1", "a writer");
+
+      // Add a brand-new active habit AFTER the archive — restore must not
+      // disturb it.
+      const newActive = await createHabit(
+        makeInput({ identity_phrase: "a writer", status: "active", title: "New" }),
+      );
+
+      const result = await restoreGoal("user-1", "a writer", "2030-12-31");
+
+      expect(result.restoredExActive.map((h) => h.id)).toEqual([activeHabit.id]);
+      // The newly-added active habit is in the returned set only if we
+      // accidentally widened the WHERE clause. We didn't — the captured-ID
+      // pattern keeps the cascade addressable to only the rows that were
+      // archived in the first place.
+      expect((await getHabit(newActive.id))!.status).toBe("active");
+    });
+
+    it("returns empty arrays when nothing matches", async () => {
+      const result = await restoreGoal(
+        "user-1",
+        "nonexistent phrase",
+        "2030-12-31",
+      );
+      expect(result.restoredExActive).toEqual([]);
+      expect(result.restoredExBacklog).toEqual([]);
     });
   });
 

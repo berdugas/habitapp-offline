@@ -5,6 +5,7 @@ import BacklogScreen from "@/features/habits/screens/BacklogScreen";
 
 const mockUseBacklogHabitsQuery = jest.fn();
 const mockUseInactiveHabitsQuery = jest.fn();
+const mockUseArchivedGoalsQuery = jest.fn();
 const mockActivateMutate = jest.fn();
 const mockDeleteMutate = jest.fn();
 const mockAssertCanCreateActiveHabit = jest.fn();
@@ -24,6 +25,7 @@ const mockDeleteState = { isPending: false, isError: false };
 jest.mock("@/features/habits/hooks", () => ({
   useBacklogHabitsQuery: () => mockUseBacklogHabitsQuery(),
   useInactiveHabitsQuery: () => mockUseInactiveHabitsQuery(),
+  useArchivedGoalsQuery: () => mockUseArchivedGoalsQuery(),
   useActivateBacklogHabitMutation: () => ({
     mutate: (vars: unknown) => mockActivateMutate(vars),
     isPending: mockActivateState.isPending,
@@ -109,18 +111,34 @@ describe("BacklogScreen", () => {
     mockDeleteState.isError = false;
     mockUseAuthSession.mockReturnValue({ user: { id: "user-1" } });
     mockUseQuery.mockReturnValue({ data: [], isSuccess: true });
+    // Default: no archived goals. Tests that exercise the new section
+    // override this explicitly.
+    mockUseArchivedGoalsQuery.mockReturnValue({
+      data: [],
+      isLoading: false,
+      error: null,
+    });
     // Default: banner already dismissed in a prior session. Tests that
     // exercise the first-run path override this explicitly.
     mockIsArchiveIntroSeen.mockResolvedValue(true);
     mockMarkArchiveIntroSeen.mockResolvedValue(true);
   });
 
-  it("renders the empty state when both lists are empty", () => {
+  it("renders the empty state when all three sections are empty", () => {
     mockUseBacklogHabitsQuery.mockReturnValue({ data: [], isLoading: false, error: null });
     mockUseInactiveHabitsQuery.mockReturnValue({ data: [], isLoading: false, error: null });
     render(<BacklogScreen />);
 
-    expect(screen.getByText("No habit ideas yet")).toBeTruthy();
+    expect(screen.getByText("Nothing in your archive yet")).toBeTruthy();
+  });
+
+  it("renders the screen title as 'Archive' (not 'Habit Ideas')", () => {
+    mockUseBacklogHabitsQuery.mockReturnValue({ data: [], isLoading: false, error: null });
+    mockUseInactiveHabitsQuery.mockReturnValue({ data: [], isLoading: false, error: null });
+    render(<BacklogScreen />);
+
+    expect(screen.getByText("Archive")).toBeTruthy();
+    expect(screen.queryByText("Habit Ideas")).toBeNull();
   });
 
   it("renders backlog habits with title, identity phrase, formula, saved date", () => {
@@ -231,7 +249,7 @@ describe("BacklogScreen", () => {
     });
   });
 
-  it("renders an Archived section below the backlog section when archived habits exist", () => {
+  it("renders an Archived habits section with its own eyebrow when archived habits exist", () => {
     mockUseBacklogHabitsQuery.mockReturnValue({
       data: [makeBacklogHabit()],
       isLoading: false,
@@ -244,11 +262,11 @@ describe("BacklogScreen", () => {
     });
     render(<BacklogScreen />);
 
-    expect(screen.getByText("ARCHIVED")).toBeTruthy();
+    expect(screen.getByText("ARCHIVED HABITS")).toBeTruthy();
     expect(screen.getByText("Old habit")).toBeTruthy();
   });
 
-  it("does not render the Archived section when no archived habits exist", () => {
+  it("does not render the Archived habits section when no archived habits exist", () => {
     mockUseBacklogHabitsQuery.mockReturnValue({
       data: [makeBacklogHabit()],
       isLoading: false,
@@ -256,12 +274,12 @@ describe("BacklogScreen", () => {
     });
     mockUseInactiveHabitsQuery.mockReturnValue({ data: [], isLoading: false, error: null });
     render(<BacklogScreen />);
-    expect(screen.queryByText("ARCHIVED")).toBeNull();
+    expect(screen.queryByText("ARCHIVED HABITS")).toBeNull();
   });
 
-  it("renders archived cards WITHOUT the ARCHIVED eyebrow when there are no backlog habits above", () => {
-    // Per S18-04 spec: the eyebrow is a divider between sections. If there's
-    // nothing above it, the eyebrow is meaningless and must be omitted.
+  it("renders the ARCHIVED HABITS eyebrow even when it's the only section (consistency rule)", () => {
+    // Per the design: every rendered section gets its own eyebrow, regardless
+    // of what's above. Avoids the prior "ghost eyebrow" toggling behavior.
     mockUseBacklogHabitsQuery.mockReturnValue({ data: [], isLoading: false, error: null });
     mockUseInactiveHabitsQuery.mockReturnValue({
       data: [makeArchivedHabit()],
@@ -270,10 +288,121 @@ describe("BacklogScreen", () => {
     });
     render(<BacklogScreen />);
 
-    expect(screen.queryByText("ARCHIVED")).toBeNull();
+    expect(screen.getByText("ARCHIVED HABITS")).toBeTruthy();
     expect(screen.getByText("Old habit")).toBeTruthy();
     // Empty state must NOT also render — archived habits count as content.
-    expect(screen.queryByText("No habit ideas yet")).toBeNull();
+    expect(screen.queryByText("Nothing in your archive yet")).toBeNull();
+  });
+
+  it("renders the SAVED FOR LATER section with its own eyebrow when backlog habits exist", () => {
+    mockUseBacklogHabitsQuery.mockReturnValue({
+      data: [makeBacklogHabit()],
+      isLoading: false,
+      error: null,
+    });
+    mockUseInactiveHabitsQuery.mockReturnValue({ data: [], isLoading: false, error: null });
+    render(<BacklogScreen />);
+
+    expect(screen.getByText("SAVED FOR LATER")).toBeTruthy();
+  });
+
+  describe("Archived goals section", () => {
+    function makeArchivedGoal(
+      overrides: Partial<{
+        identityPhrase: string;
+        habitCount: number;
+        archivedAt: string;
+      }> = {},
+    ) {
+      return {
+        identityPhrase: overrides.identityPhrase ?? "a writer",
+        habitCount: overrides.habitCount ?? 2,
+        archivedAt: overrides.archivedAt ?? "2026-05-01T12:00:00.000Z",
+      };
+    }
+
+    it("renders the ARCHIVED GOALS section above other sections", () => {
+      mockUseArchivedGoalsQuery.mockReturnValue({
+        data: [makeArchivedGoal()],
+        isLoading: false,
+        error: null,
+      });
+      mockUseBacklogHabitsQuery.mockReturnValue({ data: [], isLoading: false, error: null });
+      mockUseInactiveHabitsQuery.mockReturnValue({ data: [], isLoading: false, error: null });
+      render(<BacklogScreen />);
+
+      expect(screen.getByText("ARCHIVED GOALS")).toBeTruthy();
+      expect(screen.getByText("Become a writer")).toBeTruthy();
+    });
+
+    it("omits the section when there are no archived goals", () => {
+      mockUseArchivedGoalsQuery.mockReturnValue({ data: [], isLoading: false, error: null });
+      mockUseBacklogHabitsQuery.mockReturnValue({ data: [], isLoading: false, error: null });
+      mockUseInactiveHabitsQuery.mockReturnValue({
+        data: [makeArchivedHabit()],
+        isLoading: false,
+        error: null,
+      });
+      render(<BacklogScreen />);
+
+      expect(screen.queryByText("ARCHIVED GOALS")).toBeNull();
+    });
+
+    it("dedups: habits whose identity_phrase is fully archived don't double-render in ARCHIVED HABITS", () => {
+      // The archived goal rolls up habits A and B. Habit A also appears in
+      // the flat archived-habits list (it shares the identity_phrase with the
+      // archived goal). The screen must drop A from the flat list — otherwise
+      // it'd render once under the goal row AND once in the habits section.
+      mockUseArchivedGoalsQuery.mockReturnValue({
+        data: [makeArchivedGoal({ identityPhrase: "a writer", habitCount: 2 })],
+        isLoading: false,
+        error: null,
+      });
+      const habitInArchivedGoal = makeArchivedHabit({
+        id: "in-goal",
+        title: "Habit rolled into goal",
+      });
+      habitInArchivedGoal.identity_phrase = "a writer";
+      const habitInActiveGoal = makeArchivedHabit({
+        id: "in-active-goal",
+        title: "Orphan archived habit",
+      });
+      habitInActiveGoal.identity_phrase = "a runner"; // goal still active
+
+      mockUseBacklogHabitsQuery.mockReturnValue({ data: [], isLoading: false, error: null });
+      mockUseInactiveHabitsQuery.mockReturnValue({
+        data: [habitInArchivedGoal, habitInActiveGoal],
+        isLoading: false,
+        error: null,
+      });
+      render(<BacklogScreen />);
+
+      // The orphan stays in the flat list.
+      expect(screen.getByText("Orphan archived habit")).toBeTruthy();
+      // The goal-rolled-up habit does NOT render its own card.
+      expect(screen.queryByText("Habit rolled into goal")).toBeNull();
+    });
+
+    it("dedup leaves goalless archived habits (identity_phrase null) in the flat list", () => {
+      mockUseArchivedGoalsQuery.mockReturnValue({
+        data: [makeArchivedGoal({ identityPhrase: "a writer" })],
+        isLoading: false,
+        error: null,
+      });
+      const goalless = {
+        ...makeArchivedHabit({ id: "goalless", title: "No goal" }),
+        identity_phrase: null as string | null,
+      };
+      mockUseBacklogHabitsQuery.mockReturnValue({ data: [], isLoading: false, error: null });
+      mockUseInactiveHabitsQuery.mockReturnValue({
+        data: [goalless],
+        isLoading: false,
+        error: null,
+      });
+      render(<BacklogScreen />);
+
+      expect(screen.getByText("No goal")).toBeTruthy();
+    });
   });
 
   describe("first-run archive intro banner", () => {

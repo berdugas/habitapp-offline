@@ -116,6 +116,14 @@ export function getDeleteGoalErrorMessage() {
   return "We couldn't delete this goal right now. Try again.";
 }
 
+export function getArchiveGoalErrorMessage() {
+  return "We couldn't archive this goal right now. Try again.";
+}
+
+export function getRestoreGoalErrorMessage() {
+  return "We couldn't restore this goal right now. Try again.";
+}
+
 export function getGenerateHabitRewriteErrorMessage() {
   return "We couldn't generate a rewrite right now. You can still edit this habit manually.";
 }

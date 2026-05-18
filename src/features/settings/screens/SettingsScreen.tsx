@@ -82,7 +82,7 @@ export default function SettingsScreen() {
           onPress={() => router.push("/(app)/habits/backlog")}
           style={styles.row}
         >
-          <Text style={styles.rowLabel}>Manage habits</Text>
+          <Text style={styles.rowLabel}>Archive</Text>
           <ChevronRight color={colors.textFaint} size={18} strokeWidth={1.75} />
         </Pressable>
       </ZenCard>

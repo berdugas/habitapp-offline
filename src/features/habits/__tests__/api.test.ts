@@ -11,11 +11,14 @@ jest.mock("@/features/reminders/notifications", () => ({
 
 import {
   activateBacklogHabit,
+  archiveGoal,
   archiveHabit,
   createHabit,
   deleteGoal,
   deleteHabit,
+  listArchivedGoals,
   reactivateHabit,
+  restoreGoal,
 } from "@/features/habits/api";
 import { closeDb, getDb, initDb } from "@/lib/db/client";
 import * as habitsRepo from "@/lib/db/repositories/habits";
@@ -385,6 +388,307 @@ describe("habits/api — new mutations", () => {
         deletedHabitIds: [habit.id],
       });
       expect(await getHabit(habit.id)).toBeNull();
+    });
+  });
+
+  describe("archiveGoal", () => {
+    it("returns zero counts and skips cancelReminder when nothing to cascade", async () => {
+      const result = await archiveGoal("user-1", "no such phrase");
+      expect(result.cascadedHabitCount).toBe(0);
+      expect(result.cascadedHabitIds).toEqual([]);
+      expect(result.cancelledActiveHabitIds).toEqual([]);
+      expect(result.preservedBacklogHabitIds).toEqual([]);
+      expect(mockCancelReminder).not.toHaveBeenCalled();
+    });
+
+    it("cancels reminders only for active habits — backlog reminder intent is preserved", async () => {
+      const activeHabit = await seedActiveHabit({ identity_phrase: "a writer" });
+      // Backlog habit goes through the API so backlog_at is stamped per the
+      // real lifecycle. Reminder intent is what materializePendingReminder
+      // would need on later activation — it must survive the archive cascade.
+      const backlogHabit = await createHabit("user-1", {
+        title: "Read",
+        identityPhrase: "a writer",
+        cue: "after dinner",
+        tinyAction: "read 1 page",
+        minimumViableAction: "",
+        preferredTimeWindow: "",
+        icon: "",
+        activeDays: [1, 2, 3, 4, 5, 6, 7],
+        habitState: "active",
+        status: "backlog",
+      });
+      // Already-archived habit must not have its reminder touched.
+      const archivedHabit = await habitsRepo.createHabit({
+        user_id: "user-1",
+        title: "Old archive",
+        identity_phrase: "a writer",
+        cue: "x",
+        tiny_action: "y",
+        minimum_viable_action: null,
+        preferred_time_window: null,
+        start_date: "2026-04-01",
+        status: "archived",
+      });
+
+      const result = await archiveGoal("user-1", "a writer");
+
+      expect(result.cascadedHabitCount).toBe(2);
+      expect(result.cascadedHabitIds.sort()).toEqual(
+        [activeHabit.id, backlogHabit.id].sort(),
+      );
+      expect(result.cancelledActiveHabitIds).toEqual([activeHabit.id]);
+      expect(result.preservedBacklogHabitIds).toEqual([backlogHabit.id]);
+
+      // cancelReminder fired exactly once — for the active habit, NOT the
+      // backlog habit (which would null its reminder_time intent) and NOT
+      // the already-archived row.
+      expect(mockCancelReminder).toHaveBeenCalledTimes(1);
+      expect(mockCancelReminder).toHaveBeenCalledWith(activeHabit.id);
+      expect(mockCancelReminder).not.toHaveBeenCalledWith(backlogHabit.id);
+      expect(mockCancelReminder).not.toHaveBeenCalledWith(archivedHabit.id);
+
+      // Rows landed in archived state in the DB.
+      expect((await getHabit(activeHabit.id))!.status).toBe("archived");
+      expect((await getHabit(backlogHabit.id))!.status).toBe("archived");
+      // The ex-backlog row still carries backlog_at as the restore marker.
+      expect((await getHabit(backlogHabit.id))!.backlog_at).not.toBeNull();
+    });
+
+    it("does not throw when a cancelReminder rejects (best-effort)", async () => {
+      mockCancelReminder.mockRejectedValueOnce(new Error("permission denied"));
+      const habit = await seedActiveHabit({ identity_phrase: "a writer" });
+      const result = await archiveGoal("user-1", "a writer");
+      expect(result.cascadedHabitCount).toBe(1);
+      expect(result.cancelledActiveHabitIds).toEqual([habit.id]);
+    });
+  });
+
+  describe("restoreGoal", () => {
+    it("returns zero counts when nothing to restore", async () => {
+      const result = await restoreGoal("user-1", "no such phrase");
+      expect(result.restoredExActiveCount).toBe(0);
+      expect(result.restoredExBacklogCount).toBe(0);
+      expect(result.restoredHabitIds).toEqual([]);
+      expect(mockMaterializePendingReminder).not.toHaveBeenCalled();
+    });
+
+    it("rematerializes reminders only for ex-backlog habits", async () => {
+      const activeHabit = await seedActiveHabit({ identity_phrase: "a writer" });
+      const backlogHabit = await createHabit("user-1", {
+        title: "Read",
+        identityPhrase: "a writer",
+        cue: "after dinner",
+        tinyAction: "read 1 page",
+        minimumViableAction: "",
+        preferredTimeWindow: "",
+        icon: "",
+        activeDays: [1, 2, 3, 4, 5, 6, 7],
+        habitState: "active",
+        status: "backlog",
+      });
+      await archiveGoal("user-1", "a writer");
+      mockCancelReminder.mockClear();
+
+      const result = await restoreGoal("user-1", "a writer");
+
+      expect(result.restoredExActiveCount).toBe(1);
+      expect(result.restoredExBacklogCount).toBe(1);
+      expect(result.restoredHabitIds.sort()).toEqual(
+        [activeHabit.id, backlogHabit.id].sort(),
+      );
+
+      // Mirrors activateBacklogHabit: rematerialize the ex-backlog habit's
+      // saved reminder intent. Ex-active stays not-rearmed (matches
+      // reactivateHabit semantics).
+      expect(mockMaterializePendingReminder).toHaveBeenCalledTimes(1);
+      expect(mockMaterializePendingReminder).toHaveBeenCalledWith(
+        backlogHabit.id,
+        "user-1",
+        expect.any(Array),
+      );
+      expect(mockMaterializePendingReminder).not.toHaveBeenCalledWith(
+        activeHabit.id,
+        expect.anything(),
+        expect.anything(),
+      );
+
+      // Rows are restored to active and ex-backlog's backlog_at is cleared.
+      const restoredActive = await getHabit(activeHabit.id);
+      const restoredBacklog = await getHabit(backlogHabit.id);
+      expect(restoredActive!.status).toBe("active");
+      expect(restoredBacklog!.status).toBe("active");
+      expect(restoredBacklog!.backlog_at).toBeNull();
+    });
+
+    it("does not throw when materializePendingReminder fails (best-effort)", async () => {
+      mockMaterializePendingReminder.mockRejectedValueOnce(
+        new Error("permission denied"),
+      );
+      await createHabit("user-1", {
+        title: "Read",
+        identityPhrase: "a writer",
+        cue: "after dinner",
+        tinyAction: "read 1 page",
+        minimumViableAction: "",
+        preferredTimeWindow: "",
+        icon: "",
+        activeDays: [1, 2, 3, 4, 5, 6, 7],
+        habitState: "active",
+        status: "backlog",
+      });
+      await archiveGoal("user-1", "a writer");
+
+      await expect(restoreGoal("user-1", "a writer")).resolves.toMatchObject({
+        restoredExBacklogCount: 1,
+      });
+    });
+  });
+
+  describe("listArchivedGoals", () => {
+    it("returns only goals where every habit is archived (no active, no backlog)", async () => {
+      // Fully-archived: 2 habits all archived under "a writer"
+      await habitsRepo.createHabit({
+        user_id: "user-1",
+        title: "A",
+        identity_phrase: "a writer",
+        cue: "x",
+        tiny_action: "y",
+        minimum_viable_action: null,
+        preferred_time_window: null,
+        start_date: "2026-04-01",
+        status: "archived",
+      });
+      await habitsRepo.createHabit({
+        user_id: "user-1",
+        title: "B",
+        identity_phrase: "a writer",
+        cue: "x",
+        tiny_action: "y",
+        minimum_viable_action: null,
+        preferred_time_window: null,
+        start_date: "2026-04-01",
+        status: "archived",
+      });
+      // Mixed (1 active, 1 archived) — should NOT show up as an archived goal.
+      await seedActiveHabit({ identity_phrase: "a runner" });
+      await habitsRepo.createHabit({
+        user_id: "user-1",
+        title: "Old run",
+        identity_phrase: "a runner",
+        cue: "x",
+        tiny_action: "y",
+        minimum_viable_action: null,
+        preferred_time_window: null,
+        start_date: "2026-04-01",
+        status: "archived",
+      });
+
+      const result = await listArchivedGoals("user-1");
+
+      expect(result).toHaveLength(1);
+      expect(result[0].identityPhrase).toBe("a writer");
+      expect(result[0].habitCount).toBe(2);
+    });
+
+    it("excludes goalless archived habits — empty/null identity_phrase never rolls up", async () => {
+      await habitsRepo.createHabit({
+        user_id: "user-1",
+        title: "Goalless",
+        identity_phrase: null,
+        cue: "x",
+        tiny_action: "y",
+        minimum_viable_action: null,
+        preferred_time_window: null,
+        start_date: "2026-04-01",
+        status: "archived",
+      });
+      const result = await listArchivedGoals("user-1");
+      expect(result).toEqual([]);
+    });
+
+    it("scopes by userId", async () => {
+      await habitsRepo.createHabit({
+        user_id: "user-2",
+        title: "Theirs",
+        identity_phrase: "a writer",
+        cue: "x",
+        tiny_action: "y",
+        minimum_viable_action: null,
+        preferred_time_window: null,
+        start_date: "2026-04-01",
+        status: "archived",
+      });
+
+      expect(await listArchivedGoals("user-1")).toEqual([]);
+    });
+
+    it("excludes goals where any habit is backlog (goal isn't fully archived)", async () => {
+      await habitsRepo.createHabit({
+        user_id: "user-1",
+        title: "Archived",
+        identity_phrase: "a writer",
+        cue: "x",
+        tiny_action: "y",
+        minimum_viable_action: null,
+        preferred_time_window: null,
+        start_date: "2026-04-01",
+        status: "archived",
+      });
+      await habitsRepo.createHabit({
+        user_id: "user-1",
+        title: "Backlog",
+        identity_phrase: "a writer",
+        cue: "x",
+        tiny_action: "y",
+        minimum_viable_action: null,
+        preferred_time_window: null,
+        start_date: "2026-04-01",
+        status: "backlog",
+      });
+      expect(await listArchivedGoals("user-1")).toEqual([]);
+    });
+
+    it("orders by archivedAt descending (most recent first)", async () => {
+      // Insert in non-recent order so we test the sort, not the insert order.
+      const oldH = await habitsRepo.createHabit({
+        user_id: "user-1",
+        title: "Older",
+        identity_phrase: "older goal",
+        cue: "x",
+        tiny_action: "y",
+        minimum_viable_action: null,
+        preferred_time_window: null,
+        start_date: "2026-04-01",
+        status: "archived",
+      });
+      const newH = await habitsRepo.createHabit({
+        user_id: "user-1",
+        title: "Newer",
+        identity_phrase: "newer goal",
+        cue: "x",
+        tiny_action: "y",
+        minimum_viable_action: null,
+        preferred_time_window: null,
+        start_date: "2026-04-01",
+        status: "archived",
+      });
+      await getDb().runAsync(
+        "UPDATE local_habits SET archived_at = ? WHERE id = ?",
+        "2020-01-01T00:00:00.000Z",
+        oldH.id,
+      );
+      await getDb().runAsync(
+        "UPDATE local_habits SET archived_at = ? WHERE id = ?",
+        "2026-01-01T00:00:00.000Z",
+        newH.id,
+      );
+
+      const result = await listArchivedGoals("user-1");
+      expect(result.map((g) => g.identityPhrase)).toEqual([
+        "newer goal",
+        "older goal",
+      ]);
     });
   });
 });

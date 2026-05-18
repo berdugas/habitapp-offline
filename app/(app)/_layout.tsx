@@ -33,6 +33,10 @@ export default function ProtectedLayout() {
         options={{ headerShown: false }}
       />
       <Stack.Screen
+        name="goals/archived/[identityPhrase]"
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
         name="reviews/[habitId]"
         options={{ title: "Weekly Review" }}
       />

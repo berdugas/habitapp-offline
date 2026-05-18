@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { Alert, ScrollView, StyleSheet, Text, View, Pressable } from "react-native";
 import { ChevronLeft } from "lucide-react-native";
 import { router, useLocalSearchParams } from "expo-router";
@@ -8,10 +9,9 @@ import { ReadOnlyBanner } from "@/components/ReadOnlyBanner";
 import { SecondaryButton } from "@/components/buttons/SecondaryButton";
 import { TertiaryButton } from "@/components/buttons/TertiaryButton";
 import { ZenCard } from "@/components/cards/ZenCard";
-import { DangerZone } from "@/components/sections/DangerZone";
 import { ErrorState } from "@/components/feedback/ErrorState";
 import { LoadingState } from "@/components/feedback/LoadingState";
-import { getDeleteGoalErrorMessage } from "@/utils/userFacingErrors";
+import { getArchiveGoalErrorMessage } from "@/utils/userFacingErrors";
 import { Eyebrow } from "@/components/text/Eyebrow";
 import { LucideIcon } from "@/components/LucideIconPicker";
 import { ConsistencyDonut } from "@/features/today/components/ConsistencyDonut";
@@ -20,7 +20,8 @@ import { WeeklyConsistencyChart } from "@/features/today/components/WeeklyConsis
 import { getGoalNarrative } from "@/features/today/goalNarrativeCopy";
 import { PrimaryButton } from "@/components/buttons/PrimaryButton";
 import {
-  useDeleteGoalMutation,
+  useArchiveGoalMutation,
+  useGoalCascadeCountQuery,
   useGoalHabitCountQuery,
 } from "@/features/habits/hooks";
 import { useGoalReviewStatusQuery } from "@/features/reviews/hooks";
@@ -56,41 +57,106 @@ export default function GoalDetailScreen() {
 
   const goalReviewStatus = useGoalReviewStatusQuery(identityPhrase);
 
-  // All-status count for delete-goal scope. useGoalDetail.habits filters out
-  // archived/backlog rows, but the repo's deleteGoal wipes EVERY habit sharing
-  // this identity_phrase. The dialog and hide rule must reflect reality.
+  // Cascade-scope count (active + backlog only) for archive-goal copy.
+  // archiveGoal's WHERE clause is `status IN ('active','backlog')`, so an
+  // already-archived habit under the same identity_phrase does NOT move.
+  // useGoalHabitCountQuery returns the all-status total — using it here
+  // for body copy would overstate the move (e.g. "4 habits will be moved"
+  // when 1 of 4 is already archived). The cascade count keeps copy and
+  // hide rule aligned with what archiveGoal actually does. Both counts
+  // also drive the stale-route redirect below.
+  const goalCascadeCountQuery = useGoalCascadeCountQuery(identityPhrase);
   const goalHabitCountQuery = useGoalHabitCountQuery(identityPhrase);
-  const totalHabitCount = goalHabitCountQuery.data ?? 0;
-  const deleteGoalMutation = useDeleteGoalMutation();
+  const cascadeCount = goalCascadeCountQuery.data ?? 0;
+  const archiveGoalMutation = useArchiveGoalMutation();
 
-  function confirmDeleteGoal() {
+  // Submit-lock for the archive flow. Set true synchronously before
+  // mutateAsync runs so the post-archive query invalidation (which
+  // refetches habits → empty, since all the goal's active rows just
+  // flipped to archived) does not trigger the stale-route redirect and
+  // race the intentional router.replace below.
+  const isExitingRef = useRef(false);
+
+  // Stale-route guard, symmetric with ArchivedGoalDetailScreen. A "live
+  // goal" requires ≥1 active habit per the plan's contract; phrases that
+  // don't qualify must redirect to where the data actually lives:
+  //   - totalCount === 0 → no such goal → Today
+  //   - cascadeCount === 0 && totalCount > 0 → fully archived → archived detail
+  //   - else (backlog-only / mixed-no-active) → Today
+  //     ("neither surface" per the plan; Today is the safer landing)
+  const hasActiveHabits = habits.length > 0;
+  const totalCount = goalHabitCountQuery.data ?? 0;
+  const cascadeSettled =
+    !goalCascadeCountQuery.isLoading && goalCascadeCountQuery.data !== undefined;
+  const totalSettled =
+    !goalHabitCountQuery.isLoading && goalHabitCountQuery.data !== undefined;
+  const shouldRedirect =
+    !isExitingRef.current &&
+    !isLoading &&
+    !error &&
+    !hasActiveHabits &&
+    cascadeSettled &&
+    totalSettled;
+
+  useEffect(() => {
+    if (!shouldRedirect || !identityPhrase) return;
+    if (totalCount === 0) {
+      router.replace("/(app)/(tabs)/today");
+      return;
+    }
+    if (cascadeCount === 0) {
+      // Fully archived — route to the archived-goal surface, not Today.
+      // Better UX than dumping the user on Today when their archived
+      // goal still exists.
+      router.replace({
+        pathname: "/(app)/goals/archived/[identityPhrase]",
+        params: { identityPhrase: encodeURIComponent(identityPhrase) },
+      });
+      return;
+    }
+    // Backlog-only or mixed-no-active: plan §5 puts this in "neither
+    // surface". Today is the safe fallback.
+    router.replace("/(app)/(tabs)/today");
+  }, [shouldRedirect, identityPhrase, totalCount, cascadeCount]);
+
+  function confirmArchiveGoal() {
     Alert.alert(
-      "Delete this goal?",
-      `"Become ${identityPhrase ?? ""}" and all ${totalHabitCount} habit${
-        totalHabitCount !== 1 ? "s" : ""
-      } under it will be permanently deleted. This cannot be undone.`,
+      "Archive this goal?",
+      `${cascadeCount} habit${
+        cascadeCount !== 1 ? "s" : ""
+      } will be moved to your archive. You can restore them anytime from Settings → Archive.`,
       [
         { text: "Cancel", style: "cancel" },
         {
-          text: "Delete",
-          style: "destructive",
-          onPress: () => void handleDeleteGoal(),
+          text: "Archive",
+          onPress: () => void handleArchiveGoal(),
         },
       ],
     );
   }
 
-  async function handleDeleteGoal() {
-    if (!identityPhrase || deleteGoalMutation.isPending) return;
+  async function handleArchiveGoal() {
+    if (!identityPhrase || archiveGoalMutation.isPending) return;
+    isExitingRef.current = true;
     try {
-      await deleteGoalMutation.mutateAsync({ identityPhrase });
+      await archiveGoalMutation.mutateAsync({ identityPhrase });
       router.replace("/(app)/(tabs)/today");
     } catch {
-      // Surfaced via mutation state; nothing to do here.
+      // Re-arm the stale-route guard so the user can retry; failure
+      // is surfaced via mutation state below.
+      isExitingRef.current = false;
     }
   }
 
   if (isLoading) {
+    return <LoadingState message="Loading goal..." />;
+  }
+
+  // Suppress the empty-active-habits shell during the redirect window so
+  // the user never sees a "No habits" card or a misleading Archive CTA on
+  // a stale/misrouted live route. Same suppression pattern as
+  // ArchivedGoalDetailScreen.
+  if (shouldRedirect) {
     return <LoadingState message="Loading goal..." />;
   }
 
@@ -204,7 +270,10 @@ export default function GoalDetailScreen() {
         </ZenCard>
       ) : null}
 
-      {/* Habits in this goal */}
+      {/* Habits in this goal. The empty-state branch is unreachable: the
+          shouldRedirect short-circuit above catches every habits.length===0
+          case (no goal, fully-archived, backlog-only, mixed-no-active) and
+          renders LoadingState while routing the user to the right surface. */}
       {habits.length > 0 ? (
         <View>
           <Eyebrow label="Habits in this goal" />
@@ -250,26 +319,36 @@ export default function GoalDetailScreen() {
             ))}
           </ZenCard>
         </View>
-      ) : (
-        <ZenCard>
-          <Text style={styles.emptyText}>No habits found for this goal.</Text>
-        </ZenCard>
-      )}
+      ) : null}
 
-      {/* Danger zone — permanent delete (all-status scope) */}
-      {!isReadOnly && totalHabitCount > 0 ? (
-        <View style={styles.dangerZoneContainer}>
-          <DangerZone
-            title="Delete goal"
-            body={`Permanently removes this goal and all ${totalHabitCount} habit${
-              totalHabitCount !== 1 ? "s" : ""
-            } under it — including logs, reviews, and reminders. This cannot be undone.`}
-            buttonLabel="Delete goal"
-            isPending={deleteGoalMutation.isPending}
-            onPress={confirmDeleteGoal}
-          />
-          {deleteGoalMutation.error ? (
-            <ErrorState message={getDeleteGoalErrorMessage()} />
+      {/* Archive zone — recoverable. Hard delete moved to Archived Goal
+          Detail; permanent removal lives behind the Archive screen now.
+          Hide rule uses cascadeCount (active+backlog only) so a goal whose
+          only habits are already-archived doesn't show an Archive button
+          that would do nothing. */}
+      {!isReadOnly && cascadeCount > 0 ? (
+        <View style={styles.archiveZoneContainer}>
+          {/* Tinted card surface mirrors DangerZone's structural pattern
+              (tinted zone + plain button) but in a neutral warm tone so
+              the button has a surface to lift off of without signaling
+              destructiveness. */}
+          <ZenCard style={styles.archiveCard}>
+            <Eyebrow label="Archive goal" />
+            <Text style={styles.archiveBody}>
+              Move this goal and its {cascadeCount} habit
+              {cascadeCount !== 1 ? "s" : ""} to your archive. You can
+              restore or permanently delete them later.
+            </Text>
+            <SecondaryButton
+              disabled={archiveGoalMutation.isPending}
+              label={
+                archiveGoalMutation.isPending ? "Archiving…" : "Archive goal"
+              }
+              onPress={confirmArchiveGoal}
+            />
+          </ZenCard>
+          {archiveGoalMutation.error ? (
+            <ErrorState message={getArchiveGoalErrorMessage()} />
           ) : null}
         </View>
       ) : null}
@@ -296,7 +375,16 @@ const styles = StyleSheet.create({
     gap: spacing.xl,
     padding: spacing.xl,
   },
-  dangerZoneContainer: {
+  archiveBody: {
+    color: colors.textMuted,
+    fontFamily: fontFamilies.body,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  archiveCard: {
+    backgroundColor: colors.surfaceMuted,
+  },
+  archiveZoneContainer: {
     gap: spacing.sm,
   },
   emptyText: {

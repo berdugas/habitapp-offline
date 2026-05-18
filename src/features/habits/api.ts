@@ -1,5 +1,6 @@
 import {
   activateBacklogHabitRow,
+  archiveGoal as archiveGoalRow,
   archiveHabit as archiveHabitRow,
   createHabit as createHabitRow,
   deleteGoal as deleteGoalRow,
@@ -7,6 +8,7 @@ import {
   getHabit,
   listHabits,
   reactivateHabitRow,
+  restoreGoal as restoreGoalRow,
   updateHabit as updateHabitRow,
 } from "@/lib/db/repositories/habits";
 import { ALL_DAYS, parseActiveDays, serializeActiveDays } from "@/features/habits/activeDays";
@@ -225,6 +227,150 @@ export async function listGoalHabits(
   // archived/backlog rows the UI never displays.
   return listHabits({ user_id: userId, identity_phrase: identityPhrase });
 }
+
+// ─── Goal archive / restore ───────────────────────────────────────────────────
+
+export type ArchivedGoalSummary = {
+  identityPhrase: string;
+  habitCount: number;
+  archivedAt: string;
+};
+
+export async function archiveGoal(
+  userId: string,
+  identityPhrase: string,
+): Promise<{
+  cascadedHabitCount: number;
+  cascadedHabitIds: string[];
+  cancelledActiveHabitIds: string[];
+  preservedBacklogHabitIds: string[];
+}> {
+  const habits = await listGoalHabits(userId, identityPhrase);
+  const cascadeEligible = habits.filter(
+    (h) => h.status === "active" || h.status === "backlog",
+  );
+
+  if (cascadeEligible.length === 0) {
+    return {
+      cascadedHabitCount: 0,
+      cascadedHabitIds: [],
+      cancelledActiveHabitIds: [],
+      preservedBacklogHabitIds: [],
+    };
+  }
+
+  // Selective reminder cancel: only active habits have OS-scheduled
+  // notifications AND own their reminder_time as live intent. Backlog habits
+  // store reminder_time as deferred intent that materializePendingReminder
+  // needs on later activation — cancelReminder would null that intent and
+  // silently break restore-from-backlog. Backlog rows have no OS schedule
+  // entries to cancel anyway.
+  const activeHabits = cascadeEligible.filter((h) => h.status === "active");
+  const backlogHabits = cascadeEligible.filter((h) => h.status === "backlog");
+
+  await Promise.all(
+    activeHabits.map((h) => cancelReminder(h.id).catch(() => {})),
+  );
+
+  const result = await archiveGoalRow(userId, identityPhrase);
+
+  return {
+    cascadedHabitCount: result.cascadedHabitCount,
+    cascadedHabitIds: cascadeEligible.map((h) => h.id),
+    cancelledActiveHabitIds: activeHabits.map((h) => h.id),
+    preservedBacklogHabitIds: backlogHabits.map((h) => h.id),
+  };
+}
+
+export async function restoreGoal(
+  userId: string,
+  identityPhrase: string,
+): Promise<{
+  restoredExActiveCount: number;
+  restoredExBacklogCount: number;
+  restoredHabitIds: string[];
+}> {
+  const { restoredExActive, restoredExBacklog } = await restoreGoalRow(
+    userId,
+    identityPhrase,
+    todayDateString(),
+  );
+
+  // Rematerialize reminders only for ex-backlog rows — mirrors what
+  // activateBacklogHabit does for a single-habit activation. Ex-active rows
+  // had their reminders cancelled during archive (intent + IDs both cleared),
+  // matching reactivateHabit semantics which doesn't auto-rearm; user
+  // re-enables from habit detail if desired.
+  //
+  // .catch swallow: materializePendingReminder is documented as best-effort
+  // and shouldn't throw, but goal-restore touches N habits at once. A single
+  // failed schedule on one habit must not abort the cascade and leave the
+  // user with a half-restored goal.
+  for (const habit of restoredExBacklog) {
+    await materializePendingReminder(
+      habit.id,
+      userId,
+      parseActiveDays(habit.active_days),
+    ).catch(() => {});
+  }
+
+  return {
+    restoredExActiveCount: restoredExActive.length,
+    restoredExBacklogCount: restoredExBacklog.length,
+    restoredHabitIds: [
+      ...restoredExActive.map((h) => h.id),
+      ...restoredExBacklog.map((h) => h.id),
+    ],
+  };
+}
+
+export async function listArchivedGoals(
+  userId: string,
+): Promise<ArchivedGoalSummary[]> {
+  // Group every status across the user's habits by identity_phrase, then keep
+  // only goals that are fully archived (zero active, zero backlog, >=1
+  // archived). Goalless habits (identity_phrase null/empty) are valid but
+  // must never roll up into a synthetic "archived goal" row.
+  const habits = await listHabits({ user_id: userId });
+
+  const byPhrase = new Map<
+    string,
+    { active: number; backlog: number; archived: Habit[] }
+  >();
+  for (const h of habits) {
+    const phrase = h.identity_phrase?.trim();
+    if (!phrase) continue;
+    const bucket = byPhrase.get(phrase) ?? {
+      active: 0,
+      backlog: 0,
+      archived: [],
+    };
+    if (h.status === "active") bucket.active += 1;
+    else if (h.status === "backlog") bucket.backlog += 1;
+    else if (h.status === "archived") bucket.archived.push(h);
+    byPhrase.set(phrase, bucket);
+  }
+
+  const summaries: ArchivedGoalSummary[] = [];
+  for (const [identityPhrase, bucket] of byPhrase) {
+    if (bucket.active > 0 || bucket.backlog > 0) continue;
+    if (bucket.archived.length === 0) continue;
+    const archivedAt = bucket.archived
+      .map((h) => h.archived_at ?? h.updated_at)
+      .reduce((max, cur) => (cur > max ? cur : max));
+    summaries.push({
+      identityPhrase,
+      habitCount: bucket.archived.length,
+      archivedAt,
+    });
+  }
+
+  // Most recently archived first — matches the order users would expect on
+  // the Archive list (recent maintenance actions surface at the top).
+  summaries.sort((a, b) => (a.archivedAt < b.archivedAt ? 1 : -1));
+  return summaries;
+}
+
 
 // ─── Log reads ────────────────────────────────────────────────────────────────
 
