@@ -18,12 +18,16 @@ const TOP_PADDING = 10;
 const TENSION = 0.35;
 
 type WeeklyConsistencyChartProps = {
+  scope: "habit" | "goal";
   weeklyData: { weekLabel: string; rate: number }[];
 };
 
 const FALLBACK_WIDTH = 300;
 
-export function WeeklyConsistencyChart({ weeklyData }: WeeklyConsistencyChartProps) {
+export function WeeklyConsistencyChart({
+  scope,
+  weeklyData,
+}: WeeklyConsistencyChartProps) {
   const [measuredWidth, setMeasuredWidth] = useState(0);
 
   if (weeklyData.length < 1) return null;
@@ -118,7 +122,9 @@ export function WeeklyConsistencyChart({ weeklyData }: WeeklyConsistencyChartPro
           </SvgText>
         ))}
       </Svg>
-      <Text style={styles.caption}>Weekly consistency</Text>
+      <Text style={styles.caption}>
+        {scope === "habit" ? "Weekly Habit Consistency" : "Weekly Goal Consistency"}
+      </Text>
     </View>
   );
 }

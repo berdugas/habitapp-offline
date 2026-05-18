@@ -272,7 +272,7 @@ describe("HabitDetailScreen", () => {
       recentLogs: [],
     });
     renderWithClient(<HabitDetailScreen />);
-    expect(screen.getByText("12 day streak")).toBeTruthy();
+    expect(screen.getByText("12 day Habit streak")).toBeTruthy();
   });
 
   it("does not render aggregate skip count (intentionally dropped in the Journey Card)", () => {
@@ -346,7 +346,7 @@ describe("HabitDetailScreen", () => {
     fireEvent.press(screen.getByLabelText("2026-04-29, missed"));
 
     await waitFor(() => {
-      // "Done" also appears in the CalendarGrid legend — use getAllByText
+      // "Done" also appears in the streak strip's legend — use getAllByText
       expect(screen.getAllByText("Done").length).toBeGreaterThanOrEqual(1);
       expect(screen.getByText("Skip")).toBeTruthy();
     });
@@ -373,7 +373,7 @@ describe("HabitDetailScreen", () => {
         screen.getByText("This day is locked. Logs older than 48 hours can't be changed."),
       ).toBeTruthy();
     });
-    // "Done" exists in the CalendarGrid legend — verify selector actions are absent instead
+    // "Done" exists in the streak strip's legend — verify selector actions are absent instead
     expect(screen.queryByText("Skip")).toBeNull();
   });
 
@@ -426,9 +426,9 @@ describe("HabitDetailScreen", () => {
     expect(screen.queryByText("HABIT CONSISTENCY")).toBeNull();
     expect(screen.queryByText("HABIT STREAK")).toBeNull();
     // It renders the streak strip's hero label.
-    expect(screen.getByText("5 day streak")).toBeTruthy();
+    expect(screen.getByText("5 day Habit streak")).toBeTruthy();
     // And the 14-day eyebrow.
-    expect(screen.getByText("LAST 14 DAYS")).toBeTruthy();
+    expect(screen.getByText("LAST 4 WEEKS")).toBeTruthy();
   });
 
   it("renders early-days narrative copy without the legacy suppression text", () => {

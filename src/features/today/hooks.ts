@@ -460,7 +460,7 @@ export function useGoalDetail(identityPhrase: string | undefined) {
       : elevenWeeksBackMondayIso;
 
   const weeklyData = computeWeeklyConsistency(habits, chartStartIso, endDateObj);
-  const goalDailyStates = computeGoalDailyStates(habits, 14);
+  const goalDailyStates = computeGoalDailyStates(habits, 28);
 
   // Same eligible + upcoming merge as useTodayHabits, scoped to this goal.
   const allActiveGoalHabits = [...goalHabits, ...upcomingGoalHabits];
@@ -476,6 +476,7 @@ export function useGoalDetail(identityPhrase: string | undefined) {
       upcomingHabitsQuery.error ??
       logsQuery.error ??
       null,
+    earliestStartDate: oldestStartIso,
     goalConsistencyRate: pooledConsistencyRate({
       habits,
       endDate: endDateObj,

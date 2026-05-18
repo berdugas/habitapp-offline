@@ -6,16 +6,18 @@ import { fontFamilies } from "@/theme/fontFamilies";
 import { typography } from "@/theme/typography";
 
 const DEFAULT_SIZE = 48;
-const STROKE_WIDTH = 4;
+const DEFAULT_STROKE_WIDTH = 4;
 
 type ConsistencyDonutProps = {
   label?: string;
   onPress?: () => void;
   rate: number;
   size?: number;
+  strokeWidth?: number;
   suppressed?: boolean;
   testID?: string;
   tint?: string;
+  tintedBackground?: boolean;
 };
 
 export function ConsistencyDonut({
@@ -23,52 +25,64 @@ export function ConsistencyDonut({
   onPress,
   rate,
   size = DEFAULT_SIZE,
+  strokeWidth = DEFAULT_STROKE_WIDTH,
   suppressed = false,
   testID,
   tint = colors.primary,
+  tintedBackground = false,
 }: ConsistencyDonutProps) {
-  const radius = (size - STROKE_WIDTH) / 2;
+  const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
   const center = size / 2;
   const offset = circumference * (1 - Math.min(1, Math.max(0, rate)));
   const pct = Math.round(rate * 100);
+  const isFull = !suppressed && pct >= 100;
 
   const content = (
-    <View style={styles.container} testID={testID}>
+    <View
+      style={[styles.container, tintedBackground && styles.containerTinted]}
+      testID={testID}
+    >
       <View style={[styles.donutWrap, { height: size, width: size }]}>
         <Svg width={size} height={size}>
-          <Circle
-            cx={center}
-            cy={center}
-            r={radius}
-            stroke={colors.surfaceHigh}
-            strokeWidth={STROKE_WIDTH}
-            fill="none"
-          />
-          {suppressed ? (
-            <Circle
-              cx={center}
-              cy={center}
-              r={radius}
-              stroke={tint}
-              strokeOpacity={0.15}
-              strokeWidth={STROKE_WIDTH}
-              fill="none"
-              transform={`rotate(-90, ${center}, ${center})`}
-            />
+          {isFull ? (
+            <Circle cx={center} cy={center} r={size / 2} fill={tint} />
           ) : (
-            <Circle
-              cx={center}
-              cy={center}
-              r={radius}
-              stroke={tint}
-              strokeWidth={STROKE_WIDTH}
-              fill="none"
-              strokeDasharray={`${circumference} ${circumference}`}
-              strokeDashoffset={offset}
-              strokeLinecap="round"
-              transform={`rotate(-90, ${center}, ${center})`}
-            />
+            <>
+              <Circle
+                cx={center}
+                cy={center}
+                r={radius}
+                stroke={colors.surfaceHigh}
+                strokeWidth={strokeWidth}
+                fill="none"
+              />
+              {suppressed ? (
+                <Circle
+                  cx={center}
+                  cy={center}
+                  r={radius}
+                  stroke={tint}
+                  strokeOpacity={0.15}
+                  strokeWidth={strokeWidth}
+                  fill="none"
+                  transform={`rotate(-90, ${center}, ${center})`}
+                />
+              ) : (
+                <Circle
+                  cx={center}
+                  cy={center}
+                  r={radius}
+                  stroke={tint}
+                  strokeWidth={strokeWidth}
+                  fill="none"
+                  strokeDasharray={`${circumference} ${circumference}`}
+                  strokeDashoffset={offset}
+                  strokeLinecap="round"
+                  transform={`rotate(-90, ${center}, ${center})`}
+                />
+              )}
+            </>
           )}
         </Svg>
         <View style={StyleSheet.absoluteFill}>
@@ -78,13 +92,21 @@ export function ConsistencyDonut({
                 style={[
                   styles.pctText,
                   styles.suppressedText,
-                  { fontSize: Math.round(size * 0.28) },
+                  { fontSize: Math.round(size * 0.3) },
                 ]}
               >
                 —
               </Text>
             ) : (
-              <Text style={[styles.pctText, { fontSize: Math.round(size * 0.23) }]}>{pct}%</Text>
+              <Text
+                style={[
+                  styles.pctText,
+                  isFull && styles.pctTextFull,
+                  { fontSize: Math.round(size * 0.25) },
+                ]}
+              >
+                {pct}%
+              </Text>
             )}
           </View>
         </View>
@@ -119,6 +141,12 @@ const styles = StyleSheet.create({
   container: {
     alignItems: "center",
   },
+  containerTinted: {
+    backgroundColor: colors.primarySoft,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
   donutWrap: {
     position: "relative",
   },
@@ -129,7 +157,10 @@ const styles = StyleSheet.create({
   },
   pctText: {
     color: colors.text,
-    fontFamily: fontFamilies.bodyMedium,
+    fontFamily: fontFamilies.bodySemi,
+  },
+  pctTextFull: {
+    color: "#ffffff",
   },
   suppressedText: {
     color: colors.textFaint,

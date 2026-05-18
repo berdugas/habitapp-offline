@@ -86,6 +86,7 @@ export function GoalContainer({
             onPress={onGoalPress}
             rate={consistencyRate}
             tint={goalGraduated ? colors.graduatedCircle : undefined}
+            tintedBackground
           />
         ) : null}
       </View>

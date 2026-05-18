@@ -95,9 +95,10 @@ afterEach(() => {
 
 function baseDetail(overrides: Partial<Record<string, unknown>> = {}) {
   return {
+    earliestStartDate: "2026-05-05",
     error: null,
     goalConsistencyRate: 0,
-    goalDailyStates: Array(14).fill("off"),
+    goalDailyStates: Array(28).fill("off"),
     goalStreak: 0,
     habits: [],
     identityPhrase: "a reader",

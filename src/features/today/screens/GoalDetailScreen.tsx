@@ -42,6 +42,7 @@ export default function GoalDetailScreen() {
   const isReadOnly = accessMode === "read_only";
 
   const {
+    earliestStartDate,
     error,
     goalConsistencyRate,
     goalDailyStates,
@@ -156,10 +157,15 @@ export default function GoalDetailScreen() {
         </View>
 
         {weeklyData.length >= 1 ? (
-          <WeeklyConsistencyChart weeklyData={weeklyData} />
+          <WeeklyConsistencyChart scope="goal" weeklyData={weeklyData} />
         ) : null}
 
-        <GoalStreakStrip dailyStates={goalDailyStates} streak={goalStreak} />
+        <GoalStreakStrip
+          dailyStates={goalDailyStates}
+          scope="goal"
+          startDate={earliestStartDate}
+          streak={goalStreak}
+        />
       </ZenCard>
 
       {/* Weekly Review prompt */}
