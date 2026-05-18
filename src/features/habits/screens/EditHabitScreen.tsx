@@ -181,7 +181,17 @@ export default function EditHabitScreen() {
         await rescheduleAll(user.id).catch(() => {});
       }
 
-      router.replace(`/(app)/habits/${ownedHabitQuery.data.id}`);
+      // Pop the Edit entry off the stack instead of replacing it with
+      // another HabitDetail entry. Replace would create a duplicate
+      // adjacent stack entry when the user came from HabitDetail → Edit
+      // (the common case), forcing two back-chevron taps to leave the
+      // habit. Fall back to replace only when there's no stack to pop
+      // (deep-link or direct mount).
+      if (router.canGoBack()) {
+        router.back();
+      } else {
+        router.replace(`/(app)/habits/${ownedHabitQuery.data.id}`);
+      }
     } catch {
       setFormError(getUpdateHabitErrorMessage());
     } finally {

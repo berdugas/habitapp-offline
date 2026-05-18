@@ -52,10 +52,10 @@ describe("SettingsScreen", () => {
     expect(screen.queryByText("Loading archived habits...")).toBeNull();
   });
 
-  it("renders Manage habits row and navigates to backlog on press", () => {
+  it("renders Archive row and navigates to backlog on press", () => {
     render(<SettingsScreen />);
 
-    const row = screen.getByText("Manage habits");
+    const row = screen.getByText("Archive");
     expect(row).toBeTruthy();
     fireEvent.press(row);
 

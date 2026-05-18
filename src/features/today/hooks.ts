@@ -81,13 +81,22 @@ export function useHabitLogsForRange(habitId: string | undefined, days: number) 
   });
 }
 
+// Prefix every bulk-range query shares — used by mutations to invalidate
+// the Goal Detail metrics queries (which key on habitIds + dateRange and
+// can't be addressed individually without enumerating every cached
+// instance).
+export const HABIT_LOGS_BULK_RANGE_KEY_PREFIX = [
+  "habit-logs",
+  "bulk-range",
+] as const;
+
 export function useHabitLogsForHabitsInRange(habitIds: string[], days: number) {
   const today = todayDateString();
   const fromDate = toDeviceDateString(addDeviceDays(new Date(), -(days - 1)));
   return useQuery({
     enabled: habitIds.length > 0,
     queryFn: () => listLogsForHabitsInRange(habitIds, fromDate, today),
-    queryKey: ["habit-logs", "bulk-range", habitIds, fromDate, today],
+    queryKey: [...HABIT_LOGS_BULK_RANGE_KEY_PREFIX, habitIds, fromDate, today],
     staleTime: 30_000,
   });
 }
@@ -309,10 +318,12 @@ export function useUpsertTodayHabitStatusMutation() {
         queryKey: ["habit-logs", "detail", user.id, variables.habitId],
       });
 
-      // Goal Detail reads from ["habit-logs", "bulk-range", habitIds, ...];
-      // without this, the goal screen stays on the snapshot taken before this tap.
+      // Goal Detail's metrics (chart, streak, consistency donut) read from
+      // the bulk-range query, which keys on habitIds+dateRange. Prefix-
+      // invalidate every cached bulk-range so the goal screen refetches
+      // fresh logs the moment a status flips on Today.
       await queryClient.invalidateQueries({
-        queryKey: ["habit-logs", "bulk-range"],
+        queryKey: HABIT_LOGS_BULK_RANGE_KEY_PREFIX,
       });
     },
     onError: (error, variables) => {
@@ -360,10 +371,9 @@ export function useDeleteTodayHabitLogMutation() {
         queryKey: ["habit-logs", "detail", user.id, habitId],
       });
 
-      // Goal Detail reads from ["habit-logs", "bulk-range", habitIds, ...];
-      // without this, the goal screen stays on the snapshot taken before this undo.
+      // Goal Detail's bulk-range metrics — see useUpsertTodayHabitStatus.
       await queryClient.invalidateQueries({
-        queryKey: ["habit-logs", "bulk-range"],
+        queryKey: HABIT_LOGS_BULK_RANGE_KEY_PREFIX,
       });
     },
     onError: (error, habitId) => {

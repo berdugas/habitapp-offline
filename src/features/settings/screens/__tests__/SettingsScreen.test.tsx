@@ -107,9 +107,9 @@ describe("SettingsScreen", () => {
     ).toBeNull();
   });
 
-  it("shows a 'Manage habits' row that navigates to the backlog screen", () => {
+  it("shows an 'Archive' row that navigates to the archive screen", () => {
     render(<SettingsScreen />);
-    const row = screen.getByText("Manage habits");
+    const row = screen.getByText("Archive");
     expect(row).toBeTruthy();
     fireEvent.press(row);
     expect(mockPush).toHaveBeenCalledWith("/(app)/habits/backlog");

@@ -6,6 +6,7 @@ import { router } from "expo-router";
 import { useQueryClient } from "@tanstack/react-query";
 
 import { AppLogo } from "@/components/branding/AppLogo";
+import { ConcentricRings } from "@/components/branding/ConcentricRings";
 import { ReadOnlyBanner } from "@/components/ReadOnlyBanner";
 import { RecoveryModal } from "@/components/RecoveryModal";
 import { PrimaryButton } from "@/components/buttons/PrimaryButton";
@@ -205,22 +206,37 @@ export default function TodayScreen() {
   if (habits.length === 0) {
     return (
       <ScrollView
-        contentContainerStyle={[styles.content, { paddingTop: insets.top + SCREEN_TOP_PADDING_HERO }]}
+        contentContainerStyle={[
+          styles.emptyContent,
+          { paddingTop: insets.top + SCREEN_TOP_PADDING_HERO },
+        ]}
         style={styles.screen}
       >
         <AppHeader />
-        <ZenCard>
-          <Text selectable style={styles.emptyTitle}>
-            No active habits yet
-          </Text>
-          <Text selectable style={styles.emptyBody}>
-            Start with one small habit — sized to your worst day.
-          </Text>
-          <PrimaryButton
-            label="Create your first habit"
-            onPress={() => router.push("/(app)/habits/create")}
-          />
-        </ZenCard>
+        {/* Vertically center the card in the remaining space below the
+            header. flex:1 + justifyContent:center inside a flexGrow:1
+            scroll container puts the CTA closer to thumb reach and
+            balances the negative space above and below. */}
+        <View style={styles.emptyCenterWrap}>
+          <ZenCard>
+            {/* Halo emblem — same concentric-ring mark used on the
+                onboarding Insight screen. Gives the empty state a
+                design-system-native visual anchor (no icon-set
+                commitment) and ties first-run continuity from
+                onboarding through to the Today empty surface. */}
+            <ConcentricRings size={96} style={styles.emptyEmblem} />
+            <Text selectable style={styles.emptyTitle}>
+              No active habits yet
+            </Text>
+            <Text selectable style={styles.emptyBody}>
+              Start with one small habit — sized to your worst day.
+            </Text>
+            <PrimaryButton
+              label="Create your first habit"
+              onPress={() => router.push("/(app)/habits/create")}
+            />
+          </ZenCard>
+        </View>
       </ScrollView>
     );
   }
@@ -243,9 +259,6 @@ export default function TodayScreen() {
         <ErrorState message={getSaveTodayStatusErrorMessage()} />
       ) : null}
       {goalGroups.map((group) => {
-        const activeHabits = group.habits.filter((h) => !h.offDay);
-        const allLogged = activeHabits.length > 0 &&
-          activeHabits.every((h) => h.todayStatus !== null);
         const groupHasBanner =
           showBanner && group.habits.some((h) => h.id === missingHabitId);
         const goalGraduated =
@@ -319,9 +332,6 @@ export default function TodayScreen() {
                 />
               ))}
             </GoalContainer>
-            {allLogged ? (
-              <Text style={styles.completionText}>You showed up today.</Text>
-            ) : null}
           </React.Fragment>
         );
       })}
@@ -351,12 +361,6 @@ export default function TodayScreen() {
 }
 
 const styles = StyleSheet.create({
-  completionText: {
-    color: colors.textMuted,
-    fontFamily: fontFamilies.body,
-    fontSize: typography.bodyMd,
-    textAlign: "center",
-  },
   content: {
     gap: spacing.xl,
     padding: spacing.xl,
@@ -371,6 +375,18 @@ const styles = StyleSheet.create({
     fontFamily: fontFamilies.body,
     fontSize: typography.bodyLg,
     lineHeight: 24,
+  },
+  emptyCenterWrap: {
+    flex: 1,
+    justifyContent: "center",
+  },
+  emptyContent: {
+    flexGrow: 1,
+    gap: spacing.xl,
+    padding: spacing.xl,
+  },
+  emptyEmblem: {
+    alignSelf: "center",
   },
   emptyTitle: {
     color: colors.text,

@@ -6,6 +6,7 @@ import {
   useDeleteTodayHabitLogMutation,
   useUpsertTodayHabitStatusMutation,
 } from "@/features/today/hooks";
+import { useUpsertHabitLogMutation } from "@/features/habits/hooks";
 import * as api from "@/features/habits/api";
 
 jest.mock("@/features/habits/api");
@@ -19,11 +20,13 @@ function wrapWith(qc: QueryClient) {
   };
 }
 
-function bulkRangeInvalidated(
-  spy: jest.SpyInstance<unknown, [filters?: { queryKey?: readonly unknown[] } | undefined]>,
-): boolean {
+// Loosely-typed: invalidateQueries accepts variadic args across @tanstack/
+// react-query versions, so the spy's variance trips strict TS. We only
+// care about reading the first arg's queryKey here.
+function bulkRangeInvalidated(spy: jest.SpyInstance): boolean {
   return spy.mock.calls.some((call) => {
-    const key = call[0]?.queryKey;
+    const filters = call[0] as { queryKey?: readonly unknown[] } | undefined;
+    const key = filters?.queryKey;
     if (!Array.isArray(key)) return false;
     return key[0] === "habit-logs" && key[1] === "bulk-range";
   });
@@ -61,6 +64,23 @@ describe("Today log mutations — Goal Detail cache invalidation", () => {
     });
 
     result.current.mutate("h1");
+
+    await waitFor(() => expect(bulkRangeInvalidated(invalidateSpy)).toBe(true));
+  });
+
+  // The retro-log path lives in features/habits/hooks and uses the same
+  // ["habit-logs","bulk-range"] cache. Without this invalidation, retro-
+  // logging from Habit Detail leaves Goal Detail's metrics stale for
+  // staleTime (30s) — same root cause as the Today mutations above.
+  it("useUpsertHabitLogMutation (retro log) invalidates the bulk-range key so Goal Detail refreshes", async () => {
+    (api.upsertHabitLog as jest.Mock).mockResolvedValue({ id: "log-1" });
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const invalidateSpy = jest.spyOn(qc, "invalidateQueries");
+    const { result } = renderHook(() => useUpsertHabitLogMutation(), {
+      wrapper: wrapWith(qc),
+    });
+
+    result.current.mutate({ habitId: "h1", logDate: "2026-05-01", status: "done" });
 
     await waitFor(() => expect(bulkRangeInvalidated(invalidateSpy)).toBe(true));
   });

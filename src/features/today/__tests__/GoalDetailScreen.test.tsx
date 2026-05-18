@@ -11,7 +11,7 @@ jest.mock("@/features/trial/hooks", () => ({
   })),
 }));
 
-import { fireEvent, render, screen } from "@testing-library/react-native";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import React from "react";
 
@@ -19,9 +19,14 @@ import GoalDetailScreen from "@/features/today/screens/GoalDetailScreen";
 import { resetClockForTesting, setNowForTesting } from "@/utils/clock";
 
 const mockPush = jest.fn();
+const mockReplace = jest.fn();
 
 jest.mock("expo-router", () => ({
-  router: { back: jest.fn(), push: (...args: unknown[]) => mockPush(...args) },
+  router: {
+    back: jest.fn(),
+    push: (...args: unknown[]) => mockPush(...args),
+    replace: (...args: unknown[]) => mockReplace(...args),
+  },
   useLocalSearchParams: () => ({ identityPhrase: "a%20reader" }),
 }));
 
@@ -34,7 +39,8 @@ jest.mock("@/features/reviews/hooks", () => ({
 }));
 
 jest.mock("@/features/habits/hooks", () => ({
-  useDeleteGoalMutation: jest.fn(),
+  useArchiveGoalMutation: jest.fn(),
+  useGoalCascadeCountQuery: jest.fn(),
   useGoalHabitCountQuery: jest.fn(),
 }));
 
@@ -47,10 +53,12 @@ const { useGoalDetail } = jest.requireMock("@/features/today/hooks") as {
 };
 
 const {
-  useDeleteGoalMutation,
+  useArchiveGoalMutation,
+  useGoalCascadeCountQuery,
   useGoalHabitCountQuery,
 } = jest.requireMock("@/features/habits/hooks") as {
-  useDeleteGoalMutation: jest.Mock;
+  useArchiveGoalMutation: jest.Mock;
+  useGoalCascadeCountQuery: jest.Mock;
   useGoalHabitCountQuery: jest.Mock;
 };
 
@@ -81,10 +89,15 @@ beforeEach(() => {
     isFetching: false,
     refetch: jest.fn().mockResolvedValue(undefined),
   });
-  useGoalHabitCountQuery.mockReturnValue({ data: 0 });
-  useDeleteGoalMutation.mockReturnValue({
+  // Default: counts have settled. Tests that exercise stale-route paths
+  // override these. Most tests need at least one active habit (via
+  // useGoalDetail's habits mock), so the default cascade count of 1
+  // reflects that — keeps the Archive card visible by default.
+  useGoalCascadeCountQuery.mockReturnValue({ data: 1, isLoading: false });
+  useGoalHabitCountQuery.mockReturnValue({ data: 1, isLoading: false });
+  useArchiveGoalMutation.mockReturnValue({
     mutate: jest.fn(),
-    mutateAsync: jest.fn().mockResolvedValue({ deletedHabitCount: 0 }),
+    mutateAsync: jest.fn().mockResolvedValue({ cascadedHabitCount: 0 }),
     isPending: false,
   });
   setNowForTesting(new Date("2026-05-05T10:00:00.000Z"));
@@ -234,10 +247,83 @@ describe("GoalDetailScreen", () => {
     );
   });
 
-  it("shows empty state when no habits match the identity phrase", () => {
-    useGoalDetail.mockReturnValue(baseDetail());
-    renderWithClient(<GoalDetailScreen />);
-    expect(screen.getByText("No habits found for this goal.")).toBeTruthy();
+  // Stale-route redirects: the live Goal Detail surface requires at least
+  // one active habit. Every other shape (empty phrase, backlog-only,
+  // fully-archived, mixed-no-active) routes the user away. Plan §5
+  // contract: backlog-only is "neither surface"; fully-archived belongs
+  // on the archived route.
+  describe("stale-route redirect (no active habits)", () => {
+    it("redirects to Today when the phrase has no habits at all", async () => {
+      useGoalDetail.mockReturnValue(baseDetail());
+      useGoalCascadeCountQuery.mockReturnValue({ data: 0, isLoading: false });
+      useGoalHabitCountQuery.mockReturnValue({ data: 0, isLoading: false });
+      renderWithClient(<GoalDetailScreen />);
+      await waitFor(() => {
+        expect(mockReplace).toHaveBeenCalledWith("/(app)/(tabs)/today");
+      });
+    });
+
+    it("redirects to archived detail when the phrase is fully archived (cascade=0, total>0)", async () => {
+      useGoalDetail.mockReturnValue(baseDetail());
+      useGoalCascadeCountQuery.mockReturnValue({ data: 0, isLoading: false });
+      useGoalHabitCountQuery.mockReturnValue({ data: 2, isLoading: false });
+      renderWithClient(<GoalDetailScreen />);
+      await waitFor(() => {
+        expect(mockReplace).toHaveBeenCalledWith({
+          pathname: "/(app)/goals/archived/[identityPhrase]",
+          params: { identityPhrase: encodeURIComponent("a reader") },
+        });
+      });
+    });
+
+    it("redirects to Today when the phrase is backlog-only (cascade>0, no active habits)", async () => {
+      // Backlog-only matches the "neither surface" rule in the plan —
+      // backlog rows aren't a live goal yet, and aren't an archived goal
+      // either. Today is the safe landing.
+      useGoalDetail.mockReturnValue(baseDetail({ habits: [] }));
+      useGoalCascadeCountQuery.mockReturnValue({ data: 1, isLoading: false });
+      useGoalHabitCountQuery.mockReturnValue({ data: 1, isLoading: false });
+      renderWithClient(<GoalDetailScreen />);
+      await waitFor(() => {
+        expect(mockReplace).toHaveBeenCalledWith("/(app)/(tabs)/today");
+      });
+    });
+
+    it("does NOT redirect while the count queries are still loading", () => {
+      useGoalDetail.mockReturnValue(baseDetail());
+      useGoalCascadeCountQuery.mockReturnValue({ data: undefined, isLoading: true });
+      useGoalHabitCountQuery.mockReturnValue({ data: undefined, isLoading: true });
+      renderWithClient(<GoalDetailScreen />);
+      expect(mockReplace).not.toHaveBeenCalled();
+    });
+
+    it("does NOT redirect while useGoalDetail is still loading", () => {
+      useGoalDetail.mockReturnValue(baseDetail({ isLoading: true }));
+      useGoalCascadeCountQuery.mockReturnValue({ data: 0, isLoading: false });
+      useGoalHabitCountQuery.mockReturnValue({ data: 0, isLoading: false });
+      renderWithClient(<GoalDetailScreen />);
+      expect(mockReplace).not.toHaveBeenCalled();
+    });
+
+    it("suppresses the empty shell during redirect — no 'No habits' card, no Archive CTA", () => {
+      useGoalDetail.mockReturnValue(baseDetail());
+      useGoalCascadeCountQuery.mockReturnValue({ data: 0, isLoading: false });
+      useGoalHabitCountQuery.mockReturnValue({ data: 0, isLoading: false });
+      renderWithClient(<GoalDetailScreen />);
+      // The old "No habits found for this goal." card is gone — replaced
+      // by the redirect path.
+      expect(screen.queryByText("No habits found for this goal.")).toBeNull();
+      expect(screen.queryByText("ARCHIVE GOAL")).toBeNull();
+      expect(screen.getByText("Loading goal...")).toBeTruthy();
+    });
+
+    it("does NOT redirect on error — surfaces the existing error card instead", () => {
+      useGoalDetail.mockReturnValue(baseDetail({ error: new Error("boom") }));
+      useGoalCascadeCountQuery.mockReturnValue({ data: 0, isLoading: false });
+      useGoalHabitCountQuery.mockReturnValue({ data: 0, isLoading: false });
+      renderWithClient(<GoalDetailScreen />);
+      expect(mockReplace).not.toHaveBeenCalled();
+    });
   });
 
   it("renders an early-days narrative (rate-aware, not suppressed) when oldest habit has <7 active days", () => {
@@ -334,45 +420,51 @@ describe("GoalDetailScreen", () => {
     expect(screen.queryByText("(Graduated)")).toBeNull();
   });
 
-  describe("DangerZone — permanent delete", () => {
+  describe("Archive — soft delete on live Goal Detail", () => {
     function setupAlertSpy() {
       const { Alert } = require("react-native");
       return jest.spyOn(Alert, "alert").mockImplementation(() => undefined);
     }
 
-    it("renders the danger zone when count > 0 and not read-only", () => {
+    it("renders the Archive card when count > 0 and not read-only", () => {
       useGoalDetail.mockReturnValue(
         baseDetail({ habits: [makeHabit()], oldestActiveDaysCount: 30 }),
       );
-      useGoalHabitCountQuery.mockReturnValue({ data: 2 });
+      useGoalCascadeCountQuery.mockReturnValue({ data: 2 });
       renderWithClient(<GoalDetailScreen />);
-      expect(screen.getByText("DELETE GOAL")).toBeTruthy();
+      expect(screen.getByText("ARCHIVE GOAL")).toBeTruthy();
+      // No Delete button on the live surface — only Archive.
+      expect(screen.queryByText("DELETE GOAL")).toBeNull();
     });
 
-    it("renders the danger zone when only archived/backlog habits exist (eligible=0, count>0)", () => {
-      // useGoalDetail returns no eligible habits, but the count hook reports 1
-      // (representing an archived or backlog habit under the same phrase).
+    it("does NOT render the Archive card when there are no active habits — stale-route redirect takes over", () => {
+      // Previously codified the inverse behavior (Archive CTA on a screen
+      // with no visible habits). That contradicted the plan §5 contract:
+      // backlog-only is "neither surface", fully-archived belongs on the
+      // archived route. Now the redirect short-circuits before any CTA
+      // mounts.
       useGoalDetail.mockReturnValue(baseDetail({ habits: [] }));
-      useGoalHabitCountQuery.mockReturnValue({ data: 1 });
+      useGoalCascadeCountQuery.mockReturnValue({ data: 1, isLoading: false });
+      useGoalHabitCountQuery.mockReturnValue({ data: 1, isLoading: false });
       renderWithClient(<GoalDetailScreen />);
-      expect(screen.getByText("DELETE GOAL")).toBeTruthy();
+      expect(screen.queryByText("ARCHIVE GOAL")).toBeNull();
     });
 
-    it("hides the danger zone when count is 0", () => {
+    it("hides the Archive card when count is 0", () => {
       useGoalDetail.mockReturnValue(baseDetail({ habits: [makeHabit()] }));
-      useGoalHabitCountQuery.mockReturnValue({ data: 0 });
+      useGoalCascadeCountQuery.mockReturnValue({ data: 0 });
       renderWithClient(<GoalDetailScreen />);
-      expect(screen.queryByText("DELETE GOAL")).toBeNull();
+      expect(screen.queryByText("ARCHIVE GOAL")).toBeNull();
     });
 
-    it("hides the danger zone while the count query is still loading (data undefined)", () => {
+    it("hides the Archive card while the count query is still loading (data undefined)", () => {
       useGoalDetail.mockReturnValue(baseDetail({ habits: [makeHabit()] }));
-      useGoalHabitCountQuery.mockReturnValue({ data: undefined });
+      useGoalCascadeCountQuery.mockReturnValue({ data: undefined });
       renderWithClient(<GoalDetailScreen />);
-      expect(screen.queryByText("DELETE GOAL")).toBeNull();
+      expect(screen.queryByText("ARCHIVE GOAL")).toBeNull();
     });
 
-    it("hides the danger zone in read-only mode", () => {
+    it("hides the Archive card in read-only mode", () => {
       const { useTrialValidation } = jest.requireMock(
         "@/features/trial/hooks",
       ) as { useTrialValidation: jest.Mock };
@@ -382,49 +474,81 @@ describe("GoalDetailScreen", () => {
         refresh: jest.fn(),
       });
       useGoalDetail.mockReturnValue(baseDetail({ habits: [makeHabit()] }));
-      useGoalHabitCountQuery.mockReturnValue({ data: 3 });
+      useGoalCascadeCountQuery.mockReturnValue({ data: 3 });
       renderWithClient(<GoalDetailScreen />);
-      expect(screen.queryByText("DELETE GOAL")).toBeNull();
+      expect(screen.queryByText("ARCHIVE GOAL")).toBeNull();
     });
 
-    it("confirmation count reflects all-status count from useGoalHabitCountQuery", () => {
+    it("confirmation copy uses the cascade count from useGoalCascadeCountQuery (active+backlog only)", () => {
+      // Regression: previously used total habit count which overstated the
+      // move when an already-archived habit existed under the same phrase.
+      // archiveGoal's WHERE clause is `status IN ('active','backlog')`, so
+      // the copy MUST reflect what actually moves.
       const alertSpy = setupAlertSpy();
       useGoalDetail.mockReturnValue(baseDetail({ habits: [makeHabit()] }));
-      useGoalHabitCountQuery.mockReturnValue({ data: 3 });
+      useGoalCascadeCountQuery.mockReturnValue({ data: 3 });
       renderWithClient(<GoalDetailScreen />);
-      fireEvent.press(screen.getByRole("button", { name: "Delete goal" }));
+      fireEvent.press(screen.getByRole("button", { name: "Archive goal" }));
       expect(alertSpy).toHaveBeenCalledWith(
-        "Delete this goal?",
-        expect.stringContaining("Become a reader"),
+        "Archive this goal?",
+        expect.any(String),
         expect.any(Array),
       );
       const body = (alertSpy.mock.calls[0][1] ?? "") as string;
       expect(body).toMatch(/3 habits/);
+      expect(body).toMatch(/restore/i);
       alertSpy.mockRestore();
+    });
+
+    it("hides Archive when cascade count is 0 even if total habits > 0 (all rows already archived)", () => {
+      // Edge case: a phrase whose only habits are already archived has
+      // nothing for the cascade to move. Archive button would be a no-op,
+      // so hide it.
+      useGoalDetail.mockReturnValue(baseDetail({ habits: [makeHabit()] }));
+      useGoalCascadeCountQuery.mockReturnValue({ data: 0 });
+      renderWithClient(<GoalDetailScreen />);
+      expect(screen.queryByText("ARCHIVE GOAL")).toBeNull();
     });
 
     it("uses singular 'habit' when total count is exactly 1", () => {
       const alertSpy = setupAlertSpy();
       useGoalDetail.mockReturnValue(baseDetail({ habits: [makeHabit()] }));
-      useGoalHabitCountQuery.mockReturnValue({ data: 1 });
+      useGoalCascadeCountQuery.mockReturnValue({ data: 1 });
       renderWithClient(<GoalDetailScreen />);
-      fireEvent.press(screen.getByRole("button", { name: "Delete goal" }));
+      fireEvent.press(screen.getByRole("button", { name: "Archive goal" }));
       const body = (alertSpy.mock.calls[0][1] ?? "") as string;
       expect(body).toMatch(/1 habit\b/);
       expect(body).not.toMatch(/1 habits/);
       alertSpy.mockRestore();
     });
 
-    it("shows 'Deleting…' label while the mutation is pending", () => {
+    it("shows 'Archiving…' label while the mutation is pending", () => {
       useGoalDetail.mockReturnValue(baseDetail({ habits: [makeHabit()] }));
-      useGoalHabitCountQuery.mockReturnValue({ data: 2 });
-      useDeleteGoalMutation.mockReturnValue({
+      useGoalCascadeCountQuery.mockReturnValue({ data: 2 });
+      useArchiveGoalMutation.mockReturnValue({
         mutate: jest.fn(),
         mutateAsync: jest.fn(),
         isPending: true,
       });
       renderWithClient(<GoalDetailScreen />);
-      expect(screen.getByText("Deleting…")).toBeTruthy();
+      expect(screen.getByText("Archiving…")).toBeTruthy();
+    });
+
+    it("Archive button is NOT styled as destructive — no destructive-text on the alert option", () => {
+      const alertSpy = setupAlertSpy();
+      useGoalDetail.mockReturnValue(baseDetail({ habits: [makeHabit()] }));
+      useGoalCascadeCountQuery.mockReturnValue({ data: 2 });
+      renderWithClient(<GoalDetailScreen />);
+      fireEvent.press(screen.getByRole("button", { name: "Archive goal" }));
+      const buttons = (alertSpy.mock.calls[0][2] ?? []) as Array<{
+        text: string;
+        style?: string;
+      }>;
+      const archiveBtn = buttons.find((b) => b.text === "Archive");
+      expect(archiveBtn).toBeDefined();
+      // Archive is recoverable — must not carry the iOS destructive treatment.
+      expect(archiveBtn?.style).not.toBe("destructive");
+      alertSpy.mockRestore();
     });
   });
 });

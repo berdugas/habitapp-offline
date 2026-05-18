@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Pressable,
   ScrollView,
@@ -13,9 +13,11 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ErrorState } from "@/components/feedback/ErrorState";
 import { LoadingState } from "@/components/feedback/LoadingState";
 import { Eyebrow } from "@/components/text/Eyebrow";
+import { ArchivedGoalCard } from "@/features/habits/components/ArchivedGoalCard";
 import { ArchivedHabitCard } from "@/features/habits/components/ArchivedHabitCard";
 import { BacklogHabitCard } from "@/features/habits/components/BacklogHabitCard";
 import {
+  useArchivedGoalsQuery,
   useBacklogHabitsQuery,
   useInactiveHabitsQuery,
 } from "@/features/habits/hooks";
@@ -31,11 +33,27 @@ import { typography } from "@/theme/typography";
 
 export default function BacklogScreen() {
   const insets = useSafeAreaInsets();
+  const archivedGoalsQuery = useArchivedGoalsQuery();
   const backlogQuery = useBacklogHabitsQuery();
   const archivedQuery = useInactiveHabitsQuery();
 
+  const archivedGoals = archivedGoalsQuery.data ?? [];
   const backlogHabits = backlogQuery.data ?? [];
-  const archivedHabits = archivedQuery.data ?? [];
+
+  // Dedup: an archived habit whose identity_phrase is in the archived-goals
+  // section is already represented up top (rolled into the goal row). Drop
+  // those from the flat archived-habits list so the same habit doesn't
+  // double-render. Goalless archived habits (identity_phrase null/empty) and
+  // habits whose goal still has active/backlog rows remain in the flat list.
+  const archivedHabits = useMemo(() => {
+    const archivedGoalPhrases = new Set(
+      archivedGoals.map((g) => g.identityPhrase),
+    );
+    return (archivedQuery.data ?? []).filter(
+      (h) =>
+        !h.identity_phrase || !archivedGoalPhrases.has(h.identity_phrase),
+    );
+  }, [archivedGoals, archivedQuery.data]);
 
   // Tri-state: null while the preference read is in flight, false/true after.
   // Banner only renders when explicitly false — null suppresses to avoid a
@@ -58,9 +76,16 @@ export default function BacklogScreen() {
     if (!persisted) setArchiveIntroSeen(false);
   }
 
-  const isLoading = backlogQuery.isLoading || archivedQuery.isLoading;
-  const hasError = backlogQuery.error || archivedQuery.error;
-  const isEmpty = backlogHabits.length === 0 && archivedHabits.length === 0;
+  const isLoading =
+    backlogQuery.isLoading ||
+    archivedQuery.isLoading ||
+    archivedGoalsQuery.isLoading;
+  const hasError =
+    backlogQuery.error || archivedQuery.error || archivedGoalsQuery.error;
+  const isEmpty =
+    archivedGoals.length === 0 &&
+    archivedHabits.length === 0 &&
+    backlogHabits.length === 0;
 
   return (
     <ScrollView
@@ -79,10 +104,10 @@ export default function BacklogScreen() {
         >
           <ChevronLeft color={colors.textMuted} size={22} strokeWidth={1.75} />
         </Pressable>
-        <Text style={styles.title}>Habit Ideas</Text>
+        <Text style={styles.title}>Archive</Text>
       </View>
       <Text style={styles.subtitle}>
-        Habits you&apos;ve saved for later. Activate one when you&apos;re ready.
+        Goals and habits you&apos;ve put away or saved for later.
       </Text>
 
       {isLoading ? (
@@ -91,23 +116,26 @@ export default function BacklogScreen() {
         </View>
       ) : hasError ? (
         <View style={styles.centered}>
-          <ErrorState message="We couldn't load your habits. Please try again." />
+          <ErrorState message="We couldn't load your archive. Please try again." />
         </View>
       ) : isEmpty ? (
-        <BacklogEmptyState />
+        <ArchiveEmptyState />
       ) : (
         <View style={styles.sections}>
-          {backlogHabits.length > 0 ? (
-            <View style={styles.cardList}>
-              {backlogHabits.map((habit) => (
-                <BacklogHabitCard key={habit.id} habit={habit} />
-              ))}
+          {archivedGoals.length > 0 ? (
+            <View style={styles.section}>
+              <Eyebrow label="Archived goals" />
+              <View style={styles.cardList}>
+                {archivedGoals.map((goal) => (
+                  <ArchivedGoalCard key={goal.identityPhrase} goal={goal} />
+                ))}
+              </View>
             </View>
           ) : null}
 
           {archivedHabits.length > 0 ? (
-            <View style={styles.archivedSection}>
-              {backlogHabits.length > 0 ? <Eyebrow label="Archived" /> : null}
+            <View style={styles.section}>
+              <Eyebrow label="Archived habits" />
               {archiveIntroSeen === false ? (
                 <FirstRunTipBanner
                   message="Tap an archived habit to view its history or delete it permanently."
@@ -122,29 +150,37 @@ export default function BacklogScreen() {
               </View>
             </View>
           ) : null}
+
+          {backlogHabits.length > 0 ? (
+            <View style={styles.section}>
+              <Eyebrow label="Saved for later" />
+              <View style={styles.cardList}>
+                {backlogHabits.map((habit) => (
+                  <BacklogHabitCard key={habit.id} habit={habit} />
+                ))}
+              </View>
+            </View>
+          ) : null}
         </View>
       )}
     </ScrollView>
   );
 }
 
-function BacklogEmptyState() {
+function ArchiveEmptyState() {
   return (
     <View style={styles.empty}>
       <Lightbulb color={colors.textFaint} size={48} strokeWidth={1.25} />
-      <Text style={styles.emptyTitle}>No habit ideas yet</Text>
+      <Text style={styles.emptyTitle}>Nothing in your archive yet</Text>
       <Text style={styles.emptyBody}>
-        When you have more ideas than active slots, save them here.
+        When you archive a goal or save a habit for later, it&apos;ll show up
+        here.
       </Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  archivedSection: {
-    gap: spacing.md,
-    marginTop: spacing.xl,
-  },
   backButton: {
     alignItems: "center",
     height: 36,
@@ -192,8 +228,11 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bg,
     flex: 1,
   },
+  section: {
+    gap: spacing.md,
+  },
   sections: {
-    gap: spacing.lg,
+    gap: spacing.xl,
   },
   subtitle: {
     color: colors.textMuted,

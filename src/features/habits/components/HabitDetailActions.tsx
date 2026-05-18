@@ -76,7 +76,7 @@ export function HabitDetailActions({
                 This habit is archived. Reactivation coming in a future release.
               </Text>
             </View>
-            <SecondaryButton label="Back to Backlog" onPress={onBackPress} />
+            <SecondaryButton label="Back to Archive" onPress={onBackPress} />
           </>
         )}
       </View>

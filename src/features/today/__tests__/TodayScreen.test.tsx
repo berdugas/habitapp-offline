@@ -401,7 +401,7 @@ describe("TodayScreen", () => {
     });
   });
 
-  it("shows 'You showed up today.' when all habits are logged", () => {
+  it("does not render a 'You showed up today.' affirmation when all habits are logged (redundant with the All done pill and the goal subhead)", () => {
     useTodayHabits.mockReturnValue({
       error: null,
       habits: [makeHabit({ todayStatus: "done" })],
@@ -410,18 +410,10 @@ describe("TodayScreen", () => {
       goalStreaks: {},
     });
     renderWithClient(<TodayScreen />);
-    expect(screen.getByText("You showed up today.")).toBeTruthy();
-  });
-
-  it("does not show 'You showed up today.' when some habits are unlogged", () => {
-    useTodayHabits.mockReturnValue({
-      error: null,
-      habits: [makeHabit({ todayStatus: "done" }), makeHabit({ id: "habit-2", todayStatus: null })],
-      isLoading: false,
-      upcomingHabits: [],
-      goalStreaks: {},
-    });
-    renderWithClient(<TodayScreen />);
+    // The "All done ✓" pill (inside GoalContainer) and the streak subhead
+    // already cover the all-logged state; the standalone affirmation was
+    // removed to avoid the same signal stamping N times across N goal
+    // cards on an all-done day.
     expect(screen.queryByText("You showed up today.")).toBeNull();
   });
 

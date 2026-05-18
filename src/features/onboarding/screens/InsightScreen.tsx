@@ -2,14 +2,13 @@ import { router } from "expo-router";
 import { StyleSheet, Text, View } from "react-native";
 
 import { PrimaryButton } from "@/components/buttons/PrimaryButton";
+import { ConcentricRings } from "@/components/branding/ConcentricRings";
 import { BackButton } from "@/components/navigation/BackButton";
 import { OnboardingLayout } from "@/components/layouts/OnboardingLayout";
 import { useOnboarding } from "@/features/onboarding/OnboardingProvider";
 import { colors } from "@/theme/colors";
 import { fontFamilies } from "@/theme/fontFamilies";
 import { spacing } from "@/theme/spacing";
-
-const RING_SIZE = 120;
 
 export default function InsightScreen() {
   const { update } = useOnboarding();
@@ -33,12 +32,7 @@ export default function InsightScreen() {
         />
       </View>
 
-      <View style={styles.ringsContainer}>
-        <View style={[styles.ring, { top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(68,102,85,0.07)" }]} />
-        <View style={[styles.ring, { top: 16, left: 16, right: 16, bottom: 16, backgroundColor: "rgba(68,102,85,0.13)" }]} />
-        <View style={[styles.ring, { top: 32, left: 32, right: 32, bottom: 32, backgroundColor: "rgba(68,102,85,0.20)" }]} />
-        <View style={[styles.ring, { top: 48, left: 48, right: 48, bottom: 48, backgroundColor: colors.primary }]} />
-      </View>
+      <ConcentricRings size={120} style={styles.rings} />
 
       <Text style={styles.headline}>
         The habits that last are the ones that feel like you.
@@ -72,15 +66,9 @@ const styles = StyleSheet.create({
   header: {
     marginBottom: spacing.xl,
   },
-  ringsContainer: {
+  rings: {
     alignSelf: "center",
-    width: RING_SIZE,
-    height: RING_SIZE,
     marginBottom: spacing.xxl,
-  },
-  ring: {
-    position: "absolute",
-    borderRadius: 999,
   },
   headline: {
     fontFamily: fontFamilies.displaySemi,

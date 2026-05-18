@@ -281,6 +281,131 @@ export async function deleteHabit(id: string): Promise<boolean> {
   return result.changes > 0;
 }
 
+// ─── Goal-level archive / restore ─────────────────────────────────────────────
+//
+// "Goals" are derived state — a set of local_habits rows sharing an
+// identity_phrase. Archive/restore cascade across every active or backlog
+// habit in the goal.
+//
+// The cascade preserves backlog_at as a marker: a habit's pre-archive state
+// is "ex-active" iff backlog_at IS NULL at archive time, and "ex-backlog"
+// iff backlog_at IS NOT NULL. Restore uses this to revive each habit with
+// the correct lifecycle semantics (ex-backlog rows get start_date=today,
+// mirroring activateBacklogHabitRow; ex-active rows keep their original
+// start_date so streak/log accounting stays correct).
+
+export async function archiveGoal(
+  userId: string,
+  identityPhrase: string,
+): Promise<{ cascadedHabitCount: number }> {
+  const db = getDb();
+  const now = new Date().toISOString();
+
+  let cascadedHabitCount = 0;
+  await db.withTransactionAsync(async () => {
+    const result = await db.runAsync(
+      `UPDATE local_habits
+         SET status = 'archived', archived_at = ?, updated_at = ?
+       WHERE user_id = ?
+         AND identity_phrase = ?
+         AND status IN ('active', 'backlog')`,
+      now,
+      now,
+      userId,
+      identityPhrase,
+    );
+    cascadedHabitCount = result.changes;
+  });
+
+  return { cascadedHabitCount };
+}
+
+export async function restoreGoal(
+  userId: string,
+  identityPhrase: string,
+  todayDate: string,
+): Promise<{ restoredExActive: Habit[]; restoredExBacklog: Habit[] }> {
+  const db = getDb();
+  const now = new Date().toISOString();
+
+  // Pre-capture target IDs BEFORE the UPDATEs run. Branch 2 nulls backlog_at,
+  // so any post-update selector keyed on backlog_at IS NULL/NOT NULL cannot
+  // distinguish ex-active from ex-backlog rows afterward. Pre-capturing keeps
+  // both groups individually addressable for re-fetch.
+  let exActiveRows: Habit[] = [];
+  let exBacklogRows: Habit[] = [];
+
+  await db.withTransactionAsync(async () => {
+    const exActiveIds = (
+      await db.getAllAsync<{ id: string }>(
+        `SELECT id FROM local_habits
+         WHERE user_id = ? AND identity_phrase = ?
+           AND status = 'archived' AND backlog_at IS NULL`,
+        userId,
+        identityPhrase,
+      )
+    ).map((r) => r.id);
+
+    const exBacklogIds = (
+      await db.getAllAsync<{ id: string }>(
+        `SELECT id FROM local_habits
+         WHERE user_id = ? AND identity_phrase = ?
+           AND status = 'archived' AND backlog_at IS NOT NULL`,
+        userId,
+        identityPhrase,
+      )
+    ).map((r) => r.id);
+
+    if (exActiveIds.length > 0) {
+      const placeholders = exActiveIds.map(() => "?").join(",");
+      await db.runAsync(
+        `UPDATE local_habits
+           SET status = 'active', archived_at = NULL, updated_at = ?
+         WHERE id IN (${placeholders})`,
+        now,
+        ...exActiveIds,
+      );
+    }
+
+    if (exBacklogIds.length > 0) {
+      const placeholders = exBacklogIds.map(() => "?").join(",");
+      // start_date reset matches activateBacklogHabitRow semantics — without
+      // it, a previously-backlog habit would revive looking like it had been
+      // active since original creation, fabricating "missed" days.
+      await db.runAsync(
+        `UPDATE local_habits
+           SET status = 'active',
+               archived_at = NULL,
+               backlog_at = NULL,
+               start_date = ?,
+               updated_at = ?
+         WHERE id IN (${placeholders})`,
+        todayDate,
+        now,
+        ...exBacklogIds,
+      );
+    }
+
+    if (exActiveIds.length > 0) {
+      const placeholders = exActiveIds.map(() => "?").join(",");
+      exActiveRows = await db.getAllAsync<Habit>(
+        `SELECT * FROM local_habits WHERE id IN (${placeholders})`,
+        ...exActiveIds,
+      );
+    }
+
+    if (exBacklogIds.length > 0) {
+      const placeholders = exBacklogIds.map(() => "?").join(",");
+      exBacklogRows = await db.getAllAsync<Habit>(
+        `SELECT * FROM local_habits WHERE id IN (${placeholders})`,
+        ...exBacklogIds,
+      );
+    }
+  });
+
+  return { restoredExActive: exActiveRows, restoredExBacklog: exBacklogRows };
+}
+
 export async function deleteGoal(
   userId: string,
   identityPhrase: string,
