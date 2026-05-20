@@ -17,6 +17,7 @@ import {
   listGoalHabits,
   listUpcomingHabits,
   restoreGoal,
+  restoreHabit,
   updateHabit,
   upsertHabitLog,
 } from "@/features/habits/api";
@@ -307,6 +308,13 @@ export async function invalidateHabitSurfaceQueries(
     queryKey: getArchivedGoalsQueryKey(userId),
   });
   await queryClient.invalidateQueries({
+    // The archived-goal-detail screen shows every habit under a phrase
+    // (every status) — a per-habit archive/restore/edit can change the
+    // habit list shape and the fully-archived predicate the screen gates
+    // on. Broad prefix invalidation hits every cached identity_phrase.
+    queryKey: ["habits", "archived-goal-detail"],
+  });
+  await queryClient.invalidateQueries({
     // Cascade count (active+backlog under each phrase) changes whenever
     // a habit's status flips. Broad prefix invalidation hits every cached
     // identity_phrase at once.
@@ -357,6 +365,12 @@ export async function invalidateHabitListQueries(
     // the Archive list; deleting habits more broadly can also flip a goal
     // into the archived state if it leaves zero active+backlog rows.
     queryKey: getArchivedGoalsQueryKey(userId),
+  });
+  await queryClient.invalidateQueries({
+    // ArchivedGoalDetailScreen lists every habit under a phrase; deleting
+    // one shrinks that list (and may flip the fully-archived predicate).
+    // Broad prefix invalidation hits every cached identity_phrase.
+    queryKey: ["habits", "archived-goal-detail"],
   });
   await queryClient.invalidateQueries({
     queryKey: ["habits", "goal-cascade-count"],
@@ -426,6 +440,33 @@ export function useArchiveHabitMutation() {
     },
     onError: (error, variables) => {
       logger.error("Habit archive mutation failed", {
+        error,
+        habitId: variables.habitId,
+        userId: user?.id ?? null,
+      });
+    },
+  });
+}
+
+export function useRestoreHabitMutation() {
+  const { user } = useAuthSession();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ habitId }: { habitId: string }) => {
+      if (!user?.id) {
+        throw new Error(
+          "You need an account session before restoring a habit.",
+        );
+      }
+      return restoreHabit(user.id, habitId);
+    },
+    onSuccess: async (_result, variables) => {
+      if (!user?.id) return;
+      await invalidateHabitSurfaceQueries(user.id, variables.habitId, queryClient);
+    },
+    onError: (error, variables) => {
+      logger.error("Habit restore mutation failed", {
         error,
         habitId: variables.habitId,
         userId: user?.id ?? null,

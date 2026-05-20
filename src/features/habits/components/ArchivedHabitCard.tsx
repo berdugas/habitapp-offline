@@ -54,7 +54,12 @@ export function ArchivedHabitCard({ habit }: ArchivedHabitCardProps) {
     <Pressable
       accessibilityLabel={`Open ${habit.title}`}
       accessibilityRole="button"
-      onPress={() => router.push(`/(app)/habits/${habit.id}`)}
+      onPress={() =>
+        router.push({
+          pathname: "/(app)/habits/archived/[habitId]",
+          params: { habitId: habit.id },
+        })
+      }
       style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
     >
       <View style={styles.titleRow}>

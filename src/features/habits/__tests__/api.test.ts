@@ -19,6 +19,7 @@ import {
   listArchivedGoals,
   reactivateHabit,
   restoreGoal,
+  restoreHabit,
 } from "@/features/habits/api";
 import { closeDb, getDb, initDb } from "@/lib/db/client";
 import * as habitsRepo from "@/lib/db/repositories/habits";
@@ -294,10 +295,57 @@ describe("habits/api — new mutations", () => {
     });
   });
 
-  describe("archiveHabit (regression — still ownership-checked)", () => {
+  describe("archiveHabit", () => {
     it("throws when habit is not owned by user", async () => {
       const habit = await seedActiveHabit({ user_id: "user-1" });
       await expect(archiveHabit("user-2", habit.id)).rejects.toThrow(/not found/i);
+    });
+
+    it("cancels the OS reminder for active habits before flipping status — every archive entry point gets reminder teardown", async () => {
+      // Regression: previously cancelReminder lived only inside
+      // HabitDetailScreen.handleArchivePress, so other archive entry points
+      // (Today recovery modal's "Pause for now", etc.) flipped status without
+      // tearing down the OS notification — the archived habit kept firing.
+      const habit = await seedActiveHabit();
+      await archiveHabit("user-1", habit.id);
+
+      expect(mockCancelReminder).toHaveBeenCalledTimes(1);
+      expect(mockCancelReminder).toHaveBeenCalledWith(habit.id);
+      expect((await getHabit(habit.id))!.status).toBe("archived");
+    });
+
+    it("does NOT cancel the reminder for backlog habits — preserves deferred reminder_time intent", async () => {
+      // Mirrors archiveGoal's selective-cancel: backlog rows store
+      // reminder_time as deferred intent that materializePendingReminder
+      // needs on later activation. Cancelling it here would silently break
+      // restore-from-backlog. (Today UI never archives backlog rows, but
+      // the api guards defensively.)
+      const habit = await createHabit("user-1", {
+        title: "Read",
+        identityPhrase: "a reader",
+        cue: "after coffee",
+        tinyAction: "read 1 page",
+        minimumViableAction: "",
+        preferredTimeWindow: "",
+        icon: "",
+        activeDays: [1, 2, 3, 4, 5, 6, 7],
+        habitState: "active",
+        status: "backlog",
+      });
+
+      await archiveHabit("user-1", habit.id);
+
+      expect(mockCancelReminder).not.toHaveBeenCalled();
+      expect((await getHabit(habit.id))!.status).toBe("archived");
+      // backlog_at preserved as the marker restoreHabit uses for ex-backlog.
+      expect((await getHabit(habit.id))!.backlog_at).not.toBeNull();
+    });
+
+    it("does not throw when cancelReminder rejects (best-effort)", async () => {
+      mockCancelReminder.mockRejectedValueOnce(new Error("permission denied"));
+      const habit = await seedActiveHabit();
+      await expect(archiveHabit("user-1", habit.id)).resolves.toBeUndefined();
+      expect((await getHabit(habit.id))!.status).toBe("archived");
     });
   });
 
@@ -542,6 +590,90 @@ describe("habits/api — new mutations", () => {
       await expect(restoreGoal("user-1", "a writer")).resolves.toMatchObject({
         restoredExBacklogCount: 1,
       });
+    });
+  });
+
+  describe("restoreHabit", () => {
+    it("throws when habit is not owned by user", async () => {
+      const habit = await seedActiveHabit({ user_id: "user-1" });
+      await archiveHabit("user-1", habit.id);
+      await expect(restoreHabit("user-2", habit.id)).rejects.toThrow(/not found/i);
+    });
+
+    it("restores an ex-active habit without rematerializing a reminder", async () => {
+      const habit = await seedActiveHabit({ identity_phrase: "a writer" });
+      await archiveHabit("user-1", habit.id);
+
+      const result = await restoreHabit("user-1", habit.id);
+
+      expect(result.restored).toBe(true);
+      expect(result.wasExBacklog).toBe(false);
+      // Ex-active reminders were cancelled at archive (HabitDetailScreen calls
+      // cancelReminder after mutateAsync) — no intent left to rearm.
+      expect(mockMaterializePendingReminder).not.toHaveBeenCalled();
+      expect((await getHabit(habit.id))!.status).toBe("active");
+    });
+
+    it("rematerializes the reminder for an ex-backlog habit with parsed active_days", async () => {
+      const habit = await createHabit("user-1", {
+        title: "Read",
+        identityPhrase: "a writer",
+        cue: "after dinner",
+        tinyAction: "read 1 page",
+        minimumViableAction: "",
+        preferredTimeWindow: "",
+        icon: "",
+        activeDays: [1, 3, 5],
+        habitState: "active",
+        status: "backlog",
+      });
+      // archiveHabit (single-habit, API layer) preserves backlog_at — same
+      // marker pattern goal cascade uses. Restore re-arms the reminder.
+      await archiveHabit("user-1", habit.id);
+
+      const result = await restoreHabit("user-1", habit.id);
+
+      expect(result.restored).toBe(true);
+      expect(result.wasExBacklog).toBe(true);
+      expect(mockMaterializePendingReminder).toHaveBeenCalledTimes(1);
+      expect(mockMaterializePendingReminder).toHaveBeenCalledWith(
+        habit.id,
+        "user-1",
+        [1, 3, 5],
+      );
+    });
+
+    it("does not throw when materializePendingReminder fails (best-effort)", async () => {
+      mockMaterializePendingReminder.mockRejectedValueOnce(
+        new Error("permission denied"),
+      );
+      const habit = await createHabit("user-1", {
+        title: "Read",
+        identityPhrase: "a writer",
+        cue: "after dinner",
+        tinyAction: "read 1 page",
+        minimumViableAction: "",
+        preferredTimeWindow: "",
+        icon: "",
+        activeDays: [1, 2, 3, 4, 5, 6, 7],
+        habitState: "active",
+        status: "backlog",
+      });
+      await archiveHabit("user-1", habit.id);
+
+      await expect(restoreHabit("user-1", habit.id)).resolves.toMatchObject({
+        restored: true,
+        wasExBacklog: true,
+      });
+    });
+
+    it("returns restored:false when the row is not archived (no-op)", async () => {
+      const habit = await seedActiveHabit();
+      const result = await restoreHabit("user-1", habit.id);
+
+      expect(result.restored).toBe(false);
+      expect(result.wasExBacklog).toBe(false);
+      expect(mockMaterializePendingReminder).not.toHaveBeenCalled();
     });
   });
 

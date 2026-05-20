@@ -67,17 +67,9 @@ export function HabitDetailActions({
             <SecondaryButton label="Back to Today" onPress={onBackPress} />
           </>
         ) : (
-          <>
-            <View style={styles.actionHelperCard}>
-              <Text selectable style={styles.actionHelperTitle}>
-                Archived
-              </Text>
-              <Text selectable style={styles.actionHelperBody}>
-                This habit is archived. Reactivation coming in a future release.
-              </Text>
-            </View>
-            <SecondaryButton label="Back to Archive" onPress={onBackPress} />
-          </>
+          // Archived habits are redirected to ArchivedHabitDetailScreen at the
+          // screen level, so this branch only ever renders for backlog rows.
+          <SecondaryButton label="Back to Backlog" onPress={onBackPress} />
         )}
       </View>
 

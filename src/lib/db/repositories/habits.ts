@@ -234,6 +234,69 @@ export async function archiveHabit(id: string): Promise<void> {
   }
 }
 
+// Single-habit restore. Mirrors the cascade branching of restoreGoal but on
+// one row: ex-active habits (backlog_at IS NULL at archive time) keep their
+// original start_date so streak/log accounting stays correct; ex-backlog
+// habits (backlog_at IS NOT NULL) reset start_date to todayDate, mirroring
+// activateBacklogHabitRow — without it, a previously-backlog habit would
+// revive looking active since original creation, fabricating "missed" days.
+//
+// Returns the updated row so the api wrapper can extract active_days for
+// reminder rematerialization without a second round-trip.
+export async function restoreHabit(
+  id: string,
+  todayDate: string,
+): Promise<{ restored: boolean; habit: Habit | null; wasExBacklog: boolean }> {
+  const db = getDb();
+  const now = new Date().toISOString();
+
+  let habit: Habit | null = null;
+  let wasExBacklog = false;
+
+  await db.withTransactionAsync(async () => {
+    // Pre-capture: branch B nulls backlog_at, so any post-update read keyed
+    // on backlog_at IS NULL/NOT NULL can't distinguish ex-active from
+    // ex-backlog afterward.
+    const captured = await db.getFirstAsync<Habit>(
+      `SELECT * FROM local_habits WHERE id = ? AND status = 'archived'`,
+      id,
+    );
+    if (!captured) return;
+
+    wasExBacklog = captured.backlog_at !== null;
+
+    if (wasExBacklog) {
+      await db.runAsync(
+        `UPDATE local_habits
+           SET status = 'active',
+               archived_at = NULL,
+               backlog_at = NULL,
+               start_date = ?,
+               updated_at = ?
+         WHERE id = ?`,
+        todayDate,
+        now,
+        id,
+      );
+    } else {
+      await db.runAsync(
+        `UPDATE local_habits
+           SET status = 'active', archived_at = NULL, updated_at = ?
+         WHERE id = ?`,
+        now,
+        id,
+      );
+    }
+
+    habit = await db.getFirstAsync<Habit>(
+      `SELECT * FROM local_habits WHERE id = ?`,
+      id,
+    );
+  });
+
+  return { restored: habit !== null, habit, wasExBacklog };
+}
+
 export async function getHabit(id: string): Promise<Habit | null> {
   const db = getDb();
   return db.getFirstAsync<Habit>(
