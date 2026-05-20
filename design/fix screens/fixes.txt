@@ -15,12 +15,12 @@ Graduation
    - when i select an option we should highlight it more
 
 
-Delete Habit should be inside archive habit?
-
-Weekly consistency chart needs an axis label
 
 Weekly review, you cant re review the week anymore? You cannot make adjustments after the first review?
 
+We are using arrows in the buttons, maybe we can use chevrons as well
+
+after restoring the habit, then the user clicks chevron back it goes to archive screen again, which is confusing.
 
 
 

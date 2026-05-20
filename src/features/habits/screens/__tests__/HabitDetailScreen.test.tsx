@@ -28,8 +28,13 @@ async function flushAsyncState() {
 import HabitDetailScreen from "@/features/habits/screens/HabitDetailScreen";
 import { resetClockForTesting, setNowForTesting } from "@/utils/clock";
 
+const mockRouterPush = jest.fn();
+const mockRouterReplace = jest.fn();
 jest.mock("expo-router", () => ({
-  router: { push: jest.fn(), replace: jest.fn() },
+  router: {
+    push: (...args: unknown[]) => mockRouterPush(...args),
+    replace: (...args: unknown[]) => mockRouterReplace(...args),
+  },
   useLocalSearchParams: () => ({ habitId: "habit-1" }),
 }));
 
@@ -639,10 +644,7 @@ describe("HabitDetailScreen", () => {
       });
       renderWithClient(<HabitDetailScreen />);
       fireEvent.press(screen.getByText("Start reflection"));
-      const { router } = jest.requireMock("expo-router") as {
-        router: { push: jest.Mock };
-      };
-      expect(router.push).toHaveBeenCalledWith({
+      expect(mockRouterPush).toHaveBeenCalledWith({
         pathname: "/(app)/graduation/[habitId]",
         params: { habitId: "habit-1" },
       });
@@ -743,7 +745,10 @@ describe("HabitDetailScreen", () => {
       expect(screen.getByRole("button", { name: "Delete habit" })).toBeTruthy();
     });
 
-    it("renders the danger zone (eyebrow + body + button) for archived habits", () => {
+    it("redirects to the archived habit detail screen when status is archived (no live render)", async () => {
+      // Archived habits live on ArchivedHabitDetailScreen; the live screen's
+      // stale-route effect redirects on settled-fetch + archived status. The
+      // DangerZone for archived now lives on the archived screen, not here.
       useHabitDetail.mockReturnValue({
         error: null,
         formula: "After morning coffee, I will run.",
@@ -755,13 +760,12 @@ describe("HabitDetailScreen", () => {
         recentLogs: [],
       });
       renderWithClient(<HabitDetailScreen />);
-      expect(screen.getByText("DELETE HABIT")).toBeTruthy();
-      expect(
-        screen.getByText(
-          /Permanently removes this habit and all its history/i,
-        ),
-      ).toBeTruthy();
-      expect(screen.getByRole("button", { name: "Delete habit" })).toBeTruthy();
+      await waitFor(() => {
+        expect(mockRouterReplace).toHaveBeenCalledWith({
+          pathname: "/(app)/habits/archived/[habitId]",
+          params: { habitId: "habit-1" },
+        });
+      });
     });
 
     it("shows confirmation alert with habit title when delete is tapped", () => {
@@ -830,12 +834,8 @@ describe("HabitDetailScreen", () => {
     });
   });
 
-  describe("first-archive auto-nav to Backlog", () => {
-    const { router } = jest.requireMock("expo-router") as {
-      router: { push: jest.Mock; replace: jest.Mock };
-    };
-
-    it("routes to /(app)/habits/backlog when the intro flag has not been seen", async () => {
+  describe("post-archive navigation", () => {
+    it("routes to /(app)/habits/backlog on first archive (intro flag not seen) — onboarding hop", async () => {
       mockIsArchiveIntroSeen.mockResolvedValue(false);
       const archiveMutate = jest.fn().mockResolvedValue(undefined);
       useArchiveHabitMutation.mockReturnValue({
@@ -854,11 +854,11 @@ describe("HabitDetailScreen", () => {
         recentLogs: [],
       });
       renderWithClient(<HabitDetailScreen />);
-      // The intro-seen read is async. We need the state to actually flip
-      // from null to false before pressing — otherwise the conditional in
-      // handleArchivePress sees `null` and skips the redirect. Flushing
-      // microtasks via a no-op act() lets the .then(setArchiveIntroSeen)
-      // run AND the re-render commit before we touch the button.
+      // The intro-seen read is async. We need the state to flip from null to
+      // false before pressing — otherwise the conditional in handleArchivePress
+      // sees `null` and skips the redirect. Flushing microtasks via a no-op
+      // act() lets the .then(setArchiveIntroSeen) run AND the re-render commit
+      // before we touch the button.
       await waitFor(() => {
         expect(mockIsArchiveIntroSeen).toHaveBeenCalled();
       });
@@ -868,7 +868,7 @@ describe("HabitDetailScreen", () => {
 
       await waitFor(() => {
         expect(archiveMutate).toHaveBeenCalledWith({ habitId: "habit-1" });
-        expect(router.replace).toHaveBeenCalledWith("/(app)/habits/backlog");
+        expect(mockRouterReplace).toHaveBeenCalledWith("/(app)/habits/backlog");
       });
 
       // The handler does NOT mark the intro seen — that's the banner's job.
@@ -878,7 +878,7 @@ describe("HabitDetailScreen", () => {
       expect(markArchiveIntroSeen).not.toHaveBeenCalled();
     });
 
-    it("does NOT route when the intro flag has already been seen — screen re-renders in archived mode", async () => {
+    it("routes to the archived habit detail screen on subsequent archives (intro flag seen)", async () => {
       mockIsArchiveIntroSeen.mockResolvedValue(true);
       const archiveMutate = jest.fn().mockResolvedValue(undefined);
       useArchiveHabitMutation.mockReturnValue({
@@ -907,7 +907,12 @@ describe("HabitDetailScreen", () => {
       await waitFor(() => {
         expect(archiveMutate).toHaveBeenCalled();
       });
-      expect(router.replace).not.toHaveBeenCalled();
+      await waitFor(() => {
+        expect(mockRouterReplace).toHaveBeenCalledWith({
+          pathname: "/(app)/habits/archived/[habitId]",
+          params: { habitId: "habit-1" },
+        });
+      });
     });
 
     it("disables the Archive button while the intro flag is still loading (race-prevention)", async () => {
@@ -940,7 +945,7 @@ describe("HabitDetailScreen", () => {
       // Button is disabled → press is a no-op. The mutation does NOT fire
       // and no navigation happens.
       expect(archiveMutate).not.toHaveBeenCalled();
-      expect(router.replace).not.toHaveBeenCalled();
+      expect(mockRouterReplace).not.toHaveBeenCalled();
     });
   });
 });

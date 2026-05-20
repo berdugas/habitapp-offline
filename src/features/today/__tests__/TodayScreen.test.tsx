@@ -505,6 +505,14 @@ describe("TodayScreen", () => {
   });
 
   it("tapping Pause for now archives the habit then calls setPreference", async () => {
+    // This test stops at the mutation boundary because useArchiveHabitMutation
+    // is mocked away. The reminder-teardown half of "Pause for now" is
+    // asserted at the API layer in api.test.ts → describe('archiveHabit') →
+    // 'cancels the OS reminder for active habits before flipping status'.
+    // That test exists specifically because this entry point used to bypass
+    // reminder cancellation (the screen-layer handler in HabitDetailScreen
+    // owned it). Don't move the cancelReminder call out of api.ts without
+    // failing both tests in tandem.
     const mutateAsync = jest.fn().mockResolvedValue(undefined);
     useArchiveHabitMutation.mockReturnValue({
       error: null,

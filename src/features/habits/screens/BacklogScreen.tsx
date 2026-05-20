@@ -122,6 +122,20 @@ export default function BacklogScreen() {
         <ArchiveEmptyState />
       ) : (
         <View style={styles.sections}>
+          {/* Banner sits above both archived sections so the first-archive
+              onboarding hop lands on a visible intro regardless of whether
+              the user's first archive is goalless (lands in Archived habits)
+              or rolls a goal up into fully-archived (lands in Archived goals,
+              while the underlying habit is deduped out of Archived habits). */}
+          {archiveIntroSeen === false &&
+          (archivedGoals.length > 0 || archivedHabits.length > 0) ? (
+            <FirstRunTipBanner
+              message="Tap an archived goal or habit to restore it or delete it permanently."
+              onDismiss={() => void handleDismissArchiveIntro()}
+              testID="archive-intro-banner"
+            />
+          ) : null}
+
           {archivedGoals.length > 0 ? (
             <View style={styles.section}>
               <Eyebrow label="Archived goals" />
@@ -136,13 +150,6 @@ export default function BacklogScreen() {
           {archivedHabits.length > 0 ? (
             <View style={styles.section}>
               <Eyebrow label="Archived habits" />
-              {archiveIntroSeen === false ? (
-                <FirstRunTipBanner
-                  message="Tap an archived habit to view its history or delete it permanently."
-                  onDismiss={() => void handleDismissArchiveIntro()}
-                  testID="archive-intro-banner"
-                />
-              ) : null}
               <View style={styles.cardList}>
                 {archivedHabits.map((habit) => (
                   <ArchivedHabitCard key={habit.id} habit={habit} />

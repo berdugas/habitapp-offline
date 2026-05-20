@@ -9,6 +9,7 @@ import {
   listHabits,
   reactivateHabitRow,
   restoreGoal as restoreGoalRow,
+  restoreHabit as restoreHabitRow,
   updateHabit as updateHabitRow,
 } from "@/lib/db/repositories/habits";
 import { ALL_DAYS, parseActiveDays, serializeActiveDays } from "@/features/habits/activeDays";
@@ -156,8 +157,51 @@ export async function archiveHabit(
   userId: string,
   habitId: string,
 ): Promise<void> {
-  await getHabitById(userId, habitId);
+  const habit = await getHabitById(userId, habitId);
+
+  // Cancel any OS-scheduled reminder ONLY for previously-active rows.
+  // Mirrors archiveGoal's selective-cancel: backlog habits store reminder_time
+  // as deferred intent that materializePendingReminder needs on later
+  // activation — cancelReminder would null that intent and silently break
+  // restore-from-backlog. Already-archived habits (defensive — the repo
+  // no-ops gracefully if a stale UI re-archives) also have nothing to cancel.
+  //
+  // Lives at the api layer (not at any screen) so every archive entry point
+  // — HabitDetailScreen, the Today recovery modal's "Pause for now", any
+  // future caller — gets reminder teardown for free. Best-effort: a failed
+  // OS notification cancel must not abort the archive.
+  if (habit.status === "active") {
+    await cancelReminder(habitId).catch(() => {});
+  }
+
   await archiveHabitRow(habitId);
+}
+
+export async function restoreHabit(
+  userId: string,
+  habitId: string,
+): Promise<{ restored: boolean; wasExBacklog: boolean }> {
+  await getHabitById(userId, habitId);
+  const { restored, habit, wasExBacklog } = await restoreHabitRow(
+    habitId,
+    todayDateString(),
+  );
+
+  // Rematerialize reminders only for ex-backlog rows — mirrors restoreGoal.
+  // Ex-active reminders were cancelled at the api layer during archive
+  // (archiveHabit calls cancelReminder for status='active' rows), which
+  // nulls reminder_time + reminder_type in the DB. There's no intent left
+  // to rearm; user re-enables from habit detail if desired.
+  // Best-effort: a failed OS notification must not abort the restore.
+  if (restored && wasExBacklog && habit) {
+    await materializePendingReminder(
+      habit.id,
+      userId,
+      parseActiveDays(habit.active_days),
+    ).catch(() => {});
+  }
+
+  return { restored, wasExBacklog };
 }
 
 export async function reactivateHabit(

@@ -1,6 +1,6 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { ChevronLeft } from "lucide-react-native";
+import { ChevronLeft, ChevronRight } from "lucide-react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -71,6 +71,22 @@ export default function ArchivedGoalDetailScreen() {
   // remains live for genuine empty-from-out-of-band cases.
   const isExitingRef = useRef(false);
 
+  // Render-visible companion to isExitingRef. The ref alone can't gate the
+  // visible render because ref mutations don't trigger re-renders — so after
+  // mutateAsync's await resolves the screen would re-render with the new
+  // (post-restore) data and flash a degraded archived view ("0 habits / inert
+  // Restore button") for one tick before dismissAll fires. The state flag
+  // forces LoadingState during the entire transition. Reset on failure.
+  const [isExiting, setIsExiting] = useState(false);
+  function startExit() {
+    isExitingRef.current = true;
+    setIsExiting(true);
+  }
+  function cancelExit() {
+    isExitingRef.current = false;
+    setIsExiting(false);
+  }
+
   // The stale-route condition fires for two distinct cases:
   //   1. No habits exist under this phrase at all (deleted elsewhere,
   //      deep-linked to a never-existed phrase, etc).
@@ -106,17 +122,31 @@ export default function ArchivedGoalDetailScreen() {
 
   async function handleRestoreGoal() {
     if (!identityPhrase || restoreGoalMutation.isPending) return;
-    isExitingRef.current = true;
+    startExit();
     try {
       await restoreGoalMutation.mutateAsync({ identityPhrase });
-      router.replace({
+      // Pop the entire archive-side stack off (Archive list + this detail),
+      // anchor on the Today tab, then push the live Goal Detail on top.
+      // Back-stack ends up as [Today, GoalDetail] so the chevron-back
+      // rewinds to Today, not into a now-stale Archive view that no longer
+      // contains this goal. A plain router.replace would leave Archive in
+      // the back-stack — same trap. dismissAll alone would leave the active
+      // tab unchanged (if the user reached Archive from Settings, they'd
+      // land back on Settings → GoalDetail, not Today → GoalDetail), so the
+      // explicit Today replace anchors the back-stack deterministically.
+      // Goal restore is heavier than single-habit (N habits at once), so
+      // the push to Goal Detail gives the user the "welcome back, here's
+      // your identity" payoff that a flat habit list can't.
+      router.dismissAll();
+      router.replace("/(app)/(tabs)/today");
+      router.push({
         pathname: "/(app)/goals/[identityPhrase]",
         params: { identityPhrase: encodeURIComponent(identityPhrase) },
       });
     } catch {
       // Re-arm the stale-route fallback so the user can retry; failure
       // surfaced via mutation state below.
-      isExitingRef.current = false;
+      cancelExit();
     }
   }
 
@@ -137,14 +167,14 @@ export default function ArchivedGoalDetailScreen() {
 
   async function handleDeleteGoal() {
     if (!identityPhrase || deleteGoalMutation.isPending) return;
-    isExitingRef.current = true;
+    startExit();
     try {
       await deleteGoalMutation.mutateAsync({ identityPhrase });
       // .replace, not .back — direct-open / stale-stack cases make .back
       // non-deterministic, and the destination is always Archive list.
       router.replace("/(app)/habits/backlog");
     } catch {
-      isExitingRef.current = false;
+      cancelExit();
     }
   }
 
@@ -174,7 +204,11 @@ export default function ArchivedGoalDetailScreen() {
   // redirect effect firing and the new route taking over. Without this,
   // a stale-route case (mixed-state or empty phrase) briefly flashes a
   // "0 habits — Restore / Delete" surface before navigation completes.
-  if (shouldRedirect) {
+  // isExiting covers the success-path transition: between mutateAsync
+  // resolving (cache now reflects restored/deleted shape) and dismissAll
+  // firing, this screen would otherwise render the stale-but-renderable
+  // archived view for one tick. Gate on both.
+  if (shouldRedirect || isExiting) {
     return <LoadingState message="Loading..." />;
   }
 
@@ -211,33 +245,51 @@ export default function ArchivedGoalDetailScreen() {
         </View>
       </View>
 
-      {/* Read-only habits list. No chevron, no press feedback, muted type.
-          Communicates "frozen" surface. */}
+      {/* Tappable habits list — each row navigates to that habit's archived
+          detail screen so the user can restore or permanently delete one
+          habit out of a fully-archived goal without restoring the whole goal
+          first. Muted type signals the goal's archived state. */}
       {archivedHabits.length > 0 ? (
         <View>
           <Eyebrow label="Habits in this goal" />
           <ZenCard style={styles.habitsCard} gap={0}>
             {archivedHabits.map((habit, i) => (
-              <View
+              <Pressable
+                accessibilityLabel={`Open ${habit.title}`}
+                accessibilityRole="button"
                 key={habit.id}
-                style={[
+                onPress={() =>
+                  router.push({
+                    pathname: "/(app)/habits/archived/[habitId]",
+                    params: { habitId: habit.id },
+                  })
+                }
+                style={({ pressed }) => [
                   styles.habitRow,
                   i > 0 && styles.habitRowBorder,
+                  pressed && styles.habitRowPressed,
                 ]}
               >
-                <View style={styles.habitNameRow}>
-                  {habit.icon ? (
-                    <LucideIcon
-                      name={habit.icon}
-                      size={16}
-                      color={colors.textMuted}
-                      strokeWidth={1.75}
-                    />
-                  ) : null}
-                  <Text style={styles.habitName}>{habit.title}</Text>
+                <View style={styles.habitRowContent}>
+                  <View style={styles.habitNameRow}>
+                    {habit.icon ? (
+                      <LucideIcon
+                        name={habit.icon}
+                        size={16}
+                        color={colors.textMuted}
+                        strokeWidth={1.75}
+                      />
+                    ) : null}
+                    <Text style={styles.habitName}>{habit.title}</Text>
+                  </View>
+                  <Text style={styles.habitSubtitle}>{habit.tiny_action}</Text>
                 </View>
-                <Text style={styles.habitSubtitle}>{habit.tiny_action}</Text>
-              </View>
+                <ChevronRight
+                  color={colors.textFaint}
+                  size={16}
+                  strokeWidth={1.75}
+                />
+              </Pressable>
             ))}
           </ZenCard>
         </View>
@@ -342,13 +394,22 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   habitRow: {
-    gap: spacing.xs,
+    alignItems: "center",
+    flexDirection: "row",
+    gap: spacing.sm,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
   },
   habitRowBorder: {
     borderTopColor: colors.surface,
     borderTopWidth: StyleSheet.hairlineWidth,
+  },
+  habitRowContent: {
+    flex: 1,
+    gap: spacing.xs,
+  },
+  habitRowPressed: {
+    opacity: 0.7,
   },
   habitSubtitle: {
     color: colors.textFaint,

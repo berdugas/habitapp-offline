@@ -124,6 +124,10 @@ export function getRestoreGoalErrorMessage() {
   return "We couldn't restore this goal right now. Try again.";
 }
 
+export function getRestoreHabitErrorMessage() {
+  return "We couldn't restore this habit right now. Try again.";
+}
+
 export function getGenerateHabitRewriteErrorMessage() {
   return "We couldn't generate a rewrite right now. You can still edit this habit manually.";
 }

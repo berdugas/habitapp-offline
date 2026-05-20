@@ -23,7 +23,7 @@ jest.mock("@/features/trial/hooks", () => ({
   })),
 }));
 
-import { act, fireEvent, render, screen } from "@testing-library/react-native";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 
 async function flushAsyncState() {
   await act(async () => {
@@ -35,6 +35,7 @@ import HabitDetailScreen from "@/features/habits/screens/HabitDetailScreen";
 import { useTrialValidation } from "@/features/trial/hooks";
 
 const mockPush = jest.fn();
+const mockReplace = jest.fn();
 const mockUseHabitDetail = jest.fn();
 const mockUseArchiveHabitMutation = jest.fn();
 const mockMutateAsync = jest.fn();
@@ -43,7 +44,7 @@ const mockUseLocalSearchParams = jest.fn();
 jest.mock("expo-router", () => ({
   router: {
     push: (...args: unknown[]) => mockPush(...args),
-    replace: jest.fn(),
+    replace: (...args: unknown[]) => mockReplace(...args),
   },
   useLocalSearchParams: () => mockUseLocalSearchParams(),
 }));
@@ -282,7 +283,9 @@ describe("HabitDetailScreen", () => {
     });
   });
 
-  it("shows archived state for archived habits (no archive button)", () => {
+  it("redirects archived habits to the archived habit detail screen (no live render)", async () => {
+    // Archived habits now live on ArchivedHabitDetailScreen. The live screen
+    // detects status='archived' on settled fetch and replaces the route.
     mockUseHabitDetail.mockReturnValue({
       error: null,
       formula: "After breakfast, I will Read 1 page.",
@@ -295,11 +298,12 @@ describe("HabitDetailScreen", () => {
 
     render(<HabitDetailScreen />);
 
-    expect(screen.getByText("Archived")).toBeTruthy();
-    expect(
-      screen.getByText("This habit is archived. Reactivation coming in a future release."),
-    ).toBeTruthy();
-    expect(screen.queryByText("Archive habit")).toBeNull();
+    await waitFor(() => {
+      expect(mockReplace).toHaveBeenCalledWith({
+        pathname: "/(app)/habits/archived/[habitId]",
+        params: { habitId: "habit-1" },
+      });
+    });
   });
 
   it("shows a friendly archive error instead of the raw mutation message", () => {

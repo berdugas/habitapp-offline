@@ -28,7 +28,6 @@ import {
   computeWeeklyConsistency,
 } from "@/features/today/goalMetrics";
 import { getGoalNarrative } from "@/features/today/goalNarrativeCopy";
-import { cancelReminder, requestPermission } from "@/features/reminders/notifications";
 import { RetroLogSelector } from "@/features/habits/components/RetroLogSelector";
 import {
   useArchiveHabitMutation,
@@ -87,6 +86,13 @@ export default function HabitDetailScreen() {
   const archiveHabitMutation = useArchiveHabitMutation();
   const deleteHabitMutation = useDeleteHabitMutation();
   const deleteSubmitLockRef = useRef(false);
+  // Suppresses the archived-status redirect during an in-flight archive on
+  // this screen. Set true synchronously inside handleArchivePress before
+  // mutateAsync runs — the post-mutation refetch flips habit.status to
+  // 'archived', which would otherwise fire the redirect effect and race with
+  // the handler's own imperative router.replace. Reset on mutation failure so
+  // retries work and the fallback remains live for deep-link/stale cases.
+  const isExitingRef = useRef(false);
   const upsertHabitLogMutation = useUpsertHabitLogMutation();
   const retroLogSubmitLockRef = useRef(false);
   const [selectorState, setSelectorState] = useState<{
@@ -120,6 +126,22 @@ export default function HabitDetailScreen() {
       .then(setArchiveIntroSeen)
       .catch(() => setArchiveIntroSeen(true));
   }, []);
+
+  // Archived habits live on their own screen. If a user lands here for an
+  // archived habit (deep link, stale route, or in-flight refetch after
+  // archive), redirect to ArchivedHabitDetailScreen. Gated on isExitingRef
+  // so the handler's imperative router.replace path stays authoritative
+  // during the brief in-flight window of the archive mutation.
+  useEffect(() => {
+    if (isExitingRef.current) return;
+    if (isLoading || error) return;
+    if (habit && habit.status === "archived") {
+      router.replace({
+        pathname: "/(app)/habits/archived/[habitId]",
+        params: { habitId: habit.id },
+      });
+    }
+  }, [habit?.id, habit?.status, isLoading, error]);
 
   // Weekly review state
   const todayDate = toDeviceDateString(now());
@@ -299,16 +321,31 @@ export default function HabitDetailScreen() {
     // redirect that drives the onboarding banner.
     if (archiveIntroSeen === null) return;
     activeStateSubmitLockRef.current = true;
+    // Suppress the archived-status redirect effect; this handler owns the
+    // post-archive navigation imperatively.
+    isExitingRef.current = true;
     try {
+      // api.ts archiveHabit cancels the OS reminder for status='active' rows
+      // — every archive entry point gets reminder teardown, not just this
+      // screen. No extra cancelReminder call needed here.
       await archiveHabitMutation.mutateAsync({ habitId: habit.id });
-      // Cancel any scheduled reminder after archive (non-fatal)
-      await cancelReminder(habit.id).catch(() => {});
       // First-time archive: route to Backlog so the user discovers where
       // archived habits live (and that delete now lives there). The intro
       // flag is written by the banner's dismiss on Backlog, NOT here.
+      // Subsequent archives skip the onboarding and land on the archived
+      // habit detail screen with the Restore affordance.
       if (archiveIntroSeen === false) {
         router.replace("/(app)/habits/backlog");
+      } else {
+        router.replace({
+          pathname: "/(app)/habits/archived/[habitId]",
+          params: { habitId: habit.id },
+        });
       }
+    } catch {
+      // Mutation failed — re-arm the redirect fallback so the user can retry
+      // or back out without being stuck on a stale archived view.
+      isExitingRef.current = false;
     } finally {
       activeStateSubmitLockRef.current = false;
     }

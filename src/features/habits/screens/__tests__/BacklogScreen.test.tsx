@@ -438,7 +438,7 @@ describe("BacklogScreen", () => {
       expect(screen.queryByTestId("archive-intro-banner")).toBeNull();
     });
 
-    it("does NOT render when there are no archived habits, even if the flag is false", async () => {
+    it("does NOT render when there are no archived habits AND no archived goals, even if the flag is false", async () => {
       mockIsArchiveIntroSeen.mockResolvedValue(false);
       mockUseBacklogHabitsQuery.mockReturnValue({
         data: [makeBacklogHabit()],
@@ -446,12 +446,40 @@ describe("BacklogScreen", () => {
         error: null,
       });
       mockUseInactiveHabitsQuery.mockReturnValue({ data: [], isLoading: false, error: null });
+      // Default mock returns archivedGoals=[] — both archived sections are empty.
       render(<BacklogScreen />);
 
       await waitFor(() => {
         expect(mockIsArchiveIntroSeen).toHaveBeenCalled();
       });
       expect(screen.queryByTestId("archive-intro-banner")).toBeNull();
+    });
+
+    it("renders when the intro flag is false AND only archived goals exist (no flat archived habits)", async () => {
+      // First-archive onboarding regression: if a user's first archive rolls
+      // a goal up into 'fully archived', the underlying habit gets deduped
+      // out of the flat Archived habits section. The banner must still show
+      // (above both sections) so the user discovers the new restore/delete
+      // affordance.
+      mockIsArchiveIntroSeen.mockResolvedValue(false);
+      mockUseBacklogHabitsQuery.mockReturnValue({ data: [], isLoading: false, error: null });
+      mockUseInactiveHabitsQuery.mockReturnValue({ data: [], isLoading: false, error: null });
+      mockUseArchivedGoalsQuery.mockReturnValue({
+        data: [
+          {
+            identityPhrase: "a writer",
+            habitCount: 2,
+            archivedAt: "2026-05-15T12:00:00.000Z",
+          },
+        ],
+        isLoading: false,
+        error: null,
+      });
+      render(<BacklogScreen />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId("archive-intro-banner")).toBeTruthy();
+      });
     });
 
     it("does NOT render while the flag is still loading (null) — avoids a flash", () => {
@@ -529,6 +557,9 @@ describe("BacklogScreen", () => {
     const { router } = jest.requireMock("expo-router") as {
       router: { push: jest.Mock };
     };
-    expect(router.push).toHaveBeenCalledWith("/(app)/habits/arch-42");
+    expect(router.push).toHaveBeenCalledWith({
+      pathname: "/(app)/habits/archived/[habitId]",
+      params: { habitId: "arch-42" },
+    });
   });
 });

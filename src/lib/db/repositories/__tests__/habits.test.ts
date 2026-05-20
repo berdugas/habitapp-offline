@@ -11,6 +11,7 @@ import {
   getHabit,
   listHabits,
   restoreGoal,
+  restoreHabit,
   updateHabit,
   type CreateHabitInput,
 } from "@/lib/db/repositories/habits";
@@ -568,6 +569,125 @@ describe("habits repository", () => {
       );
       expect(result.restoredExActive).toEqual([]);
       expect(result.restoredExBacklog).toEqual([]);
+    });
+  });
+
+  describe("restoreHabit", () => {
+    it("restores an ex-active habit with start_date preserved and archived_at cleared", async () => {
+      const habit = await createHabit(
+        makeInput({ status: "active", start_date: "2020-01-15" }),
+      );
+      await archiveHabit(habit.id);
+
+      const result = await restoreHabit(habit.id, "2030-12-31");
+
+      expect(result.restored).toBe(true);
+      expect(result.wasExBacklog).toBe(false);
+      expect(result.habit!.status).toBe("active");
+      expect(result.habit!.archived_at).toBeNull();
+      // start_date untouched so streak/log accounting picks up where it left off.
+      expect(result.habit!.start_date).toBe("2020-01-15");
+
+      const persisted = await getHabit(habit.id);
+      expect(persisted!.status).toBe("active");
+      expect(persisted!.start_date).toBe("2020-01-15");
+    });
+
+    it("restores an ex-backlog habit with start_date=today and backlog_at cleared", async () => {
+      const habit = await createHabit(
+        makeInput({ status: "backlog", start_date: "2020-01-15" }),
+      );
+      // backlog_at gets stamped by the API layer at create-time; mirror that
+      // state here before archive so the restore branch picks "ex-backlog".
+      await getDb().runAsync(
+        "UPDATE local_habits SET backlog_at = ? WHERE id = ?",
+        "2020-01-15T08:00:00.000Z",
+        habit.id,
+      );
+      // archiveHabit (single-habit) preserves backlog_at by only setting
+      // status/archived_at/updated_at — same marker pattern goal cascade uses.
+      await archiveHabit(habit.id);
+
+      const result = await restoreHabit(habit.id, "2030-12-31");
+
+      expect(result.restored).toBe(true);
+      expect(result.wasExBacklog).toBe(true);
+      expect(result.habit!.status).toBe("active");
+      expect(result.habit!.archived_at).toBeNull();
+      expect(result.habit!.backlog_at).toBeNull();
+      // start_date reset mirrors activateBacklogHabitRow — otherwise an
+      // ex-backlog revive looks active since original creation.
+      expect(result.habit!.start_date).toBe("2030-12-31");
+    });
+
+    it("is a no-op on an active row — returns restored:false and leaves the row untouched", async () => {
+      const habit = await createHabit(
+        makeInput({ status: "active", start_date: "2020-01-15" }),
+      );
+
+      const result = await restoreHabit(habit.id, "2030-12-31");
+
+      expect(result.restored).toBe(false);
+      expect(result.habit).toBeNull();
+      expect(result.wasExBacklog).toBe(false);
+      const after = await getHabit(habit.id);
+      expect(after!.status).toBe("active");
+      expect(after!.start_date).toBe("2020-01-15");
+    });
+
+    it("is a no-op on a backlog row — does not promote backlog directly to active", async () => {
+      const habit = await createHabit(
+        makeInput({ status: "backlog", start_date: "2020-01-15" }),
+      );
+
+      const result = await restoreHabit(habit.id, "2030-12-31");
+
+      expect(result.restored).toBe(false);
+      // Backlog rows have their own activate-from-backlog path; restoreHabit
+      // is strictly archived → active. Guards against accidental promotion.
+      const after = await getHabit(habit.id);
+      expect(after!.status).toBe("backlog");
+      expect(after!.start_date).toBe("2020-01-15");
+    });
+
+    it("returns restored:false when the habit id does not exist", async () => {
+      const result = await restoreHabit("nonexistent-id", "2030-12-31");
+
+      expect(result.restored).toBe(false);
+      expect(result.habit).toBeNull();
+      expect(result.wasExBacklog).toBe(false);
+    });
+
+    it("returns the post-update row so the api wrapper can read active_days for reminder rematerialization", async () => {
+      const habit = await createHabit(
+        makeInput({
+          status: "backlog",
+          active_days: "[1,3,5]",
+        }),
+      );
+      await getDb().runAsync(
+        "UPDATE local_habits SET backlog_at = ? WHERE id = ?",
+        "2020-01-15T08:00:00.000Z",
+        habit.id,
+      );
+      await archiveHabit(habit.id);
+
+      const result = await restoreHabit(habit.id, "2030-12-31");
+
+      // active_days survives the cascade — the api layer parses this into
+      // the day-set passed to materializePendingReminder.
+      expect(result.habit!.active_days).toBe("[1,3,5]");
+    });
+
+    it("bumps updated_at on the restored row", async () => {
+      const habit = await createHabit(makeInput({ status: "active" }));
+      await archiveHabit(habit.id);
+      const archived = await getHabit(habit.id);
+
+      await new Promise((r) => setTimeout(r, 5));
+      const result = await restoreHabit(habit.id, "2030-12-31");
+
+      expect(result.habit!.updated_at > archived!.updated_at).toBe(true);
     });
   });
 

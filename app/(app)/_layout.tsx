@@ -21,6 +21,10 @@ export default function ProtectedLayout() {
       <Stack.Screen name="habits/backlog" options={{ headerShown: false }} />
       <Stack.Screen name="habits/[habitId]" options={{ headerShown: false }} />
       <Stack.Screen
+        name="habits/archived/[habitId]"
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
         name="habits/[habitId]/edit"
         options={{ headerShown: false }}
       />

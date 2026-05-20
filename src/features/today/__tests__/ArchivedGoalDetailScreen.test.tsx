@@ -19,8 +19,15 @@ import ArchivedGoalDetailScreen from "@/features/today/screens/ArchivedGoalDetai
 
 const mockReplace = jest.fn();
 
+const mockPush = jest.fn();
+const mockDismissAll = jest.fn();
 jest.mock("expo-router", () => ({
-  router: { back: jest.fn(), replace: (...args: unknown[]) => mockReplace(...args) },
+  router: {
+    back: jest.fn(),
+    push: (...args: unknown[]) => mockPush(...args),
+    replace: (...args: unknown[]) => mockReplace(...args),
+    dismissAll: () => mockDismissAll(),
+  },
   useLocalSearchParams: () => ({ identityPhrase: "a%20writer" }),
 }));
 
@@ -242,7 +249,9 @@ describe("ArchivedGoalDetailScreen", () => {
     expect(screen.getByText("Archived habit")).toBeTruthy();
   });
 
-  it("renders read-only habit rows (no chevron, not pressable)", () => {
+  it("renders habit rows as tappable Pressables that navigate to the per-habit archived detail", () => {
+    // Per-habit tap-through lets users selectively restore one habit out of
+    // a fully-archived goal (without restoring the entire cascade).
     useArchivedGoalDetailQuery.mockReturnValue({
       data: [
         makeHabit({ id: "a", title: "Read" }),
@@ -255,8 +264,12 @@ describe("ArchivedGoalDetailScreen", () => {
     renderWithClient(<ArchivedGoalDetailScreen />);
     expect(screen.getByText("Read")).toBeTruthy();
     expect(screen.getByText("Write")).toBeTruthy();
-    // Habit rows have no button role — they're not interactive.
-    expect(screen.queryByRole("button", { name: "Read" })).toBeNull();
+
+    fireEvent.press(screen.getByRole("button", { name: "Open Read" }));
+    expect(mockPush).toHaveBeenCalledWith({
+      pathname: "/(app)/habits/archived/[habitId]",
+      params: { habitId: "a" },
+    });
   });
 
   describe("Restore", () => {
@@ -278,7 +291,14 @@ describe("ArchivedGoalDetailScreen", () => {
       alertSpy.mockRestore();
     });
 
-    it("on success navigates to live Goal Detail and does NOT also fire the stale-route redirect", async () => {
+    it("on success dismisses, anchors on Today, then pushes Goal Detail — back goes to Today, not stale Archive or wrong tab", async () => {
+      // Regression A: a plain router.replace to Goal Detail leaves Archive
+      //   in the back-stack — chevron-back rewinds into a stale Archive view.
+      // Regression B: dismissAll alone pops the non-tab stack but leaves the
+      //   *active tab* unchanged. If the user reached Archive from Settings,
+      //   they'd land on [Settings → GoalDetail] instead of [Today →
+      //   GoalDetail]. The Today replace anchors the back-stack.
+      // Three calls, strict order: dismissAll → replace(Today) → push(Goal).
       const restoreMutate = jest.fn().mockResolvedValue({
         restoredExActiveCount: 1,
         restoredExBacklogCount: 0,
@@ -291,11 +311,55 @@ describe("ArchivedGoalDetailScreen", () => {
         error: null,
       });
 
-      // Render the screen, then trigger the destructive handler the same way
-      // the Alert "Restore" button's onPress would. Once mutateAsync resolves,
-      // we simulate the invalidation refetch arriving with zero habits — the
-      // exact condition that, without isExitingRef, would race the success
-      // navigation.
+      const alertSpy = jest
+        .spyOn(require("react-native").Alert, "alert")
+        .mockImplementation(((_t: string, _m: string, btns: Array<{ text: string; onPress?: () => void }>) => {
+          btns.find((b) => b.text === "Restore")?.onPress?.();
+        }) as never);
+
+      renderWithClient(<ArchivedGoalDetailScreen />);
+      fireEvent.press(screen.getByRole("button", { name: "Restore goal" }));
+
+      await waitFor(() => {
+        expect(restoreMutate).toHaveBeenCalledWith({ identityPhrase: "a writer" });
+      });
+      await waitFor(() => {
+        expect(mockDismissAll).toHaveBeenCalled();
+        expect(mockReplace).toHaveBeenCalledWith("/(app)/(tabs)/today");
+        expect(mockPush).toHaveBeenCalledWith({
+          pathname: "/(app)/goals/[identityPhrase]",
+          params: { identityPhrase: encodeURIComponent("a writer") },
+        });
+      });
+      // Strict order: dismissAll → Today replace → GoalDetail push. Any
+      // other ordering means the back-stack is broken (push first → stack
+      // is Settings → GoalDetail; replace first without dismiss → still has
+      // Archive underneath).
+      const dismissOrder = mockDismissAll.mock.invocationCallOrder[0]!;
+      const replaceOrder = mockReplace.mock.invocationCallOrder[0]!;
+      const pushOrder = mockPush.mock.invocationCallOrder[0]!;
+      expect(dismissOrder).toBeLessThan(replaceOrder);
+      expect(replaceOrder).toBeLessThan(pushOrder);
+      alertSpy.mockRestore();
+    });
+
+    it("isExitingRef suppresses the stale-route redirect during the in-flight restore", async () => {
+      // After the mutation resolves the goal-detail query invalidates and
+      // refetches; the refetch returning the now-restored shape would
+      // otherwise trigger the stale-route useEffect's own redirect into
+      // Archive — clobbering the success-path nav. isExitingRef must be set
+      // synchronously inside the handler before mutateAsync runs.
+      const restoreMutate = jest.fn().mockResolvedValue({
+        restoredExActiveCount: 1,
+        restoredExBacklogCount: 0,
+        restoredHabitIds: ["h1"],
+      });
+      useRestoreGoalMutation.mockReturnValue({
+        mutate: jest.fn(),
+        mutateAsync: restoreMutate,
+        isPending: false,
+        error: null,
+      });
       const alertSpy = jest
         .spyOn(require("react-native").Alert, "alert")
         .mockImplementation(((_t: string, _m: string, btns: Array<{ text: string; onPress?: () => void }>) => {
@@ -306,16 +370,10 @@ describe("ArchivedGoalDetailScreen", () => {
       fireEvent.press(screen.getByRole("button", { name: "Restore goal" }));
 
       await waitFor(() => {
-        expect(restoreMutate).toHaveBeenCalledWith({ identityPhrase: "a writer" });
-      });
-      await waitFor(() => {
-        expect(mockReplace).toHaveBeenCalledWith({
-          pathname: "/(app)/goals/[identityPhrase]",
-          params: { identityPhrase: encodeURIComponent("a writer") },
-        });
+        expect(restoreMutate).toHaveBeenCalled();
       });
 
-      // Now simulate the post-success invalidation refetch returning empty.
+      // Simulate the post-success refetch arriving with empty habits.
       useArchivedGoalDetailQuery.mockReturnValue({
         data: [],
         isLoading: false,
@@ -330,19 +388,13 @@ describe("ArchivedGoalDetailScreen", () => {
         </QueryClientProvider>,
       );
 
-      // Only ONE navigation has fired (the success one) — the stale-route
-      // effect does NOT clobber it on re-render. (After rerender the
-      // isExitingRef on the previous instance is gone, but the new instance
-      // sees the empty data and falls back to backlog. That's correct, but
-      // for THIS test we're verifying the success path won the original
-      // race.) Count includes that subsequent fallback for the fresh mount,
-      // so the assertion checks the FIRST call.
-      expect(mockReplace.mock.calls[0]).toEqual([
-        {
-          pathname: "/(app)/goals/[identityPhrase]",
-          params: { identityPhrase: encodeURIComponent("a writer") },
-        },
-      ]);
+      // The original instance's isExitingRef is still set → its stale-route
+      // effect stays silent. No router.replace into Archive ever fires from
+      // the same instance that ran the success-path dismissAll/push.
+      // (mockReplace IS called with /(app)/(tabs)/today as part of the
+      // success-path anchor; the stale-route fallback would target
+      // /(app)/habits/backlog instead — assert that specifically is absent.)
+      expect(mockReplace).not.toHaveBeenCalledWith("/(app)/habits/backlog");
       alertSpy.mockRestore();
     });
 
@@ -366,8 +418,11 @@ describe("ArchivedGoalDetailScreen", () => {
       await waitFor(() => {
         expect(restoreMutate).toHaveBeenCalled();
       });
-      // Success-path navigation did NOT fire (mutation rejected).
-      expect(mockReplace).not.toHaveBeenCalled();
+      // Success-path navigation did NOT fire (mutation rejected) — none of
+      // dismissAll, Today replace, or GoalDetail push happened yet.
+      expect(mockDismissAll).not.toHaveBeenCalled();
+      expect(mockPush).not.toHaveBeenCalled();
+      expect(mockReplace).not.toHaveBeenCalledWith("/(app)/(tabs)/today");
 
       // Now an out-of-band data change empties the goal. With isExitingRef
       // correctly re-armed (set false on failure), the stale-route effect
@@ -401,6 +456,64 @@ describe("ArchivedGoalDetailScreen", () => {
       });
       renderWithClient(<ArchivedGoalDetailScreen />);
       expect(screen.getByText("Restoring…")).toBeTruthy();
+    });
+
+    it("renders LoadingState during the success-path transition — no flash of the degraded archived view between mutateAsync resolving and dismissAll firing", async () => {
+      // Regression: the user observed a quick flash of the now-stale archived
+      // goal screen between mutateAsync resolving (cache reflects the restored
+      // shape, so archivedHabits = []) and dismissAll firing. The ref alone
+      // can't gate this — refs don't trigger re-renders. The companion state
+      // flag (isExiting) must flip synchronously inside the handler so the
+      // next render shows LoadingState, not the degraded shell.
+      let resolveRestore: ((value: unknown) => void) | undefined;
+      const restoreMutate = jest.fn().mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            resolveRestore = resolve;
+          }),
+      );
+      useRestoreGoalMutation.mockReturnValue({
+        mutate: jest.fn(),
+        mutateAsync: restoreMutate,
+        isPending: false,
+        error: null,
+      });
+      const alertSpy = jest
+        .spyOn(require("react-native").Alert, "alert")
+        .mockImplementation(((_t: string, _m: string, btns: Array<{ text: string; onPress?: () => void }>) => {
+          btns.find((b) => b.text === "Restore")?.onPress?.();
+        }) as never);
+
+      renderWithClient(<ArchivedGoalDetailScreen />);
+      fireEvent.press(screen.getByRole("button", { name: "Restore goal" }));
+
+      // After the press, the handler runs synchronously: startExit() flips
+      // isExiting=true and the screen re-renders to LoadingState BEFORE the
+      // mutateAsync promise settles. The Restore button should be gone.
+      await waitFor(() => {
+        expect(restoreMutate).toHaveBeenCalled();
+      });
+      expect(screen.queryByRole("button", { name: "Restore goal" })).toBeNull();
+      expect(screen.queryByText("Loading...")).toBeTruthy();
+
+      // Now simulate the cache flipping to the restored shape (the refetch
+      // would deliver this in the real flow). Without isExiting gating, the
+      // screen would render the degraded archived view here.
+      useArchivedGoalDetailQuery.mockReturnValue({
+        data: [],
+        isLoading: false,
+        isFetched: true,
+        error: null,
+      });
+      resolveRestore!(undefined);
+
+      await waitFor(() => {
+        expect(mockDismissAll).toHaveBeenCalled();
+      });
+      // The degraded shell never rendered: action shell stays hidden across
+      // the whole transition.
+      expect(screen.queryByRole("button", { name: "Restore goal" })).toBeNull();
+      alertSpy.mockRestore();
     });
   });
 
