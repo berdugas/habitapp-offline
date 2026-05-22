@@ -12,6 +12,7 @@ type ConsistencyDonutProps = {
   label?: string;
   onPress?: () => void;
   rate: number;
+  showAttentionDot?: boolean;
   size?: number;
   strokeWidth?: number;
   suppressed?: boolean;
@@ -24,6 +25,7 @@ export function ConsistencyDonut({
   label = "Consistency",
   onPress,
   rate,
+  showAttentionDot = false,
   size = DEFAULT_SIZE,
   strokeWidth = DEFAULT_STROKE_WIDTH,
   suppressed = false,
@@ -110,6 +112,9 @@ export function ConsistencyDonut({
             )}
           </View>
         </View>
+        {showAttentionDot ? (
+          <View style={styles.attentionDot} testID="donut-attention-dot" />
+        ) : null}
       </View>
       {label !== "" ? (
         <Text style={styles.captionText}>{label}</Text>
@@ -131,6 +136,17 @@ export function ConsistencyDonut({
 }
 
 const styles = StyleSheet.create({
+  attentionDot: {
+    backgroundColor: colors.primary,
+    borderColor: colors.surfaceMuted,
+    borderRadius: 999,
+    borderWidth: 2,
+    height: 12, // 8px dot + 2px border each side = 12px total
+    position: "absolute",
+    right: 2,
+    top: 2,
+    width: 12,
+  },
   captionText: {
     color: colors.textFaint,
     fontFamily: fontFamilies.body,

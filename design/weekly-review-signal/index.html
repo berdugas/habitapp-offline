@@ -1,0 +1,1331 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Weekly review signal — design review</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Manrope:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg: #fbf9f5;
+        --paper: #f5f1e8;
+        --surface: #f3f1eb;
+        --surface-card: #ffffff;
+        --surface-muted: #f0ece3;
+        --surface-high: #e8e5dd;
+        --text: #31332f;
+        --text-muted: #6b6d68;
+        --text-faint: #9a9c96;
+        --primary: #446655;
+        --primary-deep: #2f4a3d;
+        --primary-light: #c6ebd5;
+        --primary-soft: #e8f5ee;
+        --rule: #e6e1d4;
+        --serif: "Fraunces", "Iowan Old Style", Georgia, serif;
+        --sans: "Manrope", -apple-system, BlinkMacSystemFont, sans-serif;
+        --display: "Plus Jakarta Sans", "Manrope", sans-serif;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family: var(--sans);
+        -webkit-font-smoothing: antialiased;
+        text-rendering: optimizeLegibility;
+      }
+
+      body {
+        background-image: radial-gradient(
+            ellipse at top left,
+            rgba(68, 102, 85, 0.04),
+            transparent 55%
+          ),
+          radial-gradient(
+            ellipse at bottom right,
+            rgba(107, 158, 125, 0.05),
+            transparent 60%
+          );
+        min-height: 100vh;
+      }
+
+      /* ---------- Doc chrome (editorial header) ---------- */
+
+      .page {
+        max-width: 1320px;
+        margin: 0 auto;
+        padding: 64px 40px 96px;
+      }
+
+      .masthead {
+        display: grid;
+        grid-template-columns: auto 1fr auto;
+        align-items: center;
+        gap: 24px;
+        padding-bottom: 28px;
+        border-bottom: 1px solid var(--rule);
+      }
+
+      .masthead .crest {
+        font-family: var(--display);
+        font-weight: 800;
+        font-size: 13px;
+        letter-spacing: 0.22em;
+        text-transform: uppercase;
+        color: var(--primary);
+      }
+
+      .masthead .issue {
+        font-family: var(--serif);
+        font-style: italic;
+        font-weight: 400;
+        font-size: 14px;
+        color: var(--text-muted);
+        text-align: center;
+      }
+
+      .masthead .date {
+        font-family: var(--sans);
+        font-size: 13px;
+        color: var(--text-muted);
+        font-variant-numeric: tabular-nums;
+      }
+
+      .lede {
+        margin: 56px 0 12px;
+        max-width: 760px;
+      }
+
+      .lede .kicker {
+        font-family: var(--display);
+        font-weight: 700;
+        font-size: 11px;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: var(--primary);
+        margin-bottom: 16px;
+      }
+
+      .lede h1 {
+        font-family: var(--serif);
+        font-weight: 500;
+        font-size: clamp(36px, 4vw, 54px);
+        line-height: 1.05;
+        letter-spacing: -0.02em;
+        margin: 0 0 20px;
+      }
+
+      .lede h1 em {
+        font-style: italic;
+        font-weight: 400;
+        color: var(--primary);
+      }
+
+      .lede p {
+        font-family: var(--serif);
+        font-weight: 400;
+        font-size: 19px;
+        line-height: 1.55;
+        color: var(--text);
+        margin: 0;
+      }
+
+      .lede p + p {
+        margin-top: 14px;
+      }
+
+      .lede .byline {
+        margin-top: 28px;
+        font-family: var(--sans);
+        font-size: 13px;
+        color: var(--text-faint);
+      }
+
+      /* ---------- Diagnosis section ---------- */
+
+      .diagnosis {
+        margin: 64px 0 24px;
+        padding: 32px 36px;
+        background: rgba(255, 255, 255, 0.55);
+        border: 1px solid var(--rule);
+        border-radius: 18px;
+        display: grid;
+        grid-template-columns: 220px 1fr;
+        gap: 36px;
+      }
+
+      .diagnosis h2 {
+        margin: 0;
+        font-family: var(--serif);
+        font-weight: 500;
+        font-size: 22px;
+        letter-spacing: -0.01em;
+      }
+
+      .diagnosis ol {
+        margin: 0;
+        padding: 0;
+        list-style: none;
+        display: grid;
+        gap: 14px;
+        counter-reset: diag;
+      }
+
+      .diagnosis li {
+        counter-increment: diag;
+        padding-left: 36px;
+        position: relative;
+        font-size: 15px;
+        line-height: 1.55;
+        color: var(--text);
+      }
+
+      .diagnosis li::before {
+        content: counter(diag, decimal-leading-zero);
+        position: absolute;
+        left: 0;
+        top: 0;
+        font-family: var(--display);
+        font-weight: 800;
+        font-size: 11px;
+        color: var(--primary);
+        letter-spacing: 0.1em;
+      }
+
+      .diagnosis li strong {
+        font-weight: 600;
+      }
+
+      /* ---------- Board grid ---------- */
+
+      .section-head {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 24px;
+        margin: 64px 0 32px;
+        padding-bottom: 18px;
+        border-bottom: 1px solid var(--rule);
+      }
+
+      .section-head h2 {
+        font-family: var(--serif);
+        font-weight: 500;
+        font-size: 32px;
+        letter-spacing: -0.015em;
+        margin: 0;
+      }
+
+      .section-head .meta {
+        font-family: var(--sans);
+        font-size: 13px;
+        color: var(--text-faint);
+        font-variant-numeric: tabular-nums;
+      }
+
+      .board {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 40px 36px;
+      }
+
+      @media (max-width: 980px) {
+        .board {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      .variant {
+        display: grid;
+        gap: 18px;
+      }
+
+      .variant-head {
+        display: flex;
+        align-items: flex-start;
+        gap: 18px;
+      }
+
+      .variant-tag {
+        flex: 0 0 auto;
+        font-family: var(--display);
+        font-weight: 800;
+        font-size: 11px;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: var(--primary);
+        background: var(--primary-soft);
+        padding: 7px 12px;
+        border-radius: 999px;
+      }
+
+      .variant-tag.muted {
+        color: var(--text-muted);
+        background: var(--surface-high);
+      }
+
+      .variant-title {
+        font-family: var(--serif);
+        font-weight: 500;
+        font-size: 24px;
+        letter-spacing: -0.01em;
+        margin: 0;
+        line-height: 1.15;
+      }
+
+      .variant-title em {
+        font-style: italic;
+        color: var(--primary);
+      }
+
+      .variant-sub {
+        font-family: var(--serif);
+        font-style: italic;
+        font-weight: 400;
+        font-size: 15px;
+        color: var(--text-muted);
+        margin: 4px 0 0;
+      }
+
+      /* ---------- Phone-screen mock ---------- */
+
+      .device {
+        background: var(--bg);
+        border-radius: 28px;
+        padding: 22px 18px;
+        border: 1px solid var(--rule);
+        box-shadow: 0 30px 60px -40px rgba(47, 74, 61, 0.35),
+          0 8px 24px -12px rgba(47, 74, 61, 0.12);
+        position: relative;
+        overflow: hidden;
+      }
+
+      .device::before {
+        content: "";
+        position: absolute;
+        inset: 6px;
+        border-radius: 22px;
+        pointer-events: none;
+        border: 1px solid rgba(0, 0, 0, 0.02);
+      }
+
+      .device-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 18px;
+      }
+
+      .device-brand {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .device-brand .logo {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 2px;
+        width: 18px;
+        height: 18px;
+      }
+
+      .device-brand .logo span {
+        background: var(--text);
+        border-radius: 3px;
+      }
+
+      .device-brand .logo span:first-child {
+        background: var(--primary);
+      }
+
+      .device-brand .name {
+        font-family: var(--display);
+        font-weight: 800;
+        font-size: 11px;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: var(--text);
+      }
+
+      .device-date {
+        font-family: var(--sans);
+        font-size: 12px;
+        color: var(--text-muted);
+        font-variant-numeric: tabular-nums;
+      }
+
+      .goal-card {
+        background: var(--surface-muted);
+        border-radius: 20px;
+        padding: 18px;
+        display: grid;
+        gap: 14px;
+        position: relative;
+      }
+
+      .goal-head {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 14px;
+        align-items: flex-start;
+      }
+
+      .goal-title-block {
+        display: grid;
+        gap: 4px;
+      }
+
+      .goal-title {
+        font-family: var(--sans);
+        font-weight: 500;
+        font-size: 21px;
+        color: var(--text);
+        margin: 0;
+        letter-spacing: -0.005em;
+        line-height: 1.1;
+      }
+
+      .goal-streak {
+        font-family: var(--sans);
+        font-weight: 400;
+        font-size: 14px;
+        color: var(--primary);
+        margin: 0;
+      }
+
+      /* shared pills */
+      .pill {
+        align-self: flex-start;
+        background: var(--surface-high);
+        border-radius: 999px;
+        padding: 4px 10px;
+        font-family: var(--sans);
+        font-size: 11px;
+        color: var(--text-muted);
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .pill--done {
+        background: var(--primary-light);
+        color: var(--primary);
+        font-weight: 500;
+      }
+
+      .pill--review {
+        background: var(--primary);
+        color: #fff;
+        font-weight: 600;
+        padding: 6px 12px;
+        font-size: 12px;
+        box-shadow: 0 6px 14px -8px rgba(68, 102, 85, 0.55);
+      }
+
+      .pill--review svg {
+        width: 14px;
+        height: 14px;
+      }
+
+      .review-hint {
+        font-family: var(--sans);
+        font-size: 11px;
+        color: var(--primary);
+        font-weight: 600;
+        margin: 0;
+      }
+
+      /* donut */
+      .donut {
+        position: relative;
+        width: 48px;
+        height: 48px;
+        flex: 0 0 auto;
+        display: grid;
+        place-items: center;
+        text-align: center;
+      }
+
+      .donut svg {
+        width: 48px;
+        height: 48px;
+        transform: rotate(-90deg);
+      }
+
+      .donut .pct {
+        position: absolute;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        font-family: var(--sans);
+        font-weight: 600;
+        font-size: 12px;
+        color: var(--text);
+      }
+
+      .donut-wrap {
+        display: grid;
+        gap: 2px;
+        justify-items: center;
+      }
+
+      .donut-caption {
+        font-size: 10px;
+        color: var(--text-faint);
+      }
+
+      /* habits card */
+      .habits {
+        background: var(--surface-card);
+        border-radius: 14px;
+        overflow: hidden;
+      }
+
+      .habit-row {
+        display: grid;
+        grid-template-columns: auto auto 1fr auto;
+        align-items: center;
+        gap: 10px;
+        padding: 12px 14px;
+        border-top: 1px solid var(--surface);
+      }
+
+      .habit-row:first-child {
+        border-top: none;
+      }
+
+      .habit-check {
+        width: 28px;
+        height: 28px;
+        border-radius: 999px;
+        background: var(--primary);
+        display: grid;
+        place-items: center;
+      }
+
+      .habit-check svg {
+        width: 14px;
+        height: 14px;
+        color: #fff;
+      }
+
+      .habit-icon {
+        width: 16px;
+        height: 16px;
+        color: var(--text-muted);
+        flex: 0 0 auto;
+      }
+
+      .habit-text {
+        display: grid;
+        gap: 2px;
+        min-width: 0;
+      }
+
+      .habit-name {
+        font-family: var(--sans);
+        font-weight: 500;
+        font-size: 14px;
+        color: var(--text);
+        text-decoration: line-through;
+        text-decoration-color: rgba(49, 51, 47, 0.45);
+      }
+
+      .habit-cue {
+        font-family: var(--sans);
+        font-size: 11px;
+        color: var(--text-muted);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 230px;
+      }
+
+      .habit-chev {
+        color: var(--text-faint);
+      }
+
+      .habit-chev svg {
+        width: 14px;
+        height: 14px;
+      }
+
+      /* ---------- Variant-specific overrides ---------- */
+
+      /* A (shipped): tight primary pill stacked ABOVE the daily pill,
+         plus a static attention dot on the donut. (Earlier draft replaced
+         the daily pill; current ship stacks both — see Option A panel.) */
+      .donut-dot {
+        position: absolute;
+        top: 2px;
+        right: 2px;
+        width: 8px;
+        height: 8px;
+        border-radius: 999px;
+        background: var(--primary);
+        border: 2px solid var(--surface-muted);
+        animation: dot-pulse 2.4s ease-in-out infinite;
+      }
+
+      /* Shipped variant: no animation. Matches the in-app behavior — motion
+         polish was deferred from v1 to keep the surface minimal. */
+      .donut-dot--static {
+        animation: none;
+      }
+
+      @keyframes dot-pulse {
+        0%, 100% {
+          transform: scale(1);
+          opacity: 1;
+        }
+        50% {
+          transform: scale(1.18);
+          opacity: 0.85;
+        }
+      }
+
+      .pill--review-anim {
+        animation: pill-rise 0.6s ease-out backwards;
+      }
+
+      @keyframes pill-rise {
+        from {
+          opacity: 0;
+          transform: translateY(4px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      /* B: Reflection banner */
+      .banner {
+        background: linear-gradient(
+          180deg,
+          rgba(255, 255, 255, 0.65),
+          rgba(232, 245, 238, 0.75)
+        );
+        border: 1px solid rgba(68, 102, 85, 0.22);
+        border-left: 3px solid var(--primary);
+        border-radius: 12px;
+        padding: 14px 16px;
+        display: grid;
+        grid-template-columns: auto 1fr auto;
+        gap: 14px;
+        align-items: center;
+      }
+
+      .banner-mark {
+        width: 32px;
+        height: 32px;
+        background: var(--primary);
+        border-radius: 8px;
+        display: grid;
+        place-items: center;
+        color: #fff;
+        flex: 0 0 auto;
+        position: relative;
+      }
+
+      .banner-mark svg {
+        width: 16px;
+        height: 16px;
+      }
+
+      .banner-mark::after {
+        content: "";
+        position: absolute;
+        inset: -3px;
+        border-radius: 11px;
+        border: 1px solid var(--primary);
+        opacity: 0.25;
+        animation: ring 2.6s ease-out infinite;
+      }
+
+      @keyframes ring {
+        from { opacity: 0.35; transform: scale(1); }
+        to { opacity: 0; transform: scale(1.18); }
+      }
+
+      .banner-copy {
+        display: grid;
+        gap: 1px;
+      }
+
+      .banner-title {
+        font-family: var(--serif);
+        font-weight: 600;
+        font-size: 15px;
+        color: var(--text);
+        margin: 0;
+        letter-spacing: -0.005em;
+      }
+
+      .banner-sub {
+        font-family: var(--sans);
+        font-size: 12px;
+        color: var(--text-muted);
+        margin: 0;
+      }
+
+      .banner-chev {
+        color: var(--primary);
+        font-family: var(--sans);
+        font-weight: 600;
+        font-size: 12px;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+      }
+
+      .banner-chev svg {
+        width: 14px;
+        height: 14px;
+      }
+
+      /* C: Spotlight hero */
+      .hero-rim {
+        position: absolute;
+        inset: -6px;
+        border-radius: 50%;
+        border: 1px solid var(--primary);
+        opacity: 0.2;
+        animation: rim 3s ease-out infinite;
+      }
+
+      @keyframes rim {
+        0% { transform: scale(0.92); opacity: 0.45; }
+        100% { transform: scale(1.25); opacity: 0; }
+      }
+
+      .hero-tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-family: var(--display);
+        font-weight: 700;
+        font-size: 10px;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: var(--primary);
+        background: rgba(68, 102, 85, 0.08);
+        padding: 4px 8px;
+        border-radius: 6px;
+        align-self: flex-start;
+      }
+
+      .hero-cta {
+        background: var(--primary);
+        color: #fff;
+        padding: 12px 16px;
+        border-radius: 12px;
+        font-family: var(--sans);
+        font-weight: 600;
+        font-size: 13px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-top: 4px;
+        box-shadow: 0 10px 22px -14px rgba(68, 102, 85, 0.65);
+        position: relative;
+        overflow: hidden;
+      }
+
+      .hero-cta::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(
+          135deg,
+          rgba(255, 255, 255, 0.1) 0%,
+          rgba(255, 255, 255, 0) 50%
+        );
+        pointer-events: none;
+      }
+
+      .hero-cta-text {
+        display: grid;
+        gap: 2px;
+      }
+
+      .hero-cta-title {
+        font-weight: 700;
+        font-size: 14px;
+        letter-spacing: -0.005em;
+      }
+
+      .hero-cta-sub {
+        font-weight: 400;
+        font-size: 11px;
+        color: rgba(255, 255, 255, 0.78);
+      }
+
+      .hero-cta-arrow {
+        width: 28px;
+        height: 28px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.16);
+        display: grid;
+        place-items: center;
+        flex: 0 0 auto;
+      }
+
+      .hero-cta-arrow svg {
+        width: 14px;
+        height: 14px;
+      }
+
+      .pill--done.muted {
+        opacity: 0.7;
+      }
+
+      /* ---------- Rationale ---------- */
+
+      .rationale {
+        background: rgba(255, 255, 255, 0.5);
+        border: 1px solid var(--rule);
+        border-radius: 14px;
+        padding: 18px 20px;
+        display: grid;
+        gap: 12px;
+      }
+
+      .rationale-row {
+        display: grid;
+        grid-template-columns: 96px 1fr;
+        gap: 14px;
+        font-size: 13px;
+        line-height: 1.55;
+        color: var(--text);
+      }
+
+      .rationale-row dt {
+        font-family: var(--display);
+        font-weight: 700;
+        font-size: 10px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--text-faint);
+        padding-top: 2px;
+      }
+
+      .rationale-row dd {
+        margin: 0;
+      }
+
+      .rationale-row dd strong {
+        font-weight: 600;
+      }
+
+      /* ---------- Recommendation footer ---------- */
+
+      .recommendation {
+        margin-top: 80px;
+        padding: 44px 48px;
+        border-radius: 22px;
+        background: linear-gradient(
+          135deg,
+          var(--primary-deep),
+          var(--primary)
+        );
+        color: #fff;
+        display: grid;
+        grid-template-columns: 1fr auto;
+        align-items: center;
+        gap: 36px;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .recommendation::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(
+            ellipse at top right,
+            rgba(255, 255, 255, 0.12),
+            transparent 50%
+          ),
+          radial-gradient(
+            ellipse at bottom left,
+            rgba(198, 235, 213, 0.08),
+            transparent 60%
+          );
+        pointer-events: none;
+      }
+
+      .recommendation .label {
+        font-family: var(--display);
+        font-weight: 700;
+        font-size: 11px;
+        letter-spacing: 0.22em;
+        text-transform: uppercase;
+        color: var(--primary-light);
+        margin-bottom: 14px;
+      }
+
+      .recommendation h2 {
+        font-family: var(--serif);
+        font-weight: 400;
+        font-size: clamp(26px, 2.6vw, 36px);
+        line-height: 1.15;
+        letter-spacing: -0.015em;
+        margin: 0 0 10px;
+      }
+
+      .recommendation h2 em {
+        font-style: italic;
+      }
+
+      .recommendation p {
+        font-family: var(--serif);
+        font-weight: 400;
+        font-size: 16px;
+        line-height: 1.55;
+        margin: 0;
+        color: rgba(255, 255, 255, 0.85);
+        max-width: 580px;
+      }
+
+      .recommendation .pick {
+        font-family: var(--display);
+        font-weight: 800;
+        font-size: 64px;
+        line-height: 1;
+        letter-spacing: -0.02em;
+        color: var(--primary-light);
+        font-feature-settings: "ss01";
+      }
+
+      @media (max-width: 720px) {
+        .page {
+          padding: 32px 18px 60px;
+        }
+        .masthead {
+          grid-template-columns: 1fr;
+          text-align: center;
+        }
+        .diagnosis {
+          grid-template-columns: 1fr;
+          padding: 24px;
+        }
+        .recommendation {
+          grid-template-columns: 1fr;
+          padding: 28px;
+        }
+        .recommendation .pick {
+          font-size: 48px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <!-- Masthead -->
+      <header class="masthead">
+        <div class="crest">Habitapp · Design Review</div>
+        <div class="issue">An editorial on attention — the weekly review signal</div>
+        <div class="date">Vol. 1 · 22 May 2026</div>
+      </header>
+
+      <!-- Lede -->
+      <section class="lede">
+        <div class="kicker">The problem</div>
+        <h1>The most important moment of the week <em>is whispering.</em></h1>
+        <p>
+          On the Today screen, "Weekly review available" appears as an
+          11-pixel line of text — the same size as a footnote, sharing
+          column space with a streak update and competing for attention
+          with a celebratory "All done" pill underneath.
+        </p>
+        <p>
+          That hierarchy is upside-down. Closing out a day is automatic
+          and frequent; reflecting on a week is rare, deliberate, and the
+          single highest-leverage action a habit-builder takes. The
+          signal should match the stakes.
+        </p>
+        <div class="byline">Three concrete directions follow — pick one.</div>
+      </section>
+
+      <!-- Diagnosis -->
+      <aside class="diagnosis">
+        <h2>Why it disappears</h2>
+        <ol>
+          <li>
+            <strong>Visual weight is wrong.</strong> 11px micro text loses to a
+            48px donut and a filled mint pill in the same row.
+          </li>
+          <li>
+            <strong>No affordance.</strong> It's pressable but has no chevron,
+            underline, icon, or fill — nothing reads "tap me."
+          </li>
+          <li>
+            <strong>Two signals, one slot.</strong> The "Weekly review available"
+            line and the "All done ✓" pill collide on the same axis.
+            They should collapse.
+          </li>
+          <li>
+            <strong>No spatial separation.</strong> The signal lives inside
+            the title block; without a card, divider, or accent strip,
+            the eye skims past.
+          </li>
+        </ol>
+      </aside>
+
+      <!-- Variant board -->
+      <header class="section-head">
+        <h2>Four screens, four hierarchies</h2>
+        <div class="meta">Current state + 3 proposed directions</div>
+      </header>
+
+      <section class="board">
+        <!-- CURRENT -->
+        <article class="variant">
+          <header class="variant-head">
+            <span class="variant-tag muted">Current</span>
+            <div>
+              <h3 class="variant-title">As shipped</h3>
+              <p class="variant-sub">Where the signal hides today.</p>
+            </div>
+          </header>
+
+          <div class="device">
+            <div class="device-header">
+              <div class="device-brand">
+                <div class="logo"><span></span><span></span><span></span><span></span></div>
+                <div class="name">Habitapp</div>
+              </div>
+              <div class="device-date">Friday, May 22</div>
+            </div>
+
+            <div class="goal-card">
+              <div class="goal-head">
+                <div class="goal-title-block">
+                  <h4 class="goal-title">Become a reviewer</h4>
+                  <p class="goal-streak">Day one done. Come back tomorrow.</p>
+                  <p class="review-hint">Weekly review available</p>
+                  <span class="pill pill--done">All done ✓</span>
+                </div>
+                <div class="donut-wrap">
+                  <div class="donut">
+                    <svg viewBox="0 0 48 48">
+                      <circle cx="24" cy="24" r="22" fill="none" stroke="#e8e5dd" stroke-width="4"/>
+                      <circle cx="24" cy="24" r="22" fill="none" stroke="#446655" stroke-width="4" stroke-dasharray="138.2" stroke-dashoffset="124.4" stroke-linecap="round"/>
+                    </svg>
+                    <div class="pct">10%</div>
+                  </div>
+                  <div class="donut-caption">Goal consistency</div>
+                </div>
+              </div>
+              <div class="habits">
+                <div class="habit-row">
+                  <div class="habit-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>
+                  <svg class="habit-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M8 2h8l-1 6a4 4 0 0 1-1.5 3.1V20a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-8.9A4 4 0 0 1 9 8z"/></svg>
+                  <div class="habit-text">
+                    <div class="habit-name">Drink water</div>
+                    <div class="habit-cue">After waking up, I will sip one gla…</div>
+                  </div>
+                  <div class="habit-chev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <dl class="rationale">
+            <div class="rationale-row">
+              <dt>Hierarchy</dt>
+              <dd>Review hint reads as a sub-detail of the streak copy.</dd>
+            </div>
+            <div class="rationale-row">
+              <dt>Conflict</dt>
+              <dd>Daily "All done" pill outweighs the weekly CTA.</dd>
+            </div>
+          </dl>
+        </article>
+
+        <!-- OPTION A — implemented variant (stacked) -->
+        <article class="variant">
+          <header class="variant-head">
+            <span class="variant-tag">Option A · shipped</span>
+            <div>
+              <h3 class="variant-title"><em>Promoted</em> pill, stacked</h3>
+              <p class="variant-sub">Tight pill above the daily state pill.</p>
+            </div>
+          </header>
+
+          <div class="device">
+            <div class="device-header">
+              <div class="device-brand">
+                <div class="logo"><span></span><span></span><span></span><span></span></div>
+                <div class="name">Habitapp</div>
+              </div>
+              <div class="device-date">Friday, May 22</div>
+            </div>
+
+            <div class="goal-card">
+              <div class="goal-head">
+                <div class="goal-title-block">
+                  <h4 class="goal-title">Become a reviewer</h4>
+                  <p class="goal-streak">Day one done. Come back tomorrow.</p>
+                  <span class="pill pill--review">
+                    Weekly review
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25"><polyline points="9 18 15 12 9 6"/></svg>
+                  </span>
+                  <span class="pill pill--done">All done ✓</span>
+                </div>
+                <div class="donut-wrap">
+                  <div class="donut">
+                    <svg viewBox="0 0 48 48">
+                      <circle cx="24" cy="24" r="22" fill="none" stroke="#e8e5dd" stroke-width="4"/>
+                      <circle cx="24" cy="24" r="22" fill="none" stroke="#446655" stroke-width="4" stroke-dasharray="138.2" stroke-dashoffset="124.4" stroke-linecap="round"/>
+                    </svg>
+                    <div class="pct">10%</div>
+                    <span class="donut-dot donut-dot--static"></span>
+                  </div>
+                  <div class="donut-caption">Goal consistency</div>
+                </div>
+              </div>
+              <div class="habits">
+                <div class="habit-row">
+                  <div class="habit-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>
+                  <svg class="habit-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M8 2h8l-1 6a4 4 0 0 1-1.5 3.1V20a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-8.9A4 4 0 0 1 9 8z"/></svg>
+                  <div class="habit-text">
+                    <div class="habit-name">Drink water</div>
+                    <div class="habit-cue">After waking up, I will sip one gla…</div>
+                  </div>
+                  <div class="habit-chev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <dl class="rationale">
+            <div class="rationale-row">
+              <dt>The move</dt>
+              <dd>When a review is due, a tight primary-filled <strong>"Weekly review"</strong> pill renders above the existing daily pill. Both pills coexist; the green micro-hint is removed.</dd>
+            </div>
+            <div class="rationale-row">
+              <dt>Pill content</dt>
+              <dd>Text + trailing chevron only. The leading book icon from the earlier draft was dropped per user feedback — "just enough to cover the text inside."</dd>
+            </div>
+            <div class="rationale-row">
+              <dt>Plus</dt>
+              <dd>Small attention dot at the top-right of the consistency donut. <code>hitSlop</code> brings the tap target to ~34pt while keeping the pill visually compact.</dd>
+            </div>
+            <div class="rationale-row">
+              <dt>Trade-off</dt>
+              <dd>Adds one extra line to the title column on review-due days. Worth it on a once-per-week basis.</dd>
+            </div>
+            <div class="rationale-row">
+              <dt>Implementation</dt>
+              <dd>~50 lines across <strong>GoalContainer.tsx</strong> and <strong>ConsistencyDonut.tsx</strong>. No new components. No animations in v1 — motion polish deferred.</dd>
+            </div>
+          </dl>
+        </article>
+
+        <!-- OPTION B -->
+        <article class="variant">
+          <header class="variant-head">
+            <span class="variant-tag">Option B</span>
+            <div>
+              <h3 class="variant-title"><em>Reflection</em> banner</h3>
+              <p class="variant-sub">Dedicated strip. Editorial tone.</p>
+            </div>
+          </header>
+
+          <div class="device">
+            <div class="device-header">
+              <div class="device-brand">
+                <div class="logo"><span></span><span></span><span></span><span></span></div>
+                <div class="name">Habitapp</div>
+              </div>
+              <div class="device-date">Friday, May 22</div>
+            </div>
+
+            <div class="goal-card">
+              <div class="goal-head">
+                <div class="goal-title-block">
+                  <h4 class="goal-title">Become a reviewer</h4>
+                  <p class="goal-streak">Day one done. Come back tomorrow.</p>
+                  <span class="pill pill--done">All done ✓</span>
+                </div>
+                <div class="donut-wrap">
+                  <div class="donut">
+                    <svg viewBox="0 0 48 48">
+                      <circle cx="24" cy="24" r="22" fill="none" stroke="#e8e5dd" stroke-width="4"/>
+                      <circle cx="24" cy="24" r="22" fill="none" stroke="#446655" stroke-width="4" stroke-dasharray="138.2" stroke-dashoffset="124.4" stroke-linecap="round"/>
+                    </svg>
+                    <div class="pct">10%</div>
+                  </div>
+                  <div class="donut-caption">Goal consistency</div>
+                </div>
+              </div>
+
+              <div class="banner">
+                <div class="banner-mark">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+                </div>
+                <div class="banner-copy">
+                  <h5 class="banner-title">A week's worth to reflect on</h5>
+                  <p class="banner-sub">Your weekly review is ready</p>
+                </div>
+                <div class="banner-chev">
+                  Begin
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+                </div>
+              </div>
+
+              <div class="habits">
+                <div class="habit-row">
+                  <div class="habit-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>
+                  <svg class="habit-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M8 2h8l-1 6a4 4 0 0 1-1.5 3.1V20a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-8.9A4 4 0 0 1 9 8z"/></svg>
+                  <div class="habit-text">
+                    <div class="habit-name">Drink water</div>
+                    <div class="habit-cue">After waking up, I will sip one gla…</div>
+                  </div>
+                  <div class="habit-chev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <dl class="rationale">
+            <div class="rationale-row">
+              <dt>The move</dt>
+              <dd>A dedicated banner strip slots <strong>between the header and the habits card</strong>. Cream paper, forest-green left rule, editorial serif headline — looks like a journal note.</dd>
+            </div>
+            <div class="rationale-row">
+              <dt>Plus</dt>
+              <dd>Keeps "All done ✓" intact — both signals coexist with separate spatial real estate.</dd>
+            </div>
+            <div class="rationale-row">
+              <dt>Trade-off</dt>
+              <dd>Adds vertical height to the card. Worth it on a once-per-week basis.</dd>
+            </div>
+            <div class="rationale-row">
+              <dt>Ship cost</dt>
+              <dd>New <strong>ReviewBanner</strong> component + 1 slot in <code>GoalContainer</code>. ~80 lines.</dd>
+            </div>
+          </dl>
+        </article>
+
+        <!-- OPTION C -->
+        <article class="variant">
+          <header class="variant-head">
+            <span class="variant-tag">Option C</span>
+            <div>
+              <h3 class="variant-title"><em>Spotlight</em> hero</h3>
+              <p class="variant-sub">The week is the marquee event.</p>
+            </div>
+          </header>
+
+          <div class="device">
+            <div class="device-header">
+              <div class="device-brand">
+                <div class="logo"><span></span><span></span><span></span><span></span></div>
+                <div class="name">Habitapp</div>
+              </div>
+              <div class="device-date">Friday, May 22</div>
+            </div>
+
+            <div class="goal-card">
+              <div class="goal-head">
+                <div class="goal-title-block">
+                  <span class="hero-tag">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:10px;height:10px;"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg>
+                    This week · review ready
+                  </span>
+                  <h4 class="goal-title">Become a reviewer</h4>
+                  <p class="goal-streak">7 days in. Take stock before tomorrow.</p>
+                  <button class="hero-cta">
+                    <div class="hero-cta-text">
+                      <div class="hero-cta-title">Begin weekly review</div>
+                      <div class="hero-cta-sub">Reflect, tune, then carry on</div>
+                    </div>
+                    <div class="hero-cta-arrow">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+                    </div>
+                  </button>
+                  <span class="pill pill--done muted">All done today ✓</span>
+                </div>
+                <div class="donut-wrap">
+                  <div class="donut">
+                    <span class="hero-rim"></span>
+                    <svg viewBox="0 0 48 48">
+                      <circle cx="24" cy="24" r="22" fill="none" stroke="#e8e5dd" stroke-width="4"/>
+                      <circle cx="24" cy="24" r="22" fill="none" stroke="#446655" stroke-width="4" stroke-dasharray="138.2" stroke-dashoffset="124.4" stroke-linecap="round"/>
+                    </svg>
+                    <div class="pct">10%</div>
+                  </div>
+                  <div class="donut-caption">Goal consistency</div>
+                </div>
+              </div>
+
+              <div class="habits">
+                <div class="habit-row">
+                  <div class="habit-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>
+                  <svg class="habit-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M8 2h8l-1 6a4 4 0 0 1-1.5 3.1V20a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-8.9A4 4 0 0 1 9 8z"/></svg>
+                  <div class="habit-text">
+                    <div class="habit-name">Drink water</div>
+                    <div class="habit-cue">After waking up, I will sip one gla…</div>
+                  </div>
+                  <div class="habit-chev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <dl class="rationale">
+            <div class="rationale-row">
+              <dt>The move</dt>
+              <dd>Whole card top region transforms: a "This week · review ready" eyebrow, contextual streak copy ("Take stock before tomorrow"), and a full-width primary <strong>action button</strong> with a soft animated ring around the donut.</dd>
+            </div>
+            <div class="rationale-row">
+              <dt>Plus</dt>
+              <dd>The button has a two-line label — title + supporting copy — so the moment feels considered, not transactional.</dd>
+            </div>
+            <div class="rationale-row">
+              <dt>Trade-off</dt>
+              <dd>Most disruptive to the existing layout. Highest signal strength. Wraps the goal card identity around the review when it's due.</dd>
+            </div>
+            <div class="rationale-row">
+              <dt>Ship cost</dt>
+              <dd>Conditional rendering branch in <strong>GoalContainer.tsx</strong> + new <strong>ReviewHeroAction</strong> sub-component. ~140 lines.</dd>
+            </div>
+          </dl>
+        </article>
+      </section>
+
+      <!-- Recommendation -->
+      <section class="recommendation">
+        <div>
+          <div class="label">Shipped</div>
+          <h2>Option <em>A</em>, stacked — in <em>feat/weekly-review-signal-pill</em>.</h2>
+          <p>
+            Two-line title column when a review is due: a tight primary
+            "Weekly review" pill sits above the existing daily pill, with
+            a small attention dot on the donut. No animations in v1 —
+            motion is reserved for a follow-up pass if the static
+            treatment still under-performs after dogfood. If signal stays
+            weak, graduate to B's dedicated banner; reserve C for a
+            future "reflection-as-feature" push.
+          </p>
+        </div>
+        <div class="pick">A</div>
+      </section>
+    </main>
+  </body>
+</html>

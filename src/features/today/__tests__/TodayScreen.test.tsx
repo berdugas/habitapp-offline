@@ -168,7 +168,7 @@ describe("TodayScreen", () => {
     expect(screen.getByText("50%")).toBeTruthy();
   });
 
-  it("shows 'Weekly review available' on the GoalContainer when reviewDue is true for the identity", () => {
+  it("shows the 'Weekly review' pill on the GoalContainer when reviewDue is true for the identity", () => {
     useTodayHabits.mockReturnValue({
       error: null,
       habits: [makeHabit()],
@@ -178,10 +178,13 @@ describe("TodayScreen", () => {
       reviewDueByIdentity: { "a runner": true },
     });
     renderWithClient(<TodayScreen />);
-    expect(screen.getByText("Weekly review available")).toBeTruthy();
+    // accessibilityLabel disambiguates from the title-row Pressable that
+    // shares the same onGoalPress handler; also serves as the screen-reader
+    // name for the CTA.
+    expect(screen.getByLabelText("Open weekly review")).toBeTruthy();
   });
 
-  it("hides 'Weekly review available' when reviewDue is false for the identity", () => {
+  it("hides the 'Weekly review' pill when reviewDue is false for the identity", () => {
     useTodayHabits.mockReturnValue({
       error: null,
       habits: [makeHabit()],
@@ -191,7 +194,12 @@ describe("TodayScreen", () => {
       reviewDueByIdentity: { "a runner": false },
     });
     renderWithClient(<TodayScreen />);
-    expect(screen.queryByText("Weekly review available")).toBeNull();
+    expect(screen.queryByLabelText("Open weekly review")).toBeNull();
+    // No dot-absence assertion here: this test doesn't seed
+    // consistencyByIdentity, so consistencyRate is null and the donut isn't
+    // rendered at all (GoalContainer.tsx:102) — a queryByTestId would pass
+    // trivially. The silent-breakage guard for showAttentionDot lives in
+    // GoalContainer.test.tsx, where baseProps() sets consistencyRate: 0.8.
   });
 
   it("shows 'Review status unavailable' (not a false-positive due hint) when the goal-status query errored", () => {
@@ -208,7 +216,7 @@ describe("TodayScreen", () => {
     // Distinct copy: the user must not be misled into thinking a review is
     // actually due when we couldn't verify status.
     expect(screen.getByText("Review status unavailable")).toBeTruthy();
-    expect(screen.queryByText("Weekly review available")).toBeNull();
+    expect(screen.queryByLabelText("Open weekly review")).toBeNull();
   });
 
   it("error state wins over a stale cached reviewDue when both are true", () => {
@@ -227,7 +235,25 @@ describe("TodayScreen", () => {
     });
     renderWithClient(<TodayScreen />);
     expect(screen.getByText("Review status unavailable")).toBeTruthy();
-    expect(screen.queryByText("Weekly review available")).toBeNull();
+    expect(screen.queryByLabelText("Open weekly review")).toBeNull();
+  });
+
+  it("stacks the 'Weekly review' pill above the daily pill when reviewDue and remainingCount > 0", () => {
+    // Both pills coexist when a habit is still incomplete and a review is
+    // due. The review pill is the louder CTA; the daily "X remaining" pill
+    // remains for state context. With one habit and one GoalContainer in
+    // the mock, global queries are unambiguous — no within() needed (YAGNI).
+    useTodayHabits.mockReturnValue({
+      error: null,
+      habits: [makeHabit({ streak: 0, todayStatus: null })],
+      isLoading: false,
+      upcomingHabits: [],
+      goalStreaks: { "a runner": 12 },
+      reviewDueByIdentity: { "a runner": true },
+    });
+    renderWithClient(<TodayScreen />);
+    expect(screen.getByText("1 remaining to complete")).toBeTruthy();
+    expect(screen.getByLabelText("Open weekly review")).toBeTruthy();
   });
 
   it("renders '1 remaining to complete' pill when one habit is incomplete", () => {

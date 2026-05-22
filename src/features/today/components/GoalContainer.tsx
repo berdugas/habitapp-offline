@@ -1,5 +1,5 @@
 import React, { useMemo } from "react";
-import { Plus } from "lucide-react-native";
+import { ChevronRight, Plus } from "lucide-react-native";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { ConsistencyDonut } from "@/features/today/components/ConsistencyDonut";
@@ -65,9 +65,28 @@ export function GoalContainer({
                 Review status unavailable
               </Text>
             </Pressable>
-          ) : reviewDue ? (
-            <Pressable onPress={onGoalPress} disabled={!onGoalPress}>
-              <Text style={styles.reviewHintText}>Weekly review available</Text>
+          ) : null}
+          {/* Review pill (stacked above the daily pill). The slim green
+              hint text was dropped; this pill carries the signal.
+              Vertical gap to the daily pill comes from anchorSide.gap. */}
+          {reviewDue && !reviewStatusError ? (
+            <Pressable
+              accessibilityLabel="Open weekly review"
+              accessibilityRole="button"
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              onPress={onGoalPress}
+              disabled={!onGoalPress}
+              style={({ pressed }) => [
+                styles.pillReview,
+                pressed && styles.pillReviewPressed,
+              ]}
+            >
+              <Text style={styles.pillReviewText}>Weekly review</Text>
+              <ChevronRight
+                color={colors.primaryText}
+                size={12}
+                strokeWidth={2.25}
+              />
             </Pressable>
           ) : null}
           {remainingCount > 0 ? (
@@ -85,6 +104,7 @@ export function GoalContainer({
             label="Goal consistency"
             onPress={onGoalPress}
             rate={consistencyRate}
+            showAttentionDot={reviewDue && !reviewStatusError}
             tint={goalGraduated ? colors.graduatedCircle : undefined}
           />
         ) : null}
@@ -171,6 +191,29 @@ const styles = StyleSheet.create({
   pillComplete: {
     backgroundColor: colors.primaryLight,
   },
+  pillReview: {
+    alignItems: "center",
+    alignSelf: "flex-start",
+    backgroundColor: colors.primary,
+    borderRadius: 99,
+    elevation: 2,
+    flexDirection: "row",
+    gap: spacing.xs,
+    paddingHorizontal: spacing.sm + 2,
+    paddingVertical: spacing.xs - 1,
+    shadowColor: colors.primary,
+    shadowOffset: { height: 4, width: 0 },
+    shadowOpacity: 0.18,
+    shadowRadius: 8,
+  },
+  pillReviewPressed: {
+    opacity: 0.85,
+  },
+  pillReviewText: {
+    color: colors.primaryText,
+    fontFamily: fontFamilies.bodySemi,
+    fontSize: typography.micro,
+  },
   pillText: {
     color: colors.textMuted,
     fontFamily: fontFamilies.body,
@@ -179,11 +222,6 @@ const styles = StyleSheet.create({
   pillTextComplete: {
     color: colors.primary,
     fontFamily: fontFamilies.bodyMedium,
-  },
-  reviewHintText: {
-    color: colors.primary,
-    fontFamily: fontFamilies.bodySemi,
-    fontSize: typography.micro,
   },
   reviewErrorHintText: {
     color: colors.danger,
