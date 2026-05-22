@@ -46,7 +46,6 @@ jest.mock("@/features/habits/onboardingStorage", () => ({
 
 jest.mock("@/features/habits/hooks", () => ({
   useArchiveHabitMutation: jest.fn(),
-  useDeleteHabitMutation: jest.fn(),
   useHabitDetail: jest.fn(),
   useUpsertHabitLogMutation: jest.fn(),
 }));
@@ -95,12 +94,10 @@ jest.mock("@/features/reminders/notifications", () => ({
 const {
   useHabitDetail,
   useArchiveHabitMutation,
-  useDeleteHabitMutation,
   useUpsertHabitLogMutation,
 } = jest.requireMock("@/features/habits/hooks") as {
   useHabitDetail: jest.Mock;
   useArchiveHabitMutation: jest.Mock;
-  useDeleteHabitMutation: jest.Mock;
   useUpsertHabitLogMutation: jest.Mock;
 };
 
@@ -158,11 +155,6 @@ describe("HabitDetailScreen", () => {
     jest.clearAllMocks();
     setNowForTesting(new Date("2026-04-30T10:00:00.000Z"));
     useArchiveHabitMutation.mockReturnValue({
-      mutateAsync: jest.fn().mockResolvedValue(undefined),
-      isPending: false,
-      error: null,
-    });
-    useDeleteHabitMutation.mockReturnValue({
       mutateAsync: jest.fn().mockResolvedValue(undefined),
       isPending: false,
       error: null,
@@ -315,6 +307,29 @@ describe("HabitDetailScreen", () => {
     renderWithClient(<HabitDetailScreen />);
     expect(screen.getByLabelText("2026-04-29, done")).toBeTruthy();
     expect(screen.getByLabelText("2026-04-28, skipped")).toBeTruthy();
+  });
+
+  it("renders the Weekly Consistency Chart for a habit started mid-week with a logged day", () => {
+    // Regression: when start_date is not a Monday, the caller used to pass it
+    // raw to computeWeeklyConsistency, whose first-iteration guard requires a
+    // Monday-aligned weekStart. Result: empty weeklyData and the chart gated
+    // out via the length>=1 check on the screen. Today (per the outer
+    // beforeEach) is 2026-04-30 (Thu) — a non-Monday start.
+    useHabitLogsForRange.mockReturnValue({
+      data: [{ log_date: "2026-04-30", status: "done" }],
+    });
+    useHabitDetail.mockReturnValue({
+      error: null,
+      formula: "After morning coffee, run for 2 minutes",
+      habit: makeHabit({ start_date: "2026-04-30" }),
+      isLoading: false,
+      isUpcoming: false,
+      latestReview: null,
+      progress: makeProgress(),
+      recentLogs: [],
+    });
+    renderWithClient(<HabitDetailScreen />);
+    expect(screen.getByText("Weekly Habit Consistency")).toBeTruthy();
   });
 
   it("does not render the calendar or streak when habit is upcoming", () => {
@@ -706,16 +721,7 @@ describe("HabitDetailScreen", () => {
     });
   });
 
-  describe("permanent delete (active AND archived habits)", () => {
-    // Per sprint-19c-tickets.md S19c-02: delete is available on both active
-    // and archived habits, styled as a tinted danger zone with an eyebrow
-    // and explanatory copy.
-
-    function setupAlertSpy() {
-      const { Alert } = require("react-native");
-      return jest.spyOn(Alert, "alert").mockImplementation(() => undefined);
-    }
-
+  describe("archived habit redirect", () => {
     function archivedHabit(overrides: Partial<Record<string, unknown>> = {}) {
       return makeHabit({
         status: "archived",
@@ -724,31 +730,9 @@ describe("HabitDetailScreen", () => {
       });
     }
 
-    it("renders the danger zone (eyebrow + body + button) for active habits", () => {
-      useHabitDetail.mockReturnValue({
-        error: null,
-        formula: "After morning coffee, I will run.",
-        habit: makeHabit(),
-        isLoading: false,
-        isUpcoming: false,
-        latestReview: null,
-        progress: makeProgress(),
-        recentLogs: [],
-      });
-      renderWithClient(<HabitDetailScreen />);
-      expect(screen.getByText("DELETE HABIT")).toBeTruthy();
-      expect(
-        screen.getByText(
-          /Permanently removes this habit and all its history/i,
-        ),
-      ).toBeTruthy();
-      expect(screen.getByRole("button", { name: "Delete habit" })).toBeTruthy();
-    });
-
     it("redirects to the archived habit detail screen when status is archived (no live render)", async () => {
       // Archived habits live on ArchivedHabitDetailScreen; the live screen's
-      // stale-route effect redirects on settled-fetch + archived status. The
-      // DangerZone for archived now lives on the archived screen, not here.
+      // stale-route effect redirects on settled-fetch + archived status.
       useHabitDetail.mockReturnValue({
         error: null,
         formula: "After morning coffee, I will run.",
@@ -768,12 +752,16 @@ describe("HabitDetailScreen", () => {
       });
     });
 
-    it("shows confirmation alert with habit title when delete is tapped", () => {
-      const alertSpy = setupAlertSpy();
+    it("does not render a 'Back to Backlog' button on the brief archived render before the redirect fires", () => {
+      // Regression: after a successful archive, the cache flips status to
+      // 'archived' one paint before handleArchivePress's imperative
+      // router.replace runs. HabitDetailActions previously used a binary
+      // `isActive ? Archive : BackToBacklog` check that mistakenly rendered
+      // "Back to Backlog" for archived habits — producing a visible flicker.
       useHabitDetail.mockReturnValue({
         error: null,
         formula: "After morning coffee, I will run.",
-        habit: makeHabit({ title: "Morning Run" }),
+        habit: archivedHabit(),
         isLoading: false,
         isUpcoming: false,
         latestReview: null,
@@ -781,56 +769,9 @@ describe("HabitDetailScreen", () => {
         recentLogs: [],
       });
       renderWithClient(<HabitDetailScreen />);
-      fireEvent.press(screen.getByRole("button", { name: "Delete habit" }));
-      expect(alertSpy).toHaveBeenCalledWith(
-        "Delete this habit?",
-        expect.stringContaining("Morning Run"),
-        expect.any(Array),
-      );
-      alertSpy.mockRestore();
-    });
-
-    it("disables the Delete button in read-only mode", () => {
-      const alertSpy = setupAlertSpy();
-      useTrialValidation.mockReturnValue({
-        accessMode: "read_only",
-        isValidating: false,
-        refresh: jest.fn(),
-      });
-      useHabitDetail.mockReturnValue({
-        error: null,
-        formula: "After morning coffee, I will run.",
-        habit: makeHabit(),
-        isLoading: false,
-        isUpcoming: false,
-        latestReview: null,
-        progress: makeProgress(),
-        recentLogs: [],
-      });
-      renderWithClient(<HabitDetailScreen />);
-      fireEvent.press(screen.getByRole("button", { name: "Delete habit" }));
-      expect(alertSpy).not.toHaveBeenCalled();
-      alertSpy.mockRestore();
-    });
-
-    it("swaps the label to 'Deleting…' while the mutation is pending", () => {
-      useDeleteHabitMutation.mockReturnValue({
-        mutateAsync: jest.fn(),
-        isPending: true,
-        error: null,
-      });
-      useHabitDetail.mockReturnValue({
-        error: null,
-        formula: "After morning coffee, I will run.",
-        habit: makeHabit(),
-        isLoading: false,
-        isUpcoming: false,
-        latestReview: null,
-        progress: makeProgress(),
-        recentLogs: [],
-      });
-      renderWithClient(<HabitDetailScreen />);
-      expect(screen.getByText("Deleting…")).toBeTruthy();
+      expect(
+        screen.queryByRole("button", { name: "Back to Backlog" }),
+      ).toBeNull();
     });
   });
 
