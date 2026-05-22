@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Bell, ChevronLeft, Pencil } from "lucide-react-native";
 import { router, useLocalSearchParams } from "expo-router";
@@ -31,7 +31,6 @@ import { getGoalNarrative } from "@/features/today/goalNarrativeCopy";
 import { RetroLogSelector } from "@/features/habits/components/RetroLogSelector";
 import {
   useArchiveHabitMutation,
-  useDeleteHabitMutation,
   useHabitDetail,
   useUpsertHabitLogMutation,
 } from "@/features/habits/hooks";
@@ -84,8 +83,6 @@ export default function HabitDetailScreen() {
     progress,
   } = useHabitDetail(habitId);
   const archiveHabitMutation = useArchiveHabitMutation();
-  const deleteHabitMutation = useDeleteHabitMutation();
-  const deleteSubmitLockRef = useRef(false);
   // Suppresses the archived-status redirect during an in-flight archive on
   // this screen. Set true synchronously inside handleArchivePress before
   // mutateAsync runs — the post-mutation refetch flips habit.status to
@@ -225,6 +222,12 @@ export default function HabitDetailScreen() {
   // `calendarLogs` / `activeDays` change, which is what we actually care about.
   const weeklyData = useMemo(() => {
     if (!habit) return [];
+    // Snap to the Monday of the habit's start week. `computeWeeklyConsistency`
+    // requires the top-level startDate to be a week-start, otherwise the
+    // first-iteration loop guard fails for habits started mid-week.
+    const chartStartIso = getWeekStartDateString(
+      new Date(`${habit.start_date}T12:00:00`),
+    );
     return computeWeeklyConsistency(
       [
         {
@@ -236,7 +239,7 @@ export default function HabitDetailScreen() {
           startDate: habit.start_date,
         },
       ],
-      habit.start_date,
+      chartStartIso,
       now(),
     );
   }, [habit, calendarLogs, activeDays]);
@@ -348,40 +351,6 @@ export default function HabitDetailScreen() {
       isExitingRef.current = false;
     } finally {
       activeStateSubmitLockRef.current = false;
-    }
-  }
-
-  function confirmDeleteHabit() {
-    if (!habit) return;
-    Alert.alert(
-      "Delete this habit?",
-      `"${habit.title}" and all its history will be permanently deleted. This cannot be undone.`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: () => void handleDeleteHabit(),
-        },
-      ],
-    );
-  }
-
-  async function handleDeleteHabit() {
-    if (
-      !habit ||
-      deleteSubmitLockRef.current ||
-      deleteHabitMutation.isPending
-    )
-      return;
-    deleteSubmitLockRef.current = true;
-    try {
-      // api.ts deleteHabit cancels the OS reminder before deleting the row,
-      // so no extra cancelReminder call is needed here.
-      await deleteHabitMutation.mutateAsync({ habitId: habit.id });
-      router.replace("/(app)/(tabs)/today");
-    } finally {
-      deleteSubmitLockRef.current = false;
     }
   }
 
@@ -583,17 +552,8 @@ export default function HabitDetailScreen() {
         archivePending={archiveHabitMutation.isPending}
         archiveIntroLoading={archiveIntroSeen === null}
         archiveError={Boolean(archiveHabitMutation.error)}
-        deletePending={deleteHabitMutation.isPending}
-        deleteError={Boolean(deleteHabitMutation.error)}
         onArchivePress={() => void handleArchivePress()}
-        onDeletePress={confirmDeleteHabit}
-        onBackPress={() =>
-          router.push(
-            habit.status === "active"
-              ? "/(app)/(tabs)/today"
-              : "/(app)/habits/backlog",
-          )
-        }
+        onBackPress={() => router.push("/(app)/habits/backlog")}
       />
 
       {selectorState ? (

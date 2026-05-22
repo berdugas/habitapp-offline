@@ -196,10 +196,7 @@ describe("HabitDetailScreen", () => {
     expect(screen.getByText("2 day Habit streak")).toBeTruthy();
     // Setup card shows active days label (may appear in multiple places)
     expect(screen.getAllByText("Every day").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("Archive habit").length).toBeGreaterThan(0);
-    expect(
-      screen.getByText("This removes the habit from Today, but keeps its history."),
-    ).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Archive habit" })).toBeTruthy();
     // Removed sections from old design
     expect(screen.queryByText("SUGGESTED ADJUSTMENT")).toBeNull();
     expect(screen.queryByText("Recent history")).toBeNull();
@@ -273,10 +270,7 @@ describe("HabitDetailScreen", () => {
     // before pressing.
     await flushAsyncState();
 
-    // The screen renders a title "Archive habit" and a button "Archive habit".
-    // Press the last one (the SecondaryButton).
-    const archiveButtons = screen.getAllByText("Archive habit");
-    fireEvent.press(archiveButtons[archiveButtons.length - 1]!);
+    fireEvent.press(screen.getByRole("button", { name: "Archive habit" }));
 
     expect(mockMutateAsync).toHaveBeenCalledWith({
       habitId: "habit-1",
