@@ -4,7 +4,7 @@ import "react-native-gesture-handler";
 import { useEffect, useState } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
-import { Stack, usePathname } from "expo-router";
+import { Stack, useGlobalSearchParams, usePathname } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { Text, View } from "react-native";
 import * as SplashScreen from "expo-splash-screen";
@@ -28,6 +28,7 @@ import { AppProviders } from "@/providers/AppProviders";
 import { handleForegroundNotification } from "@/features/reminders/notifications";
 import { checkAndTrackVersionUpgrade } from "@/services/appVersionTracking";
 import { logger } from "@/services/logger";
+import { hashIdentityPhrase } from "@/utils/hash";
 import { ErrorBoundary, initSentry, wrap } from "@/services/sentry";
 import {
   TelemetryProvider,
@@ -84,13 +85,43 @@ function NotificationHandler() {
 
 // Manual screen tracking for PostHog. Expo Router can't be auto-captured by
 // PostHog's RN SDK (per posthog-react-native v4 docs); we watch usePathname()
-// and emit a screen event when it changes.
+// + useGlobalSearchParams() and emit a screen event with route-param context
+// when either changes. Entity-context keys (habit_id / goal_id) let funnels
+// segment by what the user was actually looking at without reconstructing
+// from subsequent events.
 function ScreenTracker() {
   const pathname = usePathname();
+  const params = useGlobalSearchParams<{
+    habitId?: string;
+    identityPhrase?: string;
+  }>();
 
   useEffect(() => {
-    if (pathname) posthogScreen(pathname);
-  }, [pathname]);
+    if (!pathname) return;
+    const props: Record<string, unknown> = {};
+    if (typeof params.habitId === "string" && params.habitId.length > 0) {
+      props.habit_id = params.habitId;
+    }
+    if (
+      typeof params.identityPhrase === "string" &&
+      params.identityPhrase.length > 0
+    ) {
+      // Route params are URL-encoded; decode before hashing so the
+      // goal_id matches the hash emitted from goal mutations (which
+      // hash the raw, in-memory identityPhrase).
+      try {
+        props.goal_id = hashIdentityPhrase(
+          decodeURIComponent(params.identityPhrase),
+        );
+      } catch {
+        // Malformed URL encoding — skip the goal_id rather than throw.
+      }
+    }
+    posthogScreen(pathname, Object.keys(props).length > 0 ? props : undefined);
+    // Effect deps are the destructured param values, not the params
+    // object itself — useGlobalSearchParams returns a fresh object every
+    // render, which would over-fire if used directly as a dep.
+  }, [pathname, params.habitId, params.identityPhrase]);
 
   return null;
 }
