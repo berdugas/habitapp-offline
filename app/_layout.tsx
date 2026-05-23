@@ -12,6 +12,7 @@ import * as Notifications from "expo-notifications";
 import { useFonts } from "expo-font";
 import {
   PlusJakartaSans_700Bold,
+  PlusJakartaSans_700Bold_Italic,
   PlusJakartaSans_800ExtraBold,
 } from "@expo-google-fonts/plus-jakarta-sans";
 import {
@@ -109,6 +110,7 @@ function ErrorFallback() {
 function RootLayout() {
   const [fontsLoaded] = useFonts({
     PlusJakartaSans_700Bold,
+    PlusJakartaSans_700Bold_Italic,
     PlusJakartaSans_800ExtraBold,
     Manrope_400Regular,
     Manrope_500Medium,

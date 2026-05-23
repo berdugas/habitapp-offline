@@ -1,12 +1,13 @@
 import { getDb } from "@/lib/db/client";
+import { updateHabit } from "@/lib/db/repositories/habits";
+
+import type { Habit, UpdateHabitPatch } from "@/lib/db/repositories/habits";
 
 export type WeeklyReviewRecord = {
   id: string;
   habit_id: string;
   user_id: string;
   week_start: string;
-  went_well: string | null;
-  was_hard: string | null;
   adjustment_note: string | null;
   trigger_worked: boolean | null;
   tiny_action_too_hard: boolean | null;
@@ -18,8 +19,6 @@ export type UpsertWeeklyReviewInput = {
   habitId: string;
   userId: string;
   weekStart: string;
-  wentWell: string;
-  wasHard: string;
   adjustmentNote: string;
   triggerWorked: boolean | null;
   tinyActionTooHard: boolean | null;
@@ -130,13 +129,11 @@ async function upsertWeeklyReviewRow(
   await db.runAsync(
     `INSERT INTO local_weekly_reviews (
       id, habit_id, user_id, week_start,
-      went_well, was_hard, adjustment_note,
+      adjustment_note,
       trigger_worked, tiny_action_too_hard,
       created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     ON CONFLICT(user_id, habit_id, week_start) DO UPDATE SET
-      went_well = excluded.went_well,
-      was_hard = excluded.was_hard,
       adjustment_note = excluded.adjustment_note,
       trigger_worked = excluded.trigger_worked,
       tiny_action_too_hard = excluded.tiny_action_too_hard,
@@ -145,8 +142,6 @@ async function upsertWeeklyReviewRow(
     input.habitId,
     input.userId,
     input.weekStart,
-    input.wentWell.trim() || null,
-    input.wasHard.trim() || null,
     input.adjustmentNote.trim() || null,
     boolToInt(input.triggerWorked),
     boolToInt(input.tinyActionTooHard),
@@ -189,4 +184,48 @@ export async function upsertWeeklyReviewsBatch(
     if (row) saved.push(row);
   }
   return saved;
+}
+
+export type ApplyTuneUpInput = {
+  reviewInput: UpsertWeeklyReviewInput;
+  habitPatch?: { cue?: string; tinyAction?: string };
+};
+
+/**
+ * Atomically applies a single Tune-Up: the optional habit field patch AND
+ * the review row in one transaction. Either both writes land or neither
+ * does — mirrors upsertWeeklyReviewsBatch's all-or-nothing contract.
+ *
+ * `habit` in the return shape is null when habitPatch was omitted (e.g.,
+ * for reduce_friction / keep_going suggestions that only write a free-text
+ * adjustment_note without mutating the habit row).
+ */
+export async function applyTuneUp(
+  input: ApplyTuneUpInput,
+): Promise<{ review: WeeklyReviewRecord; habit: Habit | null }> {
+  const db = getDb();
+  const now = new Date().toISOString();
+  let updatedHabit: Habit | null = null;
+  await db.withTransactionAsync(async () => {
+    if (input.habitPatch) {
+      const patch: UpdateHabitPatch = {};
+      if (input.habitPatch.cue !== undefined) {
+        patch.cue = input.habitPatch.cue.trim();
+      }
+      if (input.habitPatch.tinyAction !== undefined) {
+        patch.tiny_action = input.habitPatch.tinyAction.trim();
+      }
+      // updateHabit (repo-layer) accepts a partial patch — the api-layer
+      // updateHabit wrapper that enforces the full HabitSetupPayload is
+      // a different function entirely.
+      updatedHabit = await updateHabit(input.reviewInput.habitId, patch);
+    }
+    await upsertWeeklyReviewRow(input.reviewInput, now);
+  });
+  const review = (await getWeeklyReviewForWeek(
+    input.reviewInput.userId,
+    input.reviewInput.habitId,
+    input.reviewInput.weekStart,
+  ))!;
+  return { review, habit: updatedHabit };
 }

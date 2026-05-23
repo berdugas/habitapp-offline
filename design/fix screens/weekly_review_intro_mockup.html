@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Weekly Review · Intro — centering options</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&family=Manrope:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --base:#fbf9f5;--ink:#26261f;--sage-body:#6f7a6e;--sage-eyebrow:#5f7565;
+    --muted:#9a9a8e;--primary:#446655;
+    --grad: linear-gradient(135deg,#446655 0%,#6b9e7d 100%);
+    --shadow: 0 18px 40px -12px rgba(68,102,85,.45);
+    --display:'Plus Jakarta Sans',sans-serif;--body:'Manrope',sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:var(--body);background:#e9e6df;color:var(--ink);min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:48px 24px 64px;}
+  .page-head{text-align:center;margin-bottom:40px;max-width:620px;}
+  .page-head h1{font-family:var(--display);font-weight:700;font-size:22px;letter-spacing:-.01em;margin-bottom:8px;}
+  .page-head p{font-size:14px;color:#6b6b62;line-height:1.5;}
+  .stage{display:flex;gap:48px;flex-wrap:wrap;justify-content:center;align-items:flex-start;}
+  .col{display:flex;flex-direction:column;align-items:center;gap:16px;}
+  .tag{font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#8a8a7e;}
+  .tag.rec{color:#446655;}
+
+  .phone{width:390px;height:760px;background:var(--base);border-radius:40px;box-shadow:0 30px 70px -20px rgba(40,40,30,.30),0 4px 12px rgba(40,40,30,.06);display:flex;flex-direction:column;overflow:hidden;position:relative;}
+  .notch{position:absolute;top:14px;left:50%;transform:translateX(-50%);width:120px;height:26px;border-radius:14px;background:rgba(40,40,30,.06);}
+  .screen{flex:1;display:flex;flex-direction:column;padding:64px 30px 34px;}
+  .topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:38px;}
+  .eyebrow{font-size:12.5px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--sage-eyebrow);}
+  .skip{font-size:15px;color:var(--muted);font-weight:500;}
+  .headline{font-family:var(--display);font-weight:800;font-size:40px;line-height:1.05;letter-spacing:-.02em;color:var(--ink);margin-bottom:22px;}
+  .bodycopy{font-family:var(--body);font-size:17.5px;line-height:1.62;color:var(--sage-body);font-weight:400;max-width:330px;}
+  .spacer{flex:1;}
+  .cta{width:100%;background:var(--grad);color:#fff;font-family:var(--display);font-weight:700;font-size:17px;border:none;border-radius:999px;padding:21px 24px;box-shadow:var(--shadow);display:flex;align-items:center;justify-content:center;gap:10px;cursor:pointer;}
+  .cta .arrow{font-weight:600;font-size:18px;transform:translateY(1px);}
+
+  .emblem{position:relative;width:120px;height:120px;margin:6px 0 34px;}
+  .ring{position:absolute;border-radius:50%;background:var(--primary);}
+  .ring.r0{inset:0;opacity:.07;}
+  .ring.r1{inset:16px;opacity:.13;}
+  .ring.r2{inset:32px;opacity:.20;}
+  .ring.r3{inset:48px;opacity:1;}
+
+  /* Variant modifiers */
+  .v-emblemonly .emblem{margin-left:auto;margin-right:auto;}   /* centered emblem, left text */
+
+  .v-centered .content{display:flex;flex-direction:column;align-items:center;text-align:center;}
+  .v-centered .emblem{margin-left:auto;margin-right:auto;}
+  .v-centered .bodycopy{margin-left:auto;margin-right:auto;}
+
+  .note{max-width:330px;font-size:13px;line-height:1.55;color:#6b6b62;text-align:center;}
+  .note b{color:#446655;font-weight:600;}
+  @media (max-width:880px){ .phone{transform:scale(.9);} }
+</style>
+</head>
+<body>
+  <div class="page-head">
+    <h1>Weekly Review · Intro — centering the emblem</h1>
+    <p>Same copy, same emblem. Left = emblem centered but text stays left (mixed axis). Right = fully committed centered composition.</p>
+  </div>
+
+  <div class="stage">
+
+    <!-- Centered emblem, left text -->
+    <div class="col">
+      <span class="tag">Centered emblem · left text</span>
+      <div class="phone">
+        <div class="notch"></div>
+        <div class="screen v-emblemonly">
+          <div class="topbar">
+            <span class="eyebrow">Weekly Review · Intro</span>
+            <span class="skip">Skip</span>
+          </div>
+          <div class="content">
+            <div class="emblem"><div class="ring r0"></div><div class="ring r1"></div><div class="ring r2"></div><div class="ring r3"></div></div>
+            <h2 class="headline">A weekly look back.</h2>
+            <p class="bodycopy">See what's settling in, and what isn't fitting yet — that's information, not failure. Where a habit needs to change, you write the change yourself, in your own words. That's how it stays yours.</p>
+          </div>
+          <div class="spacer"></div>
+          <button class="cta">Start review <span class="arrow">&rarr;</span></button>
+        </div>
+      </div>
+      <p class="note">Emblem floats centered over left-aligned text — the axes disagree, so it reads slightly accidental.</p>
+    </div>
+
+    <!-- Fully centered -->
+    <div class="col">
+      <span class="tag rec">Fully centered</span>
+      <div class="phone">
+        <div class="notch"></div>
+        <div class="screen v-centered">
+          <div class="topbar">
+            <span class="eyebrow">Weekly Review · Intro</span>
+            <span class="skip">Skip</span>
+          </div>
+          <div class="content">
+            <div class="emblem"><div class="ring r0"></div><div class="ring r1"></div><div class="ring r2"></div><div class="ring r3"></div></div>
+            <h2 class="headline">A weekly look back.</h2>
+            <p class="bodycopy">See what's settling in, and what isn't fitting yet — that's information, not failure. Where a habit needs to change, you write the change yourself, in your own words. That's how it stays yours.</p>
+          </div>
+          <div class="spacer"></div>
+          <button class="cta">Start review <span class="arrow">&rarr;</span></button>
+        </div>
+      </div>
+      <p class="note">Emblem and text share one centered axis — reads as a calm, deliberate title card for a weekly ritual.</p>
+    </div>
+
+  </div>
+</body>
+</html>

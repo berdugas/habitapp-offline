@@ -41,10 +41,6 @@ jest.mock("@/features/habits/hooks", () => ({
   useUpdateHabitMutation: jest.fn(),
 }));
 
-jest.mock("@/features/recommendations/hooks", () => ({
-  useGenerateHabitRewriteMutation: jest.fn(),
-}));
-
 jest.mock("@/features/auth/hooks", () => ({
   useAuthSession: jest.fn(() => ({ user: { id: "user-1" } })),
 }));
@@ -58,12 +54,6 @@ const { useOwnedHabitQuery, useUpdateHabitMutation } = jest.requireMock(
 ) as {
   useOwnedHabitQuery: jest.Mock;
   useUpdateHabitMutation: jest.Mock;
-};
-
-const { useGenerateHabitRewriteMutation } = jest.requireMock(
-  "@/features/recommendations/hooks",
-) as {
-  useGenerateHabitRewriteMutation: jest.Mock;
 };
 
 const baseHabit = {
@@ -91,11 +81,6 @@ describe("EditHabitScreen — recovery focus path", () => {
     jest.clearAllMocks();
     jest.useFakeTimers();
     useUpdateHabitMutation.mockReturnValue({
-      mutateAsync: jest.fn().mockResolvedValue(undefined),
-      isPending: false,
-      error: null,
-    });
-    useGenerateHabitRewriteMutation.mockReturnValue({
       mutateAsync: jest.fn().mockResolvedValue(undefined),
       isPending: false,
       error: null,
@@ -180,11 +165,6 @@ describe("EditHabitScreen — post-save navigation (back-stack hygiene)", () => 
     updateMutateAsync = jest.fn().mockResolvedValue(undefined);
     useUpdateHabitMutation.mockReturnValue({
       mutateAsync: updateMutateAsync,
-      isPending: false,
-      error: null,
-    });
-    useGenerateHabitRewriteMutation.mockReturnValue({
-      mutateAsync: jest.fn().mockResolvedValue(undefined),
       isPending: false,
       error: null,
     });

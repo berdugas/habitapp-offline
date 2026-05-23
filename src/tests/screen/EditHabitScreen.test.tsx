@@ -21,11 +21,7 @@ const mockCanGoBack = jest.fn(() => true);
 const mockUseLocalSearchParams = jest.fn();
 const mockUseOwnedHabitQuery = jest.fn();
 const mockUseUpdateHabitMutation = jest.fn();
-const mockUseGenerateHabitRewriteMutation = jest.fn();
 const mockMutateAsync = jest.fn();
-const mockGenerateRewriteMutateAsync = jest.fn();
-const aiRewriteHelperCopy =
-  "AI can suggest a rewrite, but you stay in control. It will not change your habit unless you edit and save it.";
 
 jest.mock("expo-router", () => ({
   router: {
@@ -40,10 +36,6 @@ jest.mock("@/features/habits/hooks", () => ({
   useOwnedHabitQuery: (habitId: string | string[] | undefined) =>
     mockUseOwnedHabitQuery(habitId),
   useUpdateHabitMutation: () => mockUseUpdateHabitMutation(),
-}));
-
-jest.mock("@/features/recommendations/hooks", () => ({
-  useGenerateHabitRewriteMutation: () => mockUseGenerateHabitRewriteMutation(),
 }));
 
 jest.mock("@/features/auth/hooks", () => ({
@@ -94,19 +86,8 @@ describe("EditHabitScreen", () => {
       isPending: false,
       mutateAsync: mockMutateAsync,
     });
-    mockUseGenerateHabitRewriteMutation.mockReturnValue({
-      error: null,
-      isPending: false,
-      mutateAsync: mockGenerateRewriteMutateAsync,
-    });
     mockMutateAsync.mockResolvedValue({
       id: "habit-1",
-    });
-    mockGenerateRewriteMutateAsync.mockResolvedValue({
-      explanation:
-        "This keeps the action small and tied to a clear daily moment.",
-      suggestedStackTrigger: "After breakfast",
-      suggestedTinyAction: "Read one paragraph",
     });
   });
 
@@ -158,10 +139,6 @@ describe("EditHabitScreen", () => {
 
     expect(screen.getByText("SUGGESTED ADJUSTMENT")).toBeTruthy();
     expect(screen.getByText("Make the action smaller")).toBeTruthy();
-    expect(screen.queryByText(aiRewriteHelperCopy)).toBeNull();
-    expect(screen.queryByText("Generate rewrite")).toBeNull();
-    expect(screen.queryByText("AI rewrite idea")).toBeNull();
-    expect(screen.queryByText("Copy into fields")).toBeNull();
     expect(
       screen.getByText(
         "Try choosing a tiny action that feels almost effortless for one week.",
@@ -179,7 +156,6 @@ describe("EditHabitScreen", () => {
     ).toBeTruthy();
     expect(screen.getByDisplayValue("Read 1 page")).toBeTruthy();
     expect(mockMutateAsync).not.toHaveBeenCalled();
-    expect(mockGenerateRewriteMutateAsync).not.toHaveBeenCalled();
   });
 
   it("shows trigger suggestion guidance for a valid suggestion type", () => {
@@ -192,10 +168,6 @@ describe("EditHabitScreen", () => {
 
     expect(screen.getByText("SUGGESTED ADJUSTMENT")).toBeTruthy();
     expect(screen.getByText("Choose a clearer trigger")).toBeTruthy();
-    expect(screen.queryByText(aiRewriteHelperCopy)).toBeNull();
-    expect(screen.queryByText("Generate rewrite")).toBeNull();
-    expect(screen.queryByText("AI rewrite idea")).toBeNull();
-    expect(screen.queryByText("Copy into fields")).toBeNull();
     expect(
       screen.getByText(
         "Try attaching this habit to a specific moment that already happens every day.",
@@ -229,8 +201,6 @@ describe("EditHabitScreen", () => {
         "Try choosing a tiny action that feels almost effortless for one week.",
       ),
     ).toBeTruthy();
-    expect(screen.queryByText("Generate rewrite")).toBeNull();
-    expect(mockGenerateRewriteMutateAsync).not.toHaveBeenCalled();
   });
 
   it("hides suggestion guidance for an invalid suggestion type", () => {
@@ -245,10 +215,6 @@ describe("EditHabitScreen", () => {
     expect(screen.queryByText("Make the action smaller")).toBeNull();
     expect(screen.queryByText("Why this suggestion")).toBeNull();
     expect(screen.queryByText("Suggested draft")).toBeNull();
-    expect(screen.queryByText(aiRewriteHelperCopy)).toBeNull();
-    expect(screen.queryByText("Generate rewrite")).toBeNull();
-    expect(screen.queryByText("AI rewrite idea")).toBeNull();
-    expect(screen.queryByText("Copy into fields")).toBeNull();
     expect(screen.getByDisplayValue("Read 1 page")).toBeTruthy();
   });
 

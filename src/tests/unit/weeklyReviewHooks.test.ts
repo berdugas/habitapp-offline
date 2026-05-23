@@ -155,9 +155,7 @@ describe("weekly review hooks", () => {
       habitId: "habit-1",
       tinyActionTooHard: false,
       triggerWorked: true,
-      wasHard: "",
       weekStart: "2026-04-20",
-      wentWell: "Breakfast worked",
     };
     const savedReview = {
       adjustment_note: "Try earlier",
@@ -166,9 +164,7 @@ describe("weekly review hooks", () => {
       tiny_action_too_hard: false,
       trigger_worked: true,
       user_id: "user-1",
-      was_hard: null,
       week_start: "2026-04-20",
-      went_well: "Breakfast worked",
     };
 
     await mutationOptions.mutationFn(payload);

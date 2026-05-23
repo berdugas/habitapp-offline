@@ -6,12 +6,15 @@ import {
   useEligibleHabitsQuery,
 } from "@/features/habits/hooks";
 import {
+  applyTuneUpForHabit,
   getLatestWeeklyReview,
   getLatestWeeklyReviewsForHabits,
   getWeeklyReviewForWeek,
   upsertWeeklyReview,
   upsertWeeklyReviewsBatch,
 } from "@/features/reviews/api";
+
+import type { ApplyTuneUpForHabitPayload } from "@/features/reviews/api";
 import { getGoalReviewStatus } from "@/features/reviews/due";
 import {
   getCurrentWeeklyReviewQueryKey,
@@ -149,6 +152,70 @@ export function useUpsertGoalReviewsMutation() {
           queryKey: ["reviews", "goal-status"],
         }),
       ]);
+    },
+  });
+}
+
+export function useApplyTuneUpMutation() {
+  const { user } = useAuthSession();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (payload: ApplyTuneUpForHabitPayload) => {
+      if (!user?.id) {
+        throw new Error(
+          "You need an account session before saving a weekly review.",
+        );
+      }
+      return applyTuneUpForHabit(user.id, payload);
+    },
+    // Mirrors the cache touches in useUpsertWeeklyReviewMutation
+    // (latest + current + habit detail + goal-status). When the optional
+    // habit patch lands, also hydrate the habit detail cache and invalidate
+    // the eligible/upcoming lists that hold habit rows.
+    onSuccess: async ({ review, habit }) => {
+      if (!user?.id) return;
+
+      const latestKey = getLatestWeeklyReviewQueryKey(
+        user.id,
+        review.habit_id,
+      );
+      const currentKey = getCurrentWeeklyReviewQueryKey(
+        user.id,
+        review.habit_id,
+        review.week_start,
+      );
+
+      queryClient.setQueryData(latestKey, review);
+      queryClient.setQueryData(currentKey, review);
+
+      await queryClient.invalidateQueries({ queryKey: latestKey });
+      await queryClient.invalidateQueries({ queryKey: currentKey });
+      await queryClient.invalidateQueries({
+        queryKey: getHabitDetailQueryKey(user.id, review.habit_id),
+      });
+      await queryClient.invalidateQueries({
+        queryKey: ["reviews", "goal-status"],
+      });
+
+      if (habit) {
+        const detailKey = getHabitDetailQueryKey(user.id, habit.id);
+        queryClient.setQueryData(detailKey, habit);
+        await queryClient.invalidateQueries({
+          queryKey: ["habits", "eligible", user.id],
+        });
+        await queryClient.invalidateQueries({
+          queryKey: ["habits", "upcoming", user.id],
+        });
+      }
+    },
+    onError: (error, payload) => {
+      logger.error("Apply tune-up mutation failed", {
+        error,
+        habitId: payload.habitId,
+        userId: user?.id ?? null,
+        weekStart: payload.weekStart,
+      });
     },
   });
 }

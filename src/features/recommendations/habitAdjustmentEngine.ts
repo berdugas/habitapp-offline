@@ -45,9 +45,5 @@ export function getHabitAdjustmentSuggestions({
     return [getSuggestion("reduce_friction")];
   }
 
-  if (Boolean(latestReview.was_hard?.trim())) {
-    return [getSuggestion("plan_for_obstacle")];
-  }
-
   return [getSuggestion("keep_going")];
 }

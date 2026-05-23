@@ -112,8 +112,6 @@ export default function WeeklyReviewScreen() {
   const upsertWeeklyReviewMutation = useUpsertWeeklyReviewMutation();
   const saveSubmitLockRef = useRef(false);
 
-  const [wentWell, setWentWell] = useState("");
-  const [wasHard, setWasHard] = useState("");
   const [adjustmentNote, setAdjustmentNote] = useState("");
   const [triggerWorked, setTriggerWorked] = useState<boolean | null>(null);
   const [tinyActionTooHard, setTinyActionTooHard] = useState<boolean | null>(
@@ -132,8 +130,6 @@ export default function WeeklyReviewScreen() {
       return;
     }
 
-    setWentWell(review.went_well ?? "");
-    setWasHard(review.was_hard ?? "");
     setAdjustmentNote(review.adjustment_note ?? "");
     setTriggerWorked(review.trigger_worked);
     setTinyActionTooHard(review.tiny_action_too_hard);
@@ -171,9 +167,7 @@ export default function WeeklyReviewScreen() {
         habitId,
         tinyActionTooHard,
         triggerWorked,
-        wasHard: wasHard.trim(),
         weekStart,
-        wentWell: wentWell.trim(),
       });
 
       const suggestions = getHabitAdjustmentSuggestions({
@@ -261,22 +255,6 @@ export default function WeeklyReviewScreen() {
         <ErrorState message={getSaveWeeklyReviewErrorMessage()} />
       ) : null}
       <ZenCard>
-        <View style={styles.formSection}>
-          <TextField
-            label="What went well this week?"
-            multiline
-            onChangeText={setWentWell}
-            placeholder="The moment that felt easiest"
-            value={wentWell}
-          />
-          <TextField
-            label="What was hard this week?"
-            multiline
-            onChangeText={setWasHard}
-            placeholder="The part that got in the way"
-            value={wasHard}
-          />
-        </View>
         <View style={styles.formSection}>
           <Text selectable style={styles.booleanHelper}>
             These answers help the app suggest what to adjust next week.

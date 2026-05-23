@@ -3,6 +3,7 @@ import type { SQLiteDatabase } from "expo-sqlite";
 import { getDb } from "@/lib/db/client";
 import { createTestDb } from "@/tests/setup/createTestDb";
 import {
+  applyTuneUp,
   getLatestWeeklyReview,
   getWeeklyReviewForWeek,
   listReviewsForUser,
@@ -42,8 +43,6 @@ function makeInput(
     habitId,
     userId: "user-1",
     weekStart: "2026-04-28",
-    wentWell: "Stayed consistent",
-    wasHard: "Mornings were tough",
     adjustmentNote: "",
     triggerWorked: null,
     tinyActionTooHard: null,
@@ -74,8 +73,6 @@ describe("weekly_reviews repository", () => {
     expect(review.habit_id).toBe(habitId);
     expect(review.user_id).toBe("user-1");
     expect(review.week_start).toBe("2026-04-28");
-    expect(review.went_well).toBe("Stayed consistent");
-    expect(review.was_hard).toBe("Mornings were tough");
     expect(review.adjustment_note).toBeNull();
     expect(review.trigger_worked).toBe(true);
     expect(review.tiny_action_too_hard).toBe(false);
@@ -84,16 +81,21 @@ describe("weekly_reviews repository", () => {
   });
 
   it("upsertWeeklyReview on conflict updates fields and updated_at but preserves id and created_at", async () => {
-    const first = await upsertWeeklyReview(makeInput(habitId, { wentWell: "Good week" }));
+    const first = await upsertWeeklyReview(
+      makeInput(habitId, { adjustmentNote: "Try a clearer trigger" }),
+    );
 
     await new Promise((r) => setTimeout(r, 5));
     const second = await upsertWeeklyReview(
-      makeInput(habitId, { wentWell: "Even better week", triggerWorked: true }),
+      makeInput(habitId, {
+        adjustmentNote: "Try an even clearer trigger",
+        triggerWorked: true,
+      }),
     );
 
     expect(second.id).toBe(first.id);
     expect(second.created_at).toBe(first.created_at);
-    expect(second.went_well).toBe("Even better week");
+    expect(second.adjustment_note).toBe("Try an even clearer trigger");
     expect(second.trigger_worked).toBe(true);
     expect(second.updated_at > first.updated_at).toBe(true);
   });
@@ -207,5 +209,102 @@ describe("weekly_reviews repository", () => {
 
     const after = await getLatestWeeklyReview("user-1", habitId);
     expect(after).toBeNull();
+  });
+
+  describe("applyTuneUp — transactional habit + review write", () => {
+    async function readHabit(id: string) {
+      return db.getFirstAsync<{ cue: string; tiny_action: string }>(
+        "SELECT cue, tiny_action FROM local_habits WHERE id = ?",
+        id,
+      );
+    }
+
+    it("writes only the review row when habitPatch is omitted (reduce_friction / keep_going path)", async () => {
+      const before = await readHabit(habitId);
+      const { review, habit } = await applyTuneUp({
+        reviewInput: makeInput(habitId, {
+          adjustmentNote: "Try preparing the night before",
+        }),
+      });
+
+      expect(habit).toBeNull();
+      expect(review.adjustment_note).toBe("Try preparing the night before");
+      const after = await readHabit(habitId);
+      expect(after).toEqual(before); // habit row untouched
+    });
+
+    it("patches only the cue when change_trigger is the fix", async () => {
+      const { review, habit } = await applyTuneUp({
+        habitPatch: { cue: "After morning coffee" },
+        reviewInput: makeInput(habitId, { triggerWorked: false }),
+      });
+
+      expect(habit).not.toBeNull();
+      expect(habit?.cue).toBe("After morning coffee");
+      expect(habit?.tiny_action).toBe("1 page"); // unchanged
+      expect(review.trigger_worked).toBe(false);
+    });
+
+    it("patches only the tiny_action when make_tiny_action_smaller is the fix", async () => {
+      const { habit } = await applyTuneUp({
+        habitPatch: { tinyAction: "Read one sentence" },
+        reviewInput: makeInput(habitId, { tinyActionTooHard: true }),
+      });
+
+      expect(habit?.cue).toBe("After lunch"); // unchanged
+      expect(habit?.tiny_action).toBe("Read one sentence");
+    });
+
+    it("patches both fields when dual-fire ([make_tiny_action_smaller, change_trigger]) is the fix", async () => {
+      const { habit, review } = await applyTuneUp({
+        habitPatch: { cue: "After dinner", tinyAction: "Read one paragraph" },
+        reviewInput: makeInput(habitId, {
+          triggerWorked: false,
+          tinyActionTooHard: true,
+        }),
+      });
+
+      expect(habit?.cue).toBe("After dinner");
+      expect(habit?.tiny_action).toBe("Read one paragraph");
+      expect(review.trigger_worked).toBe(false);
+      expect(review.tiny_action_too_hard).toBe(true);
+    });
+
+    it("rolls back the habit mutation when the review write fails (FK violation)", async () => {
+      const before = await readHabit(habitId);
+
+      await expect(
+        applyTuneUp({
+          habitPatch: { cue: "After dinner" },
+          reviewInput: makeInput("non-existent-habit-id", {
+            triggerWorked: false,
+          }),
+        }),
+      ).rejects.toThrow();
+
+      // The habit we DID patch (habitId) shouldn't have been touched —
+      // the transaction wrapped both writes, and the review write failed.
+      // (The patch targets the same habitId; the FK violation comes from
+      // the review row referencing a missing habit, which throws inside
+      // the transaction and rolls back the whole batch.)
+      const after = await readHabit(habitId);
+      expect(after).toEqual(before);
+    });
+
+    it("trims whitespace on patched cue and tiny_action", async () => {
+      const { habit } = await applyTuneUp({
+        habitPatch: { cue: "  After lunch  ", tinyAction: "  1 page  " },
+        reviewInput: makeInput(habitId),
+      });
+
+      expect(habit?.cue).toBe("After lunch");
+      expect(habit?.tiny_action).toBe("1 page");
+    });
+
+    // The repo function trims but does not validate non-blank — the api-
+    // layer wrapper (applyTuneUpForHabit) enforces non-blankness, which
+    // is tested in src/tests/unit/weeklyReviewApi.test.ts. Calling the
+    // repo directly with a whitespace-only patch trims to "" which is
+    // accepted at this layer.
   });
 });

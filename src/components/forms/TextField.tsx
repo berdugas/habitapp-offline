@@ -18,6 +18,7 @@ const DURATION = 180;
 
 type TextFieldProps = {
   autoCapitalize?: "none" | "sentences" | "words" | "characters";
+  disabled?: boolean;
   error?: string | null;
   label: string;
   multiline?: boolean;
@@ -32,6 +33,7 @@ export const TextField = forwardRef<TextInput, TextFieldProps>(
   function TextField(
     {
       autoCapitalize = "sentences",
+      disabled = false,
       error,
       label,
       multiline = false,
@@ -79,17 +81,63 @@ export const TextField = forwardRef<TextInput, TextFieldProps>(
     if (variant === "onboarding") {
       return (
         <View style={styles.wrapper}>
-          <Text style={styles.labelOnboarding}>{label}</Text>
+          <Text
+            style={[
+              styles.labelOnboarding,
+              disabled && styles.labelDisabled,
+            ]}
+          >
+            {label}
+          </Text>
           <View style={styles.inputContainerOnboarding}>
             <TextInput
               ref={ref}
               autoCapitalize={autoCapitalize}
+              editable={!disabled}
               multiline={multiline}
               onChangeText={onChangeText}
               placeholder={placeholder}
               placeholderTextColor={colors.textFaint}
               secureTextEntry={secureTextEntry}
-              style={[styles.inputOnboarding, multiline && styles.inputMultiline]}
+              style={[
+                styles.inputOnboarding,
+                multiline && styles.inputMultiline,
+                disabled && styles.inputDisabled,
+              ]}
+              value={value}
+            />
+          </View>
+          {error ? (
+            <Text selectable style={styles.error}>
+              {error}
+            </Text>
+          ) : null}
+        </View>
+      );
+    }
+
+    // The default variant's focus animation is irrelevant when disabled —
+    // skip the animated colors and render a static muted container so the
+    // field looks visibly inert without a layout shift.
+    if (disabled) {
+      return (
+        <View style={styles.wrapper}>
+          <Text style={[styles.label, styles.labelDisabled]}>{label}</Text>
+          <View style={[styles.inputContainer, styles.inputContainerDisabled]}>
+            <TextInput
+              ref={ref}
+              autoCapitalize={autoCapitalize}
+              editable={false}
+              multiline={multiline}
+              onChangeText={onChangeText}
+              placeholder={placeholder}
+              placeholderTextColor={colors.textFaint}
+              secureTextEntry={secureTextEntry}
+              style={[
+                styles.input,
+                multiline && styles.inputMultiline,
+                styles.inputDisabled,
+              ]}
               value={value}
             />
           </View>
@@ -159,10 +207,17 @@ const styles = StyleSheet.create({
     boxShadow: shadows.lift,
     overflow: "hidden",
   },
+  inputContainerDisabled: {
+    backgroundColor: colors.surfaceHigh,
+    borderColor: "transparent",
+  },
   inputContainerOnboarding: {
     backgroundColor: colors.surfaceHigh,
     borderRadius: radius.md,
     overflow: "hidden",
+  },
+  inputDisabled: {
+    color: colors.textMuted,
   },
   inputOnboarding: {
     color: colors.text,
@@ -178,6 +233,9 @@ const styles = StyleSheet.create({
   label: {
     fontFamily: fontFamilies.bodySemi,
     fontSize: typography.bodyMd,
+  },
+  labelDisabled: {
+    color: colors.textMuted,
   },
   labelOnboarding: {
     fontFamily: fontFamilies.bodyMedium,

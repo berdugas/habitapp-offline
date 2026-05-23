@@ -39,8 +39,6 @@ function makeReview(
     habit_id: habitId,
     user_id: "u1",
     week_start: weekStart,
-    went_well: null,
-    was_hard: null,
     adjustment_note: null,
     trigger_worked: null,
     tiny_action_too_hard: null,

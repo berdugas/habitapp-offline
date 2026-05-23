@@ -1,11 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 
 import { PrimaryButton } from "@/components/buttons/PrimaryButton";
 import { OnboardingLayout } from "@/components/layouts/OnboardingLayout";
 import { Eyebrow } from "@/components/text/Eyebrow";
-import { ReviewStepIndicator } from "@/features/reviews/components/ReviewStepIndicator";
 import { markWeeklyReviewIntroSeen } from "@/features/reviews/onboardingStorage";
 import {
   goalReviewRoute,
@@ -17,21 +16,9 @@ import { fontFamilies } from "@/theme/fontFamilies";
 import { spacing } from "@/theme/spacing";
 import { normalizeParam } from "@/utils/params";
 
-type SlideContent = {
-  headline: string;
-  body: string;
-};
-
-const SLIDES: readonly SlideContent[] = [
-  {
-    headline: "This isn't a report card.",
-    body: "It's how the habit stays alive. Each week, we tune what's not fitting yet — that's how the identity sticks.",
-  },
-  {
-    headline: "Five quick steps.",
-    body: "We'll look at the week, name what's working, diagnose what isn't, and pick one small adjustment. Takes about 3 minutes.",
-  },
-];
+const HEADLINE = "A weekly look back.";
+const BODY =
+  "See what's settling in, and what isn't fitting yet — that's information, not failure. Where a habit needs to change, you write the change yourself, in your own words. That's how it stays yours.";
 
 export default function WeeklyReviewIntroScreen() {
   const params = useLocalSearchParams<{
@@ -43,13 +30,9 @@ export default function WeeklyReviewIntroScreen() {
   );
   const hasTarget = Boolean(rawIdentityPhrase);
 
-  const [slideIndex, setSlideIndex] = useState<0 | 1>(0);
-  const slide = SLIDES[slideIndex]!;
-  const isLastSlide = slideIndex === SLIDES.length - 1;
-
   useEffect(() => {
-    trackEvent("weekly_review_intro_viewed", { slide: slideIndex + 1 });
-  }, [slideIndex]);
+    trackEvent("weekly_review_intro_viewed");
+  }, []);
 
   async function finishIntro(action: "completed" | "skipped") {
     // Only emit the "intro done" analytics when the write actually
@@ -58,7 +41,7 @@ export default function WeeklyReviewIntroScreen() {
     // Navigate either way to avoid a dead tap on transient DB failure.
     const persisted = await markWeeklyReviewIntroSeen();
     if (persisted) {
-      trackEvent(`weekly_review_intro_${action}`, { slide: slideIndex + 1 });
+      trackEvent(`weekly_review_intro_${action}`);
     }
 
     if (hasTarget && rawIdentityPhrase) {
@@ -71,33 +54,19 @@ export default function WeeklyReviewIntroScreen() {
   }
 
   function handlePrimaryPress() {
-    if (isLastSlide) {
-      void finishIntro("completed");
-      return;
-    }
-    setSlideIndex(1);
+    void finishIntro("completed");
   }
 
   function handleSkip() {
     void finishIntro("skipped");
   }
 
-  const primaryLabel = isLastSlide
-    ? hasTarget
-      ? "Start review"
-      : "Got it"
-    : "Continue";
-
   return (
     <OnboardingLayout
       footer={
         <View style={styles.footerStack}>
-          <ReviewStepIndicator
-            currentIndex={slideIndex}
-            total={SLIDES.length}
-          />
           <PrimaryButton
-            label={primaryLabel}
+            label={hasTarget ? "Start review" : "Got it"}
             onPress={handlePrimaryPress}
             showArrow
           />
@@ -117,11 +86,34 @@ export default function WeeklyReviewIntroScreen() {
         </Pressable>
       </View>
 
-      <Text style={styles.headline}>{slide.headline}</Text>
-      <Text style={styles.body}>{slide.body}</Text>
+      {/* Centered axis: emblem + headline + body share one center line.
+       * The "Centered emblem · left text" variant in the mockup was
+       * marked as accidental-looking; this matches the recommended
+       * fully-centered composition. */}
+      <View style={styles.centeredContent}>
+        {/* Four nested concentric rings of `colors.primary` at
+         * increasing opacities, matching the design mockup's
+         * 4-ring emblem (no Lucide icon, no halo discs). Built with
+         * absolute-positioned children inside a 120×120 box. */}
+        <View
+          accessibilityRole="image"
+          accessibilityLabel="Weekly review emblem"
+          style={styles.emblem}
+        >
+          <View style={[styles.emblemRing, styles.emblemRing0]} />
+          <View style={[styles.emblemRing, styles.emblemRing1]} />
+          <View style={[styles.emblemRing, styles.emblemRing2]} />
+          <View style={[styles.emblemRing, styles.emblemRing3]} />
+        </View>
+
+        <Text style={styles.headline}>{HEADLINE}</Text>
+        <Text style={styles.body}>{BODY}</Text>
+      </View>
     </OnboardingLayout>
   );
 }
+
+const EMBLEM_SIZE = 120;
 
 const styles = StyleSheet.create({
   body: {
@@ -130,6 +122,58 @@ const styles = StyleSheet.create({
     fontSize: 16,
     letterSpacing: 0.16,
     lineHeight: 26,
+    maxWidth: 330,
+    textAlign: "center",
+  },
+  centeredContent: {
+    alignItems: "center",
+  },
+  emblem: {
+    height: EMBLEM_SIZE,
+    marginBottom: spacing.xl + spacing.sm, // ~34px to match mockup
+    marginTop: spacing.xs,
+    position: "relative",
+    width: EMBLEM_SIZE,
+  },
+  emblemRing: {
+    backgroundColor: colors.primary,
+    position: "absolute",
+  },
+  // Outermost ring: full 120×120, faintest.
+  emblemRing0: {
+    borderRadius: EMBLEM_SIZE / 2,
+    bottom: 0,
+    left: 0,
+    opacity: 0.07,
+    right: 0,
+    top: 0,
+  },
+  // Inset 16px on each side → 88×88.
+  emblemRing1: {
+    borderRadius: (EMBLEM_SIZE - 32) / 2,
+    bottom: 16,
+    left: 16,
+    opacity: 0.13,
+    right: 16,
+    top: 16,
+  },
+  // Inset 32px → 56×56.
+  emblemRing2: {
+    borderRadius: (EMBLEM_SIZE - 64) / 2,
+    bottom: 32,
+    left: 32,
+    opacity: 0.2,
+    right: 32,
+    top: 32,
+  },
+  // Inset 48px → 24×24, solid center dot.
+  emblemRing3: {
+    borderRadius: (EMBLEM_SIZE - 96) / 2,
+    bottom: 48,
+    left: 48,
+    opacity: 1,
+    right: 48,
+    top: 48,
   },
   footerStack: {
     alignItems: "stretch",
@@ -148,6 +192,7 @@ const styles = StyleSheet.create({
     letterSpacing: -0.2,
     lineHeight: 34,
     marginBottom: spacing.lg,
+    textAlign: "center",
   },
   skipButton: {
     paddingHorizontal: spacing.sm,

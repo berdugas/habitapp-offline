@@ -33,17 +33,16 @@ const HABIT_SUGGESTION_EDIT_GUIDANCE_COPY: Record<
     draftTitle: "Suggested draft",
     title: "Make the action smaller",
   },
-  plan_for_obstacle: {
-    body: "Use what got in the way last week to make one small adjustment.",
-    draftBody: "Use the hard part from your review to choose one practical adjustment. For example, change the time, place, or setup so the same obstacle is less likely.",
-    draftTitle: "Suggested draft",
-    title: "Plan around the hard part",
-  },
   reduce_friction: {
-    body: "Try changing the setup so starting this habit takes less effort.",
-    draftBody: "Look for one setup change that makes the habit easier to start. For example, prepare the item you need ahead of time or move it somewhere visible.",
+    // Matches the reframe in `copy.ts` — when both diagnostic flags
+    // say the setup is fine but consistency is still low, the friction
+    // isn't the setup itself; it's somewhere else in the moment around
+    // the habit. EditHabitScreen surfaces this guidance when the user
+    // navigates in with `suggestionType=reduce_friction`.
+    body: "Setup's fine — something else got in the way. Look at the moment around the habit: energy, time of day, location, what comes right before. Pick one to change.",
+    draftBody: "The trigger and tiny action both held up, so the friction isn't in the habit itself — it's in the moment around it. Look for one small change to that context: energy level, time of day, location, or what immediately precedes the habit.",
     draftTitle: "Suggested draft",
-    title: "Reduce the friction",
+    title: "Look beyond the setup",
   },
 };
 
@@ -62,10 +61,6 @@ export const HABIT_SUGGESTION_EDIT_GUIDANCE: Record<
   make_tiny_action_smaller: {
     ...HABIT_SUGGESTION_EDIT_GUIDANCE_COPY.make_tiny_action_smaller,
     reason: HABIT_ADJUSTMENT_SUGGESTIONS.make_tiny_action_smaller.reason,
-  },
-  plan_for_obstacle: {
-    ...HABIT_SUGGESTION_EDIT_GUIDANCE_COPY.plan_for_obstacle,
-    reason: HABIT_ADJUSTMENT_SUGGESTIONS.plan_for_obstacle.reason,
   },
   reduce_friction: {
     ...HABIT_SUGGESTION_EDIT_GUIDANCE_COPY.reduce_friction,

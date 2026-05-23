@@ -55,9 +55,7 @@ const savedReview = {
   trigger_worked: true,
   updated_at: "2026-04-24T00:00:00.000Z",
   user_id: "user-1",
-  was_hard: null,
   week_start: "2026-04-20",
-  went_well: "Breakfast cue worked",
 };
 
 describe("WeeklyReviewScreen", () => {
@@ -142,8 +140,6 @@ describe("WeeklyReviewScreen", () => {
     expect(mockUseCurrentWeeklyReviewQuery).toHaveBeenCalledWith("habit-1");
     expect(screen.getByText("Reading")).toBeTruthy();
     expect(screen.getByText("Week of 2026-04-20")).toBeTruthy();
-    expect(screen.getByText("What went well this week?")).toBeTruthy();
-    expect(screen.getByText("What was hard this week?")).toBeTruthy();
     expect(screen.getByText("Did your trigger work?")).toBeTruthy();
     expect(screen.getByText("Was the tiny action too hard?")).toBeTruthy();
     expect(
@@ -166,9 +162,7 @@ describe("WeeklyReviewScreen", () => {
         tiny_action_too_hard: false,
         trigger_worked: true,
         user_id: "user-1",
-        was_hard: "Rushed mornings",
         week_start: "2026-04-20",
-        went_well: "Breakfast cue worked",
       },
       error: null,
       isLoading: false,
@@ -176,8 +170,6 @@ describe("WeeklyReviewScreen", () => {
 
     render(<WeeklyReviewScreen />);
 
-    expect(screen.getByDisplayValue("Breakfast cue worked")).toBeTruthy();
-    expect(screen.getByDisplayValue("Rushed mornings")).toBeTruthy();
     expect(screen.getByDisplayValue("Move the book to the table")).toBeTruthy();
   });
 
@@ -221,9 +213,7 @@ describe("WeeklyReviewScreen", () => {
         habitId: "habit-1",
         tinyActionTooHard: false,
         triggerWorked: false,
-        wasHard: "",
         weekStart: "2026-04-20",
-        wentWell: "",
       });
     });
   });
@@ -257,14 +247,6 @@ describe("WeeklyReviewScreen", () => {
     render(<WeeklyReviewScreen />);
 
     fireEvent.changeText(
-      screen.getByPlaceholderText("The moment that felt easiest"),
-      " Breakfast cue worked ",
-    );
-    fireEvent.changeText(
-      screen.getByPlaceholderText("The part that got in the way"),
-      " Rushed mornings ",
-    );
-    fireEvent.changeText(
       screen.getByPlaceholderText("One small change for next week"),
       " Move the book ",
     );
@@ -278,9 +260,7 @@ describe("WeeklyReviewScreen", () => {
         habitId: "habit-1",
         tinyActionTooHard: false,
         triggerWorked: true,
-        wasHard: "Rushed mornings",
         weekStart: "2026-04-20",
-        wentWell: "Breakfast cue worked",
       });
     });
     await waitFor(() => {
@@ -314,8 +294,8 @@ describe("WeeklyReviewScreen", () => {
     render(<WeeklyReviewScreen />);
 
     fireEvent.changeText(
-      screen.getByPlaceholderText("The moment that felt easiest"),
-      "I showed up",
+      screen.getByPlaceholderText("One small change for next week"),
+      "Try the new trigger",
     );
     fireEvent.press(screen.getByLabelText("Did your trigger work?: Yes"));
     fireEvent.press(screen.getByLabelText("Was the tiny action too hard?: No"));
@@ -384,8 +364,8 @@ describe("WeeklyReviewScreen", () => {
     render(<WeeklyReviewScreen />);
 
     fireEvent.changeText(
-      screen.getByPlaceholderText("The moment that felt easiest"),
-      "I showed up",
+      screen.getByPlaceholderText("One small change for next week"),
+      "Try the new trigger",
     );
     fireEvent.press(screen.getByLabelText("Did your trigger work?: Yes"));
     fireEvent.press(screen.getByLabelText("Was the tiny action too hard?: No"));
@@ -410,9 +390,7 @@ describe("WeeklyReviewScreen", () => {
         tiny_action_too_hard: false,
         trigger_worked: true,
         user_id: "user-1",
-        was_hard: "Rushed mornings",
         week_start: "2026-04-20",
-        went_well: "Breakfast cue worked",
       },
       error: null,
       isLoading: false,
@@ -432,9 +410,7 @@ describe("WeeklyReviewScreen", () => {
         habitId: "habit-1",
         tinyActionTooHard: false,
         triggerWorked: true,
-        wasHard: "Rushed mornings",
         weekStart: "2026-04-20",
-        wentWell: "Breakfast cue worked",
       });
     });
   });
@@ -445,8 +421,8 @@ describe("WeeklyReviewScreen", () => {
     render(<WeeklyReviewScreen />);
 
     fireEvent.changeText(
-      screen.getByPlaceholderText("The moment that felt easiest"),
-      "I showed up",
+      screen.getByPlaceholderText("One small change for next week"),
+      "Try the new trigger",
     );
     fireEvent.press(screen.getByLabelText("Did your trigger work?: Yes"));
     fireEvent.press(screen.getByLabelText("Was the tiny action too hard?: No"));
@@ -460,7 +436,7 @@ describe("WeeklyReviewScreen", () => {
       ).toBeTruthy();
     });
 
-    expect(screen.getByDisplayValue("I showed up")).toBeTruthy();
+    expect(screen.getByDisplayValue("Try the new trigger")).toBeTruthy();
     expect(screen.queryByText("SUGGESTED ADJUSTMENT")).toBeNull();
     expect(mockReplace).not.toHaveBeenCalled();
   });
