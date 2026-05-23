@@ -406,6 +406,12 @@ export function useUpdateHabitMutation() {
       if (!user?.id) {
         return;
       }
+      // Coarse-grained "edit happened" signal. A future enhancement could
+      // diff the payload against the prior habit to populate a `fields`
+      // array; today the diff context only lives at the call site
+      // (EditHabitScreen) since the mutationFn receives a normalized full
+      // payload, not a partial.
+      trackEvent("habit_updated", { habit_id: variables.habitId });
 
       await invalidateHabitSurfaceQueries(user.id, variables.habitId, queryClient);
     },
@@ -437,6 +443,7 @@ export function useArchiveHabitMutation() {
       if (!user?.id) {
         return;
       }
+      trackEvent("habit_archived", { habit_id: variables.habitId });
 
       await invalidateHabitSurfaceQueries(user.id, variables.habitId, queryClient);
     },
@@ -465,6 +472,7 @@ export function useRestoreHabitMutation() {
     },
     onSuccess: async (_result, variables) => {
       if (!user?.id) return;
+      trackEvent("habit_restored", { habit_id: variables.habitId });
       await invalidateHabitSurfaceQueries(user.id, variables.habitId, queryClient);
     },
     onError: (error, variables) => {
@@ -529,6 +537,7 @@ export function useDeleteHabitMutation() {
     },
     onSuccess: async (_result, variables) => {
       if (!user?.id) return;
+      trackEvent("habit_deleted", { habit_id: variables.habitId });
       await invalidateHabitListQueries(user.id, variables.habitId, queryClient);
     },
     onError: (error, variables) => {
