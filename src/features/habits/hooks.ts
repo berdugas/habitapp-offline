@@ -33,9 +33,11 @@ import { summarizeHabitProgress } from "@/features/today/progress";
 import { trackEvent } from "@/services/analytics";
 import { logger } from "@/services/logger";
 import {
+  daysBetweenDates,
   getTrailingDateRangeStrings,
   toDeviceDateString,
 } from "@/utils/dates";
+import { todayDateString } from "@/utils/clock";
 import { TODAY_PROGRESS_WINDOW_DAYS } from "@/features/today/constants";
 
 import type {
@@ -601,6 +603,16 @@ export function useUpsertHabitLogMutation() {
     },
     onSuccess: async (_data, variables) => {
       if (!user?.id) return;
+
+      // Telemetry: retro-log path — logDate can be 0 (today) up to ~48h back
+      // per HabitDetailScreen's retro-backfill window. days_back is derived
+      // from (today - logDate); the helper signature is (from, to) → to-from
+      // in days, so logDate must come first to yield a non-negative result.
+      trackEvent("habit_logged", {
+        habit_id: variables.habitId,
+        status: variables.status,
+        days_back: daysBetweenDates(variables.logDate, todayDateString()),
+      });
 
       // 1) Heatmap range query for this habit (prefix-match all date ranges).
       await queryClient.invalidateQueries({
