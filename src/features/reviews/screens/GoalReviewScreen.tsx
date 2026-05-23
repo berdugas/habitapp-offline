@@ -735,7 +735,9 @@ export default function GoalReviewScreen() {
           />
         ) : null}
         {currentStep.type === "clean_week_affirmation" ? (
-          <CleanWeekAffirmationStep />
+          <CleanWeekAffirmationStep
+            hasActiveDays={summary.overallActiveDayCount > 0}
+          />
         ) : null}
         {currentStep.type === "complete" ? (
           <WeekCompleteStep

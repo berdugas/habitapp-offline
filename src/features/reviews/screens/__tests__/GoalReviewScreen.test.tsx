@@ -1081,6 +1081,49 @@ describe("GoalReviewScreen — new per-Tune-Up flow", () => {
     expect(screen.getByText("WEEK REVIEWED")).toBeTruthy();
   });
 
+  it("renders 'Just getting started.' on a brand-new (zero-active-day) clean week", async () => {
+    // Zero-active-day brand-new goal: no habit had an active day in
+    // the review week. `getStepSequence` still routes through the
+    // clean-week branch because attentionHabits.length === 0 — the
+    // affirmation copy must branch so the user doesn't read "Every
+    // habit was on track" when there were no days to be on track for.
+    const brandNewHabit = makeHabitSummary({
+      activeDayCount: 0,
+      doneCount: 0,
+      missCount: 0,
+      skipCount: 0,
+      weekConsistency: 0,
+      isStrong: false,
+      needsAttention: false,
+      weekLogs: [
+        { date: "2026-04-27", dayOfWeek: 1, status: "missed", isActiveDay: false },
+        { date: "2026-04-28", dayOfWeek: 2, status: "missed", isActiveDay: false },
+        { date: "2026-04-29", dayOfWeek: 3, status: "missed", isActiveDay: false },
+        { date: "2026-04-30", dayOfWeek: 4, status: "missed", isActiveDay: false },
+        { date: "2026-05-01", dayOfWeek: 5, status: "missed", isActiveDay: false },
+        { date: "2026-05-02", dayOfWeek: 6, status: "missed", isActiveDay: false },
+        { date: "2026-05-03", dayOfWeek: 7, status: "missed", isActiveDay: false },
+      ],
+    });
+    mockUseGoalWeekSummary.mockReturnValue({
+      data: makeSummary([brandNewHabit]),
+      isLoading: false,
+      error: null,
+    });
+    await renderAndSettle();
+    fireEvent.press(screen.getByText("Continue")); // → clean_week_affirmation
+    // No "What's Working" step in this shape — strongHabits is empty,
+    // so the sequence is Mirror → Affirmation → Complete.
+
+    expect(screen.getByText("Just getting started.")).toBeTruthy();
+    expect(
+      screen.getByText(
+        "Your habits haven't run a full week yet. Keep showing up.",
+      ),
+    ).toBeTruthy();
+    expect(screen.queryByText("Solid week.")).toBeNull();
+  });
+
   it("does NOT render Clean Week Affirmation on a mixed week (attention habits present)", async () => {
     mockUseGoalWeekSummary.mockReturnValue({
       data: makeSummary([makeHabitSummary(), attentionHabit()]),
