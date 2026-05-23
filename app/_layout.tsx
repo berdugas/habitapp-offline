@@ -4,9 +4,9 @@ import "react-native-gesture-handler";
 import { useEffect, useState } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
-import { Stack } from "expo-router";
+import { Stack, usePathname } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { View } from "react-native";
+import { Text, View } from "react-native";
 import * as SplashScreen from "expo-splash-screen";
 import * as Notifications from "expo-notifications";
 import { useFonts } from "expo-font";
@@ -26,8 +26,20 @@ import { initDb } from "@/lib/db/client";
 import { AppProviders } from "@/providers/AppProviders";
 import { handleForegroundNotification } from "@/features/reminders/notifications";
 import { logger } from "@/services/logger";
+import { ErrorBoundary, initSentry, wrap } from "@/services/sentry";
+import {
+  TelemetryProvider,
+  initPostHog,
+  screen as posthogScreen,
+} from "@/services/posthog";
 import { colors } from "@/theme/colors";
 import { useAuthSession } from "@/features/auth/hooks";
+
+// Telemetry init at module load — Sentry first so it can catch any PostHog
+// init errors, then PostHog. Both no-op without DSN/key in app.json extra,
+// and both no-op in __DEV__ unless extra.telemetryInDev is set.
+initSentry();
+initPostHog();
 
 // Suppress notifications that fire while the app is in the foreground — the
 // handler decides per-notification (backup type: suppress if already logged).
@@ -63,7 +75,38 @@ function NotificationHandler() {
   return null;
 }
 
-export default function RootLayout() {
+// Manual screen tracking for PostHog. Expo Router can't be auto-captured by
+// PostHog's RN SDK (per posthog-react-native v4 docs); we watch usePathname()
+// and emit a screen event when it changes.
+function ScreenTracker() {
+  const pathname = usePathname();
+
+  useEffect(() => {
+    if (pathname) posthogScreen(pathname);
+  }, [pathname]);
+
+  return null;
+}
+
+function ErrorFallback() {
+  return (
+    <View
+      style={{
+        flex: 1,
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 24,
+        backgroundColor: colors.bg,
+      }}
+    >
+      <Text style={{ color: colors.text, fontSize: 16, textAlign: "center" }}>
+        Something went wrong. Reopen the app.
+      </Text>
+    </View>
+  );
+}
+
+function RootLayout() {
   const [fontsLoaded] = useFonts({
     PlusJakartaSans_700Bold,
     PlusJakartaSans_800ExtraBold,
@@ -106,28 +149,35 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <AppProviders>
-          <NotificationHandler />
-          <StatusBar
-            backgroundColor={colors.surface}
-            style="dark"
-            translucent={false}
-          />
-          <View style={{ flex: 1 }}>
-            <Stack
-              screenOptions={{
-                contentStyle: { backgroundColor: colors.bg },
-                headerBackButtonDisplayMode: "minimal",
-              }}
-            >
-              <Stack.Screen name="index" options={{ headerShown: false }} />
-              <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-              <Stack.Screen name="(app)" options={{ headerShown: false }} />
-              <Stack.Screen name="(onboarding)" options={{ headerShown: false }} />
-            </Stack>
-          </View>
-        </AppProviders>
+        <TelemetryProvider>
+          <AppProviders>
+            <NotificationHandler />
+            <ScreenTracker />
+            <StatusBar
+              backgroundColor={colors.surface}
+              style="dark"
+              translucent={false}
+            />
+            <ErrorBoundary fallback={<ErrorFallback />}>
+              <View style={{ flex: 1 }}>
+                <Stack
+                  screenOptions={{
+                    contentStyle: { backgroundColor: colors.bg },
+                    headerBackButtonDisplayMode: "minimal",
+                  }}
+                >
+                  <Stack.Screen name="index" options={{ headerShown: false }} />
+                  <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+                  <Stack.Screen name="(app)" options={{ headerShown: false }} />
+                  <Stack.Screen name="(onboarding)" options={{ headerShown: false }} />
+                </Stack>
+              </View>
+            </ErrorBoundary>
+          </AppProviders>
+        </TelemetryProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );
 }
+
+export default wrap(RootLayout);

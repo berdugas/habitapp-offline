@@ -13,7 +13,8 @@
       "expo-font",
       "expo-sqlite",
       "expo-notifications",
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      "@sentry/react-native"
     ],
     "splash": {
       "image": "./assets/icons/splash-icon.png",
@@ -41,7 +42,11 @@
       "router": {},
       "eas": {
         "projectId": "a6076041-eb28-4ded-affc-589659dc05f4"
-      }
+      },
+      "sentryDsn": "",
+      "posthogApiKey": "",
+      "posthogHost": "",
+      "telemetryInDev": false
     }
   }
 }
