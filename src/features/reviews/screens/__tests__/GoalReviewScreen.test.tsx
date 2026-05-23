@@ -330,7 +330,14 @@ describe("GoalReviewScreen — new per-Tune-Up flow", () => {
     fireEvent.press(screen.getByText("Continue")); // overview → whats_working
     expect(screen.getByText("What's working")).toBeTruthy();
 
-    fireEvent.press(screen.getByText("Continue")); // whats_working → complete
+    fireEvent.press(screen.getByText("Continue")); // whats_working → goal_reflection
+    // Clean-week flow surfaces a single Reflection beat between
+    // What's Working and Complete. Skip advances without writes;
+    // catch-up at Complete fills empty rows for every habit.
+    await act(async () => {
+      fireEvent.press(screen.getByText("Skip"));
+      await flushAsync();
+    });
     expect(screen.getByText("WEEK REVIEWED")).toBeTruthy();
     // N=0 footnote variant.
     expect(
@@ -599,8 +606,9 @@ describe("GoalReviewScreen — new per-Tune-Up flow", () => {
     });
     await renderAndSettle();
     fireEvent.press(screen.getByText("Continue")); // → whats_working
+    fireEvent.press(screen.getByText("Continue")); // → goal_reflection
     await act(async () => {
-      fireEvent.press(screen.getByText("Continue")); // → complete (catch-up fires)
+      fireEvent.press(screen.getByText("Skip")); // → complete (catch-up fires)
       await flushAsync();
     });
 
@@ -629,8 +637,9 @@ describe("GoalReviewScreen — new per-Tune-Up flow", () => {
     });
     await renderAndSettle();
     fireEvent.press(screen.getByText("Continue")); // overview → whats_working
+    fireEvent.press(screen.getByText("Continue")); // whats_working → goal_reflection
     await act(async () => {
-      fireEvent.press(screen.getByText("Continue")); // whats_working → complete
+      fireEvent.press(screen.getByText("Skip")); // → complete (catch-up fires)
       await flushAsync();
     });
 
@@ -692,8 +701,9 @@ describe("GoalReviewScreen — new per-Tune-Up flow", () => {
     });
     await renderAndSettle();
     fireEvent.press(screen.getByText("Continue")); // → whats_working
+    fireEvent.press(screen.getByText("Continue")); // → goal_reflection
     await act(async () => {
-      fireEvent.press(screen.getByText("Continue")); // → complete
+      fireEvent.press(screen.getByText("Skip")); // → complete (catch-up fires)
       await flushAsync();
     });
 
@@ -723,8 +733,9 @@ describe("GoalReviewScreen — new per-Tune-Up flow", () => {
     });
     await renderAndSettle();
     fireEvent.press(screen.getByText("Continue")); // → whats_working
+    fireEvent.press(screen.getByText("Continue")); // → goal_reflection
     await act(async () => {
-      fireEvent.press(screen.getByText("Continue")); // → complete
+      fireEvent.press(screen.getByText("Skip")); // → complete (catch-up fails)
       await flushAsync();
     });
 
@@ -758,8 +769,9 @@ describe("GoalReviewScreen — new per-Tune-Up flow", () => {
     });
     await renderAndSettle();
     fireEvent.press(screen.getByText("Continue")); // → whats_working
+    fireEvent.press(screen.getByText("Continue")); // → goal_reflection
     await act(async () => {
-      fireEvent.press(screen.getByText("Continue")); // → complete
+      fireEvent.press(screen.getByText("Skip")); // → complete (catch-up fires)
       await flushAsync();
     });
 
@@ -780,8 +792,9 @@ describe("GoalReviewScreen — new per-Tune-Up flow", () => {
     });
     await renderAndSettle();
     fireEvent.press(screen.getByText("Continue")); // → whats_working
+    fireEvent.press(screen.getByText("Continue")); // → goal_reflection
     await act(async () => {
-      fireEvent.press(screen.getByText("Continue")); // → complete (catch-up fails)
+      fireEvent.press(screen.getByText("Skip")); // → complete (catch-up fails)
       await flushAsync();
     });
 
@@ -868,8 +881,9 @@ describe("GoalReviewScreen — new per-Tune-Up flow", () => {
     });
     await renderAndSettle();
     fireEvent.press(screen.getByText("Continue")); // → whats_working
+    fireEvent.press(screen.getByText("Continue")); // → goal_reflection
     await act(async () => {
-      fireEvent.press(screen.getByText("Continue")); // → complete (catch-up fires)
+      fireEvent.press(screen.getByText("Skip")); // → complete (catch-up fires)
       await flushAsync();
     });
 
@@ -900,8 +914,9 @@ describe("GoalReviewScreen — new per-Tune-Up flow", () => {
     });
     await renderAndSettle();
     fireEvent.press(screen.getByText("Continue")); // → whats_working
+    fireEvent.press(screen.getByText("Continue")); // → goal_reflection
     await act(async () => {
-      fireEvent.press(screen.getByText("Continue")); // → complete
+      fireEvent.press(screen.getByText("Skip")); // → complete
       await flushAsync();
     });
 
@@ -933,8 +948,9 @@ describe("GoalReviewScreen — new per-Tune-Up flow", () => {
     });
     await renderAndSettle();
     fireEvent.press(screen.getByText("Continue")); // → whats_working (strong habit)
+    fireEvent.press(screen.getByText("Continue")); // → goal_reflection
     await act(async () => {
-      fireEvent.press(screen.getByText("Continue")); // → complete
+      fireEvent.press(screen.getByText("Skip")); // → complete
       await flushAsync();
     });
 
@@ -1004,5 +1020,193 @@ describe("GoalReviewScreen — new per-Tune-Up flow", () => {
     const event = emitBeforeRemove();
     expect(event.preventDefault).toHaveBeenCalled();
     expect(mockActualPop).not.toHaveBeenCalled();
+  });
+
+  // ─────────────────────────────────────────────────────────────
+  // Goal Reflection step (clean-week-only)
+  //
+  // When the goal has zero struggling habits, the per-habit Tune-Up
+  // loop runs zero iterations. The Reflection step inserts a single
+  // optional text beat between What's Working and Complete so the
+  // user can still set an intention.
+  // ─────────────────────────────────────────────────────────────
+
+  it("Goal Reflection step renders on a clean week between What's Working and Complete", async () => {
+    mockUseGoalWeekSummary.mockReturnValue({
+      data: makeSummary([makeHabitSummary()]),
+      isLoading: false,
+      error: null,
+    });
+    await renderAndSettle();
+    fireEvent.press(screen.getByText("Continue")); // → whats_working
+    fireEvent.press(screen.getByText("Continue")); // → goal_reflection
+
+    // The Reflection step is on-screen; Complete is NOT yet.
+    expect(screen.getByText("REFLECTION")).toBeTruthy();
+    expect(screen.queryByText("WEEK REVIEWED")).toBeNull();
+    // Identity phrase appears inline in the prompt.
+    expect(screen.getByText(/keep/)).toBeTruthy();
+  });
+
+  it("Reflection Save with text writes the reflection to every habit and advances to Complete", async () => {
+    mockUseGoalWeekSummary.mockReturnValue({
+      data: makeSummary([
+        makeHabitSummary({ habitId: "h-1", title: "Drink water" }),
+        makeHabitSummary({ habitId: "h-2", title: "Stretch" }),
+      ]),
+      isLoading: false,
+      error: null,
+    });
+    await renderAndSettle();
+    fireEvent.press(screen.getByText("Continue")); // → whats_working
+    fireEvent.press(screen.getByText("Continue")); // → goal_reflection
+
+    const input = screen.getByDisplayValue("");
+    fireEvent.changeText(input, "anchor habit to morning coffee");
+
+    await act(async () => {
+      fireEvent.press(screen.getByText("Save & continue"));
+      await flushAsync();
+    });
+
+    // The Reflection's Save is the FIRST upsertGoalReviews call; the
+    // Complete-entry catch-up sees every habit already covered and
+    // writes nothing.
+    expect(mockUpsertGoalReviewsMutateAsync).toHaveBeenCalledTimes(1);
+    const payloads = mockUpsertGoalReviewsMutateAsync.mock.calls[0][0];
+    expect(payloads).toHaveLength(2);
+    for (const p of payloads) {
+      expect(p.adjustmentNote).toBe("anchor habit to morning coffee");
+      expect(p.triggerWorked).toBeNull();
+      expect(p.tinyActionTooHard).toBeNull();
+    }
+    expect(payloads.map((p: { habitId: string }) => p.habitId).sort()).toEqual([
+      "h-1",
+      "h-2",
+    ]);
+
+    // After Save, we're on Complete.
+    expect(screen.getByText("WEEK REVIEWED")).toBeTruthy();
+  });
+
+  it("Reflection Save trims whitespace before writing", async () => {
+    mockUseGoalWeekSummary.mockReturnValue({
+      data: makeSummary([makeHabitSummary()]),
+      isLoading: false,
+      error: null,
+    });
+    await renderAndSettle();
+    fireEvent.press(screen.getByText("Continue")); // → whats_working
+    fireEvent.press(screen.getByText("Continue")); // → goal_reflection
+
+    const input = screen.getByDisplayValue("");
+    fireEvent.changeText(input, "   keep showing up   ");
+
+    await act(async () => {
+      fireEvent.press(screen.getByText("Save & continue"));
+      await flushAsync();
+    });
+
+    const payloads = mockUpsertGoalReviewsMutateAsync.mock.calls[0][0];
+    expect(payloads[0].adjustmentNote).toBe("keep showing up");
+  });
+
+  it("Reflection Skip advances to Complete; catch-up writes empty rows", async () => {
+    mockUseGoalWeekSummary.mockReturnValue({
+      data: makeSummary([
+        makeHabitSummary({ habitId: "h-1" }),
+        makeHabitSummary({ habitId: "h-2" }),
+      ]),
+      isLoading: false,
+      error: null,
+    });
+    await renderAndSettle();
+    fireEvent.press(screen.getByText("Continue")); // → whats_working
+    fireEvent.press(screen.getByText("Continue")); // → goal_reflection
+
+    await act(async () => {
+      fireEvent.press(screen.getByText("Skip"));
+      await flushAsync();
+    });
+
+    // Catch-up at Complete entry writes ONE empty-row batch for both habits.
+    await waitFor(() => {
+      expect(mockUpsertGoalReviewsMutateAsync).toHaveBeenCalledTimes(1);
+    });
+    const payloads = mockUpsertGoalReviewsMutateAsync.mock.calls[0][0];
+    expect(payloads).toHaveLength(2);
+    for (const p of payloads) {
+      expect(p.adjustmentNote).toBe("");
+    }
+    expect(screen.getByText("WEEK REVIEWED")).toBeTruthy();
+  });
+
+  it("chevron on a dirty Reflection step shows a confirmation Alert before stepping back", async () => {
+    const alertSpy = jest
+      .spyOn(require("react-native").Alert, "alert")
+      .mockImplementation(() => {});
+    mockUseGoalWeekSummary.mockReturnValue({
+      data: makeSummary([makeHabitSummary()]),
+      isLoading: false,
+      error: null,
+    });
+    await renderAndSettle();
+    fireEvent.press(screen.getByText("Continue")); // → whats_working
+    fireEvent.press(screen.getByText("Continue")); // → goal_reflection
+
+    // Type into the reflection field — dirties the step.
+    const input = screen.getByDisplayValue("");
+    fireEvent.changeText(input, "thinking…");
+
+    // Tap chevron-back. Should prompt, NOT step back silently.
+    fireEvent.press(screen.getByLabelText("Go back a step"));
+    expect(alertSpy).toHaveBeenCalledTimes(1);
+    expect(alertSpy.mock.calls[0][0]).toBe("Leave this reflection?");
+
+    alertSpy.mockRestore();
+  });
+
+  it("Reflection Save failure surfaces a retry banner and keeps the user on the step", async () => {
+    mockUpsertGoalReviewsMutateAsync.mockRejectedValueOnce(new Error("net"));
+    mockUseGoalWeekSummary.mockReturnValue({
+      data: makeSummary([makeHabitSummary()]),
+      isLoading: false,
+      error: null,
+    });
+    await renderAndSettle();
+    fireEvent.press(screen.getByText("Continue")); // → whats_working
+    fireEvent.press(screen.getByText("Continue")); // → goal_reflection
+
+    const input = screen.getByDisplayValue("");
+    fireEvent.changeText(input, "the experiment");
+
+    await act(async () => {
+      fireEvent.press(screen.getByText("Save & continue"));
+      await flushAsync();
+    });
+
+    await waitFor(() => {
+      expect(
+        screen.getByText("We couldn't save your reflection. Try again."),
+      ).toBeTruthy();
+    });
+    // Still on the Reflection step, not on Complete.
+    expect(screen.queryByText("WEEK REVIEWED")).toBeNull();
+    expect(screen.getByText("REFLECTION")).toBeTruthy();
+  });
+
+  it("does NOT render Goal Reflection on a mixed week (attention habits present)", async () => {
+    mockUseGoalWeekSummary.mockReturnValue({
+      data: makeSummary([makeHabitSummary(), attentionHabit()]),
+      isLoading: false,
+      error: null,
+    });
+    await renderAndSettle();
+    fireEvent.press(screen.getByText("Continue")); // → whats_working
+    fireEvent.press(screen.getByText("Continue")); // → tune-up (NOT reflection)
+
+    expect(screen.queryByText("REFLECTION")).toBeNull();
+    // Tune-Up's diagnostic prompt confirms we routed to tune-up not reflection.
+    expect(screen.getByText("Did your trigger work?")).toBeTruthy();
   });
 });
