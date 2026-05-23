@@ -11,6 +11,7 @@ import { getPreference, setPreference } from "@/lib/db/repositories/preferences"
 import { getHabit } from "@/lib/db/repositories/habits";
 import { listLogsForHabitInRange } from "@/lib/db/repositories/habit_logs";
 import { todayDateString } from "@/utils/clock";
+import { trackEvent } from "@/services/analytics";
 import { logger } from "@/services/logger";
 import { getBackupNotificationBody, getDailyNotificationBody } from "./copy";
 
@@ -23,8 +24,13 @@ function toExpoWeekday(isoDay: number): number {
 }
 
 export async function requestPermission(): Promise<boolean> {
+  trackEvent("notification_permission_requested");
   const { status } = await Notifications.requestPermissionsAsync();
-  return status === "granted";
+  const granted = status === "granted";
+  trackEvent(
+    granted ? "notification_permission_granted" : "notification_permission_denied",
+  );
+  return granted;
 }
 
 export async function hasBeenPrompted(): Promise<boolean> {
@@ -88,6 +94,16 @@ export async function scheduleReminder(
     reminder_time: reminderTime,
     notification_ids: JSON.stringify(scheduledIds),
   });
+
+  // Only fire reminder_scheduled when at least one OS notification actually
+  // landed — partial failures (all days failed) leave us with an empty IDs
+  // list and shouldn't count as a successful schedule for the funnel.
+  if (scheduledIds.length > 0) {
+    trackEvent("reminder_scheduled", {
+      habit_id: habitId,
+      has_reminder: true,
+    });
+  }
 }
 
 // Persists a user's chosen reminder time without scheduling OS notifications.
@@ -176,6 +192,12 @@ export async function cancelReminder(habitId: string): Promise<void> {
   const existing = await getReminderByHabitId(habitId);
   if (!existing) return;
 
+  // Only count this as a user-visible cancellation if a real reminder
+  // was scheduled — `reminder_type: "none"` rows are persisted intents
+  // (see persistReminderIntent), cancelling them shouldn't pollute the
+  // funnel with phantom cancel events.
+  const wasActive = existing.reminder_type !== "none";
+
   try {
     const ids: string[] = JSON.parse(existing.notification_ids);
     await Promise.all(ids.map((id) => Notifications.cancelScheduledNotificationAsync(id)));
@@ -189,6 +211,10 @@ export async function cancelReminder(habitId: string): Promise<void> {
     reminder_time: null,
     notification_ids: "[]",
   });
+
+  if (wasActive) {
+    trackEvent("reminder_cancelled", { habit_id: habitId });
+  }
 }
 
 export async function rescheduleAll(userId: string): Promise<void> {
@@ -222,13 +248,22 @@ export async function handleForegroundNotification(
   const habitId = data.habitId as string | undefined;
   const reminderType = data.reminderType as string | undefined;
 
-  if (reminderType !== "backup" || !habitId) return true;
+  // Foreground-delivered telemetry: fire for any reminder that actually
+  // surfaces to the user. Backup reminders that get suppressed below
+  // are NOT user-visible, so we wait to fire the event until after the
+  // suppression decision (and only fire on the non-suppressed path).
+  if (reminderType !== "backup" || !habitId) {
+    if (habitId) {
+      trackEvent("reminder_delivered", { habit_id: habitId });
+    }
+    return true;
+  }
 
   try {
     const today = todayDateString();
     const logs = await listLogsForHabitInRange(habitId, today, today);
     if (logs.some((l) => l.status === "done" || l.status === "skipped")) {
-      // Already logged — suppress notification
+      // Already logged — suppress notification (do NOT fire delivered)
       await Notifications.dismissNotificationAsync(notification.request.identifier);
       return false;
     }
@@ -236,5 +271,7 @@ export async function handleForegroundNotification(
     logger.warn("Failed to check log for backup suppression", { habitId, err });
   }
 
+  // Backup reminder reached the user (no log existed for today).
+  trackEvent("reminder_delivered", { habit_id: habitId });
   return true;
 }
