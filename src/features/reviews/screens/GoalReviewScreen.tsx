@@ -328,6 +328,39 @@ export default function GoalReviewScreen() {
     setCurrentStepIndex((i) => Math.min(i + 1, stepSequence.length - 1));
   }
 
+  // Step-entry analytics. Fires once per step transition (effect deps
+  // intentionally narrow — `currentStep.type` + `currentStep.habitId` for
+  // tune-up — so re-renders within the same step don't re-fire). The
+  // `tune_up_started` event captures the user reaching a per-habit
+  // diagnostic; `weekly_review_completed` is the natural funnel anchor
+  // at the end of the flow (counts the user's outcomes from the
+  // session — applied / skipped / whether any habit was mutated).
+  const tuneUpHabitIdForEffect =
+    currentStep.type === "tune_up" ? currentStep.habitId : null;
+  useEffect(() => {
+    if (currentStep.type === "tune_up" && tuneUpHabitIdForEffect) {
+      trackEvent("weekly_review_tune_up_started", {
+        habitId: tuneUpHabitIdForEffect,
+      });
+    } else if (currentStep.type === "complete" && summary) {
+      trackEvent("weekly_review_completed", {
+        // `attentionCount` / `strongCount` let us segment outcomes by
+        // week shape (clean vs mixed vs all-attention). Without these,
+        // a low tunedCount looks identical whether the goal had zero
+        // attention habits (clean week) or three (user skipped all).
+        attentionCount: summary.attentionHabits.length,
+        strongCount: summary.strongHabits.length,
+        tunedCount: appliedCount,
+        skippedCount,
+        hasMutation,
+      });
+    }
+    // Effect intentionally fires once per step entry — re-renders that
+    // change appliedCount mid-Complete are downstream of the user
+    // already landing on Complete and would double-fire if included.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentStep.type, tuneUpHabitIdForEffect]);
+
   async function maybeMarkFirstRunCompleted(): Promise<void> {
     if (hasAttemptedFirstRunWriteRef.current) return;
     if (!isFirstRunIncomplete) return;
@@ -370,9 +403,42 @@ export default function GoalReviewScreen() {
         return next;
       });
       if (payload.habitPatch) setHasMutation(true);
+      // Enriched event payload — needed downstream to understand:
+      //   - Which suggestion paths produce mutations (`mutatedFields`).
+      //   - Whether users accept the pre-filled cue/tinyAction or
+      //     rewrite it (`textKept`). When all patched fields match the
+      //     habit's current values, the user accepted the suggestion
+      //     default verbatim — useful for tuning the suggestion copy.
+      //     `null` when no habitPatch (the suggestion was free-text-only
+      //     so the cue/tinyAction-vs-default comparison is meaningless).
+      const mutatedFields: ("cue" | "tinyAction")[] = [];
+      if (payload.habitPatch?.cue !== undefined) mutatedFields.push("cue");
+      if (payload.habitPatch?.tinyAction !== undefined) {
+        mutatedFields.push("tinyAction");
+      }
+      let textKept: boolean | null = null;
+      if (payload.habitPatch) {
+        const habit = summary?.habits.find((h) => h.habitId === payload.habitId);
+        if (habit) {
+          const cueKept =
+            payload.habitPatch.cue === undefined ||
+            payload.habitPatch.cue.trim() === habit.cue.trim();
+          const tinyKept =
+            payload.habitPatch.tinyAction === undefined ||
+            payload.habitPatch.tinyAction.trim() === habit.tinyAction.trim();
+          textKept = cueKept && tinyKept;
+        }
+      }
       trackEvent("weekly_review_tune_up_applied", {
         habitId: payload.habitId,
         hasHabitPatch: Boolean(payload.habitPatch),
+        mutatedFields,
+        textKept,
+        // Y/N answers in coarse form — useful to bucket which
+        // suggestion type the apply corresponds to without leaking
+        // raw cue/tinyAction text into the analytics warehouse.
+        triggerWorked: payload.triggerWorked,
+        tinyActionTooHard: payload.tinyActionTooHard,
       });
       await maybeMarkFirstRunCompleted();
       advanceToNextStep();
@@ -410,6 +476,11 @@ export default function GoalReviewScreen() {
       });
       trackEvent("weekly_review_tune_up_skipped", {
         habitId: payload.habitId,
+        // Y/N state at the moment of skip — distinguishes "skipped
+        // without engaging" (both null) from "answered diagnostically
+        // but chose not to commit a change" (both non-null).
+        triggerWorked: payload.triggerWorked,
+        tinyActionTooHard: payload.tinyActionTooHard,
       });
       await maybeMarkFirstRunCompleted();
       advanceToNextStep();
@@ -456,6 +527,14 @@ export default function GoalReviewScreen() {
         for (const h of summary.habits) next.add(h.habitId);
         return next;
       });
+      trackEvent("weekly_review_goal_reflection_saved", {
+        // Send length (not the text itself) — analytics warehouses
+        // shouldn't accumulate raw user-written content. `hasNote`
+        // separates "wrote something" from "saved blank."
+        noteLength: trimmed.length,
+        hasNote: trimmed.length > 0,
+        habitCount: summary.habits.length,
+      });
       await maybeMarkFirstRunCompleted();
       advanceToNextStep();
     } catch (err) {
@@ -472,6 +551,7 @@ export default function GoalReviewScreen() {
    * so getGoalReviewStatus.isDue clears on exit.
    */
   function handleReflectionSkip() {
+    trackEvent("weekly_review_goal_reflection_skipped");
     advanceToNextStep();
   }
 

@@ -1209,4 +1209,192 @@ describe("GoalReviewScreen — new per-Tune-Up flow", () => {
     // Tune-Up's diagnostic prompt confirms we routed to tune-up not reflection.
     expect(screen.getByText("Did your trigger work?")).toBeTruthy();
   });
+
+  // ─────────────────────────────────────────────────────────────
+  // Analytics events
+  //
+  // The Tune-Up flow fires a sequence of trackEvent calls so we can
+  // measure how users move through it: which suggestion types fire,
+  // whether suggested text is accepted as-is, how clean weeks
+  // compare to mixed weeks, etc. These assertions lock the payload
+  // shape — downstream dashboards depend on the field names.
+  // ─────────────────────────────────────────────────────────────
+
+  it("fires weekly_review_tune_up_started when a Tune-Up step is entered", async () => {
+    mockUseGoalWeekSummary.mockReturnValue({
+      data: makeSummary([attentionHabit({ habitId: "h-attn" })]),
+      isLoading: false,
+      error: null,
+    });
+    await renderAndSettle();
+    mockTrackEvent.mockClear();
+
+    fireEvent.press(screen.getByText("Continue")); // → tune-up
+
+    expect(mockTrackEvent).toHaveBeenCalledWith(
+      "weekly_review_tune_up_started",
+      { habitId: "h-attn" },
+    );
+  });
+
+  it("fires weekly_review_tune_up_applied with mutatedFields + textKept + Y/N state", async () => {
+    mockUseGoalWeekSummary.mockReturnValue({
+      data: makeSummary([attentionHabit({ habitId: "h-attn" })]),
+      isLoading: false,
+      error: null,
+    });
+    await renderAndSettle();
+    fireEvent.press(screen.getByText("Continue")); // → tune-up
+
+    // Yes/Yes → make_tiny_action_smaller (mutates tinyAction).
+    fireEvent.press(screen.getByLabelText("Did your trigger work?: Yes"));
+    fireEvent.press(
+      screen.getByLabelText("Was the tiny action too hard?: Yes"),
+    );
+
+    mockTrackEvent.mockClear();
+    await act(async () => {
+      fireEvent.press(screen.getByText("Apply & continue"));
+      await flushAsync();
+    });
+
+    const call = mockTrackEvent.mock.calls.find(
+      (c) => c[0] === "weekly_review_tune_up_applied",
+    );
+    expect(call).toBeDefined();
+    expect(call![1]).toMatchObject({
+      habitId: "h-attn",
+      hasHabitPatch: true,
+      mutatedFields: ["tinyAction"],
+      triggerWorked: true,
+      tinyActionTooHard: true,
+    });
+    // textKept is `true` because the user didn't modify the pre-filled
+    // tinyAction — accepting the default counts as a kept text.
+    expect(call![1].textKept).toBe(true);
+  });
+
+  it("fires weekly_review_tune_up_skipped with the Y/N state at skip time", async () => {
+    mockUseGoalWeekSummary.mockReturnValue({
+      data: makeSummary([attentionHabit({ habitId: "h-attn" })]),
+      isLoading: false,
+      error: null,
+    });
+    await renderAndSettle();
+    fireEvent.press(screen.getByText("Continue")); // → tune-up
+
+    // Answer Y/N before Skipping — distinguishes "engaged but chose
+    // not to commit" from "skipped without engaging."
+    fireEvent.press(screen.getByLabelText("Did your trigger work?: No"));
+    fireEvent.press(
+      screen.getByLabelText("Was the tiny action too hard?: No"),
+    );
+
+    mockTrackEvent.mockClear();
+    await act(async () => {
+      fireEvent.press(screen.getByText("Skip this habit"));
+      await flushAsync();
+    });
+
+    expect(mockTrackEvent).toHaveBeenCalledWith(
+      "weekly_review_tune_up_skipped",
+      {
+        habitId: "h-attn",
+        triggerWorked: false,
+        tinyActionTooHard: false,
+      },
+    );
+  });
+
+  it("fires weekly_review_completed with tuned/skipped counts and week shape", async () => {
+    mockUseGoalWeekSummary.mockReturnValue({
+      data: makeSummary([
+        makeHabitSummary({ habitId: "h-strong" }),
+        attentionHabit({ habitId: "h-attn" }),
+      ]),
+      isLoading: false,
+      error: null,
+    });
+    await renderAndSettle();
+    fireEvent.press(screen.getByText("Continue")); // → whats_working
+    fireEvent.press(screen.getByText("Continue")); // → tune-up
+
+    fireEvent.press(screen.getByLabelText("Did your trigger work?: Yes"));
+    fireEvent.press(
+      screen.getByLabelText("Was the tiny action too hard?: Yes"),
+    );
+
+    mockTrackEvent.mockClear();
+    await act(async () => {
+      fireEvent.press(screen.getByText("Apply & continue"));
+      await flushAsync();
+    });
+
+    // Completed event fires with the session's outcome counts and
+    // the goal's week shape.
+    const completedCall = mockTrackEvent.mock.calls.find(
+      (c) => c[0] === "weekly_review_completed",
+    );
+    expect(completedCall).toBeDefined();
+    expect(completedCall![1]).toMatchObject({
+      attentionCount: 1,
+      strongCount: 1,
+      tunedCount: 1,
+      skippedCount: 0,
+      hasMutation: true,
+    });
+  });
+
+  it("fires weekly_review_goal_reflection_saved with note length + count", async () => {
+    mockUseGoalWeekSummary.mockReturnValue({
+      data: makeSummary([
+        makeHabitSummary({ habitId: "h-1" }),
+        makeHabitSummary({ habitId: "h-2" }),
+      ]),
+      isLoading: false,
+      error: null,
+    });
+    await renderAndSettle();
+    fireEvent.press(screen.getByText("Continue")); // → whats_working
+    fireEvent.press(screen.getByText("Continue")); // → goal_reflection
+
+    const input = screen.getByDisplayValue("");
+    fireEvent.changeText(input, "anchor habit to coffee");
+
+    mockTrackEvent.mockClear();
+    await act(async () => {
+      fireEvent.press(screen.getByText("Save & continue"));
+      await flushAsync();
+    });
+
+    expect(mockTrackEvent).toHaveBeenCalledWith(
+      "weekly_review_goal_reflection_saved",
+      {
+        noteLength: "anchor habit to coffee".length,
+        hasNote: true,
+        habitCount: 2,
+      },
+    );
+  });
+
+  it("fires weekly_review_goal_reflection_skipped on Skip", async () => {
+    mockUseGoalWeekSummary.mockReturnValue({
+      data: makeSummary([makeHabitSummary()]),
+      isLoading: false,
+      error: null,
+    });
+    await renderAndSettle();
+    fireEvent.press(screen.getByText("Continue")); // → whats_working
+    fireEvent.press(screen.getByText("Continue")); // → goal_reflection
+
+    mockTrackEvent.mockClear();
+    await act(async () => {
+      fireEvent.press(screen.getByText("Skip"));
+      await flushAsync();
+    });
+
+    expect(mockTrackEvent).toHaveBeenCalledWith(
+      "weekly_review_goal_reflection_skipped",
+    );
+  });
 });
