@@ -8,25 +8,24 @@ import {
   View,
 } from "react-native";
 import { router, useLocalSearchParams, useNavigation } from "expo-router";
-import { X } from "lucide-react-native";
-import { useQueryClient } from "@tanstack/react-query";
+import { ChevronLeft } from "lucide-react-native";
+import { useQuery } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { PrimaryButton } from "@/components/buttons/PrimaryButton";
 import { ErrorState } from "@/components/feedback/ErrorState";
 import { LoadingState } from "@/components/feedback/LoadingState";
 import { useAuthSession } from "@/features/auth/hooks";
-import {
-  getHabitAdjustmentSuggestions,
-  getKeepGoingSuggestion,
-} from "@/features/recommendations/habitAdjustmentEngine";
-import { AdjustmentStep } from "@/features/reviews/components/AdjustmentStep";
-import { NeedsAttentionStep } from "@/features/reviews/components/NeedsAttentionStep";
 import { ReviewStepIndicator } from "@/features/reviews/components/ReviewStepIndicator";
+import { TuneUpStep } from "@/features/reviews/components/TuneUpStep";
 import { WeekCompleteStep } from "@/features/reviews/components/WeekCompleteStep";
 import { WeekOverviewStep } from "@/features/reviews/components/WeekOverviewStep";
 import { WhatsWorkingStep } from "@/features/reviews/components/WhatsWorkingStep";
-import { useUpsertGoalReviewsMutation } from "@/features/reviews/hooks";
+import { getLatestWeeklyReviewsForHabits } from "@/features/reviews/api";
+import {
+  useApplyTuneUpMutation,
+  useUpsertGoalReviewsMutation,
+} from "@/features/reviews/hooks";
 import {
   isWeeklyReviewFirstRunCompleted,
   markWeeklyReviewFirstRunCompleted,
@@ -41,95 +40,26 @@ import { SCREEN_TOP_PADDING, spacing } from "@/theme/spacing";
 import { typography } from "@/theme/typography";
 import { getWeekStartDateString } from "@/utils/dates";
 
-import type {
-  GoalWeekSummary,
-  HabitWeekSummary,
-} from "@/features/reviews/buildGoalWeekSummary";
-import type {
-  HabitAdjustmentSuggestion,
-  HabitAdjustmentSuggestionType,
-} from "@/features/recommendations/types";
+import type { ApplyTuneUpForHabitPayload } from "@/features/reviews/api";
+import type { GoalWeekSummary } from "@/features/reviews/buildGoalWeekSummary";
+import type { UpsertWeeklyReviewPayload } from "@/features/reviews/types";
 
-type ReviewStep =
-  | "week_overview"
-  | "whats_working"
-  | "needs_attention"
-  | "adjustment"
-  | "complete";
+type Step =
+  | { type: "week_overview" }
+  | { type: "whats_working" }
+  | { type: "tune_up"; habitId: string }
+  | { type: "complete" };
 
-type HabitDiagnosticData = {
-  habitId: string;
-  triggerWorked: boolean | null;
-  tinyActionTooHard: boolean | null;
-};
-
-function getStepSequence(summary: GoalWeekSummary): ReviewStep[] {
-  const steps: ReviewStep[] = ["week_overview"];
-  if (summary.strongHabits.length > 0) steps.push("whats_working");
-  if (summary.attentionHabits.length > 0) steps.push("needs_attention");
-  steps.push("adjustment");
-  steps.push("complete");
+function getStepSequence(summary: GoalWeekSummary): Step[] {
+  const steps: Step[] = [{ type: "week_overview" }];
+  if (summary.strongHabits.length > 0) {
+    steps.push({ type: "whats_working" });
+  }
+  for (const h of summary.attentionHabits) {
+    steps.push({ type: "tune_up", habitId: h.habitId });
+  }
+  steps.push({ type: "complete" });
   return steps;
-}
-
-function buildDiagnosticAsReview(d: HabitDiagnosticData) {
-  return {
-    trigger_worked: d.triggerWorked,
-    tiny_action_too_hard: d.tinyActionTooHard,
-    was_hard: "",
-  };
-}
-
-function selectPrimarySuggestion(
-  attentionHabits: HabitWeekSummary[],
-  diagnostics: Map<string, HabitDiagnosticData>,
-): {
-  suggestion: HabitAdjustmentSuggestion | null;
-  targetHabit: HabitWeekSummary | null;
-} {
-  for (const h of attentionHabits) {
-    const d = diagnostics.get(h.habitId);
-    if (!d) continue;
-    const suggestions = getHabitAdjustmentSuggestions({
-      latestReview: buildDiagnosticAsReview(d),
-      progress: {
-        consistencyRate: h.weekConsistency,
-        skipCount: h.skipCount,
-        streak: 0,
-      },
-    });
-    if (suggestions.length > 0) {
-      return { suggestion: suggestions[0]!, targetHabit: h };
-    }
-  }
-  return { suggestion: null, targetHabit: null };
-}
-
-function getAdjustmentNoteForHabit(
-  habit: HabitWeekSummary,
-  targetHabit: HabitWeekSummary | null,
-  suggestion: HabitAdjustmentSuggestion | null,
-  useCustom: boolean,
-  customAdjustment: string,
-): string {
-  // When there is a target habit (an attention habit drove the suggestion),
-  // the note only applies to that habit. Other habits in the goal get no note.
-  if (targetHabit) {
-    if (habit.habitId !== targetHabit.habitId) return "";
-    if (useCustom) return customAdjustment.trim();
-    if (suggestion) return `${suggestion.title}: ${suggestion.body}`;
-    return "";
-  }
-  // No target habit means the all-strong path: the keep-going suggestion (or
-  // a custom note the user typed) is a goal-level reflection. Persist it onto
-  // every habit's review row so the input isn't silently dropped.
-  if (useCustom) return customAdjustment.trim();
-  if (suggestion) return `${suggestion.title}: ${suggestion.body}`;
-  return "";
-}
-
-function suggestionTypeForKeepGoing(): HabitAdjustmentSuggestionType {
-  return "keep_going";
 }
 
 export default function GoalReviewScreen() {
@@ -143,34 +73,89 @@ export default function GoalReviewScreen() {
   const returnTo = normalizeReturnTo(params.returnTo);
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
-  const queryClient = useQueryClient();
-  const { user } = useAuthSession();
 
+  const { user } = useAuthSession();
   const weekStart = getWeekStartDateString();
   const summaryQuery = useGoalWeekSummary(identityPhrase, weekStart);
-  const upsertGoalReviews = useUpsertGoalReviewsMutation();
+  const applyTuneUpMutation = useApplyTuneUpMutation();
+  const upsertGoalReviewsMutation = useUpsertGoalReviewsMutation();
 
-  const [currentStep, setCurrentStep] = useState<ReviewStep>("week_overview");
-  const [diagnostics, setDiagnostics] = useState<
-    Map<string, HabitDiagnosticData>
+  // Load any persisted review rows for THIS week so the TuneUpStep can
+  // pre-fill from saved state when the user re-opens the review across
+  // sessions. The in-session `savedReviewsByHabitId` map only tracks
+  // Apply/Skip writes from the current screen instance — without this
+  // query, a user who completes a review, closes the screen, and re-opens
+  // it would see empty Y/N + adjustment_note fields even though the
+  // database has the saved answers.
+  const summaryHabitIds = useMemo(
+    () => summaryQuery.data?.habits.map((h) => h.habitId) ?? [],
+    [summaryQuery.data],
+  );
+  const persistedReviewsQuery = useQuery({
+    enabled: Boolean(user?.id) && summaryHabitIds.length > 0,
+    queryFn: () => getLatestWeeklyReviewsForHabits(user!.id, summaryHabitIds),
+    queryKey: [
+      "goal-review-screen",
+      "persisted-reviews",
+      user?.id,
+      identityPhrase,
+      weekStart,
+      summaryHabitIds,
+    ],
+  });
+
+  const [currentStepIndex, setCurrentStepIndex] = useState(0);
+  // Tracks habit ids that already have a current-week review row written
+  // in this session. We use this on Complete-step entry to batch-write
+  // empty rows for any reviewable habit that wasn't covered by the
+  // per-Tune-Up loop. Without this, getGoalReviewStatus.isDue stays
+  // true after a clean week or a mixed week (where strong habits skip
+  // the loop) — the CTA wouldn't clear.
+  const [coveredHabitIds, setCoveredHabitIds] = useState<Set<string>>(
+    new Set(),
+  );
+  // Saved review rows from this session's Apply / Skip writes, keyed by
+  // habit id. Used to pre-fill the TuneUpStep when the user navigates
+  // BACK to a previously-Apply'd tune-up via the header chevron — the
+  // step remounts (its key changes), so we need an authoritative source
+  // for the saved Y/N + adjustment_note to seed `useState` with.
+  const [savedReviewsByHabitId, setSavedReviewsByHabitId] = useState<
+    Map<string, { triggerWorked: boolean | null; tinyActionTooHard: boolean | null; adjustmentNote: string }>
   >(new Map());
-  const [useCustom, setUseCustom] = useState(false);
-  const [customAdjustment, setCustomAdjustment] = useState("");
-  const [isSaving, setIsSaving] = useState(false);
-  const [saveError, setSaveError] = useState(false);
-  const saveLockRef = useRef(false);
+  // Catch-up persistence is async — Complete must surface its pending /
+  // error state so the user doesn't tap Done and walk away while the
+  // catch-up batch is still in flight or rolled back. due.ts keeps the
+  // goal "due" until every reviewable habit has a current-week row.
+  type CatchUpState = "idle" | "pending" | "error" | "done";
+  const [catchUpState, setCatchUpState] = useState<CatchUpState>("idle");
+  const hasFlushedCatchUpRef = useRef(false);
+  // Per-Tune-Up "dirty" signal — flips to true on the first user
+  // interaction inside the active tune-up (Y/N or text edit). The
+  // beforeRemove guard reads this to decide whether to prompt before
+  // exit. Resets on every step transition.
+  const [currentTuneUpInteracted, setCurrentTuneUpInteracted] = useState(false);
+  // Tracks whether the active step is mid-Apply or mid-Skip. beforeRemove
+  // waits this out before deciding what to prompt.
+  const [isWriting, setIsWriting] = useState(false);
+  // Tracks how many Tune-Ups have committed in this session (Apply OR Skip
+  // count). Surfaces in Step 5's "you tuned N habits" copy.
+  const [appliedCount, setAppliedCount] = useState(0);
+  const [skippedCount, setSkippedCount] = useState(0);
+  const [hasMutation, setHasMutation] = useState(false);
 
   // First-run banner gating. The screen renders a loading state until the
-  // flag has been read (success OR failure), so we never hit the "user
-  // taps past week_overview before .then resolves" race that would skip
-  // banners entirely. The save-path write does NOT trust the in-memory
-  // mirror — it re-reads storage authoritatively at save time so a fast
-  // user can't beat the mount-effect read and skip the persistence.
+  // flag has been read so a fast user can't tap past banners. The Apply
+  // path re-reads storage authoritatively (per memory failure mode #6)
+  // before writing the flag — the in-memory mirror below is the render
+  // gate, not the write guard.
   const [firstRunCompletedLoaded, setFirstRunCompletedLoaded] = useState(false);
   const [isFirstRunIncomplete, setIsFirstRunIncomplete] = useState(false);
-  const [needsAttentionTipDismissed, setNeedsAttentionTipDismissed] =
-    useState(false);
-  const [adjustmentTipDismissed, setAdjustmentTipDismissed] = useState(false);
+  const [tuneUpTipDismissed, setTuneUpTipDismissed] = useState(false);
+  // Synchronous lock: first row-writing event of the session triggers
+  // the flag-write attempt exactly once. The ref doesn't reset between
+  // tune-ups — only the storage re-read determines whether the write
+  // actually fires.
+  const hasAttemptedFirstRunWriteRef = useRef(false);
 
   useEffect(() => {
     isWeeklyReviewFirstRunCompleted()
@@ -182,35 +167,108 @@ export default function GoalReviewScreen() {
         logger.warn("GoalReviewScreen: first-run read failed on mount", {
           err,
         });
-        // Failure case: still proceed past the loading gate with banners
-        // hidden (safe default). The save-path re-read will retry the
-        // read at the moment that matters for persistence.
+        // Failure case: assume incomplete defensively so the Apply-path
+        // gate doesn't short-circuit on `!isFirstRunIncomplete`. The
+        // authoritative re-read at the moment of the first row-writing
+        // event is what actually decides whether to write the flag —
+        // this flag's role here is "should I attempt the re-read at
+        // all." False would mean "definitely repeat user, skip"; true
+        // means "maybe first-run, ask storage at the next opportunity."
+        // Defensive `true` ensures storage gets one more chance.
+        setIsFirstRunIncomplete(true);
         setFirstRunCompletedLoaded(true);
       });
   }, []);
 
-  // Intercept Android hardware back and iOS swipe-back so the same
-  // unsaved-work / in-flight-save guards apply that the X button enforces.
-  // Without this, gesture / system back would bypass handleClose entirely.
+  const summary = summaryQuery.data ?? null;
+  const stepSequence = useMemo<Step[]>(
+    () =>
+      summary ? getStepSequence(summary) : [{ type: "week_overview" }],
+    [summary],
+  );
+  const currentStep = stepSequence[currentStepIndex] ?? { type: "week_overview" };
+
+  const scrollViewRef = useRef<ScrollView>(null);
+
+  /**
+   * Resolves the `initialReview` prop for a TuneUpStep. Session edits
+   * win over DB rows so a user who Apply'd in this session and stepped
+   * back sees their just-edited state (not whatever was on disk before
+   * Apply). For across-session re-entry, the DB row is the only source.
+   * Returns undefined when nothing is saved → TuneUpStep starts empty.
+   */
+  function getInitialReview(habitId: string) {
+    const sessionData = savedReviewsByHabitId.get(habitId);
+    if (sessionData) return sessionData;
+    const dbRow = persistedReviewsQuery.data?.get(habitId);
+    if (dbRow && dbRow.week_start === weekStart) {
+      return {
+        triggerWorked: dbRow.trigger_worked,
+        tinyActionTooHard: dbRow.tiny_action_too_hard,
+        adjustmentNote: dbRow.adjustment_note ?? "",
+      };
+    }
+    return undefined;
+  }
+
+  // beforeRemove guard. Two distinct dirty states:
+  //   1. Tune-up step with unsaved edits ⇒ alert with the per-habit copy.
+  //   2. Complete step where the catch-up batch hasn't finished ⇒ silent
+  //      wait while pending, alert while errored. Without this, the user
+  //      could tap X after Apply'ing the last tune-up but before the
+  //      catch-up batch resolves and walk away with the goal-review
+  //      partially persisted — getGoalReviewStatus would keep the CTA
+  //      "due" because non-attention habits never got their rows.
+  // Saved progress from previous tune-ups is durable so we don't warn
+  // about it on tune-up exit.
   useEffect(() => {
     const unsub = navigation.addListener("beforeRemove", (e) => {
-      const isDirty = diagnostics.size > 0 || customAdjustment.length > 0;
-      // A retry clears saveError at the start of the batch write, but the
-      // write hasn't settled yet — isSaving is the authoritative signal.
-      // "Successfully saved" requires the write to have actually returned.
-      const savedSuccessfully =
-        currentStep === "complete" && !saveError && !isSaving;
-      const hasUnsavedWork = isDirty || saveError;
-      if (savedSuccessfully || (!hasUnsavedWork && !isSaving)) {
+      const onTuneUp = currentStep.type === "tune_up";
+      const onComplete = currentStep.type === "complete";
+
+      const tuneUpDirty = onTuneUp && currentTuneUpInteracted;
+      const tuneUpWriting = onTuneUp && isWriting;
+      const completeWriting = onComplete && catchUpState === "pending";
+      const completeFailed = onComplete && catchUpState === "error";
+
+      const shouldBlock =
+        tuneUpDirty || tuneUpWriting || completeWriting || completeFailed;
+      if (!shouldBlock) {
+        return; // Clean exit (no dirty state, no in-flight write).
+      }
+
+      e.preventDefault();
+
+      if (tuneUpWriting || completeWriting) {
+        // Wait until the in-flight write settles. Don't show an alert
+        // for a transient saving state — the next beforeRemove fire
+        // (when state transitions to done / error) routes through the
+        // right branch.
         return;
       }
-      e.preventDefault();
-      if (isSaving) return; // wait until the write settles
+
+      if (completeFailed) {
+        Alert.alert(
+          "Leave without finishing the save?",
+          "Your review couldn't finish saving. Tap Retry to try again, or leave — your habits may still show as needing review until you finish.",
+          [
+            { style: "cancel", text: "Keep going" },
+            {
+              onPress: () => navigation.dispatch(e.data.action),
+              style: "destructive",
+              text: "Leave",
+            },
+          ],
+        );
+        return;
+      }
+
+      // tuneUpDirty fallthrough.
       Alert.alert(
-        "Leave review?",
-        "Your reflection so far will not be saved.",
+        "Leave this tune-up?",
+        "Your changes to this habit won't be saved. The tune-ups you've already applied are saved.",
         [
-          { style: "cancel", text: "Keep reflecting" },
+          { style: "cancel", text: "Keep going" },
           {
             onPress: () => navigation.dispatch(e.data.action),
             style: "destructive",
@@ -221,155 +279,242 @@ export default function GoalReviewScreen() {
     });
     return unsub;
   }, [
-    currentStep,
-    customAdjustment,
-    diagnostics,
-    isSaving,
+    catchUpState,
+    currentStep.type,
+    currentTuneUpInteracted,
+    isWriting,
     navigation,
-    saveError,
   ]);
 
-  const summary = summaryQuery.data ?? null;
-  const stepSequence = useMemo<ReviewStep[]>(
-    () => (summary ? getStepSequence(summary) : ["week_overview"]),
-    [summary],
-  );
-  const currentStepIndex = stepSequence.indexOf(currentStep);
-
-  const { suggestion: primarySuggestion, targetHabit } = useMemo(() => {
-    if (!summary) return { suggestion: null, targetHabit: null };
-    if (summary.attentionHabits.length === 0) {
-      return {
-        suggestion: getKeepGoingSuggestion(),
-        targetHabit: null,
-      };
-    }
-    return selectPrimarySuggestion(summary.attentionHabits, diagnostics);
-  }, [summary, diagnostics]);
-
-  function updateDiagnostic(
-    habitId: string,
-    field: "triggerWorked" | "tinyActionTooHard",
-    value: boolean | null,
-  ) {
-    setDiagnostics((prev) => {
-      const next = new Map(prev);
-      const existing = next.get(habitId) ?? {
-        habitId,
-        triggerWorked: null,
-        tinyActionTooHard: null,
-      };
-      next.set(habitId, { ...existing, [field]: value });
-      return next;
-    });
-  }
-
-  function allDiagnosticsAnswered(): boolean {
-    if (!summary) return false;
-    return summary.attentionHabits.every((h) => {
-      const d = diagnostics.get(h.habitId);
-      return d && d.triggerWorked !== null && d.tinyActionTooHard !== null;
-    });
-  }
-
-  function isContinueEnabled(): boolean {
-    if (currentStep === "needs_attention") return allDiagnosticsAnswered();
-    return true;
-  }
-
   function advanceToNextStep() {
-    const next = stepSequence[currentStepIndex + 1];
-    if (next) setCurrentStep(next);
+    setCurrentTuneUpInteracted(false);
+    setCurrentStepIndex((i) => Math.min(i + 1, stepSequence.length - 1));
   }
 
-  async function saveAllReviews() {
-    if (!summary || !user?.id || saveLockRef.current) return;
-    saveLockRef.current = true;
-    setIsSaving(true);
-    setSaveError(false);
+  async function maybeMarkFirstRunCompleted(): Promise<void> {
+    if (hasAttemptedFirstRunWriteRef.current) return;
+    if (!isFirstRunIncomplete) return;
+    hasAttemptedFirstRunWriteRef.current = true;
     try {
-      const payloads = summary.habits.map((habit) => {
-        const diag = diagnostics.get(habit.habitId);
-        return {
-          adjustmentNote: getAdjustmentNoteForHabit(
-            habit,
-            targetHabit,
-            primarySuggestion,
-            useCustom,
-            customAdjustment,
-          ),
-          habitId: habit.habitId,
-          tinyActionTooHard: diag?.tinyActionTooHard ?? null,
-          triggerWorked: diag?.triggerWorked ?? null,
-          wasHard: "",
-          weekStart,
-          wentWell: "",
-        };
-      });
-      await upsertGoalReviews.mutateAsync(payloads);
-
-      await Promise.all([
-        queryClient.invalidateQueries({
-          queryKey: ["habits", "eligible", user.id],
-        }),
-        queryClient.invalidateQueries({
-          queryKey: ["habits", "upcoming", user.id],
-        }),
-        queryClient.invalidateQueries({ queryKey: ["habit-logs"] }),
-      ]);
-
-      // First-run completion: re-read storage authoritatively (not the
-      // in-memory mirror, which may not have resolved yet) so a fast user
-      // can't beat the mount read and end up stuck in first-run state.
-      // Only emit "completed" analytics and flip the local mirror when
-      // the write actually persisted — otherwise the user is still in
-      // first-run state and a future review should still mark/track.
-      void (async () => {
-        try {
-          const completed = await isWeeklyReviewFirstRunCompleted();
-          if (!completed) {
-            const persisted = await markWeeklyReviewFirstRunCompleted();
-            if (persisted) {
-              trackEvent("weekly_review_first_run_completed");
-              setIsFirstRunIncomplete(false);
-            }
-          }
-        } catch (err) {
-          logger.warn("GoalReviewScreen: first-run save-path read failed", {
-            err,
-          });
-        }
-      })();
-
-      setCurrentStep("complete");
-    } catch {
-      // Per S18b-07, surface the error on Step 5 with a Retry button rather
-      // than stranding the user on Step 4. The batch write is transactional,
-      // so a failure leaves no partial state — retrying is always safe.
-      setSaveError(true);
-      setCurrentStep("complete");
-    } finally {
-      setIsSaving(false);
-      saveLockRef.current = false;
+      // Re-read storage authoritatively — the in-memory mirror may not
+      // reflect a parallel write from another surface. Per memory
+      // failure mode #6 the write guard must read the source of truth.
+      const completed = await isWeeklyReviewFirstRunCompleted();
+      if (completed) return;
+      const persisted = await markWeeklyReviewFirstRunCompleted();
+      if (persisted) {
+        trackEvent("weekly_review_first_run_completed");
+        setIsFirstRunIncomplete(false);
+      }
+    } catch (err) {
+      logger.warn("GoalReviewScreen: first-run write failed", { err });
     }
   }
 
-  function handleContinuePress() {
-    if (!isContinueEnabled()) return;
-    if (currentStep === "adjustment") {
-      void saveAllReviews();
+  async function handleTuneUpApply(
+    payload: ApplyTuneUpForHabitPayload,
+  ): Promise<void> {
+    setIsWriting(true);
+    try {
+      await applyTuneUpMutation.mutateAsync(payload);
+      setAppliedCount((n) => n + 1);
+      setCoveredHabitIds((prev) => {
+        const next = new Set(prev);
+        next.add(payload.habitId);
+        return next;
+      });
+      setSavedReviewsByHabitId((prev) => {
+        const next = new Map(prev);
+        next.set(payload.habitId, {
+          triggerWorked: payload.triggerWorked,
+          tinyActionTooHard: payload.tinyActionTooHard,
+          adjustmentNote: payload.adjustmentNote,
+        });
+        return next;
+      });
+      if (payload.habitPatch) setHasMutation(true);
+      trackEvent("weekly_review_tune_up_applied", {
+        habitId: payload.habitId,
+        hasHabitPatch: Boolean(payload.habitPatch),
+      });
+      await maybeMarkFirstRunCompleted();
+      advanceToNextStep();
+    } catch (err) {
+      // Surface error inside TuneUpStep via its retry banner. The
+      // mutation already cleared cache hydration on failure (no-op
+      // there); the parent doesn't advance.
+      logger.warn("GoalReviewScreen: Apply failed", { err });
+      throw err;
+    } finally {
+      setIsWriting(false);
+    }
+  }
+
+  async function handleTuneUpSkip(
+    payload: ApplyTuneUpForHabitPayload,
+  ): Promise<void> {
+    setIsWriting(true);
+    try {
+      await applyTuneUpMutation.mutateAsync(payload);
+      setSkippedCount((n) => n + 1);
+      setCoveredHabitIds((prev) => {
+        const next = new Set(prev);
+        next.add(payload.habitId);
+        return next;
+      });
+      setSavedReviewsByHabitId((prev) => {
+        const next = new Map(prev);
+        next.set(payload.habitId, {
+          triggerWorked: payload.triggerWorked,
+          tinyActionTooHard: payload.tinyActionTooHard,
+          adjustmentNote: payload.adjustmentNote,
+        });
+        return next;
+      });
+      trackEvent("weekly_review_tune_up_skipped", {
+        habitId: payload.habitId,
+      });
+      await maybeMarkFirstRunCompleted();
+      advanceToNextStep();
+    } catch (err) {
+      logger.warn("GoalReviewScreen: Skip failed", { err });
+      throw err;
+    } finally {
+      setIsWriting(false);
+    }
+  }
+
+  // Catch-up batch write at Complete-step entry. Per due.ts:38, every
+  // reviewable habit needs a current-week review row for the CTA to
+  // clear. Per-Tune-Up writes only cover attentionHabits, so strong /
+  // mid-band habits in mixed weeks AND every habit on clean weeks would
+  // leave the CTA stuck in "due" without this. The batch uses
+  // upsertGoalReviewsBatch (idempotent via ON CONFLICT DO UPDATE) so a
+  // re-render won't double-write. Guarded by a ref so the effect only
+  // fires once per session even if React re-runs the effect.
+  async function runCatchUpWrite(payloads: UpsertWeeklyReviewPayload[]) {
+    setCatchUpState("pending");
+    try {
+      await upsertGoalReviewsMutation.mutateAsync(payloads);
+      await maybeMarkFirstRunCompleted();
+      setCatchUpState("done");
+    } catch (err) {
+      logger.warn("GoalReviewScreen: Complete-entry catch-up write failed", {
+        err,
+        uncoveredCount: payloads.length,
+      });
+      setCatchUpState("error");
+    }
+  }
+
+  /** Returns habits in the summary that don't yet have a current-week
+   * review row — either via this session's Apply/Skip writes OR a
+   * previously-persisted row from an earlier session. Skipping the
+   * DB-persisted habits is critical: without it, the catch-up would
+   * upsert empty (null Y/N, "" adjustment_note) values and OVERWRITE
+   * saved answers from a previous session. */
+  function getUncoveredHabits() {
+    if (!summary) return [];
+    return summary.habits.filter((h) => {
+      if (coveredHabitIds.has(h.habitId)) return false;
+      const dbRow = persistedReviewsQuery.data?.get(h.habitId);
+      if (dbRow && dbRow.week_start === weekStart) return false;
+      return true;
+    });
+  }
+
+  function handleCatchUpRetry() {
+    const uncovered = getUncoveredHabits();
+    if (uncovered.length === 0) {
+      setCatchUpState("done");
       return;
     }
+    const payloads = uncovered.map((h) => ({
+      adjustmentNote: "",
+      habitId: h.habitId,
+      tinyActionTooHard: null,
+      triggerWorked: null,
+      weekStart,
+    }));
+    void runCatchUpWrite(payloads);
+  }
+
+  useEffect(() => {
+    if (currentStep.type !== "complete") return;
+    if (hasFlushedCatchUpRef.current) return;
+    if (!summary) return;
+    const uncovered = getUncoveredHabits();
+    if (uncovered.length === 0) {
+      hasFlushedCatchUpRef.current = true;
+      setCatchUpState("done");
+      return;
+    }
+    hasFlushedCatchUpRef.current = true;
+    const payloads = uncovered.map((h) => ({
+      adjustmentNote: "",
+      habitId: h.habitId,
+      tinyActionTooHard: null,
+      triggerWorked: null,
+      weekStart,
+    }));
+    void runCatchUpWrite(payloads);
+    // Intentionally tracking only step transitions — summary identity
+    // shouldn't change mid-session, and coveredHabitIds is read at the
+    // moment the effect fires (closure captures latest value via React's
+    // dependency tracking).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentStep.type]);
+
+  function handleContinuePress() {
     advanceToNextStep();
   }
 
-  function handleClose() {
-    // beforeRemove is the single source of truth for exit policy: it handles
-    // the unsaved-work confirmation, the in-flight-save guard, and the
-    // successful-save instant-exit, identically for X / hardware back /
-    // gesture / programmatic. Trigger the navigation here and let the
-    // listener decide.
-    router.back();
+  function stepBack() {
+    setCurrentTuneUpInteracted(false);
+    // Reset catch-up state when stepping out of Complete, so re-entering
+    // Complete later re-runs the effect. The ref guard prevents
+    // double-fire on the same render cycle but is also reset here so a
+    // subsequent forward navigation can re-trigger the write if needed.
+    if (currentStep.type === "complete") {
+      hasFlushedCatchUpRef.current = false;
+      setCatchUpState("idle");
+    }
+    setCurrentStepIndex((i) => Math.max(0, i - 1));
+  }
+
+  function handleBack() {
+    // From the first step, "back" means "exit the review entirely" —
+    // delegate to beforeRemove for the unsaved-work / catch-up guards.
+    // From any later step, step backward within the flow. Stepping back
+    // remounts the prior TuneUpStep (different key); its useState
+    // initializers read from `savedReviewsByHabitId` so the saved Y/N
+    // and adjustment_note pre-fill. Apply uses the same atomic write
+    // path as initial entry.
+    if (currentStepIndex === 0) {
+      router.back();
+      return;
+    }
+    const onTuneUp = currentStep.type === "tune_up";
+    const dirty = onTuneUp && currentTuneUpInteracted;
+    if (dirty) {
+      // Don't silently discard in-progress edits — same prompt as the
+      // beforeRemove exit guard. On Leave: step back (edits lost). On
+      // Keep going: stay on the dirty tune-up.
+      Alert.alert(
+        "Leave this tune-up?",
+        "Your changes to this habit won't be saved. The tune-ups you've already applied are saved.",
+        [
+          { style: "cancel", text: "Keep going" },
+          {
+            onPress: stepBack,
+            style: "destructive",
+            text: "Leave",
+          },
+        ],
+      );
+      return;
+    }
+    stepBack();
   }
 
   function handleDone() {
@@ -386,11 +531,16 @@ export default function GoalReviewScreen() {
     return <ErrorState message="No goal selected for review." />;
   }
 
-  // Gate the multi-step UI on BOTH the summary query AND the first-run flag
-  // read. Without the second condition, a fast user could advance past
-  // week_overview before .then resolves and never see the first-run banners
-  // on needs_attention/adjustment — defeating the onboarding entirely.
-  if (summaryQuery.isLoading || !firstRunCompletedLoaded) {
+  if (
+    summaryQuery.isLoading ||
+    !firstRunCompletedLoaded ||
+    // Wait for persisted-reviews to settle so TuneUpStep mounts with
+    // the right `initialReview`. Without this gate, a user re-opening
+    // their review across sessions would briefly see empty fields
+    // before the query resolves and (if we re-key the component) lose
+    // any edits they made in that window.
+    (summaryHabitIds.length > 0 && persistedReviewsQuery.isLoading)
+  ) {
     return <LoadingState message="Loading your week..." />;
   }
 
@@ -412,28 +562,41 @@ export default function GoalReviewScreen() {
     );
   }
 
-  const continueLabel =
-    currentStep === "adjustment"
-      ? isSaving
-        ? "Saving..."
-        : "Save & finish"
-      : "Continue";
-  const showContinue = currentStep !== "complete";
+  // Step 1 + 2 each get a Continue button in the fixed footer. Tune-up
+  // steps own their own Apply / Skip footer inline. Complete has its
+  // own Done button.
+  const showFooterContinue =
+    currentStep.type === "week_overview" ||
+    currentStep.type === "whats_working";
+
+  // Build the tune-up step props if we're on a tune-up step.
+  const tuneUpHabit =
+    currentStep.type === "tune_up"
+      ? summary.habits.find((h) => h.habitId === currentStep.habitId) ?? null
+      : null;
+  const tuneUpIndex =
+    currentStep.type === "tune_up"
+      ? summary.attentionHabits.findIndex(
+          (h) => h.habitId === currentStep.habitId,
+        )
+      : -1;
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top + SCREEN_TOP_PADDING }]}>
       <View style={styles.header}>
         <Pressable
-          accessibilityLabel="Close review"
+          accessibilityLabel={
+            currentStepIndex === 0 ? "Close review" : "Go back a step"
+          }
           accessibilityRole="button"
           hitSlop={12}
-          onPress={handleClose}
+          onPress={handleBack}
           style={styles.closeButton}
         >
-          <X color={colors.textMuted} size={22} strokeWidth={1.75} />
+          <ChevronLeft color={colors.textMuted} size={24} strokeWidth={1.75} />
         </Pressable>
         <ReviewStepIndicator
-          currentIndex={Math.max(0, currentStepIndex)}
+          currentIndex={currentStepIndex}
           total={stepSequence.length}
         />
         <View style={styles.closeButton} />
@@ -441,67 +604,82 @@ export default function GoalReviewScreen() {
 
       <ScrollView
         contentContainerStyle={styles.scrollContent}
+        ref={scrollViewRef}
         style={styles.scroll}
       >
-        {currentStep === "week_overview" ? (
+        {currentStep.type === "week_overview" ? (
           <WeekOverviewStep summary={summary} />
         ) : null}
-        {currentStep === "whats_working" ? (
+        {currentStep.type === "whats_working" ? (
           <WhatsWorkingStep strongHabits={summary.strongHabits} />
         ) : null}
-        {currentStep === "needs_attention" ? (
-          <NeedsAttentionStep
-            attentionHabits={summary.attentionHabits}
-            diagnostics={diagnostics}
-            onDismissFirstRunTip={() => {
-              setNeedsAttentionTipDismissed(true);
-              trackEvent("weekly_review_tip_dismissed", {
-                step: "needs_attention",
-              });
+        {currentStep.type === "tune_up" && tuneUpHabit ? (
+          <TuneUpStep
+            habit={tuneUpHabit}
+            initialReview={getInitialReview(currentStep.habitId)}
+            // Key remounts the component between tune-ups so internal
+            // state (Y/N answers, edited fields) doesn't leak across.
+            key={currentStep.habitId}
+            onApply={(payload) => {
+              setCurrentTuneUpInteracted(true);
+              return handleTuneUpApply(payload);
             }}
-            onUpdateDiagnostic={updateDiagnostic}
+            onDismissFirstRunTip={() => {
+              setTuneUpTipDismissed(true);
+              trackEvent("weekly_review_tip_dismissed", { step: "tune_up" });
+            }}
+            onInteraction={() => setCurrentTuneUpInteracted(true)}
+            onSkip={(payload) => {
+              setCurrentTuneUpInteracted(true);
+              return handleTuneUpSkip(payload);
+            }}
+            scrollViewRef={scrollViewRef}
             showFirstRunTip={
-              isFirstRunIncomplete && !needsAttentionTipDismissed
+              isFirstRunIncomplete && !tuneUpTipDismissed && tuneUpIndex === 0
             }
+            stepNumber={tuneUpIndex + 1}
+            totalSteps={summary.attentionHabits.length}
+            weekStart={weekStart}
           />
         ) : null}
-        {currentStep === "adjustment" ? (
-          <AdjustmentStep
-            customAdjustment={customAdjustment}
-            onCustomAdjustmentChange={setCustomAdjustment}
-            onDismissFirstRunTip={() => {
-              setAdjustmentTipDismissed(true);
-              trackEvent("weekly_review_tip_dismissed", {
-                step: "adjustment",
-              });
-            }}
-            onToggleCustom={() => setUseCustom((v) => !v)}
-            showFirstRunTip={isFirstRunIncomplete && !adjustmentTipDismissed}
-            suggestion={primarySuggestion}
-            targetHabit={targetHabit}
-            useCustom={useCustom}
-          />
-        ) : null}
-        {currentStep === "complete" ? (
+        {currentStep.type === "complete" ? (
           <WeekCompleteStep
+            catchUpState={catchUpState}
+            // Suppress the percent for brand-new goals (no active
+            // habit-days this week) — buildGoalWeekSummary returns
+            // overallConsistency = 0 in that case, which would render
+            // "0% consistent" without this guard.
+            consistencyPercent={
+              summary.overallActiveDayCount > 0
+                ? Math.round(summary.overallConsistency * 100)
+                : null
+            }
             daysOnJourney={summary.oldestActiveDaysCount}
-            identityPhrase={identityPhrase}
-            isSaving={isSaving}
+            hasMutation={hasMutation}
+            // Read identity_phrase from the DB-sourced habit row, NOT
+            // the URL-derived `identityPhrase`. Both should resolve to
+            // the same string, but the URL round-trip
+            // (encodeURIComponent → useLocalSearchParams →
+            // decodeURIComponent) has shown a truncation bug in
+            // production where "a reviewer" arrives as "a". The DB
+            // value is the canonical source and bypasses URL encoding
+            // entirely. Falls back to the URL value when no habits
+            // are loaded (edge case — summary.habits.length > 0 is
+            // guarded above before this render).
+            identityPhrase={
+              summary.habits[0]?.identityPhrase ?? identityPhrase
+            }
             onDone={handleDone}
-            onRetry={() => void saveAllReviews()}
-            saveError={saveError}
-            totalDaysShowedUp={summary.totalDaysShowedUp}
+            onRetryCatchUp={handleCatchUpRetry}
+            tunedCount={appliedCount}
+            skippedCount={skippedCount}
           />
         ) : null}
       </ScrollView>
 
-      {showContinue ? (
+      {showFooterContinue ? (
         <View style={[styles.footer, { paddingBottom: insets.bottom || spacing.lg }]}>
-          <PrimaryButton
-            disabled={!isContinueEnabled() || isSaving}
-            label={continueLabel}
-            onPress={handleContinuePress}
-          />
+          <PrimaryButton label="Continue" onPress={handleContinuePress} />
         </View>
       ) : null}
     </View>
@@ -549,6 +727,3 @@ const styles = StyleSheet.create({
     flex: 1,
   },
 });
-
-// Silence unused-warning during incremental build; Step 4 helper used inline.
-void suggestionTypeForKeepGoing;

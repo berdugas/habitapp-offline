@@ -31,9 +31,7 @@ const baseReview = {
   trigger_worked: null,
   updated_at: "2026-04-24T00:00:00.000Z",
   user_id: "user-1",
-  was_hard: null,
   week_start: "2026-04-20",
-  went_well: null,
 };
 
 describe("weekly review due logic", () => {

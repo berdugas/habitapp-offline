@@ -11,9 +11,7 @@ const baseReview: WeeklyReviewRecord = {
   trigger_worked: true,
   updated_at: "2026-04-24T00:00:00.000Z",
   user_id: "user-1",
-  was_hard: null,
   week_start: "2026-04-20",
-  went_well: "Breakfast cue worked",
 };
 
 const stableProgress = {
@@ -82,15 +80,6 @@ describe("getHabitAdjustmentSuggestions", () => {
     expect(suggestions[0].type).toBe("reduce_friction");
   });
 
-  it("returns [plan_for_obstacle] when review names a hard obstacle", () => {
-    const suggestions = getSuggestions({
-      review: { ...baseReview, was_hard: "   I kept forgetting after breakfast   " },
-    });
-
-    expect(suggestions).toHaveLength(1);
-    expect(suggestions[0].type).toBe("plan_for_obstacle");
-  });
-
   it("returns [keep_going] when no issue rule matches", () => {
     const suggestions = getSuggestions();
 
@@ -119,7 +108,7 @@ describe("getHabitAdjustmentSuggestions", () => {
         progress: stableProgress,
       },
       {
-        review: { ...baseReview, was_hard: "tired" },
+        review: baseReview,
         progress: { consistencyRate: 0.1, skipCount: 5, streak: 0 },
       },
     ];

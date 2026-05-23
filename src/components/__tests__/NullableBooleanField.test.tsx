@@ -32,6 +32,8 @@ describe("NullableBooleanField", () => {
 
   it("marks the selected option with accessibilityState selected", () => {
     render(<NullableBooleanField label="Question" value={false} onChange={() => {}} />);
-    expect(screen.getByLabelText("No selected")).toBeTruthy();
+    // The pill's accessibility label is namespaced with the question so
+    // multiple Y/N pairs on one screen disambiguate for screen readers.
+    expect(screen.getByLabelText("Question: No selected")).toBeTruthy();
   });
 });

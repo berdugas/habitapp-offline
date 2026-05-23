@@ -4,14 +4,12 @@ export type HabitAdjustmentSuggestionType =
   | "make_tiny_action_smaller"
   | "change_trigger"
   | "reduce_friction"
-  | "plan_for_obstacle"
   | "keep_going";
 
 export const HABIT_ADJUSTMENT_SUGGESTION_TYPES: HabitAdjustmentSuggestionType[] = [
   "make_tiny_action_smaller",
   "change_trigger",
   "reduce_friction",
-  "plan_for_obstacle",
   "keep_going",
 ];
 
@@ -25,7 +23,7 @@ export type HabitAdjustmentSuggestion = {
 export type HabitAdjustmentInput = {
   latestReview: Pick<
     WeeklyReviewRecord,
-    "trigger_worked" | "tiny_action_too_hard" | "was_hard"
+    "trigger_worked" | "tiny_action_too_hard"
   >;
   progress: {
     consistencyRate: number;

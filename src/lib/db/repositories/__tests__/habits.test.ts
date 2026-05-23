@@ -243,11 +243,11 @@ describe("habits repository", () => {
     await db.runAsync(
       `INSERT INTO local_weekly_reviews
          (id, habit_id, user_id, week_start,
-          went_well, was_hard, adjustment_note,
+          adjustment_note,
           trigger_worked, tiny_action_too_hard,
           created_at, updated_at)
        VALUES (?, ?, 'user-1', '2026-05-11',
-         'Good week', 'Tuesday was hard', null,
+         null,
          1, 0,
          datetime('now'), datetime('now'))`,
       `wr-${habit.id}`,

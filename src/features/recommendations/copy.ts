@@ -25,16 +25,21 @@ export const HABIT_ADJUSTMENT_SUGGESTIONS: Record<
     title: "Make it smaller next week",
     type: "make_tiny_action_smaller",
   },
-  plan_for_obstacle: {
-    body: "You already noticed what got in the way. Pick one small change that makes that obstacle less likely next week.",
-    reason: "You wrote about something that made the habit hard this week.",
-    title: "Plan around the hard part",
-    type: "plan_for_obstacle",
-  },
   reduce_friction: {
-    body: "This habit may need an easier setup. Try preparing the environment ahead of time so starting takes less effort.",
-    reason: "An easier setup may help with your recent consistency or skip pattern.",
-    title: "Reduce the friction",
+    // Static fallback. The TuneUpStep renders a dynamic version that
+    // includes the actual "X of Y days" count for the habit being
+    // reviewed — see `bodyForSuggestion` in TuneUpStep.tsx. This static
+    // body is used by EditHabitScreen (no per-habit context) and by
+    // anywhere else that consumes the suggestion's `body` directly.
+    //
+    // Framing note: `reduce_friction` only fires when the user said
+    // BOTH trigger worked AND the tiny action wasn't too hard (per
+    // habitAdjustmentEngine.ts:44). The old copy "make the setup
+    // easier" contradicted the user's own answers. The new copy
+    // acknowledges the gap: setup's fine, something else is in play.
+    body: "Your trigger held and the action isn't too hard — but the habit missed most days. Something between intention and action is failing. Name what it is, and pick one small change to make it less likely next week.",
+    reason: "Your trigger and tiny action both held up, but the habit missed most days.",
+    title: "Something else is in the way",
     type: "reduce_friction",
   },
 };

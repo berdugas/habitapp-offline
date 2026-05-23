@@ -7,7 +7,5 @@ export type UpsertWeeklyReviewPayload = {
   habitId: string;
   tinyActionTooHard: boolean | null;
   triggerWorked: boolean | null;
-  wasHard: string;
   weekStart: string;
-  wentWell: string;
 };

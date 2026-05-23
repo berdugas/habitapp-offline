@@ -93,9 +93,9 @@ async function insertReview(
   const now = new Date().toISOString();
   await db.runAsync(
     `INSERT INTO local_weekly_reviews
-       (id, habit_id, user_id, week_start, went_well, was_hard, adjustment_note,
+       (id, habit_id, user_id, week_start, adjustment_note,
         trigger_worked, tiny_action_too_hard, created_at, updated_at)
-     VALUES (?, ?, ?, ?, NULL, NULL, NULL, ?, ?, ?, ?)`,
+     VALUES (?, ?, ?, ?, NULL, ?, ?, ?, ?)`,
     review.id,
     review.habit_id,
     review.user_id ?? USER,

@@ -158,7 +158,10 @@ export default function HabitDetailScreen() {
     !latestReviewErrored && latestReview?.week_start === currentWeekStart;
 
   // Habits with an identity_phrase open the goal-level review flow.
-  // Orphan habits fall back to the legacy per-habit review route.
+  // Orphan habits (no identity_phrase) fall back to the legacy per-habit
+  // route. Per docs/tech-handoff-core-v1.md, identity_phrase is nullable
+  // in the schema and via habits/api.ts; orphans can still exist until
+  // every habit is explicitly migrated to a goal.
   function openReview(habitForReview: HabitRecord, _source: string) {
     if (habitForReview.identity_phrase) {
       void openGoalWeeklyReview({

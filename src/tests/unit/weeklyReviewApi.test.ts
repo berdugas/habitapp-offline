@@ -2,6 +2,7 @@ const mockGetHabitById = jest.fn();
 const mockDbGetLatest = jest.fn();
 const mockDbGetForWeek = jest.fn();
 const mockDbUpsert = jest.fn();
+const mockDbApplyTuneUp = jest.fn();
 
 jest.mock("@/features/habits/api", () => ({
   getHabitById: (userId: string, habitId: string) =>
@@ -17,9 +18,12 @@ jest.mock("@/lib/db/repositories/weekly_reviews", () => ({
     weekStart: string,
   ) => mockDbGetForWeek(userId, habitId, weekStart),
   upsertWeeklyReview: (input: unknown) => mockDbUpsert(input),
+  applyTuneUp: (input: unknown) => mockDbApplyTuneUp(input),
 }));
 
 import {
+  applyTuneUpForHabit,
+  ApplyTuneUpValidationError,
   getLatestWeeklyReview,
   getWeeklyReviewForWeek,
   upsertWeeklyReview,
@@ -68,9 +72,7 @@ describe("weekly review api", () => {
       habitId: "habit-1",
       tinyActionTooHard: false,
       triggerWorked: true,
-      wasHard: " Busy mornings ",
       weekStart: "2026-04-20",
-      wentWell: " Breakfast worked ",
     });
 
     expect(mockGetHabitById).toHaveBeenCalledWith("user-1", "habit-1");
@@ -80,14 +82,12 @@ describe("weekly review api", () => {
       tinyActionTooHard: false,
       triggerWorked: true,
       userId: "user-1",
-      wasHard: " Busy mornings ",
       weekStart: "2026-04-20",
-      wentWell: " Breakfast worked ",
     });
     expect(result).toBe(saved);
   });
 
-  it("upserts with null boolean fields and empty strings", async () => {
+  it("upserts with null boolean fields and empty adjustment note", async () => {
     mockGetHabitById.mockResolvedValue({ id: "habit-1" });
     mockDbUpsert.mockResolvedValue({ id: "review-2" });
 
@@ -96,9 +96,7 @@ describe("weekly review api", () => {
       habitId: "habit-1",
       tinyActionTooHard: null,
       triggerWorked: null,
-      wasHard: "",
       weekStart: "2026-04-27",
-      wentWell: "Still showed up",
     });
 
     expect(mockDbUpsert).toHaveBeenCalledWith(
@@ -115,9 +113,7 @@ describe("weekly review api", () => {
         habitId: "other-user-habit",
         tinyActionTooHard: null,
         triggerWorked: null,
-        wasHard: "",
         weekStart: "2026-04-20",
-        wentWell: "Worked",
       }),
     ).rejects.toThrow("not found");
 
@@ -134,10 +130,129 @@ describe("weekly review api", () => {
         habitId: "habit-1",
         tinyActionTooHard: null,
         triggerWorked: null,
-        wasHard: "",
         weekStart: "2026-04-20",
-        wentWell: "Worked",
       }),
     ).rejects.toThrow("db write failed");
+  });
+
+  describe("applyTuneUpForHabit — validation", () => {
+    beforeEach(() => {
+      mockGetHabitById.mockResolvedValue({ id: "habit-1" });
+      mockDbApplyTuneUp.mockResolvedValue({
+        review: { id: "review-1" },
+        habit: { id: "habit-1" },
+      });
+    });
+
+    it("rejects a habitPatch with a blank cue (whitespace-only)", async () => {
+      await expect(
+        applyTuneUpForHabit("user-1", {
+          adjustmentNote: "",
+          habitId: "habit-1",
+          habitPatch: { cue: "   " },
+          tinyActionTooHard: false,
+          triggerWorked: false,
+          weekStart: "2026-04-20",
+        }),
+      ).rejects.toBeInstanceOf(ApplyTuneUpValidationError);
+      expect(mockDbApplyTuneUp).not.toHaveBeenCalled();
+    });
+
+    it("rejects a habitPatch with a blank tinyAction (whitespace-only)", async () => {
+      await expect(
+        applyTuneUpForHabit("user-1", {
+          adjustmentNote: "",
+          habitId: "habit-1",
+          habitPatch: { tinyAction: "  " },
+          tinyActionTooHard: true,
+          triggerWorked: true,
+          weekStart: "2026-04-20",
+        }),
+      ).rejects.toBeInstanceOf(ApplyTuneUpValidationError);
+      expect(mockDbApplyTuneUp).not.toHaveBeenCalled();
+    });
+
+    it("accepts a habitPatch with a non-blank cue", async () => {
+      await applyTuneUpForHabit("user-1", {
+        adjustmentNote: "",
+        habitId: "habit-1",
+        habitPatch: { cue: "After breakfast" },
+        tinyActionTooHard: false,
+        triggerWorked: false,
+        weekStart: "2026-04-20",
+      });
+      expect(mockDbApplyTuneUp).toHaveBeenCalledTimes(1);
+    });
+
+    it("accepts a payload with no habitPatch (non-mutable suggestion path)", async () => {
+      await applyTuneUpForHabit("user-1", {
+        adjustmentNote: "Try preparing the night before",
+        habitId: "habit-1",
+        tinyActionTooHard: false,
+        triggerWorked: true,
+        weekStart: "2026-04-20",
+      });
+      expect(mockDbApplyTuneUp).toHaveBeenCalledTimes(1);
+      const call = mockDbApplyTuneUp.mock.calls[0][0];
+      expect(call.habitPatch).toBeUndefined();
+    });
+
+    it("rejects a habitPatch with a cue exceeding 240 characters", async () => {
+      const longCue = "a".repeat(241);
+      await expect(
+        applyTuneUpForHabit("user-1", {
+          adjustmentNote: "",
+          habitId: "habit-1",
+          habitPatch: { cue: longCue },
+          tinyActionTooHard: false,
+          triggerWorked: false,
+          weekStart: "2026-04-20",
+        }),
+      ).rejects.toBeInstanceOf(ApplyTuneUpValidationError);
+      expect(mockDbApplyTuneUp).not.toHaveBeenCalled();
+    });
+
+    it("rejects a habitPatch with a tinyAction exceeding 240 characters", async () => {
+      const longTinyAction = "x".repeat(300);
+      await expect(
+        applyTuneUpForHabit("user-1", {
+          adjustmentNote: "",
+          habitId: "habit-1",
+          habitPatch: { tinyAction: longTinyAction },
+          tinyActionTooHard: true,
+          triggerWorked: false,
+          weekStart: "2026-04-20",
+        }),
+      ).rejects.toBeInstanceOf(ApplyTuneUpValidationError);
+      expect(mockDbApplyTuneUp).not.toHaveBeenCalled();
+    });
+
+    it("accepts a 240-character cue (boundary case)", async () => {
+      const exactCue = "a".repeat(240);
+      await applyTuneUpForHabit("user-1", {
+        adjustmentNote: "",
+        habitId: "habit-1",
+        habitPatch: { cue: exactCue },
+        tinyActionTooHard: false,
+        triggerWorked: false,
+        weekStart: "2026-04-20",
+      });
+      expect(mockDbApplyTuneUp).toHaveBeenCalledTimes(1);
+    });
+
+    it("rejects non-owned habits before validating the patch", async () => {
+      mockGetHabitById.mockRejectedValueOnce(new Error("not found"));
+      await expect(
+        applyTuneUpForHabit("user-1", {
+          adjustmentNote: "",
+          habitId: "other",
+          habitPatch: { cue: "   " },
+          tinyActionTooHard: false,
+          triggerWorked: false,
+          weekStart: "2026-04-20",
+        }),
+      ).rejects.toThrow("not found");
+      expect(mockDbApplyTuneUp).not.toHaveBeenCalled();
+    });
   });
 });

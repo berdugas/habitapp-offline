@@ -15,6 +15,8 @@ export type HabitWeekSummary = {
   title: string;
   icon: string | null;
   formula: string;
+  cue: string;
+  tinyAction: string;
   identityPhrase: string;
   activeDays: number[];
   weekLogs: DayEntry[];
@@ -155,6 +157,8 @@ export function buildGoalWeekSummary({
       title: habit.title,
       icon: habit.icon ?? null,
       formula: `${habit.cue} → ${habit.tiny_action}`,
+      cue: habit.cue,
+      tinyAction: habit.tiny_action,
       identityPhrase: habit.identity_phrase ?? "",
       activeDays,
       weekLogs,

@@ -5,6 +5,7 @@ import { migration004 } from "@/lib/db/migrations/004_dissolve_focus_supporting"
 import { migration005 } from "@/lib/db/migrations/005_active_days";
 import { migration006 } from "@/lib/db/migrations/006_reminders";
 import { migration007 } from "@/lib/db/migrations/007_srhi_responses";
+import { migration008 } from "@/lib/db/migrations/008_drop_weekly_review_text_fields";
 
 export type Migration = {
   /** Monotonically increasing identifier. Determines execution order. */
@@ -29,4 +30,4 @@ export type Migration = {
  *   2. Append it to the array below.
  *   3. Never edit, reorder, or delete an applied migration — write a new one.
  */
-export const migrations: Migration[] = [migration001, migration002, migration003, migration004, migration005, migration006, migration007];
+export const migrations: Migration[] = [migration001, migration002, migration003, migration004, migration005, migration006, migration007, migration008];

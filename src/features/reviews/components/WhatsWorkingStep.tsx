@@ -2,7 +2,6 @@ import { StyleSheet, Text, View } from "react-native";
 
 import { LucideIcon } from "@/components/LucideIconPicker";
 import { ZenCard } from "@/components/cards/ZenCard";
-import { Eyebrow } from "@/components/text/Eyebrow";
 import { colors } from "@/theme/colors";
 import { fontFamilies } from "@/theme/fontFamilies";
 import { spacing } from "@/theme/spacing";
@@ -29,7 +28,11 @@ function getStrongHabitMessage(habit: HabitWeekSummary): string {
 export function WhatsWorkingStep({ strongHabits }: WhatsWorkingStepProps) {
   return (
     <ZenCard>
-      <Eyebrow label="What's working" />
+      {/* Promoted from the small uppercase eyebrow to a display-bold
+       * headline — the section title IS the screen's anchor here
+       * (no separate hero below), and "What's working" reads better
+       * as a confident statement than as a quiet category tag. */}
+      <Text style={styles.headline}>What's working</Text>
 
       <View style={styles.list}>
         {strongHabits.map((habit) => (
@@ -61,6 +64,13 @@ const styles = StyleSheet.create({
     fontFamily: fontFamilies.body,
     fontSize: typography.bodyMd,
     lineHeight: 20,
+  },
+  headline: {
+    color: colors.text,
+    fontFamily: fontFamilies.displayBold,
+    fontSize: typography.headlineMd,
+    letterSpacing: -0.2,
+    lineHeight: 28,
   },
   count: {
     color: colors.primary,
