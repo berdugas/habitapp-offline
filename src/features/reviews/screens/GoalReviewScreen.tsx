@@ -320,7 +320,7 @@ export default function GoalReviewScreen() {
   useEffect(() => {
     if (currentStep.type === "tune_up" && tuneUpHabitIdForEffect) {
       trackEvent("weekly_review_tune_up_started", {
-        habitId: tuneUpHabitIdForEffect,
+        habit_id: tuneUpHabitIdForEffect,
       });
     } else if (currentStep.type === "complete" && summary) {
       trackEvent("weekly_review_completed", {
@@ -391,10 +391,10 @@ export default function GoalReviewScreen() {
       //     default verbatim — useful for tuning the suggestion copy.
       //     `null` when no habitPatch (the suggestion was free-text-only
       //     so the cue/tinyAction-vs-default comparison is meaningless).
-      const mutatedFields: ("cue" | "tinyAction")[] = [];
+      const mutatedFields: ("cue" | "tiny_action")[] = [];
       if (payload.habitPatch?.cue !== undefined) mutatedFields.push("cue");
       if (payload.habitPatch?.tinyAction !== undefined) {
-        mutatedFields.push("tinyAction");
+        mutatedFields.push("tiny_action");
       }
       let textKept: boolean | null = null;
       if (payload.habitPatch) {
@@ -410,9 +410,9 @@ export default function GoalReviewScreen() {
         }
       }
       trackEvent("weekly_review_tune_up_applied", {
-        habitId: payload.habitId,
+        habit_id: payload.habitId,
         hasHabitPatch: Boolean(payload.habitPatch),
-        mutatedFields,
+        mutated_fields: mutatedFields,
         textKept,
         // Y/N answers in coarse form — useful to bucket which
         // suggestion type the apply corresponds to without leaking
@@ -455,7 +455,7 @@ export default function GoalReviewScreen() {
         return next;
       });
       trackEvent("weekly_review_tune_up_skipped", {
-        habitId: payload.habitId,
+        habit_id: payload.habitId,
         // Y/N state at the moment of skip — distinguishes "skipped
         // without engaging" (both null) from "answered diagnostically
         // but chose not to commit a change" (both non-null).
