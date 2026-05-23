@@ -539,8 +539,8 @@ export default function HabitDetailScreen() {
           ) : (
             <>
               <Text style={styles.reviewCompletedText}>Reviewed this week ✓</Text>
-              <Pressable onPress={() => openReview(habit, "Review again")}>
-                <Text style={styles.reviewAgainLink}>Review again</Text>
+              <Pressable onPress={() => openReview(habit, "View this week's review")}>
+                <Text style={styles.reviewAgainLink}>View this week's review</Text>
               </Pressable>
             </>
           )}
