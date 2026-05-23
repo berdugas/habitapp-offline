@@ -29,6 +29,8 @@ import { openGoalWeeklyReview } from "@/features/reviews/openReview";
 import { useGoalDetail } from "@/features/today/hooks";
 import { getStreakCopy } from "@/features/today/streakCopy";
 import { useTrialValidation } from "@/features/trial/hooks";
+import { trackEvent } from "@/services/analytics";
+import { hashIdentityPhrase } from "@/utils/hash";
 import { colors } from "@/theme/colors";
 import { fontFamilies } from "@/theme/fontFamilies";
 import { SCREEN_TOP_PADDING, spacing } from "@/theme/spacing";
@@ -97,6 +99,17 @@ export default function GoalDetailScreen() {
     !hasActiveHabits &&
     cascadeSettled &&
     totalSettled;
+
+  // Telemetry: goal_detail_viewed fires once per mount when the
+  // identityPhrase resolves. Effect deps cover only the identityPhrase
+  // so the event doesn't re-fire on unrelated re-renders. The phrase
+  // is hashed to an opaque 8-char goal_id (see src/utils/hash.ts).
+  useEffect(() => {
+    if (!identityPhrase) return;
+    trackEvent("goal_detail_viewed", {
+      goal_id: hashIdentityPhrase(identityPhrase),
+    });
+  }, [identityPhrase]);
 
   useEffect(() => {
     if (!shouldRedirect || !identityPhrase) return;

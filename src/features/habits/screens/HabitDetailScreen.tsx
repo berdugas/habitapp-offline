@@ -42,8 +42,9 @@ import { useTrialValidation } from "@/features/trial/hooks";
 import { useHabitLogsForRange } from "@/features/today/hooks";
 import { getReminderByHabitId } from "@/lib/db/repositories/reminders";
 import { useAuthSession } from "@/features/auth/hooks";
+import { trackEvent } from "@/services/analytics";
 import { now } from "@/utils/clock";
-import { getWeekStartDateString, toDeviceDateString } from "@/utils/dates";
+import { daysBetweenDates, getWeekStartDateString, toDeviceDateString } from "@/utils/dates";
 import { colors } from "@/theme/colors";
 import { fontFamilies } from "@/theme/fontFamilies";
 import { radius } from "@/theme/radius";
@@ -282,6 +283,15 @@ export default function HabitDetailScreen() {
   function handleCellPress(date: string) {
     if (!habit) return;
     if (date < habit.start_date) return;
+    // Telemetry: fired before the start-date / window guards above so
+    // that "tapped a cell" measures actual user intent, regardless of
+    // whether the tap leads to an editable retro-log dialog. days_back
+    // is derived from (today - date); helper signature is
+    // (from, to) → to - from in days, so the past `date` comes first.
+    trackEvent("heatmap_day_tapped", {
+      habit_id: habit.id,
+      days_back: daysBetweenDates(date, todayDate),
+    });
     const existing = (calendarLogs as HeatmapLog[]).find((log) => log.log_date === date);
     const currentStatus = existing?.status ?? null;
     const withinWindow = isWithinRetroWindow(date, now());
