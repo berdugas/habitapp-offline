@@ -41,9 +41,15 @@ export default function SettingsScreen() {
 
   async function handleSignOut() {
     setIsSigningOut(true);
+    trackEvent("settings_sign_out");
     await signOut();
     setIsSigningOut(false);
     router.replace("/");
+  }
+
+  function handleExportPressed() {
+    trackEvent("settings_export_initiated");
+    router.push("/(app)/settings/export");
   }
 
   async function handleReplayWeeklyReviewIntro() {
@@ -102,7 +108,7 @@ export default function SettingsScreen() {
         <Eyebrow label="Privacy & Data" />
         <Pressable
           accessibilityRole="button"
-          onPress={() => router.push("/(app)/settings/export")}
+          onPress={handleExportPressed}
           style={styles.row}
         >
           <Text style={styles.rowLabel}>Export your data</Text>
