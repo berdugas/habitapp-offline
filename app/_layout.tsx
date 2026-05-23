@@ -26,6 +26,7 @@ import {
 import { initDb } from "@/lib/db/client";
 import { AppProviders } from "@/providers/AppProviders";
 import { handleForegroundNotification } from "@/features/reminders/notifications";
+import { checkAndTrackVersionUpgrade } from "@/services/appVersionTracking";
 import { logger } from "@/services/logger";
 import { ErrorBoundary, initSentry, wrap } from "@/services/sentry";
 import {
@@ -41,6 +42,11 @@ import { useAuthSession } from "@/features/auth/hooks";
 // and both no-op in __DEV__ unless extra.telemetryInDev is set.
 initSentry();
 initPostHog();
+
+// Version-upgrade detection. Best-effort: fires once per launch, awaits
+// internally, and never throws. PostHog client doesn't need to be ready
+// (trackEvent breadcrumbs + posthogCapture both handle null clients).
+void checkAndTrackVersionUpgrade();
 
 // Suppress notifications that fire while the app is in the foreground — the
 // handler decides per-notification (backup type: suppress if already logged).
