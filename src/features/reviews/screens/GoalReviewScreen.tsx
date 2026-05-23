@@ -314,15 +314,28 @@ export default function GoalReviewScreen() {
   // `tune_up_started` event captures the user reaching a per-habit
   // diagnostic; `weekly_review_completed` is the natural funnel anchor
   // at the end of the flow (counts the user's outcomes from the
-  // session — applied / skipped / whether any habit was mutated).
+  // session — applied / skipped / whether any habit was mutated). The
+  // three uninstrumented steps (week_overview / whats_working /
+  // clean_week_affirmation) get a generic `weekly_review_step_viewed`
+  // event so the funnel covers every step type without double-firing
+  // alongside the specialized tune_up_started / completed events.
   const tuneUpHabitIdForEffect =
     currentStep.type === "tune_up" ? currentStep.habitId : null;
+  // Track whether the flow reached the natural Complete-step terminus
+  // and the last step the user was on. Used by the unmount cleanup
+  // below to decide whether to fire weekly_review_abandoned.
+  const hasCompletedRef = useRef(false);
+  const lastStepRef = useRef<typeof currentStep.type | null>(null);
+  useEffect(() => {
+    lastStepRef.current = currentStep.type;
+  }, [currentStep.type]);
   useEffect(() => {
     if (currentStep.type === "tune_up" && tuneUpHabitIdForEffect) {
       trackEvent("weekly_review_tune_up_started", {
         habit_id: tuneUpHabitIdForEffect,
       });
     } else if (currentStep.type === "complete" && summary) {
+      hasCompletedRef.current = true;
       trackEvent("weekly_review_completed", {
         // `attentionCount` / `strongCount` let us segment outcomes by
         // week shape (clean vs mixed vs all-attention). Without these,
@@ -334,12 +347,32 @@ export default function GoalReviewScreen() {
         skippedCount,
         hasMutation,
       });
+    } else if (
+      currentStep.type === "week_overview" ||
+      currentStep.type === "whats_working" ||
+      currentStep.type === "clean_week_affirmation"
+    ) {
+      trackEvent("weekly_review_step_viewed", { step: currentStep.type });
     }
     // Effect intentionally fires once per step entry — re-renders that
     // change appliedCount mid-Complete are downstream of the user
     // already landing on Complete and would double-fire if included.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentStep.type, tuneUpHabitIdForEffect]);
+
+  // Unmount cleanup: if the user navigates away mid-flow without ever
+  // reaching the Complete step, fire weekly_review_abandoned with the
+  // last step they were on. Empty deps + cleanup-only fn means this
+  // runs exactly once when the screen unmounts. We read from refs (not
+  // state) so the cleanup closure sees the latest values, not the
+  // snapshot at mount.
+  useEffect(() => {
+    return () => {
+      if (hasCompletedRef.current) return;
+      if (lastStepRef.current === null) return;
+      trackEvent("weekly_review_abandoned", { step: lastStepRef.current });
+    };
+  }, []);
 
   async function maybeMarkFirstRunCompleted(): Promise<void> {
     if (hasAttemptedFirstRunWriteRef.current) return;
