@@ -16,6 +16,7 @@ import { PrimaryButton } from "@/components/buttons/PrimaryButton";
 import { ErrorState } from "@/components/feedback/ErrorState";
 import { LoadingState } from "@/components/feedback/LoadingState";
 import { useAuthSession } from "@/features/auth/hooks";
+import { GoalReflectionStep } from "@/features/reviews/components/GoalReflectionStep";
 import { ReviewStepIndicator } from "@/features/reviews/components/ReviewStepIndicator";
 import { TuneUpStep } from "@/features/reviews/components/TuneUpStep";
 import { WeekCompleteStep } from "@/features/reviews/components/WeekCompleteStep";
@@ -48,6 +49,7 @@ type Step =
   | { type: "week_overview" }
   | { type: "whats_working" }
   | { type: "tune_up"; habitId: string }
+  | { type: "goal_reflection" }
   | { type: "complete" };
 
 function getStepSequence(summary: GoalWeekSummary): Step[] {
@@ -55,8 +57,17 @@ function getStepSequence(summary: GoalWeekSummary): Step[] {
   if (summary.strongHabits.length > 0) {
     steps.push({ type: "whats_working" });
   }
-  for (const h of summary.attentionHabits) {
-    steps.push({ type: "tune_up", habitId: h.habitId });
+  if (summary.attentionHabits.length === 0) {
+    // Clean week (or zero-active-day brand-new week) — no per-habit
+    // Tune-Ups to render. Insert a single optional reflection beat so
+    // the user can still set an intention before landing on Complete.
+    // The Complete catch-up effect handles empty-row backfill if the
+    // user skips this step.
+    steps.push({ type: "goal_reflection" });
+  } else {
+    for (const h of summary.attentionHabits) {
+      steps.push({ type: "tune_up", habitId: h.habitId });
+    }
   }
   steps.push({ type: "complete" });
   return steps;
@@ -129,11 +140,13 @@ export default function GoalReviewScreen() {
   type CatchUpState = "idle" | "pending" | "error" | "done";
   const [catchUpState, setCatchUpState] = useState<CatchUpState>("idle");
   const hasFlushedCatchUpRef = useRef(false);
-  // Per-Tune-Up "dirty" signal — flips to true on the first user
-  // interaction inside the active tune-up (Y/N or text edit). The
-  // beforeRemove guard reads this to decide whether to prompt before
-  // exit. Resets on every step transition.
-  const [currentTuneUpInteracted, setCurrentTuneUpInteracted] = useState(false);
+  // Per-step "dirty" signal — flips to true on the first user
+  // interaction inside the active step (Tune-Up Y/N or text edit;
+  // Goal Reflection text edit). The beforeRemove guard reads this
+  // to decide whether to prompt before exit. Resets on every step
+  // transition. Earlier-step types (week_overview, whats_working,
+  // complete) carry no editable input, so we never flip it for them.
+  const [currentStepInteracted, setCurrentStepInteracted] = useState(false);
   // Tracks whether the active step is mid-Apply or mid-Skip. beforeRemove
   // waits this out before deciding what to prompt.
   const [isWriting, setIsWriting] = useState(false);
@@ -211,9 +224,11 @@ export default function GoalReviewScreen() {
     return undefined;
   }
 
-  // beforeRemove guard. Two distinct dirty states:
+  // beforeRemove guard. Three distinct dirty states:
   //   1. Tune-up step with unsaved edits ⇒ alert with the per-habit copy.
-  //   2. Complete step where the catch-up batch hasn't finished ⇒ silent
+  //   2. Goal-reflection step with typed (but unsaved) text ⇒ alert with
+  //      the reflection copy.
+  //   3. Complete step where the catch-up batch hasn't finished ⇒ silent
   //      wait while pending, alert while errored. Without this, the user
   //      could tap X after Apply'ing the last tune-up but before the
   //      catch-up batch resolves and walk away with the goal-review
@@ -224,22 +239,28 @@ export default function GoalReviewScreen() {
   useEffect(() => {
     const unsub = navigation.addListener("beforeRemove", (e) => {
       const onTuneUp = currentStep.type === "tune_up";
+      const onReflection = currentStep.type === "goal_reflection";
       const onComplete = currentStep.type === "complete";
 
-      const tuneUpDirty = onTuneUp && currentTuneUpInteracted;
-      const tuneUpWriting = onTuneUp && isWriting;
+      const tuneUpDirty = onTuneUp && currentStepInteracted;
+      const reflectionDirty = onReflection && currentStepInteracted;
+      const stepWriting = (onTuneUp || onReflection) && isWriting;
       const completeWriting = onComplete && catchUpState === "pending";
       const completeFailed = onComplete && catchUpState === "error";
 
       const shouldBlock =
-        tuneUpDirty || tuneUpWriting || completeWriting || completeFailed;
+        tuneUpDirty ||
+        reflectionDirty ||
+        stepWriting ||
+        completeWriting ||
+        completeFailed;
       if (!shouldBlock) {
         return; // Clean exit (no dirty state, no in-flight write).
       }
 
       e.preventDefault();
 
-      if (tuneUpWriting || completeWriting) {
+      if (stepWriting || completeWriting) {
         // Wait until the in-flight write settles. Don't show an alert
         // for a transient saving state — the next beforeRemove fire
         // (when state transitions to done / error) routes through the
@@ -251,6 +272,22 @@ export default function GoalReviewScreen() {
         Alert.alert(
           "Leave without finishing the save?",
           "Your review couldn't finish saving. Tap Retry to try again, or leave — your habits may still show as needing review until you finish.",
+          [
+            { style: "cancel", text: "Keep going" },
+            {
+              onPress: () => navigation.dispatch(e.data.action),
+              style: "destructive",
+              text: "Leave",
+            },
+          ],
+        );
+        return;
+      }
+
+      if (reflectionDirty) {
+        Alert.alert(
+          "Leave this reflection?",
+          "Your reflection won't be saved. Tap Save & continue to keep it.",
           [
             { style: "cancel", text: "Keep going" },
             {
@@ -281,13 +318,13 @@ export default function GoalReviewScreen() {
   }, [
     catchUpState,
     currentStep.type,
-    currentTuneUpInteracted,
+    currentStepInteracted,
     isWriting,
     navigation,
   ]);
 
   function advanceToNextStep() {
-    setCurrentTuneUpInteracted(false);
+    setCurrentStepInteracted(false);
     setCurrentStepIndex((i) => Math.min(i + 1, stepSequence.length - 1));
   }
 
@@ -384,6 +421,60 @@ export default function GoalReviewScreen() {
     }
   }
 
+  /**
+   * Goal Reflection Save handler — only reachable on clean-week
+   * flows. Writes the user's reflection (trimmed; empty → null) to a
+   * `weekly_reviews` row for every habit in the goal in one batch,
+   * mirroring the legacy "all-strong week" persistence behaviour
+   * (see commit 7c8dc39 for the prior single-row-per-habit treatment).
+   *
+   * On success: marks every habit as covered so the Complete-entry
+   * catch-up effect doesn't re-write empty rows on top of the
+   * reflection we just persisted; advances to Complete. On failure:
+   * the parent re-throws so the step component can surface a retry
+   * banner. The user stays on the reflection step until they
+   * succeed or skip.
+   */
+  async function handleReflectionSave(text: string): Promise<void> {
+    if (!summary) return;
+    setIsWriting(true);
+    try {
+      const trimmed = text.trim();
+      const payloads: UpsertWeeklyReviewPayload[] = summary.habits.map((h) => ({
+        // Repo layer at weekly_reviews.ts trims and converts "" → null,
+        // so we send the trimmed value directly and let the repo do
+        // its own normalisation.
+        adjustmentNote: trimmed,
+        habitId: h.habitId,
+        tinyActionTooHard: null,
+        triggerWorked: null,
+        weekStart,
+      }));
+      await upsertGoalReviewsMutation.mutateAsync(payloads);
+      setCoveredHabitIds((prev) => {
+        const next = new Set(prev);
+        for (const h of summary.habits) next.add(h.habitId);
+        return next;
+      });
+      await maybeMarkFirstRunCompleted();
+      advanceToNextStep();
+    } catch (err) {
+      logger.warn("GoalReviewScreen: Reflection save failed", { err });
+      throw err;
+    } finally {
+      setIsWriting(false);
+    }
+  }
+
+  /**
+   * Goal Reflection Skip handler — no write, just advance. The
+   * Complete-entry catch-up effect fills empty rows for every habit
+   * so getGoalReviewStatus.isDue clears on exit.
+   */
+  function handleReflectionSkip() {
+    advanceToNextStep();
+  }
+
   // Catch-up batch write at Complete-step entry. Per due.ts:38, every
   // reviewable habit needs a current-week review row for the CTA to
   // clear. Per-Tune-Up writes only cover attentionHabits, so strong /
@@ -470,7 +561,7 @@ export default function GoalReviewScreen() {
   }
 
   function stepBack() {
-    setCurrentTuneUpInteracted(false);
+    setCurrentStepInteracted(false);
     // Reset catch-up state when stepping out of Complete, so re-entering
     // Complete later re-runs the effect. The ref guard prevents
     // double-fire on the same render cycle but is also reset here so a
@@ -495,14 +586,19 @@ export default function GoalReviewScreen() {
       return;
     }
     const onTuneUp = currentStep.type === "tune_up";
-    const dirty = onTuneUp && currentTuneUpInteracted;
+    const onReflection = currentStep.type === "goal_reflection";
+    const dirty = (onTuneUp || onReflection) && currentStepInteracted;
     if (dirty) {
       // Don't silently discard in-progress edits — same prompt as the
       // beforeRemove exit guard. On Leave: step back (edits lost). On
-      // Keep going: stay on the dirty tune-up.
+      // Keep going: stay on the dirty step.
+      const title = onReflection ? "Leave this reflection?" : "Leave this tune-up?";
+      const message = onReflection
+        ? "Your reflection won't be saved. Tap Save & continue to keep it."
+        : "Your changes to this habit won't be saved. The tune-ups you've already applied are saved.";
       Alert.alert(
-        "Leave this tune-up?",
-        "Your changes to this habit won't be saved. The tune-ups you've already applied are saved.",
+        title,
+        message,
         [
           { style: "cancel", text: "Keep going" },
           {
@@ -562,9 +658,9 @@ export default function GoalReviewScreen() {
     );
   }
 
-  // Step 1 + 2 each get a Continue button in the fixed footer. Tune-up
-  // steps own their own Apply / Skip footer inline. Complete has its
-  // own Done button.
+  // Step 1 + 2 each get a Continue button in the fixed footer.
+  // Tune-up + Goal Reflection steps own their own primary/secondary
+  // button stacks inline. Complete has its own Done button.
   const showFooterContinue =
     currentStep.type === "week_overview" ||
     currentStep.type === "whats_working";
@@ -621,16 +717,16 @@ export default function GoalReviewScreen() {
             // state (Y/N answers, edited fields) doesn't leak across.
             key={currentStep.habitId}
             onApply={(payload) => {
-              setCurrentTuneUpInteracted(true);
+              setCurrentStepInteracted(true);
               return handleTuneUpApply(payload);
             }}
             onDismissFirstRunTip={() => {
               setTuneUpTipDismissed(true);
               trackEvent("weekly_review_tip_dismissed", { step: "tune_up" });
             }}
-            onInteraction={() => setCurrentTuneUpInteracted(true)}
+            onInteraction={() => setCurrentStepInteracted(true)}
             onSkip={(payload) => {
-              setCurrentTuneUpInteracted(true);
+              setCurrentStepInteracted(true);
               return handleTuneUpSkip(payload);
             }}
             scrollViewRef={scrollViewRef}
@@ -640,6 +736,23 @@ export default function GoalReviewScreen() {
             stepNumber={tuneUpIndex + 1}
             totalSteps={summary.attentionHabits.length}
             weekStart={weekStart}
+          />
+        ) : null}
+        {currentStep.type === "goal_reflection" ? (
+          <GoalReflectionStep
+            // DB-sourced identity phrase mirrors WeekCompleteStep — the
+            // URL-encoded version has shown truncation bugs in production
+            // (see WeekCompleteStep prop notes below). Fall back to the
+            // URL value only if no habits are loaded, which can't happen
+            // on this step (we route here off summary.attentionHabits === 0
+            // which implies summary.habits.length > 0 — the empty-summary
+            // branch returns earlier with a different screen).
+            identityPhrase={
+              summary.habits[0]?.identityPhrase ?? identityPhrase
+            }
+            onInteraction={() => setCurrentStepInteracted(true)}
+            onSave={handleReflectionSave}
+            onSkip={handleReflectionSkip}
           />
         ) : null}
         {currentStep.type === "complete" ? (
