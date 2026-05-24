@@ -154,12 +154,55 @@ export function goalIdFor(phrase: string): string {
   return id;
 }
 
-async function persistMap(): Promise<void> {
-  try {
-    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(cachedMap));
-  } catch {
-    // Silent: same rationale as initGoalIdRegistry's catch.
+// Single-flight persist loop with coalescing. Without serialization, two
+// concurrent persistMap() calls each snapshot cachedMap independently and
+// each fire an AsyncStorage.setItem; under the hood AsyncStorage can
+// reorder writes for the same key, so a snapshot of {A} resolving after a
+// snapshot of {A,B} silently overwrites storage to {A}. The in-memory map
+// stays intact for the current session but the next launch regenerates
+// B's id, breaking cross-session segmentation.
+//
+// Fix: at most one setItem is ever in flight. Calls that arrive while a
+// write is pending set persistQueued, which the running IIFE detects when
+// its setItem resolves and uses to fire one follow-up write that
+// snapshots cachedMap as it stands at that moment — coalescing N
+// concurrent requests into at most two writes (initial + coalesced).
+let persistInFlight: Promise<void> | null = null;
+let persistQueued = false;
+
+function persistMap(): Promise<void> {
+  if (persistInFlight) {
+    // Mark that we need one more write after the current one finishes,
+    // and return the same in-flight promise so callers can await if
+    // they want (we don't, but it's the well-formed thing to expose).
+    persistQueued = true;
+    return persistInFlight;
   }
+  persistInFlight = (async () => {
+    // do-while because we always run at least one setItem when entering
+    // this branch (persistInFlight was null, meaning a write is needed
+    // and none is happening yet). The check at the bottom picks up any
+    // requests that arrived during the await.
+    do {
+      // Reset BEFORE the snapshot so a request arriving during the await
+      // is correctly recorded for the next iteration. Reading
+      // cachedMap inline gives us the latest state at the moment the
+      // setItem starts; concurrent goalIdFor() mutations of cachedMap
+      // that happen *after* JSON.stringify begins are picked up by the
+      // next loop iteration via the persistQueued flag.
+      persistQueued = false;
+      try {
+        await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(cachedMap));
+      } catch {
+        // Silent: same rationale as initGoalIdRegistry's catch.
+      }
+    } while (persistQueued);
+    // Synchronous between the while-check and the null assignment — no
+    // await, so no other persistMap call can interleave and have its
+    // persistQueued=true silently dropped.
+    persistInFlight = null;
+  })();
+  return persistInFlight;
 }
 
 function generateRandomHex(bytes: number): string {
@@ -182,4 +225,6 @@ export function __resetForTests(seed: Record<string, string> = {}): void {
   cachedMap = { ...seed };
   hydrated = false;
   hydrationPromise = null;
+  persistInFlight = null;
+  persistQueued = false;
 }

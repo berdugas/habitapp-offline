@@ -185,3 +185,86 @@ describe("hydration race safety", () => {
     expect(first).toBe(second);
   });
 });
+
+describe("persist serialization", () => {
+  // The auto-mocked AsyncStorage methods are jest.fn() instances, so
+  // their call history persists across tests unless explicitly cleared.
+  // Reset before each test in this block to keep assertions deterministic.
+  beforeEach(() => {
+    (AsyncStorage.setItem as jest.Mock).mockClear();
+  });
+
+  it("coalesces N rapid goalIdFor writes into at most 2 setItem calls", async () => {
+    await initGoalIdRegistry();
+    (AsyncStorage.setItem as jest.Mock).mockClear();
+
+    // Five rapid first-encounters → five persistMap calls. Without
+    // coalescing this would be five setItem calls; with coalescing the
+    // first hits the in-flight branch and the rest set persistQueued,
+    // resulting in at most two writes (initial + one follow-up that
+    // captures the rest).
+    goalIdFor("A");
+    goalIdFor("B");
+    goalIdFor("C");
+    goalIdFor("D");
+    goalIdFor("E");
+
+    // Let microtasks and the in-flight loop drain.
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    expect((AsyncStorage.setItem as jest.Mock).mock.calls.length).toBeLessThanOrEqual(2);
+
+    const stored = await AsyncStorage.getItem(STORAGE_KEY);
+    const parsed = JSON.parse(stored!) as Record<string, string>;
+    expect(Object.keys(parsed).sort()).toEqual(["A", "B", "C", "D", "E"]);
+  });
+
+  it("final persisted state holds every entry even under many rapid writes", async () => {
+    // Without serialization, two concurrent persistMap calls each
+    // snapshot cachedMap independently and fire their own setItem; if
+    // the smaller snapshot's write resolves last, entries are lost.
+    // The in-memory mock resolves in FIFO order so this test doesn't
+    // reproduce the reorder hazard directly, but it locks in the
+    // invariant: the post-drain stored map equals the in-memory map.
+    await initGoalIdRegistry();
+
+    const PHRASES = Array.from({ length: 25 }, (_, i) => `phrase-${i}`);
+    const expectedIds: Record<string, string> = {};
+    for (const phrase of PHRASES) {
+      expectedIds[phrase] = goalIdFor(phrase);
+    }
+
+    // Wait long enough for all serialized writes to drain through the
+    // in-flight loop's coalescing tail.
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    const stored = await AsyncStorage.getItem(STORAGE_KEY);
+    expect(stored).not.toBeNull();
+    const parsed = JSON.parse(stored!) as Record<string, string>;
+    for (const phrase of PHRASES) {
+      expect(parsed[phrase]).toBe(expectedIds[phrase]);
+    }
+  });
+
+  it("a new write after the in-flight loop exits starts a fresh write", async () => {
+    // Regression guard: the queueing logic could in principle drop a
+    // request that arrives between "while(persistQueued) returns false"
+    // and "persistInFlight = null" if those weren't synchronous. They
+    // are (no await between), but lock the property in a test.
+    await initGoalIdRegistry();
+
+    goalIdFor("A");
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    (AsyncStorage.setItem as jest.Mock).mockClear();
+
+    // Second batch fires after the first loop has fully exited.
+    goalIdFor("Z");
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    expect((AsyncStorage.setItem as jest.Mock).mock.calls.length).toBeGreaterThan(0);
+    const stored = await AsyncStorage.getItem(STORAGE_KEY);
+    const parsed = JSON.parse(stored!) as Record<string, string>;
+    expect(parsed).toHaveProperty("A");
+    expect(parsed).toHaveProperty("Z");
+  });
+});
