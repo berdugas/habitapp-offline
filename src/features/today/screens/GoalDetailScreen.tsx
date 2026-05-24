@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Alert, ScrollView, StyleSheet, Text, View, Pressable } from "react-native";
 import { ChevronLeft } from "lucide-react-native";
 import { router, useLocalSearchParams } from "expo-router";
@@ -29,6 +29,12 @@ import { openGoalWeeklyReview } from "@/features/reviews/openReview";
 import { useGoalDetail } from "@/features/today/hooks";
 import { getStreakCopy } from "@/features/today/streakCopy";
 import { useTrialValidation } from "@/features/trial/hooks";
+import { trackEvent } from "@/services/analytics";
+import {
+  goalIdFor,
+  isGoalIdRegistryHydrated,
+  whenGoalIdRegistryHydrated,
+} from "@/services/goalIdRegistry";
 import { colors } from "@/theme/colors";
 import { fontFamilies } from "@/theme/fontFamilies";
 import { SCREEN_TOP_PADDING, spacing } from "@/theme/spacing";
@@ -97,6 +103,44 @@ export default function GoalDetailScreen() {
     !hasActiveHabits &&
     cascadeSettled &&
     totalSettled;
+
+  // Mirror the goal-id registry's hydration status into React state so
+  // the goal_detail_viewed effect below participates in normal
+  // reactivity. Same pattern as ScreenTracker in app/_layout.tsx: a
+  // cold-start deep link into /goals/[identityPhrase] would otherwise
+  // fire goal_detail_viewed with a session-local id that the persisted
+  // map would override post-hydration, leaving this one event
+  // inconsistent with every later screen / mutation event for the same
+  // goal. The initial value covers warm navigation where hydration has
+  // already completed before this component mounts.
+  const [goalIdHydrated, setGoalIdHydrated] = useState(
+    isGoalIdRegistryHydrated(),
+  );
+  useEffect(() => {
+    if (goalIdHydrated) return;
+    let cancelled = false;
+    void whenGoalIdRegistryHydrated().then(() => {
+      if (!cancelled) setGoalIdHydrated(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [goalIdHydrated]);
+
+  // Telemetry: goal_detail_viewed fires once per mount when both the
+  // identityPhrase resolves AND the goal-id registry has hydrated.
+  // Effect deps include hydration so the event fires the moment
+  // hydration completes (no re-firing on later identityPhrase-stable
+  // re-renders). goal_id comes from the random per-phrase registry at
+  // src/services/goalIdRegistry.ts, not a content hash — opaque so
+  // the user-typed phrase doesn't leak to PostHog.
+  useEffect(() => {
+    if (!identityPhrase) return;
+    if (!goalIdHydrated) return;
+    trackEvent("goal_detail_viewed", {
+      goal_id: goalIdFor(identityPhrase),
+    });
+  }, [identityPhrase, goalIdHydrated]);
 
   useEffect(() => {
     if (!shouldRedirect || !identityPhrase) return;

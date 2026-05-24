@@ -7,6 +7,7 @@ import {
   getEligibleHabitsQueryKey,
   getUpcomingActiveHabitsQueryKey,
 } from "@/features/habits/hooks";
+import { trackEvent } from "@/services/analytics";
 import { logger } from "@/services/logger";
 import { toDeviceDateString } from "@/utils/dates";
 
@@ -139,6 +140,9 @@ export function useFinalizeOnboardingMutation(draft: OnboardingDraft) {
       if (!user?.id) {
         return;
       }
+      // Funnel anchor: pairs with the onboarding_step_viewed sequence from
+      // the layout-level tracker so we can measure end-to-end completion.
+      trackEvent("onboarding_completed");
       const todayDate = toDeviceDateString();
       await Promise.all([
         queryClient.invalidateQueries({

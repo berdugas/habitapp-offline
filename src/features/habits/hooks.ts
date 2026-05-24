@@ -33,9 +33,12 @@ import { summarizeHabitProgress } from "@/features/today/progress";
 import { trackEvent } from "@/services/analytics";
 import { logger } from "@/services/logger";
 import {
+  daysBetweenDates,
   getTrailingDateRangeStrings,
   toDeviceDateString,
 } from "@/utils/dates";
+import { todayDateString } from "@/utils/clock";
+import { goalIdFor } from "@/services/goalIdRegistry";
 import { TODAY_PROGRESS_WINDOW_DAYS } from "@/features/today/constants";
 
 import type {
@@ -404,6 +407,12 @@ export function useUpdateHabitMutation() {
       if (!user?.id) {
         return;
       }
+      // Coarse-grained "edit happened" signal. A future enhancement could
+      // diff the payload against the prior habit to populate a `fields`
+      // array; today the diff context only lives at the call site
+      // (EditHabitScreen) since the mutationFn receives a normalized full
+      // payload, not a partial.
+      trackEvent("habit_updated", { habit_id: variables.habitId });
 
       await invalidateHabitSurfaceQueries(user.id, variables.habitId, queryClient);
     },
@@ -435,6 +444,7 @@ export function useArchiveHabitMutation() {
       if (!user?.id) {
         return;
       }
+      trackEvent("habit_archived", { habit_id: variables.habitId });
 
       await invalidateHabitSurfaceQueries(user.id, variables.habitId, queryClient);
     },
@@ -463,6 +473,7 @@ export function useRestoreHabitMutation() {
     },
     onSuccess: async (_result, variables) => {
       if (!user?.id) return;
+      trackEvent("habit_restored", { habit_id: variables.habitId });
       await invalidateHabitSurfaceQueries(user.id, variables.habitId, queryClient);
     },
     onError: (error, variables) => {
@@ -527,6 +538,7 @@ export function useDeleteHabitMutation() {
     },
     onSuccess: async (_result, variables) => {
       if (!user?.id) return;
+      trackEvent("habit_deleted", { habit_id: variables.habitId });
       await invalidateHabitListQueries(user.id, variables.habitId, queryClient);
     },
     onError: (error, variables) => {
@@ -554,6 +566,18 @@ export function useDeleteGoalMutation() {
     },
     onSuccess: async (result, variables) => {
       if (!user?.id) return;
+      // Goals key on identityPhrase (user-typed string); we ship an opaque
+      // per-phrase random id as goal_id to keep PII out of the warehouse
+      // while still letting us segment funnels by goal. See
+      // src/services/goalIdRegistry.ts for the registry that maps each
+      // phrase to a stable random id, and the threat-model note there
+      // for what this protects vs. what it doesn't. Goal mutations run
+      // long after registry hydration on real launches, so unlike the
+      // ScreenTracker / GoalDetailScreen call sites we don't need to
+      // gate this on isGoalIdRegistryHydrated().
+      trackEvent("goal_deleted", {
+        goal_id: goalIdFor(variables.identityPhrase),
+      });
 
       // Per-habit detail / log / SRHI caches are now stale. Drop them for
       // every deleted habit ID — same hygiene as single-habit delete.
@@ -601,6 +625,16 @@ export function useUpsertHabitLogMutation() {
     },
     onSuccess: async (_data, variables) => {
       if (!user?.id) return;
+
+      // Telemetry: retro-log path — logDate can be 0 (today) up to ~48h back
+      // per HabitDetailScreen's retro-backfill window. days_back is derived
+      // from (today - logDate); the helper signature is (from, to) → to-from
+      // in days, so logDate must come first to yield a non-negative result.
+      trackEvent("habit_logged", {
+        habit_id: variables.habitId,
+        status: variables.status,
+        days_back: daysBetweenDates(variables.logDate, todayDateString()),
+      });
 
       // 1) Heatmap range query for this habit (prefix-match all date ranges).
       await queryClient.invalidateQueries({
@@ -719,6 +753,9 @@ export function useArchiveGoalMutation() {
     },
     onSuccess: async (result, variables) => {
       if (!user?.id) return;
+      trackEvent("goal_archived", {
+        goal_id: goalIdFor(variables.identityPhrase),
+      });
 
       // Surviving-row mutation: every cascaded habit is still in the DB
       // (status='archived'), so we refresh its per-habit caches the same way
@@ -763,6 +800,9 @@ export function useRestoreGoalMutation() {
     },
     onSuccess: async (result, variables) => {
       if (!user?.id) return;
+      trackEvent("goal_restored", {
+        goal_id: goalIdFor(variables.identityPhrase),
+      });
 
       for (const habitId of result.restoredHabitIds) {
         await invalidateHabitSurfaceQueries(user.id, habitId, queryClient);

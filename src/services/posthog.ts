@@ -31,7 +31,11 @@ export function initPostHog(): void {
 
   const host = readHost();
   const options: Record<string, unknown> = {
-    captureAppLifecycleEvents: false,
+    // Lets PostHog auto-capture $opened, $foregrounded, $backgrounded —
+    // free retention signal without us wiring AppState listeners.
+    // These events count as "system" in PostHog and don't pollute our
+    // explicit funnel events.
+    captureAppLifecycleEvents: true,
     enableSessionReplay: false,
   };
   if (host) options.host = host;

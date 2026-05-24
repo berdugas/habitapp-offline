@@ -15,6 +15,9 @@ export const SAFE_KEY_ALLOWLIST: ReadonlySet<string> = new Set([
   "user_id",
   "log_id",
 
+  // String-array enums (allowlisted so per-element values pass the array branch)
+  "mutated_fields",
+
   // Numeric metrics
   "streak",
   "count",

@@ -314,15 +314,50 @@ export default function GoalReviewScreen() {
   // `tune_up_started` event captures the user reaching a per-habit
   // diagnostic; `weekly_review_completed` is the natural funnel anchor
   // at the end of the flow (counts the user's outcomes from the
-  // session — applied / skipped / whether any habit was mutated).
+  // session — applied / skipped / whether any habit was mutated). The
+  // three uninstrumented steps (week_overview / whats_working /
+  // clean_week_affirmation) get a generic `weekly_review_step_viewed`
+  // event so the funnel covers every step type without double-firing
+  // alongside the specialized tune_up_started / completed events.
   const tuneUpHabitIdForEffect =
     currentStep.type === "tune_up" ? currentStep.habitId : null;
+  // Track whether the flow reached the natural Complete-step terminus
+  // and the last step the user was on. Used by the unmount cleanup
+  // below to decide whether to fire weekly_review_abandoned.
+  const hasCompletedRef = useRef(false);
+  const lastStepRef = useRef<typeof currentStep.type | null>(null);
+  // "Real review on screen" guard — mirrors the LoadingState /
+  // ErrorState / no-habits early-return conditions below. Without it,
+  // the fallback step (`week_overview` while `summary` is null at line
+  // 200) would seed lastStepRef and fire step_viewed before any visible
+  // step renders, inflating both step_viewed counts and the abandoned
+  // cohort on transient loading sessions. Cheap to compute; deliberately
+  // recomputed each render so the refs flip the moment all loads
+  // complete and a reviewable goal is on screen.
+  //
+  // IMPORTANT: include the persisted-reviews preload condition that the
+  // render path uses (line ~683). Summary can resolve before
+  // persistedReviewsQuery does; without this check, the screen still
+  // shows LoadingState but isReviewReady would flip true and start
+  // emitting step events for an invisible step.
+  const isReviewReady =
+    Boolean(identityPhrase) &&
+    firstRunCompletedLoaded &&
+    summary !== null &&
+    summary.habits.length > 0 &&
+    !(summaryHabitIds.length > 0 && persistedReviewsQuery.isLoading);
   useEffect(() => {
+    if (!isReviewReady) return;
+    lastStepRef.current = currentStep.type;
+  }, [currentStep.type, isReviewReady]);
+  useEffect(() => {
+    if (!isReviewReady) return;
     if (currentStep.type === "tune_up" && tuneUpHabitIdForEffect) {
       trackEvent("weekly_review_tune_up_started", {
-        habitId: tuneUpHabitIdForEffect,
+        habit_id: tuneUpHabitIdForEffect,
       });
     } else if (currentStep.type === "complete" && summary) {
+      hasCompletedRef.current = true;
       trackEvent("weekly_review_completed", {
         // `attentionCount` / `strongCount` let us segment outcomes by
         // week shape (clean vs mixed vs all-attention). Without these,
@@ -334,12 +369,34 @@ export default function GoalReviewScreen() {
         skippedCount,
         hasMutation,
       });
+    } else if (
+      currentStep.type === "week_overview" ||
+      currentStep.type === "whats_working" ||
+      currentStep.type === "clean_week_affirmation"
+    ) {
+      trackEvent("weekly_review_step_viewed", { step: currentStep.type });
     }
     // Effect intentionally fires once per step entry — re-renders that
     // change appliedCount mid-Complete are downstream of the user
     // already landing on Complete and would double-fire if included.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentStep.type, tuneUpHabitIdForEffect]);
+  }, [currentStep.type, tuneUpHabitIdForEffect, isReviewReady]);
+
+  // Unmount cleanup: if the user navigates away mid-flow without ever
+  // reaching the Complete step, fire weekly_review_abandoned with the
+  // last step they were on. Empty deps + cleanup-only fn means this
+  // runs exactly once when the screen unmounts. We read from refs (not
+  // state) so the cleanup closure sees the latest values, not the
+  // snapshot at mount. lastStepRef stays null until isReviewReady, so
+  // unmounting during loading / error / no-habits correctly skips the
+  // event (the guard `lastStepRef.current === null` returns early).
+  useEffect(() => {
+    return () => {
+      if (hasCompletedRef.current) return;
+      if (lastStepRef.current === null) return;
+      trackEvent("weekly_review_abandoned", { step: lastStepRef.current });
+    };
+  }, []);
 
   async function maybeMarkFirstRunCompleted(): Promise<void> {
     if (hasAttemptedFirstRunWriteRef.current) return;
@@ -391,10 +448,10 @@ export default function GoalReviewScreen() {
       //     default verbatim — useful for tuning the suggestion copy.
       //     `null` when no habitPatch (the suggestion was free-text-only
       //     so the cue/tinyAction-vs-default comparison is meaningless).
-      const mutatedFields: ("cue" | "tinyAction")[] = [];
+      const mutatedFields: ("cue" | "tiny_action")[] = [];
       if (payload.habitPatch?.cue !== undefined) mutatedFields.push("cue");
       if (payload.habitPatch?.tinyAction !== undefined) {
-        mutatedFields.push("tinyAction");
+        mutatedFields.push("tiny_action");
       }
       let textKept: boolean | null = null;
       if (payload.habitPatch) {
@@ -410,9 +467,9 @@ export default function GoalReviewScreen() {
         }
       }
       trackEvent("weekly_review_tune_up_applied", {
-        habitId: payload.habitId,
+        habit_id: payload.habitId,
         hasHabitPatch: Boolean(payload.habitPatch),
-        mutatedFields,
+        mutated_fields: mutatedFields,
         textKept,
         // Y/N answers in coarse form — useful to bucket which
         // suggestion type the apply corresponds to without leaking
@@ -455,7 +512,7 @@ export default function GoalReviewScreen() {
         return next;
       });
       trackEvent("weekly_review_tune_up_skipped", {
-        habitId: payload.habitId,
+        habit_id: payload.habitId,
         // Y/N state at the moment of skip — distinguishes "skipped
         // without engaging" (both null) from "answered diagnostically
         // but chose not to commit a change" (both non-null).

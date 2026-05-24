@@ -1162,11 +1162,11 @@ describe("GoalReviewScreen — new per-Tune-Up flow", () => {
 
     expect(mockTrackEvent).toHaveBeenCalledWith(
       "weekly_review_tune_up_started",
-      { habitId: "h-attn" },
+      { habit_id: "h-attn" },
     );
   });
 
-  it("fires weekly_review_tune_up_applied with mutatedFields + textKept + Y/N state", async () => {
+  it("fires weekly_review_tune_up_applied with mutated_fields + textKept + Y/N state", async () => {
     mockUseGoalWeekSummary.mockReturnValue({
       data: makeSummary([attentionHabit({ habitId: "h-attn" })]),
       isLoading: false,
@@ -1192,9 +1192,9 @@ describe("GoalReviewScreen — new per-Tune-Up flow", () => {
     );
     expect(call).toBeDefined();
     expect(call![1]).toMatchObject({
-      habitId: "h-attn",
+      habit_id: "h-attn",
       hasHabitPatch: true,
-      mutatedFields: ["tinyAction"],
+      mutated_fields: ["tiny_action"],
       triggerWorked: true,
       tinyActionTooHard: true,
     });
@@ -1228,7 +1228,7 @@ describe("GoalReviewScreen — new per-Tune-Up flow", () => {
     expect(mockTrackEvent).toHaveBeenCalledWith(
       "weekly_review_tune_up_skipped",
       {
-        habitId: "h-attn",
+        habit_id: "h-attn",
         triggerWorked: false,
         tinyActionTooHard: false,
       },

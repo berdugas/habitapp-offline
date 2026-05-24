@@ -28,6 +28,7 @@ import {
   computeWeeklyConsistency,
   pooledConsistencyRate,
 } from "@/features/today/goalMetrics";
+import { trackEvent } from "@/services/analytics";
 import { logger } from "@/services/logger";
 import {
   addDeviceDays,
@@ -296,6 +297,15 @@ export function useUpsertTodayHabitStatusMutation() {
         return;
       }
 
+      // Telemetry: today-status writes are always day-of-log, so days_back
+      // is invariantly 0. Retro-logs flow through useUpsertHabitLogMutation
+      // (src/features/habits/hooks.ts) which derives days_back from logDate.
+      trackEvent("habit_logged", {
+        habit_id: variables.habitId,
+        status: variables.status,
+        days_back: 0,
+      });
+
       const { endDate, startDate } = getTrailingDateRangeStrings(
         TODAY_PROGRESS_WINDOW_DAYS,
         now(),
@@ -350,6 +360,13 @@ export function useDeleteTodayHabitLogMutation() {
     },
     onSuccess: async (_data, habitId) => {
       if (!user?.id) return;
+
+      // Telemetry: today-undo is always day-of, so days_back is 0. (A
+      // retro-delete path would need its own event with derived days_back.)
+      trackEvent("habit_log_undone", {
+        habit_id: habitId,
+        days_back: 0,
+      });
 
       const { endDate, startDate } = getTrailingDateRangeStrings(
         TODAY_PROGRESS_WINDOW_DAYS,
