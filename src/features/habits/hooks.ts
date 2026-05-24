@@ -38,7 +38,7 @@ import {
   toDeviceDateString,
 } from "@/utils/dates";
 import { todayDateString } from "@/utils/clock";
-import { hashIdentityPhrase } from "@/utils/hash";
+import { goalIdFor } from "@/services/goalIdRegistry";
 import { TODAY_PROGRESS_WINDOW_DAYS } from "@/features/today/constants";
 
 import type {
@@ -570,7 +570,7 @@ export function useDeleteGoalMutation() {
       // hash as goal_id to keep PII out of the warehouse while still
       // letting us segment funnels by goal. See src/utils/hash.ts.
       trackEvent("goal_deleted", {
-        goal_id: hashIdentityPhrase(variables.identityPhrase),
+        goal_id: goalIdFor(variables.identityPhrase),
       });
 
       // Per-habit detail / log / SRHI caches are now stale. Drop them for
@@ -748,7 +748,7 @@ export function useArchiveGoalMutation() {
     onSuccess: async (result, variables) => {
       if (!user?.id) return;
       trackEvent("goal_archived", {
-        goal_id: hashIdentityPhrase(variables.identityPhrase),
+        goal_id: goalIdFor(variables.identityPhrase),
       });
 
       // Surviving-row mutation: every cascaded habit is still in the DB
@@ -795,7 +795,7 @@ export function useRestoreGoalMutation() {
     onSuccess: async (result, variables) => {
       if (!user?.id) return;
       trackEvent("goal_restored", {
-        goal_id: hashIdentityPhrase(variables.identityPhrase),
+        goal_id: goalIdFor(variables.identityPhrase),
       });
 
       for (const habitId of result.restoredHabitIds) {

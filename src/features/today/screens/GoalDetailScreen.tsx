@@ -30,7 +30,7 @@ import { useGoalDetail } from "@/features/today/hooks";
 import { getStreakCopy } from "@/features/today/streakCopy";
 import { useTrialValidation } from "@/features/trial/hooks";
 import { trackEvent } from "@/services/analytics";
-import { hashIdentityPhrase } from "@/utils/hash";
+import { goalIdFor } from "@/services/goalIdRegistry";
 import { colors } from "@/theme/colors";
 import { fontFamilies } from "@/theme/fontFamilies";
 import { SCREEN_TOP_PADDING, spacing } from "@/theme/spacing";
@@ -107,7 +107,7 @@ export default function GoalDetailScreen() {
   useEffect(() => {
     if (!identityPhrase) return;
     trackEvent("goal_detail_viewed", {
-      goal_id: hashIdentityPhrase(identityPhrase),
+      goal_id: goalIdFor(identityPhrase),
     });
   }, [identityPhrase]);
 

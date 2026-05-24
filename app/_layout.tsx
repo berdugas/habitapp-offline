@@ -27,8 +27,8 @@ import { initDb } from "@/lib/db/client";
 import { AppProviders } from "@/providers/AppProviders";
 import { handleForegroundNotification } from "@/features/reminders/notifications";
 import { checkAndTrackVersionUpgrade } from "@/services/appVersionTracking";
+import { goalIdFor, initGoalIdRegistry } from "@/services/goalIdRegistry";
 import { logger } from "@/services/logger";
-import { hashIdentityPhrase } from "@/utils/hash";
 import { ErrorBoundary, initSentry, wrap } from "@/services/sentry";
 import {
   TelemetryProvider,
@@ -43,6 +43,13 @@ import { useAuthSession } from "@/features/auth/hooks";
 // and both no-op in __DEV__ unless extra.telemetryInDev is set.
 initSentry();
 initPostHog();
+
+// Hydrate the persisted goal_id ↔ identityPhrase map BEFORE anything in
+// the UI can trigger a goal mutation. goalIdFor() falls back to a
+// session-only id if init hasn't completed, so the race window only
+// affects the very first launch's pre-init events — see
+// src/services/goalIdRegistry.ts for the merge semantics.
+void initGoalIdRegistry();
 
 // Version-upgrade detection. Best-effort: fires once per launch, awaits
 // internally, and never throws. PostHog client doesn't need to be ready
@@ -110,9 +117,7 @@ function ScreenTracker() {
       // goal_id matches the hash emitted from goal mutations (which
       // hash the raw, in-memory identityPhrase).
       try {
-        props.goal_id = hashIdentityPhrase(
-          decodeURIComponent(params.identityPhrase),
-        );
+        props.goal_id = goalIdFor(decodeURIComponent(params.identityPhrase));
       } catch {
         // Malformed URL encoding — skip the goal_id rather than throw.
       }
