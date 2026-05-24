@@ -326,10 +326,25 @@ export default function GoalReviewScreen() {
   // below to decide whether to fire weekly_review_abandoned.
   const hasCompletedRef = useRef(false);
   const lastStepRef = useRef<typeof currentStep.type | null>(null);
+  // "Real review on screen" guard — mirrors the early-return conditions
+  // below (loading / missing identity / error / no habits). Without it,
+  // the fallback step (`week_overview` while `summary` is null at line
+  // 200) would seed lastStepRef and fire step_viewed before any visible
+  // step renders, inflating both step_viewed counts and the abandoned
+  // cohort on transient loading sessions. Cheap to compute; deliberately
+  // recomputed each render so the refs flip the moment the summary
+  // resolves into a reviewable goal.
+  const isReviewReady =
+    Boolean(identityPhrase) &&
+    firstRunCompletedLoaded &&
+    summary !== null &&
+    summary.habits.length > 0;
   useEffect(() => {
+    if (!isReviewReady) return;
     lastStepRef.current = currentStep.type;
-  }, [currentStep.type]);
+  }, [currentStep.type, isReviewReady]);
   useEffect(() => {
+    if (!isReviewReady) return;
     if (currentStep.type === "tune_up" && tuneUpHabitIdForEffect) {
       trackEvent("weekly_review_tune_up_started", {
         habit_id: tuneUpHabitIdForEffect,
@@ -358,14 +373,16 @@ export default function GoalReviewScreen() {
     // change appliedCount mid-Complete are downstream of the user
     // already landing on Complete and would double-fire if included.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentStep.type, tuneUpHabitIdForEffect]);
+  }, [currentStep.type, tuneUpHabitIdForEffect, isReviewReady]);
 
   // Unmount cleanup: if the user navigates away mid-flow without ever
   // reaching the Complete step, fire weekly_review_abandoned with the
   // last step they were on. Empty deps + cleanup-only fn means this
   // runs exactly once when the screen unmounts. We read from refs (not
   // state) so the cleanup closure sees the latest values, not the
-  // snapshot at mount.
+  // snapshot at mount. lastStepRef stays null until isReviewReady, so
+  // unmounting during loading / error / no-habits correctly skips the
+  // event (the guard `lastStepRef.current === null` returns early).
   useEffect(() => {
     return () => {
       if (hasCompletedRef.current) return;
