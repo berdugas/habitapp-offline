@@ -567,8 +567,14 @@ export function useDeleteGoalMutation() {
     onSuccess: async (result, variables) => {
       if (!user?.id) return;
       // Goals key on identityPhrase (user-typed string); we ship an opaque
-      // hash as goal_id to keep PII out of the warehouse while still
-      // letting us segment funnels by goal. See src/utils/hash.ts.
+      // per-phrase random id as goal_id to keep PII out of the warehouse
+      // while still letting us segment funnels by goal. See
+      // src/services/goalIdRegistry.ts for the registry that maps each
+      // phrase to a stable random id, and the threat-model note there
+      // for what this protects vs. what it doesn't. Goal mutations run
+      // long after registry hydration on real launches, so unlike the
+      // ScreenTracker / GoalDetailScreen call sites we don't need to
+      // gate this on isGoalIdRegistryHydrated().
       trackEvent("goal_deleted", {
         goal_id: goalIdFor(variables.identityPhrase),
       });
