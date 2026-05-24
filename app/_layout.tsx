@@ -1,7 +1,7 @@
 import "@/polyfills";
 import "react-native-gesture-handler";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { Stack, useGlobalSearchParams, usePathname } from "expo-router";
@@ -31,6 +31,7 @@ import {
   goalIdFor,
   initGoalIdRegistry,
   isGoalIdRegistryHydrated,
+  whenGoalIdRegistryHydrated,
 } from "@/services/goalIdRegistry";
 import { logger } from "@/services/logger";
 import { ErrorBoundary, initSentry, wrap } from "@/services/sentry";
@@ -100,37 +101,76 @@ function NotificationHandler() {
 // when either changes. Entity-context keys (habit_id / goal_id) let funnels
 // segment by what the user was actually looking at without reconstructing
 // from subsequent events.
+//
+// Hydration handling: goal_id requires the goalIdRegistry to have read its
+// persisted map from AsyncStorage. On cold-start deep links into a goal
+// route (`/goals/[identityPhrase]`, `/reviews/goal/[identityPhrase]`), the
+// ScreenTracker effect can run before hydration completes. Without
+// reactivity, the event would ship without goal_id and never re-fire.
+// We mirror hydration into React state so the effect re-runs when it
+// flips; we defer (don't emit at all) for goal routes until hydrated, so
+// the first screen event for that route includes goal_id from the start.
 function ScreenTracker() {
   const pathname = usePathname();
   const params = useGlobalSearchParams<{
     habitId?: string;
     identityPhrase?: string;
   }>();
+  // Mirror the registry's hydration status into React state so the effect
+  // below participates in normal reactivity. Initial value covers the
+  // case where hydration completed before this component mounted (warm
+  // navigation between sessions where the runtime is reused).
+  const [hydrated, setHydrated] = useState(isGoalIdRegistryHydrated());
+  useEffect(() => {
+    if (hydrated) return;
+    let cancelled = false;
+    void whenGoalIdRegistryHydrated().then(() => {
+      if (!cancelled) setHydrated(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [hydrated]);
+
+  // Dedupe by signature so the hydration-driven re-run only emits when
+  // it would change the event payload. Without this, scenario "deep-link
+  // to goal route, user navigates away to Today, then hydration flips"
+  // would emit Today's screen event twice (once on navigation, once
+  // when hydrated flips re-running the effect).
+  const lastEmittedSigRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!pathname) return;
+    const hasIdentityPhrase =
+      typeof params.identityPhrase === "string" &&
+      params.identityPhrase.length > 0;
+
+    // Defer goal-route screen events until hydrated so the first event
+    // ships with goal_id. lastEmittedSigRef is intentionally NOT updated
+    // here — when hydration flips, we want the effect to re-enter and
+    // emit. Non-goal routes don't need this wait and emit immediately
+    // with whatever entity context is available.
+    if (hasIdentityPhrase && !hydrated) return;
+
+    // Signature includes whether goal_id resolution succeeded, so the
+    // deferred → hydrated transition is treated as a meaningful change
+    // (different signature → emit). For routes without identityPhrase
+    // the signature is independent of `hydrated`, so the hydration
+    // re-run is a no-op via the equality check below.
+    const signature = `${pathname}|${params.habitId ?? ""}|${params.identityPhrase ?? ""}|${hasIdentityPhrase ? "g" : "n"}`;
+    if (lastEmittedSigRef.current === signature) return;
+    lastEmittedSigRef.current = signature;
+
     const props: Record<string, unknown> = {};
     if (typeof params.habitId === "string" && params.habitId.length > 0) {
       props.habit_id = params.habitId;
     }
-    if (
-      typeof params.identityPhrase === "string" &&
-      params.identityPhrase.length > 0 &&
-      isGoalIdRegistryHydrated()
-    ) {
-      // Gate on hydration so we never ship a session-local id that the
-      // persisted map would override post-hydration. This is the only
-      // event-emitting site that can fire on first render (deep-link
-      // app launches → goal-detail route → ScreenTracker mount), so
-      // it's the realistic site for the pre-hydration race. Goal
-      // mutations triggered by user actions always run well after
-      // hydration completes; they don't need to check.
-      //
+    if (hasIdentityPhrase) {
       // Route params are URL-encoded; decode before lookup so the
       // goal_id matches the one emitted from goal mutations (which
       // pass the raw, in-memory identityPhrase).
       try {
-        props.goal_id = goalIdFor(decodeURIComponent(params.identityPhrase));
+        props.goal_id = goalIdFor(decodeURIComponent(params.identityPhrase!));
       } catch {
         // Malformed URL encoding — skip the goal_id rather than throw.
       }
@@ -139,7 +179,7 @@ function ScreenTracker() {
     // Effect deps are the destructured param values, not the params
     // object itself — useGlobalSearchParams returns a fresh object every
     // render, which would over-fire if used directly as a dep.
-  }, [pathname, params.habitId, params.identityPhrase]);
+  }, [pathname, params.habitId, params.identityPhrase, hydrated]);
 
   return null;
 }
