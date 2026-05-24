@@ -27,7 +27,11 @@ import { initDb } from "@/lib/db/client";
 import { AppProviders } from "@/providers/AppProviders";
 import { handleForegroundNotification } from "@/features/reminders/notifications";
 import { checkAndTrackVersionUpgrade } from "@/services/appVersionTracking";
-import { goalIdFor, initGoalIdRegistry } from "@/services/goalIdRegistry";
+import {
+  goalIdFor,
+  initGoalIdRegistry,
+  isGoalIdRegistryHydrated,
+} from "@/services/goalIdRegistry";
 import { logger } from "@/services/logger";
 import { ErrorBoundary, initSentry, wrap } from "@/services/sentry";
 import {
@@ -111,11 +115,20 @@ function ScreenTracker() {
     }
     if (
       typeof params.identityPhrase === "string" &&
-      params.identityPhrase.length > 0
+      params.identityPhrase.length > 0 &&
+      isGoalIdRegistryHydrated()
     ) {
-      // Route params are URL-encoded; decode before hashing so the
-      // goal_id matches the hash emitted from goal mutations (which
-      // hash the raw, in-memory identityPhrase).
+      // Gate on hydration so we never ship a session-local id that the
+      // persisted map would override post-hydration. This is the only
+      // event-emitting site that can fire on first render (deep-link
+      // app launches → goal-detail route → ScreenTracker mount), so
+      // it's the realistic site for the pre-hydration race. Goal
+      // mutations triggered by user actions always run well after
+      // hydration completes; they don't need to check.
+      //
+      // Route params are URL-encoded; decode before lookup so the
+      // goal_id matches the one emitted from goal mutations (which
+      // pass the raw, in-memory identityPhrase).
       try {
         props.goal_id = goalIdFor(decodeURIComponent(params.identityPhrase));
       } catch {

@@ -32,73 +32,125 @@ const ID_BYTES = 4; // 8 hex chars — same width as the previous hash for
 // downstream funnel consistency; collision probability is still negligible
 // at any realistic per-user goal count.
 
-// Module state: starts as an empty session-local map. After
-// initGoalIdRegistry() resolves, this is merged with any persisted entries.
-// Calls that happen before init resolves return session-local ids that get
-// promoted to persisted ids by init's merge step.
+// Module state — three phases:
+//
+//   1. Pre-init: hydrationPromise is null, hydrated is false. cachedMap is
+//      empty. goalIdFor() works (creates session-local ids) but persistMap
+//      is suppressed because we haven't read storage yet — writing now
+//      would clobber any persisted ids from prior sessions.
+//   2. Hydrating: initGoalIdRegistry() has been called, AsyncStorage.getItem
+//      is in flight. hydrationPromise is non-null, hydrated is still false.
+//      Same semantics as pre-init: persistMap is suppressed.
+//   3. Hydrated: storage read resolved, merge step ran, cachedMap reflects
+//      stored ∪ session-local. hydrated flips true. persistMap is unblocked.
+//
+// hydrationPromise is exposed via whenGoalIdRegistryHydrated() so callers
+// that care about cross-session id consistency (notably ScreenTracker on
+// deep-link launches) can wait for phase 3 before reading goalIdFor.
 let cachedMap: Record<string, string> = {};
-let initialized = false;
+let hydrated = false;
+let hydrationPromise: Promise<void> | null = null;
 
 /**
  * Load any persisted phrase→id mapping from AsyncStorage and merge it
- * into the in-memory map. Idempotent; subsequent calls are a no-op.
- * Best-effort: storage failures leave the in-memory map intact (degraded
- * mode: ids persist for the session but not across launches).
+ * into the in-memory map. Idempotent; subsequent calls return the same
+ * Promise resolved by the first. Best-effort: storage failures leave the
+ * in-memory map intact (degraded mode: ids persist within the session
+ * only). Storage failures still mark the registry hydrated so subsequent
+ * goalIdFor calls can persist their writes locally (they may fail too,
+ * but that's harmless — the in-memory map remains the source of truth
+ * within the session).
  *
- * Call this once at app launch alongside initSentry / initPostHog. The
- * race window between launch and the first goalIdFor() call is the only
- * window where a session-local id could differ from a previously stored
- * one for the same phrase — in practice that window is sub-100ms and
- * occurs before any UI that would trigger a goal mutation.
+ * Call this once at app launch alongside initSentry / initPostHog.
  */
-export async function initGoalIdRegistry(): Promise<void> {
-  if (initialized) return;
-  initialized = true;
-  try {
-    const json = await AsyncStorage.getItem(STORAGE_KEY);
-    const stored: Record<string, string> = json
-      ? (JSON.parse(json) as Record<string, string>)
-      : {};
-    const sessionLocalCount = Object.keys(cachedMap).length;
-    // Stored values win over session-local values (a stored id was
-    // already shipped to PostHog in a prior session, so it's the
-    // authoritative one). New session-local entries — phrases first
-    // seen this session before init resolved — survive the merge and
-    // get persisted alongside the stored entries.
-    const merged: Record<string, string> = { ...cachedMap };
-    for (const [phrase, id] of Object.entries(stored)) {
-      if (typeof id === "string" && id.length > 0) {
-        merged[phrase] = id;
+export function initGoalIdRegistry(): Promise<void> {
+  if (hydrationPromise) return hydrationPromise;
+  hydrationPromise = (async () => {
+    try {
+      const json = await AsyncStorage.getItem(STORAGE_KEY);
+      const stored: Record<string, string> = json
+        ? (JSON.parse(json) as Record<string, string>)
+        : {};
+      const sessionLocalCount = Object.keys(cachedMap).length;
+      // Stored values win over session-local values (a stored id was
+      // already shipped to PostHog in a prior session, so it's the
+      // authoritative one). New session-local entries — phrases first
+      // seen this session before init resolved — survive the merge and
+      // get persisted alongside the stored entries.
+      const merged: Record<string, string> = { ...cachedMap };
+      for (const [phrase, id] of Object.entries(stored)) {
+        if (typeof id === "string" && id.length > 0) {
+          merged[phrase] = id;
+        }
       }
+      cachedMap = merged;
+      // Mark hydrated BEFORE calling persistMap so the inner persistMap
+      // (and any concurrent goalIdFor that races with this microtask)
+      // sees the post-merge map and the unblocked persist gate.
+      hydrated = true;
+      if (sessionLocalCount > 0) {
+        void persistMap();
+      }
+    } catch {
+      // Storage failure: stay in session-only mode. We deliberately don't
+      // log here — logger.error forwards to trackEvent("app_error") which
+      // could call goalIdFor through some other code path, creating a
+      // cycle. Mark hydrated anyway so future writes aren't stuck — they
+      // won't persist successfully, but blocking them forever would be
+      // worse (the in-memory map is still useful within the session).
+      hydrated = true;
     }
-    cachedMap = merged;
-    // Persist whenever pre-init session entries existed — they need to
-    // survive future launches. Empty storage + empty session means
-    // there's nothing to persist; no write needed.
-    if (sessionLocalCount > 0) {
-      void persistMap();
-    }
-  } catch {
-    // Storage failure: stay in session-only mode. We deliberately don't
-    // log here — logger.error forwards to trackEvent("app_error") which
-    // could call goalIdFor through some other code path, creating a
-    // cycle. Acceptable degraded mode: ids persist within the session.
-  }
+  })();
+  return hydrationPromise;
 }
 
 /**
- * Return the stable random id for this phrase. Creates and persists a
- * new id on first encounter; otherwise returns the cached value. Always
+ * Returns true once initGoalIdRegistry() has finished reading
+ * AsyncStorage and the in-memory map reflects the persisted state.
+ * Callers that care about cross-session id consistency (e.g. event
+ * emitters that fire on first-render before user interaction) should
+ * gate their goal_id inclusion on this. Goal mutations triggered by
+ * user actions don't need to check — by the time the user navigates
+ * to mutate, the storage read has long since resolved.
+ */
+export function isGoalIdRegistryHydrated(): boolean {
+  return hydrated;
+}
+
+/**
+ * Returns a Promise that resolves when initGoalIdRegistry()'s storage
+ * read completes (or fails into degraded mode). Resolves immediately
+ * if already hydrated, or to Promise.resolve() if init was never
+ * called (so awaiters don't deadlock when used in tests or in code
+ * paths where init hasn't been wired up).
+ */
+export function whenGoalIdRegistryHydrated(): Promise<void> {
+  return hydrationPromise ?? Promise.resolve();
+}
+
+/**
+ * Return the stable random id for this phrase. Creates a new id on
+ * first encounter; otherwise returns the cached value. Always
  * synchronous — call sites in goal mutations and screen-view trackers
  * don't need to await anything.
+ *
+ * Pre-hydration calls produce session-local ids that may differ from
+ * ids stored in a prior session. Once hydration completes, the merge
+ * step ensures stored ids win over those session-local entries for
+ * subsequent calls — but events that already shipped with a session
+ * id stay inconsistent in PostHog. Call sites for which cross-session
+ * consistency matters should gate on isGoalIdRegistryHydrated() or
+ * await whenGoalIdRegistryHydrated() before reading.
  */
 export function goalIdFor(phrase: string): string {
   if (phrase in cachedMap) return cachedMap[phrase];
   const id = generateRandomHex(ID_BYTES);
   cachedMap[phrase] = id;
-  // Only persist after init has run — pre-init writes will be persisted
-  // wholesale by initGoalIdRegistry()'s merge step.
-  if (initialized) void persistMap();
+  // CRITICAL: only persist after hydration. Persisting pre-hydration
+  // would write a single-entry map and clobber any previously-stored
+  // ids that the in-flight AsyncStorage.getItem hasn't returned yet.
+  // Pre-hydration writes get persisted wholesale by the merge step.
+  if (hydrated) void persistMap();
   return id;
 }
 
@@ -128,5 +180,6 @@ function generateRandomHex(bytes: number): string {
 // a code path that emits goal_id, then assert "deadbeef" in the event).
 export function __resetForTests(seed: Record<string, string> = {}): void {
   cachedMap = { ...seed };
-  initialized = false;
+  hydrated = false;
+  hydrationPromise = null;
 }

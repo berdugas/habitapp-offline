@@ -8,6 +8,8 @@ import {
   __resetForTests,
   goalIdFor,
   initGoalIdRegistry,
+  isGoalIdRegistryHydrated,
+  whenGoalIdRegistryHydrated,
 } from "@/services/goalIdRegistry";
 
 const STORAGE_KEY = "analytics:goalIdMap";
@@ -114,5 +116,72 @@ describe("initGoalIdRegistry merge + persistence", () => {
     );
     await initGoalIdRegistry();
     expect(goalIdFor("a")).toBe("11111111");
+  });
+});
+
+describe("hydration race safety", () => {
+  it("pre-hydration goalIdFor writes do not clobber stored data when init is in flight", async () => {
+    // Pre-existing persisted state.
+    await AsyncStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({ "phrase A": "stored1" }),
+    );
+
+    // Kick off init but do NOT await — this opens the race window:
+    // hydrationPromise is set, hydrated is still false, AsyncStorage
+    // .getItem is in flight. Pre-fix, the registry flipped its
+    // `initialized` flag synchronously so persistMap was unblocked,
+    // and the next goalIdFor call would persist a single-entry map
+    // that erased "phrase A". Post-fix, persistMap is gated on the
+    // separate `hydrated` flag and stays suppressed until merge runs.
+    const initPromise = initGoalIdRegistry();
+    expect(isGoalIdRegistryHydrated()).toBe(false);
+
+    // Synchronous goalIdFor for a new phrase during the race window.
+    const phraseBId = goalIdFor("phrase B");
+    expect(phraseBId).toMatch(/^[0-9a-f]{8}$/);
+
+    // Allow hydration to complete. The merge step preserves the
+    // stored entry AND the session-local one.
+    await initPromise;
+    expect(isGoalIdRegistryHydrated()).toBe(true);
+
+    const stored = await AsyncStorage.getItem(STORAGE_KEY);
+    expect(stored).not.toBeNull();
+    const parsed = JSON.parse(stored!) as Record<string, string>;
+    expect(parsed["phrase A"]).toBe("stored1");
+    expect(parsed["phrase B"]).toBe(phraseBId);
+  });
+
+  it("isGoalIdRegistryHydrated is false before init, false during, true after", async () => {
+    expect(isGoalIdRegistryHydrated()).toBe(false);
+    const initPromise = initGoalIdRegistry();
+    expect(isGoalIdRegistryHydrated()).toBe(false);
+    await initPromise;
+    expect(isGoalIdRegistryHydrated()).toBe(true);
+  });
+
+  it("whenGoalIdRegistryHydrated resolves to the init promise once init has started", async () => {
+    const initPromise = initGoalIdRegistry();
+    const waitPromise = whenGoalIdRegistryHydrated();
+    // Both await the same hydration; resolution must precede observing
+    // hydrated=true (the init promise sets the flag inside its own
+    // microtask before resolving, so awaiting waitPromise should be
+    // observably equivalent).
+    await waitPromise;
+    expect(isGoalIdRegistryHydrated()).toBe(true);
+    await initPromise; // already resolved; harmless
+  });
+
+  it("whenGoalIdRegistryHydrated resolves immediately when init was never called", async () => {
+    // Tests / callers that haven't wired init shouldn't deadlock.
+    await whenGoalIdRegistryHydrated();
+    expect(isGoalIdRegistryHydrated()).toBe(false);
+  });
+
+  it("init is still idempotent after the Promise-based refactor", async () => {
+    const first = initGoalIdRegistry();
+    const second = initGoalIdRegistry();
+    expect(first).toBe(second);
   });
 });
