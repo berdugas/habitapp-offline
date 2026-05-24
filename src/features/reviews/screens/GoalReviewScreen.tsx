@@ -326,19 +326,26 @@ export default function GoalReviewScreen() {
   // below to decide whether to fire weekly_review_abandoned.
   const hasCompletedRef = useRef(false);
   const lastStepRef = useRef<typeof currentStep.type | null>(null);
-  // "Real review on screen" guard — mirrors the early-return conditions
-  // below (loading / missing identity / error / no habits). Without it,
+  // "Real review on screen" guard — mirrors the LoadingState /
+  // ErrorState / no-habits early-return conditions below. Without it,
   // the fallback step (`week_overview` while `summary` is null at line
   // 200) would seed lastStepRef and fire step_viewed before any visible
   // step renders, inflating both step_viewed counts and the abandoned
   // cohort on transient loading sessions. Cheap to compute; deliberately
-  // recomputed each render so the refs flip the moment the summary
-  // resolves into a reviewable goal.
+  // recomputed each render so the refs flip the moment all loads
+  // complete and a reviewable goal is on screen.
+  //
+  // IMPORTANT: include the persisted-reviews preload condition that the
+  // render path uses (line ~683). Summary can resolve before
+  // persistedReviewsQuery does; without this check, the screen still
+  // shows LoadingState but isReviewReady would flip true and start
+  // emitting step events for an invisible step.
   const isReviewReady =
     Boolean(identityPhrase) &&
     firstRunCompletedLoaded &&
     summary !== null &&
-    summary.habits.length > 0;
+    summary.habits.length > 0 &&
+    !(summaryHabitIds.length > 0 && persistedReviewsQuery.isLoading);
   useEffect(() => {
     if (!isReviewReady) return;
     lastStepRef.current = currentStep.type;
