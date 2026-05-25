@@ -1,8 +1,33 @@
 import Constants from "expo-constants";
-import * as Sentry from "@sentry/react-native";
+import React from "react";
 import type { Breadcrumb, ErrorEvent, SeverityLevel } from "@sentry/react-native";
 
 import { redact } from "@/services/telemetryRedact";
+
+// Gate: in Expo Go (iOS beta path), the native RNSentry module does not exist,
+// so importing @sentry/react-native at the top level would crash the bundle.
+// Detect Expo Go via expo-constants's executionEnvironment and substitute a
+// no-op stub. The outer `as typeof import(...)` assertion preserves type
+// safety at call sites — require() alone would return any.
+const isExpoGo = Constants.executionEnvironment === "storeClient";
+
+function makeSentryStub(): unknown {
+  const noop = () => {};
+  return {
+    init: noop,
+    wrap: <T,>(Component: T): T => Component,
+    ErrorBoundary: ({ children }: { children?: React.ReactNode }) =>
+      React.createElement(React.Fragment, null, children),
+    captureException: noop,
+    captureMessage: noop,
+    addBreadcrumb: noop,
+    setUser: noop,
+  };
+}
+
+const Sentry = (isExpoGo
+  ? makeSentryStub()
+  : require("@sentry/react-native")) as typeof import("@sentry/react-native");
 
 // Re-export the wrap HOC and ErrorBoundary so app entry can import via this
 // module — keeps the SDK choice + version concerns localized here.
