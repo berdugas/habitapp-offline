@@ -56,6 +56,6 @@ const styles = StyleSheet.create({
     flex: 1,
     fontFamily: fontFamilies.body,
     fontSize: typography.bodyMd,
-    lineHeight: 20,
+    lineHeight: 18.6,
   },
 });

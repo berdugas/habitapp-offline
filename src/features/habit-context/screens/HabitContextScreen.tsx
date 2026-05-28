@@ -4,6 +4,7 @@ import { useLocalSearchParams } from "expo-router";
 import { EmptyState } from "@/components/feedback/EmptyState";
 import { colors } from "@/theme/colors";
 import { spacing } from "@/theme/spacing";
+import { typography } from "@/theme/typography";
 
 export default function HabitContextScreen() {
   const { habitId } = useLocalSearchParams<{ habitId: string }>();
@@ -36,7 +37,7 @@ const styles = StyleSheet.create({
   },
   title: {
     color: colors.text,
-    fontSize: 28,
+    fontSize: typography.headlineLg,
     fontWeight: "800",
   },
 });

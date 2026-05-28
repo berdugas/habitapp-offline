@@ -59,7 +59,7 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     fontFamily: fontFamilies.body,
     fontSize: typography.bodyMd,
-    lineHeight: 20,
+    lineHeight: 18.6,
   },
   container: {
     gap: spacing.sm,
@@ -69,6 +69,6 @@ const styles = StyleSheet.create({
     fontFamily: fontFamilies.displayBold,
     fontSize: typography.headlineMd,
     letterSpacing: -0.2,
-    lineHeight: 30,
+    lineHeight: 27.3,
   },
 });

@@ -102,7 +102,7 @@ export function GoalContainer({
         {consistencyRate !== null ? (
           <View style={styles.donutColumn}>
             <ConsistencyDonut
-              label="Goal consistency"
+              label="Consistency"
               onPress={onGoalPress}
               rate={consistencyRate}
               showAttentionDot={reviewDue && !reviewStatusError}
@@ -184,7 +184,7 @@ const styles = StyleSheet.create({
   addHabitText: {
     color: colors.textMuted,
     fontFamily: fontFamilies.body,
-    fontSize: 14,
+    fontSize: typography.bodyMd,
   },
   pill: {
     alignSelf: "flex-start",

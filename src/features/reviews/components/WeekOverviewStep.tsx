@@ -153,7 +153,7 @@ const styles = StyleSheet.create({
     fontFamily: fontFamilies.body,
     fontSize: typography.bodyMd,
     fontStyle: "italic",
-    lineHeight: 22,
+    lineHeight: 20.4,
   },
   container: {
     gap: spacing.lg,
@@ -186,7 +186,7 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     fontFamily: fontFamilies.body,
     fontSize: typography.bodyLg,
-    lineHeight: 24,
+    lineHeight: 21,
   },
   intro: {
     gap: spacing.sm,

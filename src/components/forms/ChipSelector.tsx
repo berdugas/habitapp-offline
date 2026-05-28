@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { colors } from '@/theme/colors';
 import { fontFamilies } from '@/theme/fontFamilies';
 import { radius } from '@/theme/radius';
+import { typography } from '@/theme/typography';
 
 type ChipSelectorProps = {
   options: string[];
@@ -57,7 +58,7 @@ const styles = StyleSheet.create({
     opacity: 0.8,
   },
   chipText: {
-    fontSize: 14,
+    fontSize: typography.bodyMd,
     fontFamily: fontFamilies.body,
   },
   chipTextDefault: {

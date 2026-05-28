@@ -229,7 +229,7 @@ const styles = StyleSheet.create({
     color: colors.textFaint,
     fontFamily: fontFamilies.body,
     fontSize: typography.bodyMd - 2,
-    lineHeight: 16,
+    lineHeight: 14.9,
   },
   formulaTextSkipped: {
     color: colors.primary,

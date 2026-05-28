@@ -12,6 +12,7 @@ import type { OnboardingDraft } from "@/features/onboarding/types";
 import { colors } from "@/theme/colors";
 import { fontFamilies } from "@/theme/fontFamilies";
 import { spacing } from "@/theme/spacing";
+import { typography } from "@/theme/typography";
 
 export default function DailyActionScreen() {
   const { draft, update } = useOnboarding();
@@ -109,7 +110,7 @@ const styles = StyleSheet.create({
   },
   sectionLabel: {
     fontFamily: fontFamilies.bodyMedium,
-    fontSize: 13,
+    fontSize: typography.labelMd,
     color: colors.textMuted,
     marginBottom: spacing.sm,
   },

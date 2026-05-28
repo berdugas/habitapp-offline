@@ -2,6 +2,7 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import { colors } from '@/theme/colors';
 import { fontFamilies } from '@/theme/fontFamilies';
+import { typography } from '@/theme/typography';
 
 type GuidanceExampleProps = {
   context?: string;
@@ -100,22 +101,22 @@ const styles = StyleSheet.create({
     color: colors.primary,
   },
   arrow: {
-    fontSize: 13,
+    fontSize: typography.labelMd,
     color: colors.textFaint,
     fontFamily: fontFamilies.body,
   },
   beforeText: {
-    fontSize: 14,
+    fontSize: typography.bodyMd,
     fontFamily: fontFamilies.body,
     color: colors.textFaint,
   },
   goodText: {
-    fontSize: 14,
+    fontSize: typography.bodyMd,
     fontFamily: fontFamilies.body,
     color: colors.text,
   },
   badText: {
-    fontSize: 14,
+    fontSize: typography.bodyMd,
     fontFamily: fontFamilies.body,
     color: colors.textFaint,
   },

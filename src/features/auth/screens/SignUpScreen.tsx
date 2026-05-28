@@ -12,6 +12,7 @@ import { colors } from "@/theme/colors";
 import { fontFamilies } from "@/theme/fontFamilies";
 import { radius } from "@/theme/radius";
 import { spacing } from "@/theme/spacing";
+import { typography } from "@/theme/typography";
 import { isBlank, isLikelyEmail } from "@/utils/validation";
 import {
   getSignUpErrorMessage,
@@ -171,7 +172,7 @@ const styles = StyleSheet.create({
   },
   error: {
     fontFamily: fontFamilies.body,
-    fontSize: 14,
+    fontSize: typography.bodyMd,
     color: colors.danger,
   },
   signInLink: {
@@ -180,7 +181,7 @@ const styles = StyleSheet.create({
   },
   signInText: {
     fontFamily: fontFamilies.bodySemi,
-    fontSize: 14,
+    fontSize: typography.bodyMd,
     color: colors.primary,
   },
 });

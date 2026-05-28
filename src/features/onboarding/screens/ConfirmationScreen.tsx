@@ -12,6 +12,7 @@ import { fontFamilies } from "@/theme/fontFamilies";
 import { radius } from "@/theme/radius";
 import { shadows } from "@/theme/shadows";
 import { spacing } from "@/theme/spacing";
+import { typography } from "@/theme/typography";
 
 function getFinalizeErrorMessage(error: unknown): string {
   if (error instanceof OnboardingFinalizationError) {
@@ -150,7 +151,7 @@ const styles = StyleSheet.create({
   },
   habitNameHint: {
     fontFamily: fontFamilies.body,
-    fontSize: 11,
+    fontSize: typography.micro,
     color: colors.textFaint,
     marginBottom: 1,
   },
@@ -186,12 +187,12 @@ const styles = StyleSheet.create({
   },
   goalText: {
     fontFamily: fontFamilies.bodySemi,
-    fontSize: 13,
+    fontSize: typography.labelMd,
     color: colors.primary,
   },
   error: {
     fontFamily: fontFamilies.body,
-    fontSize: 14,
+    fontSize: typography.bodyMd,
     color: colors.danger,
     textAlign: "center",
     marginBottom: spacing.md,

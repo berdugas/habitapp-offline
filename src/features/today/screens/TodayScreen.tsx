@@ -374,7 +374,7 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     fontFamily: fontFamilies.body,
     fontSize: typography.bodyLg,
-    lineHeight: 24,
+    lineHeight: 21.0,
   },
   emptyCenterWrap: {
     flex: 1,
@@ -396,7 +396,7 @@ const styles = StyleSheet.create({
   appName: {
     color: colors.primary,
     fontFamily: fontFamilies.bodySemi,
-    fontSize: 13,
+    fontSize: typography.labelMd,
     letterSpacing: 1.5,
     textTransform: "uppercase",
   },
@@ -427,6 +427,6 @@ const styles = StyleSheet.create({
   newGoalText: {
     color: colors.textMuted,
     fontFamily: fontFamilies.body,
-    fontSize: 14,
+    fontSize: typography.bodyMd,
   },
 });

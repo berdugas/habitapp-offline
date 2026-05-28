@@ -22,6 +22,7 @@ import { colors } from "@/theme/colors";
 import { fontFamilies } from "@/theme/fontFamilies";
 import { radius } from "@/theme/radius";
 import { spacing } from "@/theme/spacing";
+import { typography } from "@/theme/typography";
 
 function hhmmToDate(hhmm: string): Date {
   const [h, m] = hhmm.split(":").map(Number);
@@ -189,7 +190,7 @@ const styles = StyleSheet.create({
   },
   sectionLabel: {
     fontFamily: fontFamilies.bodyMedium,
-    fontSize: 13,
+    fontSize: typography.labelMd,
     color: colors.textMuted,
     marginBottom: spacing.sm,
   },
@@ -263,12 +264,12 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     fontFamily: fontFamilies.displaySemi,
-    fontSize: 16,
+    fontSize: typography.bodyLg,
     color: colors.text,
   },
   modalDone: {
     fontFamily: fontFamilies.bodySemi,
-    fontSize: 16,
+    fontSize: typography.bodyLg,
     color: colors.primary,
   },
   iosPicker: {

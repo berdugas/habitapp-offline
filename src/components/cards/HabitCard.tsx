@@ -6,6 +6,7 @@ import { colors } from "@/theme/colors";
 import { radius } from "@/theme/radius";
 import { shadows } from "@/theme/shadows";
 import { spacing } from "@/theme/spacing";
+import { typography } from "@/theme/typography";
 
 type HabitCardProps = {
   children?: ReactNode;
@@ -84,12 +85,12 @@ const styles = StyleSheet.create({
   },
   metaText: {
     color: colors.primary,
-    fontSize: 13,
+    fontSize: typography.labelMd,
     fontWeight: "600",
   },
   name: {
     color: colors.text,
-    fontSize: 20,
+    fontSize: typography.titleLg,
     fontWeight: "700",
   },
 });

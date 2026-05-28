@@ -5,6 +5,7 @@ import { colors } from "@/theme/colors";
 import { fontFamilies } from "@/theme/fontFamilies";
 import { radius } from "@/theme/radius";
 import { spacing } from "@/theme/spacing";
+import { typography } from "@/theme/typography";
 
 type GoalContextChipProps = {
   identityPhrase: string;
@@ -36,7 +37,7 @@ const styles = StyleSheet.create({
   },
   text: {
     fontFamily: fontFamilies.body,
-    fontSize: 13,
+    fontSize: typography.labelMd,
     color: colors.primary,
   },
   bold: {

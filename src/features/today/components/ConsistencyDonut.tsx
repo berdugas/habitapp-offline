@@ -22,7 +22,7 @@ type ConsistencyDonutProps = {
 };
 
 export function ConsistencyDonut({
-  label = "Consistency",
+  label = "Goal consistency",
   onPress,
   rate,
   showAttentionDot = false,
@@ -117,7 +117,7 @@ export function ConsistencyDonut({
         ) : null}
       </View>
       {label !== "" ? (
-        <Text style={styles.captionText}>{label}</Text>
+        <Text numberOfLines={1} style={styles.captionText}>{label}</Text>
       ) : null}
     </View>
   );
@@ -150,7 +150,7 @@ const styles = StyleSheet.create({
   captionText: {
     color: colors.textFaint,
     fontFamily: fontFamilies.body,
-    fontSize: typography.micro,
+    fontSize: 10,
     marginTop: 2,
     textAlign: "center",
   },

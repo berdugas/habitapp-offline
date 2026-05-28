@@ -7,6 +7,7 @@ import { colors } from "@/theme/colors";
 import { fontFamilies } from "@/theme/fontFamilies";
 import { radius } from "@/theme/radius";
 import { spacing } from "@/theme/spacing";
+import { typography } from "@/theme/typography";
 
 function format12h(time: string): string {
   const [h, m] = time.split(":").map(Number);
@@ -102,7 +103,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   label: {
-    fontSize: 13,
+    fontSize: typography.labelMd,
     fontFamily: fontFamilies.bodyMedium,
     color: colors.textMuted,
     paddingLeft: 4,

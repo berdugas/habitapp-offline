@@ -13,6 +13,7 @@ import { colors } from "@/theme/colors";
 import { fontFamilies } from "@/theme/fontFamilies";
 import { radius } from "@/theme/radius";
 import { spacing } from "@/theme/spacing";
+import { typography } from "@/theme/typography";
 import { isBlank, isLikelyEmail } from "@/utils/validation";
 import {
   getSignInErrorMessage,
@@ -143,7 +144,7 @@ const styles = StyleSheet.create({
   },
   brandName: {
     fontFamily: fontFamilies.displaySemi,
-    fontSize: 13,
+    fontSize: typography.labelMd,
     color: colors.primary,
     letterSpacing: 0.84,
     textTransform: "uppercase",
@@ -172,7 +173,7 @@ const styles = StyleSheet.create({
   },
   error: {
     fontFamily: fontFamilies.body,
-    fontSize: 14,
+    fontSize: typography.bodyMd,
     color: colors.danger,
   },
   fieldWrapper: {
@@ -180,7 +181,7 @@ const styles = StyleSheet.create({
   },
   fieldLabel: {
     fontFamily: fontFamilies.bodyMedium,
-    fontSize: 13,
+    fontSize: typography.labelMd,
     color: colors.textMuted,
   },
   passwordRow: {
@@ -205,7 +206,7 @@ const styles = StyleSheet.create({
   },
   forgotText: {
     fontFamily: fontFamilies.bodyMedium,
-    fontSize: 13,
+    fontSize: typography.labelMd,
     color: colors.primary,
   },
   createLink: {
@@ -214,7 +215,7 @@ const styles = StyleSheet.create({
   },
   createLinkText: {
     fontFamily: fontFamilies.bodySemi,
-    fontSize: 14,
+    fontSize: typography.bodyMd,
     color: colors.primary,
   },
 });

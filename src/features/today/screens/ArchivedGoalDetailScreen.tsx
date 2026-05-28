@@ -369,8 +369,8 @@ const styles = StyleSheet.create({
   bodyText: {
     color: colors.textMuted,
     fontFamily: fontFamilies.body,
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: typography.bodyMd,
+    lineHeight: 18.6,
   },
   restoreCard: {
     backgroundColor: colors.surfaceMuted,

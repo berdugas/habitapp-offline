@@ -10,6 +10,7 @@ import { useOnboarding } from "@/features/onboarding/OnboardingProvider";
 import { normaliseBecomingPhrase } from "@/utils/normalisePhrase";
 import { colors } from "@/theme/colors";
 import { fontFamilies } from "@/theme/fontFamilies";
+import { typography } from "@/theme/typography";
 
 const CHIP_OPTIONS = [
   "a runner",
@@ -84,8 +85,8 @@ export default function BecomingScreen() {
 const styles = StyleSheet.create({
   eyebrow: {
     fontFamily: fontFamilies.bodyMedium,
-    fontSize: 14,
-    lineHeight: 21,
+    fontSize: typography.bodyMd,
+    lineHeight: 19.5,
     color: colors.primary,
     marginBottom: 8,
   },
@@ -98,7 +99,7 @@ const styles = StyleSheet.create({
   },
   chipsLabel: {
     fontFamily: fontFamilies.bodyMedium,
-    fontSize: 13,
+    fontSize: typography.labelMd,
     color: colors.textFaint,
     marginTop: 20,
     marginBottom: 10,

@@ -307,8 +307,8 @@ const styles = StyleSheet.create({
   bodyText: {
     color: colors.textMuted,
     fontFamily: fontFamilies.body,
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: typography.bodyMd,
+    lineHeight: 18.6,
   },
   cardContainer: {
     gap: spacing.sm,
@@ -320,7 +320,7 @@ const styles = StyleSheet.create({
   goalLabel: {
     color: colors.textFaint,
     fontFamily: fontFamilies.bodySemi,
-    fontSize: 13,
+    fontSize: typography.labelMd,
     letterSpacing: 0.5,
   },
   header: {

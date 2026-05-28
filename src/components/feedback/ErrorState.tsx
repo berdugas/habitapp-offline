@@ -3,6 +3,7 @@ import { StyleSheet, Text, View } from "react-native";
 import { colors } from "@/theme/colors";
 import { radius } from "@/theme/radius";
 import { spacing } from "@/theme/spacing";
+import { typography } from "@/theme/typography";
 
 type ErrorStateProps = {
   message: string;
@@ -32,12 +33,12 @@ const styles = StyleSheet.create({
   },
   label: {
     color: colors.danger,
-    fontSize: 16,
+    fontSize: typography.bodyLg,
     fontWeight: "700",
   },
   message: {
     color: colors.text,
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: typography.bodyMd,
+    lineHeight: 18.6,
   },
 });

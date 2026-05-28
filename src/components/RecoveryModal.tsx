@@ -107,7 +107,7 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     fontFamily: fontFamilies.body,
     fontSize: typography.bodyMd,
-    lineHeight: 18,
+    lineHeight: 16.7,
   },
   actionLabel: {
     color: colors.text,
@@ -127,7 +127,7 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontFamily: fontFamilies.body,
     fontSize: typography.bodyLg,
-    lineHeight: 24,
+    lineHeight: 21,
   },
   eyebrow: {
     color: colors.textMuted,

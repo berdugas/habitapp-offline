@@ -2,6 +2,7 @@ import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 
 import { colors } from "@/theme/colors";
 import { spacing } from "@/theme/spacing";
+import { typography } from "@/theme/typography";
 
 type LoadingStateProps = {
   message?: string;
@@ -30,7 +31,7 @@ const styles = StyleSheet.create({
   },
   message: {
     color: colors.textMuted,
-    fontSize: 16,
+    fontSize: typography.bodyLg,
     textAlign: "center",
   },
 });
