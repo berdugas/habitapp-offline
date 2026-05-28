@@ -1,8 +1,10 @@
 import { useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { router } from "expo-router";
-import { ChevronRight } from "lucide-react-native";
+import { ChevronRight, ExternalLink } from "lucide-react-native";
 import Constants from "expo-constants";
+
+const PRIVACY_POLICY_URL = "https://berdugas.github.io/habitapp-legal/";
 
 import { TertiaryButton } from "@/components/buttons/TertiaryButton";
 import { RowLV } from "@/components/cards/RowLV";
@@ -51,6 +53,11 @@ export default function SettingsScreen() {
     router.push("/(app)/settings/export");
   }
 
+  function handlePrivacyPolicyPressed() {
+    trackEvent("settings_privacy_policy_opened");
+    void Linking.openURL(PRIVACY_POLICY_URL);
+  }
+
   return (
     <ScrollView
       contentContainerStyle={styles.content}
@@ -95,7 +102,14 @@ export default function SettingsScreen() {
       <ZenCard>
         <Eyebrow label="About" />
         <RowLV label="Version" value={appVersion} />
-        <RowLV label="Privacy Policy" value="Coming soon" />
+        <Pressable
+          accessibilityRole="button"
+          onPress={handlePrivacyPolicyPressed}
+          style={styles.row}
+        >
+          <Text style={styles.rowLabel}>Privacy Policy</Text>
+          <ExternalLink color={colors.textFaint} size={18} strokeWidth={1.75} />
+        </Pressable>
         <RowLV label="Terms of Service" value="Coming soon" />
       </ZenCard>
 
