@@ -18,6 +18,7 @@ import React from "react";
 import TodayScreen from "@/features/today/screens/TodayScreen";
 import { closeDb, initDb } from "@/lib/db/client";
 import { createHabit } from "@/lib/db/repositories/habits";
+import { upsertReminder } from "@/lib/db/repositories/reminders";
 import { resetClockForTesting, setNowForTesting } from "@/utils/clock";
 
 jest.mock("expo-router", () => ({
@@ -32,7 +33,22 @@ function renderWithClient(ui: React.ReactElement) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
-  return render(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
+  const result = render(
+    <QueryClientProvider client={client}>{ui}</QueryClientProvider>,
+  );
+  return { ...result, client };
+}
+
+function getGoalOrder(): string[] {
+  // GoalContainer renders "Become {identityPhrase}" as the first child of a
+  // Text element. Extract the identityPhrase strings in render order.
+  return screen
+    .getAllByText(/^Become /)
+    .map((node) => {
+      const children = node.props.children as React.ReactNode[];
+      // children = ["Become ", identityPhrase, optionalGraduatedSuffix]
+      return typeof children[1] === "string" ? children[1] : "";
+    });
 }
 
 describe("TodayScreen integration — log round-trip", () => {
@@ -175,5 +191,271 @@ describe("TodayScreen integration — goalGraduated over full active set", () =>
     });
 
     expect(screen.getByText("(Graduated)")).toBeTruthy();
+  });
+});
+
+describe("TodayScreen integration — action-first ordering", () => {
+  beforeEach(async () => {
+    setNowForTesting(new Date("2026-04-30T10:00:00.000Z"));
+    await initDb();
+  });
+
+  afterEach(async () => {
+    await closeDb();
+    resetClockForTesting();
+  });
+
+  it("sorts active goals by earliest reminder time ascending", async () => {
+    const evening = await createHabit({
+      user_id: "user-1",
+      title: "Evening Stretch",
+      identity_phrase: "an evening person",
+      cue: "after dinner",
+      tiny_action: "stretch 2 min",
+      minimum_viable_action: null,
+      preferred_time_window: null,
+      start_date: "2026-04-01",
+      habit_state: "active",
+      status: "active",
+    });
+    const morning = await createHabit({
+      user_id: "user-1",
+      title: "Morning Run",
+      identity_phrase: "a runner",
+      cue: "morning coffee",
+      tiny_action: "run 2 min",
+      minimum_viable_action: null,
+      preferred_time_window: null,
+      start_date: "2026-04-01",
+      habit_state: "active",
+      status: "active",
+    });
+    await upsertReminder({
+      habit_id: evening.id,
+      reminder_type: "daily",
+      reminder_time: "20:00",
+      notification_ids: "[]",
+    });
+    await upsertReminder({
+      habit_id: morning.id,
+      reminder_type: "daily",
+      reminder_time: "07:00",
+      notification_ids: "[]",
+    });
+
+    renderWithClient(<TodayScreen />);
+
+    await waitFor(() => {
+      expect(screen.getByLabelText("Log Morning Run")).toBeTruthy();
+      expect(screen.getByLabelText("Log Evening Stretch")).toBeTruthy();
+    });
+
+    expect(getGoalOrder()).toEqual(["a runner", "an evening person"]);
+  });
+
+  it("moves a goal to the done zone when its last action-needed habit is logged", async () => {
+    // Identity phrases chosen so the lex tiebreak ("alpha" < "beta") matches
+    // the createdAt order (alpha created first). createHabit uses ISO
+    // timestamps with millisecond precision; in a hot test runner the two
+    // creates can land in the same millisecond, so the identity_phrase
+    // tiebreaker becomes the deciding signal.
+    await createHabit({
+      user_id: "user-1",
+      title: "Alpha Task",
+      identity_phrase: "alpha-tasks",
+      cue: "cue",
+      tiny_action: "do 1 thing",
+      minimum_viable_action: null,
+      preferred_time_window: null,
+      start_date: "2026-04-01",
+      habit_state: "active",
+      status: "active",
+    });
+    await createHabit({
+      user_id: "user-1",
+      title: "Beta Task",
+      identity_phrase: "beta-tasks",
+      cue: "cue",
+      tiny_action: "do 1 thing",
+      minimum_viable_action: null,
+      preferred_time_window: null,
+      start_date: "2026-04-01",
+      habit_state: "active",
+      status: "active",
+    });
+
+    renderWithClient(<TodayScreen />);
+
+    await waitFor(() => {
+      expect(screen.getByLabelText("Log Alpha Task")).toBeTruthy();
+    });
+
+    expect(getGoalOrder()).toEqual(["alpha-tasks", "beta-tasks"]);
+
+    fireEvent.press(screen.getByLabelText("Log Alpha Task"));
+
+    await waitFor(
+      () => {
+        expect(screen.getByLabelText("Alpha Task — done")).toBeTruthy();
+      },
+      { timeout: 3000 },
+    );
+
+    // After Done: alpha goal moves to done zone; beta stays active and on top.
+    expect(getGoalOrder()).toEqual(["beta-tasks", "alpha-tasks"]);
+  });
+
+  it("returns a goal to the active zone on Undo", async () => {
+    await createHabit({
+      user_id: "user-1",
+      title: "Read",
+      identity_phrase: "a reader",
+      cue: "evening",
+      tiny_action: "read 1 page",
+      minimum_viable_action: null,
+      preferred_time_window: null,
+      start_date: "2026-04-01",
+      habit_state: "active",
+      status: "active",
+    });
+    await createHabit({
+      user_id: "user-1",
+      title: "Walk",
+      identity_phrase: "a walker",
+      cue: "morning",
+      tiny_action: "walk 1 min",
+      minimum_viable_action: null,
+      preferred_time_window: null,
+      start_date: "2026-04-01",
+      habit_state: "active",
+      status: "active",
+    });
+
+    renderWithClient(<TodayScreen />);
+
+    await waitFor(() => {
+      expect(screen.getByLabelText("Log Read")).toBeTruthy();
+    });
+
+    fireEvent.press(screen.getByLabelText("Log Read"));
+    await waitFor(
+      () => {
+        expect(screen.getByLabelText("Read — done")).toBeTruthy();
+      },
+      { timeout: 3000 },
+    );
+
+    // Reader goal is now in the done zone, walker is active and on top.
+    expect(getGoalOrder()).toEqual(["a walker", "a reader"]);
+
+    // Tap the row to undo (it's already in done state; tapping toggles).
+    fireEvent.press(screen.getByLabelText("Read — done"));
+
+    await waitFor(
+      () => {
+        expect(screen.getByLabelText("Log Read")).toBeTruthy();
+      },
+      { timeout: 3000 },
+    );
+
+    // Both goals active again — sorted by oldest createdAt. Reader was created
+    // first, so it's at the top.
+    expect(getGoalOrder()).toEqual(["a reader", "a walker"]);
+  });
+
+  it("filters habits with null identity_phrase out of the Today view", async () => {
+    await createHabit({
+      user_id: "user-1",
+      title: "Has Goal",
+      identity_phrase: "a doer",
+      cue: "morning",
+      tiny_action: "do 1 thing",
+      minimum_viable_action: null,
+      preferred_time_window: null,
+      start_date: "2026-04-01",
+      habit_state: "active",
+      status: "active",
+    });
+    await createHabit({
+      user_id: "user-1",
+      title: "Orphan",
+      identity_phrase: null,
+      cue: "morning",
+      tiny_action: "do 1 thing",
+      minimum_viable_action: null,
+      preferred_time_window: null,
+      start_date: "2026-04-01",
+      habit_state: "active",
+      status: "active",
+    });
+
+    renderWithClient(<TodayScreen />);
+
+    await waitFor(() => {
+      expect(screen.getByLabelText("Log Has Goal")).toBeTruthy();
+    });
+
+    // Orphan should not be visible on Today.
+    expect(screen.queryByText("Orphan")).toBeNull();
+    expect(getGoalOrder()).toEqual(["a doer"]);
+  });
+
+  it("re-sorts after a reminder mutation + prefix invalidation (B6b contract)", async () => {
+    // Seed two goals — both untimed initially → sort by createdAt.
+    const aHabit = await createHabit({
+      user_id: "user-1",
+      title: "A Task",
+      identity_phrase: "a-goal",
+      cue: "cue",
+      tiny_action: "tiny",
+      minimum_viable_action: null,
+      preferred_time_window: null,
+      start_date: "2026-04-01",
+      habit_state: "active",
+      status: "active",
+    });
+    const bHabit = await createHabit({
+      user_id: "user-1",
+      title: "B Task",
+      identity_phrase: "b-goal",
+      cue: "cue",
+      tiny_action: "tiny",
+      minimum_viable_action: null,
+      preferred_time_window: null,
+      start_date: "2026-04-01",
+      habit_state: "active",
+      status: "active",
+    });
+
+    const { client } = renderWithClient(<TodayScreen />);
+
+    await waitFor(() => {
+      expect(screen.getByLabelText("Log A Task")).toBeTruthy();
+      expect(screen.getByLabelText("Log B Task")).toBeTruthy();
+    });
+    // Created-at order: a-goal first.
+    expect(getGoalOrder()).toEqual(["a-goal", "b-goal"]);
+
+    // Give b-goal an early-morning reminder. Without invalidation, Today
+    // doesn't refetch the reminders sibling query. After firing the
+    // prefix-only invalidate (as EditHabitScreen.handleSave() does post-B6b),
+    // b-goal should slide to the top — it's now the only timed goal.
+    await upsertReminder({
+      habit_id: bHabit.id,
+      reminder_type: "daily",
+      reminder_time: "07:00",
+      notification_ids: "[]",
+    });
+    await client.invalidateQueries({ queryKey: ["habits", "eligible"] });
+
+    await waitFor(
+      () => {
+        expect(getGoalOrder()).toEqual(["b-goal", "a-goal"]);
+      },
+      { timeout: 3000 },
+    );
+
+    // Use aHabit to keep the variable from going stale (lint).
+    expect(aHabit.identity_phrase).toBe("a-goal");
   });
 });

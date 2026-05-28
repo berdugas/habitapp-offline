@@ -1,6 +1,13 @@
 import React, { useRef } from "react";
 import { Target } from "lucide-react-native";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import {
+  LayoutAnimation,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { useQueryClient } from "@tanstack/react-query";
@@ -36,34 +43,13 @@ import { colors } from "@/theme/colors";
 import { fontFamilies } from "@/theme/fontFamilies";
 import { SCREEN_TOP_PADDING_HERO, spacing } from "@/theme/spacing";
 import { typography } from "@/theme/typography";
-import { NO_GOAL_KEY } from "@/features/today/constants";
 import {
   getLoadHabitsErrorMessage,
   getSaveTodayStatusErrorMessage,
 } from "@/utils/userFacingErrors";
 
-import type { TodayHabitCardData } from "@/features/today/types";
 import type { HabitLogStatus } from "@/features/habits/types";
 import type { HabitLog } from "@/lib/db/repositories/habit_logs";
-
-type GoalGroup = {
-  identityPhrase: string;
-  habits: TodayHabitCardData[];
-};
-
-function groupByIdentity(habits: TodayHabitCardData[]): GoalGroup[] {
-  const map = new Map<string, TodayHabitCardData[]>();
-  for (const habit of habits) {
-    const key = habit.identityPhrase || NO_GOAL_KEY;
-    const group = map.get(key) ?? [];
-    group.push(habit);
-    map.set(key, group);
-  }
-  return Array.from(map.entries()).map(([identityPhrase, groupHabits]) => ({
-    identityPhrase,
-    habits: groupHabits,
-  }));
-}
 
 
 function AppHeader() {
@@ -93,6 +79,7 @@ export default function TodayScreen() {
     error,
     goalGraduatedByIdentity,
     goalStreaks,
+    groups,
     habits,
     isLoading,
     reviewDueByIdentity,
@@ -134,6 +121,12 @@ export default function TodayScreen() {
     ) {
       return;
     }
+    // Arm the next layout pass to animate. The post-mutation re-render that
+    // picks up the new card status is the one that animates the row sliding
+    // to the resolved zone (and the goal sliding to the done zone if this is
+    // the last action-needed habit). configureNext is process-wide; see the
+    // design spec's "Scoping caveat" for the cross-screen-bleed trade-off.
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     statusSubmitLockRef.current = true;
     try {
       await upsertTodayHabitStatusMutation.mutateAsync({ habitId, status });
@@ -146,6 +139,7 @@ export default function TodayScreen() {
     if (statusSubmitLockRef.current || deleteTodayHabitLogMutation.isPending) {
       return;
     }
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     statusSubmitLockRef.current = true;
     try {
       await deleteTodayHabitLogMutation.mutateAsync(habitId);
@@ -241,8 +235,6 @@ export default function TodayScreen() {
     );
   }
 
-  const goalGroups = groupByIdentity(habits);
-
   return (
     <ScrollView
       contentContainerStyle={[styles.content, { paddingTop: insets.top + SCREEN_TOP_PADDING_HERO }]}
@@ -258,12 +250,11 @@ export default function TodayScreen() {
       {upsertTodayHabitStatusMutation.error ? (
         <ErrorState message={getSaveTodayStatusErrorMessage()} />
       ) : null}
-      {goalGroups.map((group) => {
+      {groups.map((group) => {
         const groupHasBanner =
           showBanner && group.habits.some((h) => h.id === missingHabitId);
         const goalGraduated =
-          group.identityPhrase !== NO_GOAL_KEY &&
-          (goalGraduatedByIdentity?.[group.identityPhrase] ?? false);
+          goalGraduatedByIdentity?.[group.identityPhrase] ?? false;
 
         return (
           <React.Fragment key={group.identityPhrase}>
@@ -285,27 +276,18 @@ export default function TodayScreen() {
                   : () =>
                       router.push({
                         pathname: "/(app)/habits/create",
-                        ...(group.identityPhrase !== NO_GOAL_KEY && {
-                          params: { goalIdentityPhrase: group.identityPhrase },
-                        }),
+                        params: { goalIdentityPhrase: group.identityPhrase },
                       })
               }
-              onGoalPress={
-                group.identityPhrase !== NO_GOAL_KEY
-                  ? () =>
-                      router.push({
-                        pathname: "/(app)/goals/[identityPhrase]",
-                        params: { identityPhrase: encodeURIComponent(group.identityPhrase) },
-                      })
-                  : undefined
+              onGoalPress={() =>
+                router.push({
+                  pathname: "/(app)/goals/[identityPhrase]",
+                  params: { identityPhrase: encodeURIComponent(group.identityPhrase) },
+                })
               }
-              reviewDue={
-                group.identityPhrase !== NO_GOAL_KEY &&
-                (reviewDueByIdentity?.[group.identityPhrase] ?? false)
-              }
+              reviewDue={reviewDueByIdentity?.[group.identityPhrase] ?? false}
               reviewStatusError={
-                group.identityPhrase !== NO_GOAL_KEY &&
-                (reviewStatusErrorByIdentity?.[group.identityPhrase] ?? false)
+                reviewStatusErrorByIdentity?.[group.identityPhrase] ?? false
               }
               streak={goalStreaks[group.identityPhrase] ?? 0}
             >

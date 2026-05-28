@@ -12,9 +12,21 @@ jest.mock("@/features/trial/hooks", () => ({
 }));
 
 import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import React from "react";
 
 import EditHabitScreen from "@/features/habits/screens/EditHabitScreen";
+
+function renderEdit() {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
+  return render(
+    <QueryClientProvider client={client}>
+      <EditHabitScreen />
+    </QueryClientProvider>,
+  );
+}
 
 jest.mock("expo-router", () => ({
   router: {
@@ -108,7 +120,7 @@ describe("EditHabitScreen — recovery focus path", () => {
       "focus",
     );
 
-    render(<EditHabitScreen />);
+    renderEdit();
 
     // The screen schedules focus via setTimeout(0) after hydrating the form.
     jest.runAllTimers();
@@ -129,7 +141,7 @@ describe("EditHabitScreen — recovery focus path", () => {
       "focus",
     );
 
-    render(<EditHabitScreen />);
+    renderEdit();
     jest.runAllTimers();
 
     // No focus call expected — the recovery guard is the gate.
@@ -177,7 +189,7 @@ describe("EditHabitScreen — post-save navigation (back-stack hygiene)", () => 
   });
 
   it("calls router.back() on successful save when the stack has a previous entry (no duplicate stack push)", async () => {
-    render(<EditHabitScreen />);
+    renderEdit();
     fireEvent.press(screen.getByText("Save changes"));
 
     await waitFor(() => {
@@ -193,7 +205,7 @@ describe("EditHabitScreen — post-save navigation (back-stack hygiene)", () => 
 
   it("falls back to router.replace(habit detail) when canGoBack is false (deep-link entry)", async () => {
     router.canGoBack.mockReturnValue(false);
-    render(<EditHabitScreen />);
+    renderEdit();
     fireEvent.press(screen.getByText("Save changes"));
 
     await waitFor(() => {

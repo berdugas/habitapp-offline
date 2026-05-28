@@ -8,6 +8,7 @@ import {
   View,
 } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
+import { useQueryClient } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ChevronLeft, PenLine } from "lucide-react-native";
 
@@ -67,6 +68,7 @@ export default function EditHabitScreen() {
       router.replace("/(app)/(tabs)/today");
     }
   }
+  const queryClient = useQueryClient();
   const ownedHabitQuery = useOwnedHabitQuery(habitId);
   const updateHabitMutation = useUpdateHabitMutation();
   const { accessMode, isValidating, refresh } = useTrialValidation();
@@ -179,6 +181,16 @@ export default function EditHabitScreen() {
         }
         // loadState "pending" or "failed": skip cancelReminder — state is unknown
         await rescheduleAll(user.id).catch(() => {});
+
+        // Close the race: updateHabitMutation invalidates the eligible-habits
+        // prefix on success, but that fires BEFORE the reminder rows above are
+        // written. Re-invalidate after the reminder block so any consumer of
+        // the prefix-extended reminders sibling query (e.g., useTodayHabits)
+        // refetches with the new reminder row. Prefix-only key (no userId /
+        // todayDate suffix) covers all eligible-habits keys.
+        await queryClient.invalidateQueries({
+          queryKey: ["habits", "eligible"],
+        });
       }
 
       // Pop the Edit entry off the stack instead of replacing it with
