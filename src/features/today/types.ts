@@ -1,9 +1,11 @@
 import type { HabitLogStatus, HabitState } from "@/features/habits/types";
+import type { ReminderType } from "@/lib/db/repositories/reminders";
 
 export type TodayHabitCardData = {
   activeDays: number[];
   consistencyDenominator: number;
   consistencyRate: number;
+  createdAt: string;
   cue: string;
   formula: string;
   habitState: HabitState;
@@ -12,6 +14,8 @@ export type TodayHabitCardData = {
   identityPhrase: string;
   name: string;
   offDay: boolean;
+  reminderTime: string | null;
+  reminderType: ReminderType;
   skipCount: number;
   startDate: string;
   streak: number;
@@ -24,4 +28,9 @@ export type UpcomingHabitCardData = {
   id: string;
   name: string;
   startDate: string;
+};
+
+export type TodayGoalGroup = {
+  identityPhrase: string;
+  habits: TodayHabitCardData[];
 };

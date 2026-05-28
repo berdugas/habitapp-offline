@@ -12,8 +12,21 @@ jest.mock("@/features/trial/hooks", () => ({
 }));
 
 import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import React from "react";
 
 import EditHabitScreen from "@/features/habits/screens/EditHabitScreen";
+
+function renderEdit() {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
+  return render(
+    <QueryClientProvider client={client}>
+      <EditHabitScreen />
+    </QueryClientProvider>,
+  );
+}
 
 const mockReplace = jest.fn();
 const mockBack = jest.fn();
@@ -98,7 +111,7 @@ describe("EditHabitScreen", () => {
       isLoading: true,
     });
 
-    render(<EditHabitScreen />);
+    renderEdit();
 
     expect(screen.getByText("Loading habit details...")).toBeTruthy();
   });
@@ -110,7 +123,7 @@ describe("EditHabitScreen", () => {
       isLoading: false,
     });
 
-    render(<EditHabitScreen />);
+    renderEdit();
 
     expect(
       screen.getByText("We couldn't load this habit right now. Try again."),
@@ -118,7 +131,7 @@ describe("EditHabitScreen", () => {
   });
 
   it("prefills the editable fields from the current habit", () => {
-    render(<EditHabitScreen />);
+    renderEdit();
 
     expect(mockUseOwnedHabitQuery).toHaveBeenCalledWith("habit-1");
     expect(screen.queryByText("SUGGESTED ADJUSTMENT")).toBeNull();
@@ -135,7 +148,7 @@ describe("EditHabitScreen", () => {
       suggestionType: "make_tiny_action_smaller",
     });
 
-    render(<EditHabitScreen />);
+    renderEdit();
 
     expect(screen.getByText("SUGGESTED ADJUSTMENT")).toBeTruthy();
     expect(screen.getByText("Make the action smaller")).toBeTruthy();
@@ -164,7 +177,7 @@ describe("EditHabitScreen", () => {
       suggestionType: "change_trigger",
     });
 
-    render(<EditHabitScreen />);
+    renderEdit();
 
     expect(screen.getByText("SUGGESTED ADJUSTMENT")).toBeTruthy();
     expect(screen.getByText("Choose a clearer trigger")).toBeTruthy();
@@ -192,7 +205,7 @@ describe("EditHabitScreen", () => {
       suggestionType: "make_tiny_action_smaller",
     });
 
-    render(<EditHabitScreen />);
+    renderEdit();
 
     expect(screen.getByText("SUGGESTED ADJUSTMENT")).toBeTruthy();
     expect(screen.getByText("Make the action smaller")).toBeTruthy();
@@ -209,7 +222,7 @@ describe("EditHabitScreen", () => {
       suggestionType: "rewrite_everything",
     });
 
-    render(<EditHabitScreen />);
+    renderEdit();
 
     expect(screen.queryByText("SUGGESTED ADJUSTMENT")).toBeNull();
     expect(screen.queryByText("Make the action smaller")).toBeNull();
@@ -219,7 +232,7 @@ describe("EditHabitScreen", () => {
   });
 
   it("does not duplicate After in the preview when manually typed", () => {
-    render(<EditHabitScreen />);
+    renderEdit();
 
     fireEvent.changeText(
       screen.getByDisplayValue("After I brush my teeth"),
@@ -235,7 +248,7 @@ describe("EditHabitScreen", () => {
   });
 
   it("blocks blank required edits before saving", async () => {
-    render(<EditHabitScreen />);
+    renderEdit();
 
     fireEvent.changeText(screen.getByDisplayValue("Reading"), "   ");
     fireEvent.press(screen.getByText("Save changes"));
@@ -255,7 +268,7 @@ describe("EditHabitScreen", () => {
       suggestionType: "make_tiny_action_smaller",
     });
 
-    render(<EditHabitScreen />);
+    renderEdit();
 
     fireEvent.changeText(screen.getByDisplayValue("Reading"), "  Reading habit  ");
     fireEvent.changeText(
@@ -290,7 +303,7 @@ describe("EditHabitScreen", () => {
   });
 
   it("preserves preferred_time_window from the original habit on save (P1 regression)", async () => {
-    render(<EditHabitScreen />);
+    renderEdit();
 
     fireEvent.press(screen.getByText("Save changes"));
 
@@ -311,7 +324,7 @@ describe("EditHabitScreen", () => {
     // Never resolves — simulates save happening before DB read finishes
     getReminderByHabitId.mockReturnValue(new Promise(() => {}));
 
-    render(<EditHabitScreen />);
+    renderEdit();
     fireEvent.press(screen.getByText("Save changes"));
 
     await waitFor(() => { expect(mockMutateAsync).toHaveBeenCalled(); });
@@ -325,7 +338,7 @@ describe("EditHabitScreen", () => {
     // Rejects — simulates DB read error
     getReminderByHabitId.mockRejectedValue(new Error("db error"));
 
-    render(<EditHabitScreen />);
+    renderEdit();
 
     await waitFor(() => { expect(getReminderByHabitId).toHaveBeenCalled(); });
 
@@ -339,7 +352,7 @@ describe("EditHabitScreen", () => {
   it("preserves user input when save fails", async () => {
     mockMutateAsync.mockRejectedValueOnce(new Error("save failed"));
 
-    render(<EditHabitScreen />);
+    renderEdit();
 
     fireEvent.changeText(screen.getByDisplayValue("Reading"), "Reading updated");
     fireEvent.changeText(

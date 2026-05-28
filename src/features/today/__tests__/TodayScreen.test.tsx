@@ -15,11 +15,14 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react-nativ
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 import TodayScreen from "@/features/today/screens/TodayScreen";
+import { groupAndSortForToday } from "@/features/today/ordering";
 import { resetClockForTesting, setNowForTesting } from "@/utils/clock";
 import {
   getLoadHabitsErrorMessage,
   getSaveTodayStatusErrorMessage,
 } from "@/utils/userFacingErrors";
+
+import type { TodayHabitCardData } from "@/features/today/types";
 
 jest.mock("expo-router", () => ({
   router: { push: jest.fn(), replace: jest.fn() },
@@ -83,13 +86,17 @@ function makeHabit(overrides: Record<string, unknown> = {}) {
     activeDays: [1, 2, 3, 4, 5, 6, 7],
     consistencyDenominator: 10,
     consistencyRate: 0.9,
+    createdAt: "2025-01-01T00:00:00.000Z",
     cue: "morning coffee",
     formula: "After morning coffee, run for 2 minutes",
+    habitState: "active",
     icon: null,
     id: "habit-1",
     identityPhrase: "a runner",
     name: "Run",
     offDay: false,
+    reminderTime: null,
+    reminderType: "none",
     skipCount: 0,
     startDate: "2026-04-01",
     streak: 12,
@@ -97,6 +104,17 @@ function makeHabit(overrides: Record<string, unknown> = {}) {
     todayStatus: null,
     ...overrides,
   };
+}
+
+// Test helper: forwards to mockTodayHabits while auto-deriving
+// the `groups` field from `habits` (via the production ordering module) when
+// the caller does not supply one. Lets tests keep the original
+// `{ habits, isLoading, ... }` shape without manually computing groups every
+// time.
+function mockTodayHabits(value: Record<string, unknown>) {
+  const habits = (value.habits as TodayHabitCardData[] | undefined) ?? [];
+  const groups = value.groups ?? groupAndSortForToday(habits);
+  (useTodayHabits as jest.Mock).mockReturnValue({ groups, ...value });
 }
 
 describe("TodayScreen", () => {
@@ -127,7 +145,7 @@ describe("TodayScreen", () => {
   });
 
   it("renders the no-habits empty state with CTA when no habits exist", () => {
-    useTodayHabits.mockReturnValue({
+    mockTodayHabits({
       error: null,
       habits: [],
       isLoading: false,
@@ -140,7 +158,7 @@ describe("TodayScreen", () => {
   });
 
   it("renders GoalContainer with identity phrase, streak copy, and habit row", () => {
-    useTodayHabits.mockReturnValue({
+    mockTodayHabits({
       error: null,
       habits: [makeHabit()],
       isLoading: false,
@@ -156,7 +174,7 @@ describe("TodayScreen", () => {
   });
 
   it("renders the goal consistency donut with the pooled rate from consistencyByIdentity (regression for 1-of-2-done → 50%)", () => {
-    useTodayHabits.mockReturnValue({
+    mockTodayHabits({
       consistencyByIdentity: { "a runner": 0.5 },
       error: null,
       habits: [makeHabit()],
@@ -169,7 +187,7 @@ describe("TodayScreen", () => {
   });
 
   it("shows the 'Weekly review' pill on the GoalContainer when reviewDue is true for the identity", () => {
-    useTodayHabits.mockReturnValue({
+    mockTodayHabits({
       error: null,
       habits: [makeHabit()],
       isLoading: false,
@@ -185,7 +203,7 @@ describe("TodayScreen", () => {
   });
 
   it("hides the 'Weekly review' pill when reviewDue is false for the identity", () => {
-    useTodayHabits.mockReturnValue({
+    mockTodayHabits({
       error: null,
       habits: [makeHabit()],
       isLoading: false,
@@ -203,7 +221,7 @@ describe("TodayScreen", () => {
   });
 
   it("shows 'Review status unavailable' (not a false-positive due hint) when the goal-status query errored", () => {
-    useTodayHabits.mockReturnValue({
+    mockTodayHabits({
       error: null,
       habits: [makeHabit()],
       isLoading: false,
@@ -224,7 +242,7 @@ describe("TodayScreen", () => {
     // pairing (data.isDue=true AND isError=true) is reachable: the goal's
     // status was due, then a later refetch errored. The error tone is the
     // honest read.
-    useTodayHabits.mockReturnValue({
+    mockTodayHabits({
       error: null,
       habits: [makeHabit()],
       isLoading: false,
@@ -243,7 +261,7 @@ describe("TodayScreen", () => {
     // due. The review pill is the louder CTA; the daily "X remaining" pill
     // remains for state context. With one habit and one GoalContainer in
     // the mock, global queries are unambiguous — no within() needed (YAGNI).
-    useTodayHabits.mockReturnValue({
+    mockTodayHabits({
       error: null,
       habits: [makeHabit({ streak: 0, todayStatus: null })],
       isLoading: false,
@@ -257,7 +275,7 @@ describe("TodayScreen", () => {
   });
 
   it("renders '1 remaining to complete' pill when one habit is incomplete", () => {
-    useTodayHabits.mockReturnValue({
+    mockTodayHabits({
       error: null,
       habits: [makeHabit({ streak: 0, todayStatus: null })],
       isLoading: false,
@@ -275,7 +293,7 @@ describe("TodayScreen", () => {
       isPending: false,
       mutateAsync,
     });
-    useTodayHabits.mockReturnValue({
+    mockTodayHabits({
       error: null,
       habits: [makeHabit()],
       isLoading: false,
@@ -294,7 +312,7 @@ describe("TodayScreen", () => {
       isPending: false,
       mutateAsync,
     });
-    useTodayHabits.mockReturnValue({
+    mockTodayHabits({
       error: null,
       habits: [makeHabit()],
       isLoading: false,
@@ -307,7 +325,7 @@ describe("TodayScreen", () => {
   });
 
   it("tapping the row navigates to habit detail", () => {
-    useTodayHabits.mockReturnValue({
+    mockTodayHabits({
       error: null,
       habits: [makeHabit()],
       isLoading: false,
@@ -323,7 +341,7 @@ describe("TodayScreen", () => {
   });
 
   it("done state shows circle label as 'Run — done'", () => {
-    useTodayHabits.mockReturnValue({
+    mockTodayHabits({
       error: null,
       habits: [makeHabit({ todayStatus: "done" })],
       isLoading: false,
@@ -335,7 +353,7 @@ describe("TodayScreen", () => {
   });
 
   it("does not render a Missed action on Today", () => {
-    useTodayHabits.mockReturnValue({
+    mockTodayHabits({
       error: null,
       habits: [makeHabit()],
       isLoading: false,
@@ -347,7 +365,7 @@ describe("TodayScreen", () => {
   });
 
   it("renders a load error state when useTodayHabits returns an error", () => {
-    useTodayHabits.mockReturnValue({
+    mockTodayHabits({
       error: new Error("Failed to load"),
       habits: [],
       isLoading: false,
@@ -359,7 +377,7 @@ describe("TodayScreen", () => {
   });
 
   it("renders a save error state when the mutation has an error", () => {
-    useTodayHabits.mockReturnValue({
+    mockTodayHabits({
       error: null,
       habits: [makeHabit()],
       isLoading: false,
@@ -376,7 +394,7 @@ describe("TodayScreen", () => {
   });
 
   it("does not render a miss banner when showBanner is false", () => {
-    useTodayHabits.mockReturnValue({
+    mockTodayHabits({
       error: null,
       habits: [makeHabit()],
       isLoading: false,
@@ -388,7 +406,7 @@ describe("TodayScreen", () => {
   });
 
   it("renders MissBanner when useSingleMissBanner returns showBanner=true", () => {
-    useTodayHabits.mockReturnValue({
+    mockTodayHabits({
       error: null,
       habits: [makeHabit()],
       isLoading: false,
@@ -405,7 +423,7 @@ describe("TodayScreen", () => {
   });
 
   it("tapping × on MissBanner calls setPreference with the banner-dismissed key", async () => {
-    useTodayHabits.mockReturnValue({
+    mockTodayHabits({
       error: null,
       habits: [makeHabit()],
       isLoading: false,
@@ -428,7 +446,7 @@ describe("TodayScreen", () => {
   });
 
   it("does not render a 'You showed up today.' affirmation when all habits are logged (redundant with the All done pill and the goal subhead)", () => {
-    useTodayHabits.mockReturnValue({
+    mockTodayHabits({
       error: null,
       habits: [makeHabit({ todayStatus: "done" })],
       isLoading: false,
@@ -444,7 +462,7 @@ describe("TodayScreen", () => {
   });
 
   it("renders the recovery modal when shouldShowModal is true", () => {
-    useTodayHabits.mockReturnValue({
+    mockTodayHabits({
       error: null,
       habits: [makeHabit()],
       isLoading: false,
@@ -465,7 +483,7 @@ describe("TodayScreen", () => {
   });
 
   it("does not render the recovery modal when shouldShowModal is false", () => {
-    useTodayHabits.mockReturnValue({
+    mockTodayHabits({
       error: null,
       habits: [makeHabit()],
       isLoading: false,
@@ -477,7 +495,7 @@ describe("TodayScreen", () => {
   });
 
   function renderModalOpen() {
-    useTodayHabits.mockReturnValue({
+    mockTodayHabits({
       error: null,
       habits: [makeHabit()],
       isLoading: false,
@@ -574,7 +592,7 @@ describe("TodayScreen", () => {
   });
 
   it("pressing the goal header navigates to GoalDetailScreen with encoded identityPhrase", () => {
-    useTodayHabits.mockReturnValue({
+    mockTodayHabits({
       error: null,
       habits: [makeHabit({ identityPhrase: "a runner" })],
       isLoading: false,
@@ -592,7 +610,7 @@ describe("TodayScreen", () => {
   });
 
   it("shows 'Consistency' label on the ConsistencyDonut", () => {
-    useTodayHabits.mockReturnValue({
+    mockTodayHabits({
       consistencyByIdentity: { "a runner": 0.9 },
       error: null,
       habits: [makeHabit()],
@@ -604,8 +622,11 @@ describe("TodayScreen", () => {
     expect(screen.getByText("Consistency")).toBeTruthy();
   });
 
-  it("does not navigate to GoalDetail when tapping the header of a no-identity group", () => {
-    useTodayHabits.mockReturnValue({
+  it("filters orphan habits (empty identityPhrase) out of the Today view", () => {
+    // Previously the no-identity bucket rendered as the "(no goal)"
+    // GoalContainer. After action-first ordering, orphan habits are filtered
+    // at the hook boundary and never reach the render tree.
+    mockTodayHabits({
       error: null,
       habits: [makeHabit({ identityPhrase: "" })],
       isLoading: false,
@@ -613,37 +634,12 @@ describe("TodayScreen", () => {
       goalStreaks: {},
     });
     renderWithClient(<TodayScreen />);
-    // The header Pressable is disabled (onGoalPress=undefined). Even if we trigger
-    // all presses in the component, no goals navigation should be queued.
-    // (Pressing the Add a habit button is fine; it navigates to create, not goals.)
-    expect(router.push).not.toHaveBeenCalledWith(
-      expect.objectContaining({ pathname: "/(app)/goals/[identityPhrase]" }),
-    );
-  });
-
-  it("does not prefill goalIdentityPhrase when adding a habit from a no-identity group", () => {
-    useTodayHabits.mockReturnValue({
-      error: null,
-      habits: [makeHabit({ identityPhrase: "" })],
-      isLoading: false,
-      upcomingHabits: [],
-      goalStreaks: {},
-    });
-    renderWithClient(<TodayScreen />);
-    fireEvent.press(screen.getByLabelText("Add a habit"));
-    expect(router.push).toHaveBeenCalledWith(
-      expect.objectContaining({ pathname: "/(app)/habits/create" }),
-    );
-    // params should not carry the sentinel string
-    expect(router.push).not.toHaveBeenCalledWith(
-      expect.objectContaining({
-        params: expect.objectContaining({ goalIdentityPhrase: "(no goal)" }),
-      }),
-    );
+    expect(screen.queryByText(/^Become /)).toBeNull();
+    expect(screen.queryByText("Run")).toBeNull();
   });
 
   it("shows the (Graduated) suffix when all habits in a goal are automatic", () => {
-    useTodayHabits.mockReturnValue({
+    mockTodayHabits({
       error: null,
       goalGraduatedByIdentity: { "a runner": true },
       goalStreaks: { "a runner": 5 },
@@ -659,7 +655,7 @@ describe("TodayScreen", () => {
   });
 
   it("hides the (Graduated) suffix when only some habits in a goal are automatic", () => {
-    useTodayHabits.mockReturnValue({
+    mockTodayHabits({
       error: null,
       goalGraduatedByIdentity: { "a runner": false },
       goalStreaks: { "a runner": 5 },
@@ -674,8 +670,8 @@ describe("TodayScreen", () => {
     expect(screen.queryByText("(Graduated)")).toBeNull();
   });
 
-  it("never shows the (Graduated) suffix for the no-goal bucket, even when all habits are automatic", () => {
-    useTodayHabits.mockReturnValue({
+  it.skip("(legacy) never shows the (Graduated) suffix for the no-goal bucket — superseded by the orphan-filter test above", () => {
+    mockTodayHabits({
       error: null,
       goalGraduatedByIdentity: {},
       goalStreaks: {},
@@ -699,7 +695,7 @@ describe("TodayScreen", () => {
     // All eligible habits are automatic, but the hook's goalGraduatedByIdentity
     // computes over upcoming habits too — and reports false because the
     // upcoming habit's habit_state is still 'active'.
-    useTodayHabits.mockReturnValue({
+    mockTodayHabits({
       error: null,
       goalGraduatedByIdentity: { "a runner": false },
       goalStreaks: { "a runner": 5 },
@@ -709,5 +705,68 @@ describe("TodayScreen", () => {
     });
     renderWithClient(<TodayScreen />);
     expect(screen.queryByText("(Graduated)")).toBeNull();
+  });
+
+  // Ported from legacy src/tests/screen/TodayScreen.test.tsx (deleted in the
+  // same change that landed Today ordering — see design spec
+  // design/superpowers-specs/2026-05-28-today-ordering-design.md, B7).
+  it("shows a loading state while today data is still resolving", () => {
+    mockTodayHabits({
+      error: null,
+      goalStreaks: {},
+      habits: [],
+      isLoading: true,
+      upcomingHabits: [],
+    });
+
+    renderWithClient(<TodayScreen />);
+
+    expect(screen.getByText("Loading your Today view...")).toBeTruthy();
+    expect(screen.queryByText("No active habits yet")).toBeNull();
+  });
+
+  it("routes to Create Habit from the empty state CTA", () => {
+    mockTodayHabits({
+      error: null,
+      goalStreaks: {},
+      habits: [],
+      isLoading: false,
+      upcomingHabits: [],
+    });
+
+    renderWithClient(<TodayScreen />);
+
+    fireEvent.press(screen.getByText("Create your first habit"));
+
+    expect(router.push).toHaveBeenCalledWith("/(app)/habits/create");
+  });
+
+  it("prevents a second status write while the first one is still in flight", async () => {
+    let resolveMutation: (() => void) | undefined;
+    const deferred = new Promise<void>((resolve) => {
+      resolveMutation = resolve;
+    });
+    const mockMutateAsync = jest.fn().mockReturnValue(deferred);
+    useUpsertTodayHabitStatusMutation.mockReturnValue({
+      error: null,
+      isPending: false,
+      mutateAsync: mockMutateAsync,
+    });
+    mockTodayHabits({
+      error: null,
+      goalStreaks: { "a runner": 5 },
+      habits: [makeHabit()],
+      isLoading: false,
+      upcomingHabits: [],
+    });
+
+    renderWithClient(<TodayScreen />);
+
+    fireEvent.press(screen.getByLabelText("Log Run"));
+    fireEvent.press(screen.getByLabelText("Log Run"));
+
+    expect(mockMutateAsync).toHaveBeenCalledTimes(1);
+
+    if (resolveMutation) resolveMutation();
   });
 });

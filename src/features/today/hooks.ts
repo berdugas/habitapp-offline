@@ -13,6 +13,7 @@ import {
 } from "@/features/habits/api";
 import { isActiveDay, parseActiveDays } from "@/features/habits/activeDays";
 import {
+  getEligibleHabitsQueryKey,
   useEligibleHabitsQuery,
   useUpcomingActiveHabitsQuery,
 } from "@/features/habits/hooks";
@@ -39,20 +40,23 @@ import {
 } from "@/utils/dates";
 import {
   GOAL_DETAIL_WINDOW_DAYS,
-  NO_GOAL_KEY,
   TODAY_PROGRESS_WINDOW_DAYS,
 } from "@/features/today/constants";
+import { groupAndSortForToday } from "@/features/today/ordering";
 import {
   listLogsForHabitInRange,
   listLogsForHabitsInRange,
 } from "@/lib/db/repositories/habit_logs";
+import { listRemindersForUser } from "@/lib/db/repositories/reminders";
 import { now, todayDateString } from "@/utils/clock";
 
 import type { HabitLogRecord, HabitLogStatus } from "@/features/habits/types";
 import type {
+  TodayGoalGroup,
   TodayHabitCardData,
   UpcomingHabitCardData,
 } from "@/features/today/types";
+import type { ReminderSetting } from "@/lib/db/repositories/reminders";
 import type { HeatmapLog } from "@/components/CalendarGrid";
 
 export function getUserHabitLogsRangeQueryKey(
@@ -106,7 +110,31 @@ export function useTodayHabits() {
   const { user } = useAuthSession();
   const eligibleHabitsQuery = useEligibleHabitsQuery();
   const upcomingHabitsQuery = useUpcomingActiveHabitsQuery();
-  const eligibleHabits = eligibleHabitsQuery.data ?? [];
+  // Orphan filter: habits with null/empty identity_phrase are not surfaced
+  // on Today (defensive cleanup; creation flow already requires the field).
+  const eligibleHabits = (eligibleHabitsQuery.data ?? []).filter(
+    (h) => Boolean(h.identity_phrase),
+  );
+  const todayDate = todayDateString();
+
+  // Sibling reminders query keyed as a prefix-extension of the eligible-habits
+  // key. Existing prefix-matching invalidations of
+  // getEligibleHabitsQueryKey(userId, todayDate) (via
+  // invalidateHabitSurfaceQueries) automatically invalidate this sibling, so
+  // no new wiring is needed in the surface helper.
+  const remindersQuery = useQuery({
+    enabled: Boolean(user?.id),
+    queryFn: () => listRemindersForUser(user!.id),
+    queryKey: [
+      ...getEligibleHabitsQueryKey(user?.id, todayDate),
+      "reminders",
+    ],
+  });
+  const reminderByHabitId = new Map<string, ReminderSetting>();
+  for (const row of remindersQuery.data ?? []) {
+    reminderByHabitId.set(row.habit_id, row);
+  }
+
   const { endDate, startDate } = getTrailingDateRangeStrings(
     TODAY_PROGRESS_WINDOW_DAYS,
     now(),
@@ -127,7 +155,7 @@ export function useTodayHabits() {
 
   const habitsByIdentity = new Map<string, typeof eligibleHabits>();
   for (const habit of eligibleHabits) {
-    const key = habit.identity_phrase || NO_GOAL_KEY;
+    const key = habit.identity_phrase as string;
     const arr = habitsByIdentity.get(key) ?? [];
     arr.push(habit);
     habitsByIdentity.set(key, arr);
@@ -156,27 +184,29 @@ export function useTodayHabits() {
     });
   }
 
-  // Compute over eligible + upcoming so an upcoming habit (which can't be automatic yet) correctly suppresses the marker.
-  const upcomingHabits = upcomingHabitsQuery.data ?? [];
+  // Compute over eligible + upcoming so an upcoming habit (which can't be
+  // automatic yet) correctly suppresses the marker. Upcoming orphans are
+  // filtered by the same boundary so the map never has an orphan key.
+  const upcomingHabits = (upcomingHabitsQuery.data ?? []).filter((h) =>
+    Boolean(h.identity_phrase),
+  );
   const allActiveByIdentity = new Map<string, typeof eligibleHabits>();
   for (const habit of [...eligibleHabits, ...upcomingHabits]) {
-    const key = habit.identity_phrase || NO_GOAL_KEY;
+    const key = habit.identity_phrase as string;
     const arr = allActiveByIdentity.get(key) ?? [];
     arr.push(habit);
     allActiveByIdentity.set(key, arr);
   }
   const goalGraduatedByIdentity: Record<string, boolean> = {};
   for (const [key, allHabits] of allActiveByIdentity) {
-    goalGraduatedByIdentity[key] =
-      key !== NO_GOAL_KEY &&
-      isGoalGraduated(allHabits.map((h) => ({ habit_state: h.habit_state })));
+    goalGraduatedByIdentity[key] = isGoalGraduated(
+      allHabits.map((h) => ({ habit_state: h.habit_state })),
+    );
   }
 
   const weekStartForReview = getWeekStartDateString(now());
   const todayDateForReview = toDeviceDateString();
-  const reviewIdentityKeys = Array.from(habitsByIdentity.keys()).filter(
-    (key) => key !== NO_GOAL_KEY,
-  );
+  const reviewIdentityKeys = Array.from(habitsByIdentity.keys());
   const reviewQueries = useQueries({
     queries: reviewIdentityKeys.map((identity) => {
       const groupHabits = habitsByIdentity.get(identity) ?? [];
@@ -218,45 +248,60 @@ export function useTodayHabits() {
     }
   });
 
+  const habits = eligibleHabits.map<TodayHabitCardData>((habit) => {
+    const activeDays = parseActiveDays(habit.active_days);
+    const offDay = !isActiveDay(todayDate, activeDays);
+    const reminderRow = reminderByHabitId.get(habit.id);
+    const reminderType = reminderRow?.reminder_type ?? "none";
+    const reminderTime =
+      reminderRow && reminderRow.reminder_type !== "none"
+        ? reminderRow.reminder_time
+        : null;
+    return {
+      ...summarizeHabitProgress({
+        activeDays,
+        endDate: historyWindowEndDate,
+        logs: logsByHabitId.get(habit.id) ?? [],
+        windowDays: TODAY_PROGRESS_WINDOW_DAYS,
+      }),
+      activeDays,
+      createdAt: habit.created_at,
+      cue: habit.cue,
+      formula: formatHabitFormula(habit.cue, habit.tiny_action),
+      habitState: habit.habit_state,
+      icon: habit.icon ?? null,
+      id: habit.id,
+      identityPhrase: habit.identity_phrase ?? "",
+      name: habit.title,
+      offDay,
+      reminderTime,
+      reminderType,
+      startDate: habit.start_date,
+      tinyAction: habit.tiny_action,
+    };
+  });
+  const groups: TodayGoalGroup[] = groupAndSortForToday(habits);
+
   return {
     ...historyLogsQuery,
     error:
       eligibleHabitsQuery.error ??
       upcomingHabitsQuery.error ??
       historyLogsQuery.error ??
+      remindersQuery.error ??
       null,
     consistencyByIdentity,
     goalGraduatedByIdentity,
     goalStreaks,
+    groups,
     reviewDueByIdentity,
     reviewStatusErrorByIdentity,
-    habits: eligibleHabits.map<TodayHabitCardData>((habit) => {
-      const activeDays = parseActiveDays(habit.active_days);
-      const offDay = !isActiveDay(todayDateString(), activeDays);
-      return {
-        ...summarizeHabitProgress({
-          activeDays,
-          endDate: historyWindowEndDate,
-          logs: logsByHabitId.get(habit.id) ?? [],
-          windowDays: TODAY_PROGRESS_WINDOW_DAYS,
-        }),
-        activeDays,
-        cue: habit.cue,
-        formula: formatHabitFormula(habit.cue, habit.tiny_action),
-        habitState: habit.habit_state,
-        icon: habit.icon ?? null,
-        id: habit.id,
-        identityPhrase: habit.identity_phrase ?? "",
-        name: habit.title,
-        offDay,
-        startDate: habit.start_date,
-        tinyAction: habit.tiny_action,
-      };
-    }),
+    habits,
     isLoading:
       eligibleHabitsQuery.isLoading ||
       upcomingHabitsQuery.isLoading ||
-      historyLogsQuery.isLoading,
+      historyLogsQuery.isLoading ||
+      remindersQuery.isLoading,
     upcomingHabits: (upcomingHabitsQuery.data ?? []).map<UpcomingHabitCardData>(
       (habit) => ({
         formula: formatHabitFormula(habit.cue, habit.tiny_action),

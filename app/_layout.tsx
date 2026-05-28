@@ -6,7 +6,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { Stack, useGlobalSearchParams, usePathname } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { LogBox, Text, View } from "react-native";
+import { LogBox, Platform, Text, UIManager, View } from "react-native";
 import * as SplashScreen from "expo-splash-screen";
 import * as Notifications from "expo-notifications";
 import Constants from "expo-constants";
@@ -58,6 +58,17 @@ if (Constants.executionEnvironment === "storeClient") {
     /Error while flushing PostHog/,
     /PostHogFetchNetworkError/,
   ]);
+}
+
+// Android Paper-fallback: LayoutAnimation needs an experimental flag on the
+// old architecture. Deprecated and effectively a no-op on Fabric, where the
+// project runs (newArchEnabled: true in app.config.js). Harmless on Fabric,
+// correct on Paper — keep for any future architecture flip or fallback path.
+if (
+  Platform.OS === "android" &&
+  UIManager.setLayoutAnimationEnabledExperimental
+) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
 // Telemetry init at module load — Sentry first so it can catch any PostHog
