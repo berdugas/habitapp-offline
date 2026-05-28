@@ -16,6 +16,12 @@ module.exports = ({ config }) => ({
     icon: "./assets/icons/icon.png",
     userInterfaceStyle: "light",
     newArchEnabled: true,
+    updates: {
+      url: "https://u.expo.dev/a6076041-eb28-4ded-affc-589659dc05f4",
+    },
+    runtimeVersion: {
+      policy: "appVersion",
+    },
     plugins: [
       "expo-router",
       "expo-font",

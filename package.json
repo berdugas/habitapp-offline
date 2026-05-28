@@ -35,6 +35,7 @@
     "expo-splash-screen": "~31.0.13",
     "expo-sqlite": "~16.0.10",
     "expo-status-bar": "~3.0.9",
+    "expo-updates": "~29.0.17",
     "lucide-react-native": "^0.511.0",
     "posthog-react-native": "^4.45.14",
     "react": "19.1.0",
