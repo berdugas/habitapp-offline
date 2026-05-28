@@ -591,7 +591,7 @@ describe("TodayScreen", () => {
     );
   });
 
-  it("shows 'Goal consistency' label on the ConsistencyDonut", () => {
+  it("shows 'Consistency' label on the ConsistencyDonut", () => {
     useTodayHabits.mockReturnValue({
       consistencyByIdentity: { "a runner": 0.9 },
       error: null,
@@ -601,7 +601,7 @@ describe("TodayScreen", () => {
       goalStreaks: {},
     });
     renderWithClient(<TodayScreen />);
-    expect(screen.getByText("Goal consistency")).toBeTruthy();
+    expect(screen.getByText("Consistency")).toBeTruthy();
   });
 
   it("does not navigate to GoalDetail when tapping the header of a no-identity group", () => {

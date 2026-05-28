@@ -102,7 +102,7 @@ export function GoalContainer({
         {consistencyRate !== null ? (
           <View style={styles.donutColumn}>
             <ConsistencyDonut
-              label="Goal consistency"
+              label="Consistency"
               onPress={onGoalPress}
               rate={consistencyRate}
               showAttentionDot={reviewDue && !reviewStatusError}
