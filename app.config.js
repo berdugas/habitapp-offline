@@ -54,7 +54,10 @@ module.exports = ({ config }) => ({
       sentryDsn: process.env.EXPO_PUBLIC_SENTRY_DSN ?? "",
       posthogApiKey: process.env.EXPO_PUBLIC_POSTHOG_API_KEY ?? "",
       posthogHost: process.env.EXPO_PUBLIC_POSTHOG_HOST ?? "",
-      telemetryInDev: false,
+      // Boolean from string: only the literal "true" enables dev telemetry.
+      // Anything else (including unset) leaves it off. Prod builds always
+      // emit regardless of this flag — see src/services/posthog.ts.
+      telemetryInDev: process.env.EXPO_PUBLIC_TELEMETRY_IN_DEV === "true",
     },
   },
 });
