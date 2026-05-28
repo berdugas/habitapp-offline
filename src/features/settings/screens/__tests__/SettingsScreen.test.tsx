@@ -20,6 +20,7 @@ jest.mock("expo-constants", () => ({
 
 import { fireEvent, render, screen } from "@testing-library/react-native";
 import React from "react";
+import { Linking } from "react-native";
 
 import SettingsScreen from "@/features/settings/screens/SettingsScreen";
 import { useTrialValidation } from "@/features/trial/hooks";
@@ -68,9 +69,16 @@ function defaultSetup(overrides: {
 }
 
 describe("SettingsScreen", () => {
+  let openURLSpy: jest.SpyInstance;
+
   beforeEach(() => {
     jest.clearAllMocks();
     defaultSetup();
+    openURLSpy = jest.spyOn(Linking, "openURL").mockResolvedValue(true);
+  });
+
+  afterEach(() => {
+    openURLSpy.mockRestore();
   });
 
   it("shows the user email", () => {
@@ -131,5 +139,20 @@ describe("SettingsScreen", () => {
   it("About card shows the app version", () => {
     render(<SettingsScreen />);
     expect(screen.getByText("1.2.3")).toBeTruthy();
+  });
+
+  it("tapping 'Privacy Policy' opens the hosted policy URL in the browser", () => {
+    render(<SettingsScreen />);
+    const row = screen.getByText("Privacy Policy");
+    fireEvent.press(row);
+    expect(openURLSpy).toHaveBeenCalledWith(
+      "https://berdugas.github.io/habitapp-legal/",
+    );
+  });
+
+  it("Terms of Service row still shows 'Coming soon' placeholder", () => {
+    render(<SettingsScreen />);
+    expect(screen.getByText("TERMS OF SERVICE")).toBeTruthy();
+    expect(screen.getByText("Coming soon")).toBeTruthy();
   });
 });
