@@ -1,12 +1,10 @@
 const mockGetPreference = jest.fn();
 const mockSetPreference = jest.fn();
-const mockDeletePreference = jest.fn();
 const mockLoggerWarn = jest.fn();
 
 jest.mock("@/lib/db/repositories/preferences", () => ({
   getPreference: (...args: unknown[]) => mockGetPreference(...args),
   setPreference: (...args: unknown[]) => mockSetPreference(...args),
-  deletePreference: (...args: unknown[]) => mockDeletePreference(...args),
 }));
 
 jest.mock("@/services/logger", () => ({
@@ -22,7 +20,6 @@ jest.mock("@/utils/clock", () => ({
 }));
 
 import {
-  clearWeeklyReviewIntroSeen,
   isWeeklyReviewFirstRunCompleted,
   isWeeklyReviewIntroSeen,
   markWeeklyReviewFirstRunCompleted,
@@ -66,22 +63,6 @@ describe("markWeeklyReviewIntroSeen", () => {
   it("resolves to false when the write fails, and logs", async () => {
     mockSetPreference.mockRejectedValue(new Error("disk full"));
     await expect(markWeeklyReviewIntroSeen()).resolves.toBe(false);
-    expect(mockLoggerWarn).toHaveBeenCalledTimes(1);
-  });
-});
-
-describe("clearWeeklyReviewIntroSeen", () => {
-  it("deletes the intro-seen key and resolves to true", async () => {
-    mockDeletePreference.mockResolvedValue(undefined);
-    await expect(clearWeeklyReviewIntroSeen()).resolves.toBe(true);
-    expect(mockDeletePreference).toHaveBeenCalledWith(
-      "weekly_review.intro_seen_at",
-    );
-  });
-
-  it("resolves to false when the delete fails, and logs", async () => {
-    mockDeletePreference.mockRejectedValue(new Error("db locked"));
-    await expect(clearWeeklyReviewIntroSeen()).resolves.toBe(false);
     expect(mockLoggerWarn).toHaveBeenCalledTimes(1);
   });
 });
