@@ -100,13 +100,15 @@ export function GoalContainer({
           )}
         </Pressable>
         {consistencyRate !== null ? (
-          <ConsistencyDonut
-            label="Goal consistency"
-            onPress={onGoalPress}
-            rate={consistencyRate}
-            showAttentionDot={reviewDue && !reviewStatusError}
-            tint={goalGraduated ? colors.graduatedCircle : undefined}
-          />
+          <View style={styles.donutColumn}>
+            <ConsistencyDonut
+              label="Goal consistency"
+              onPress={onGoalPress}
+              rate={consistencyRate}
+              showAttentionDot={reviewDue && !reviewStatusError}
+              tint={goalGraduated ? colors.graduatedCircle : undefined}
+            />
+          </View>
         ) : null}
       </View>
       {banner ?? null}
@@ -154,6 +156,9 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     gap: spacing.md,
     padding: spacing.lg,
+  },
+  donutColumn: {
+    width: 80,
   },
   habitsCard: {
     backgroundColor: colors.surfaceCard,

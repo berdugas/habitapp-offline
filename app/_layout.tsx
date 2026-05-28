@@ -6,9 +6,10 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { Stack, useGlobalSearchParams, usePathname } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { Text, View } from "react-native";
+import { LogBox, Text, View } from "react-native";
 import * as SplashScreen from "expo-splash-screen";
 import * as Notifications from "expo-notifications";
+import Constants from "expo-constants";
 import { useFonts } from "expo-font";
 import {
   PlusJakartaSans_700Bold,
@@ -42,6 +43,21 @@ import {
 } from "@/services/posthog";
 import { colors } from "@/theme/colors";
 import { useAuthSession } from "@/features/auth/hooks";
+
+// Suppress two Expo Go-only startup warnings that confuse testers but are
+// harmless:
+//   1. expo-notifications SDK 53+ removed remote push from Expo Go (local
+//      notifications used for habit reminders still work)
+//   2. PostHog network flush failures (SDK retries internally; auto-captured
+//      $opened events get persisted and re-sent on next successful flush)
+// Gated on Expo Go only — the production Android AAB keeps all logs visible.
+if (Constants.executionEnvironment === "storeClient") {
+  LogBox.ignoreLogs([
+    /expo-notifications:.*removed from Expo Go/,
+    /Error while flushing PostHog/,
+    /PostHogFetchNetworkError/,
+  ]);
+}
 
 // Telemetry init at module load — Sentry first so it can catch any PostHog
 // init errors, then PostHog. Both no-op without DSN/key in app.json extra,

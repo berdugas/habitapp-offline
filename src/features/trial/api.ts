@@ -45,21 +45,50 @@ export async function fetchTrialEntitlement(
     );
   }
 
-  if (!data) {
-    logger.error("Trial entitlement row missing for user", { userId });
-    throw new TrialEntitlementFetchError(
-      "Account is missing trial entitlement record.",
-      "missing_row",
+  // Self-heal: if the handle_new_user trigger from migration 0005 didn't
+  // produce a row for this user (silent failure observed in one iOS beta
+  // tester), call the ensure_trial_entitlement RPC to lazily create one
+  // and retry. The RPC is idempotent (ON CONFLICT DO NOTHING) and gated
+  // on auth.uid(), so clients can't impersonate other users.
+  let row = data;
+  if (!row) {
+    logger.warn(
+      "Trial entitlement row missing — calling ensure_trial_entitlement",
+      { userId },
     );
+    const { data: healed, error: healError } = await supabase
+      .rpc("ensure_trial_entitlement")
+      .single<TrialEntitlementRow>();
+
+    if (healError) {
+      logger.error("Trial entitlement self-heal RPC failed", {
+        healError,
+        userId,
+      });
+      // Reused "network" reason because the existing taxonomy lacks an
+      // "rpc_failure" slot and hooks.tsx doesn't branch on reason.
+      throw new TrialEntitlementFetchError(
+        "Could not provision your account. Please try again.",
+        "network",
+      );
+    }
+    if (!healed) {
+      logger.error("Trial entitlement self-heal returned no row", { userId });
+      throw new TrialEntitlementFetchError(
+        "Account is missing trial entitlement record.",
+        "missing_row",
+      );
+    }
+    row = healed;
   }
 
   if (
     !TRIAL_ENTITLEMENT_STATUSES.includes(
-      data.entitlement_status as TrialEntitlementStatus,
+      row.entitlement_status as TrialEntitlementStatus,
     )
   ) {
     logger.error("Trial entitlement returned invalid status", {
-      status: data.entitlement_status,
+      status: row.entitlement_status,
       userId,
     });
     throw new TrialEntitlementFetchError(
@@ -70,10 +99,10 @@ export async function fetchTrialEntitlement(
 
   // server's last_validated_at is informational; device records its own timestamp
   return {
-    user_id: data.user_id,
-    trial_started_at: data.trial_started_at,
-    trial_ends_at: data.trial_ends_at,
-    entitlement_status: data.entitlement_status as TrialEntitlementStatus,
+    user_id: row.user_id,
+    trial_started_at: row.trial_started_at,
+    trial_ends_at: row.trial_ends_at,
+    entitlement_status: row.entitlement_status as TrialEntitlementStatus,
     last_validated_at: nowIso(),
   };
 }

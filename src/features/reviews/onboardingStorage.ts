@@ -1,5 +1,4 @@
 import {
-  deletePreference,
   getPreference,
   setPreference,
 } from "@/lib/db/repositories/preferences";
@@ -26,16 +25,6 @@ export async function markWeeklyReviewIntroSeen(): Promise<boolean> {
     return true;
   } catch (error) {
     logger.warn("Failed to persist weekly review intro seen", { error });
-    return false;
-  }
-}
-
-export async function clearWeeklyReviewIntroSeen(): Promise<boolean> {
-  try {
-    await deletePreference(WEEKLY_REVIEW_INTRO_SEEN_AT_KEY);
-    return true;
-  } catch (error) {
-    logger.warn("Failed to clear weekly review intro seen", { error });
     return false;
   }
 }
