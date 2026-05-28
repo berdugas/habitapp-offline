@@ -107,10 +107,10 @@ async function walkToWorstday(options: { withReminder?: boolean } = {}) {
   });
 
   // Personalize phase: habit name → "Looks good".
-  await screen.findByPlaceholderText("Tap to name your habit");
+  await screen.findByPlaceholderText("Tap to name");
   await act(async () => {
     fireEvent.changeText(
-      screen.getByPlaceholderText("Tap to name your habit"),
+      screen.getByPlaceholderText("Tap to name"),
       "Morning run",
     );
   });

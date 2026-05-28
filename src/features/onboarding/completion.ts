@@ -59,7 +59,7 @@ export async function finalizeOnboarding(
         tiny_action: draft.tinyAction.trim(),
         minimum_viable_action: null,
         preferred_time_window: null,
-        icon: draft.habitIcon ?? null,
+        icon: draft.habitIcon?.trim() || "Sparkles",
         active_days: serializeActiveDays(draft.activeDays ?? ALL_DAYS),
         habit_state: "active",
         status: "active",
