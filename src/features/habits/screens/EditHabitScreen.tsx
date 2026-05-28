@@ -427,7 +427,7 @@ const styles = StyleSheet.create({
   suggestionBody: {
     fontFamily: fontFamilies.body,
     fontSize: typography.bodyMd,
-    lineHeight: 20,
+    lineHeight: 18.6,
     color: colors.textMuted,
   },
   suggestionDraftLabel: {
@@ -439,7 +439,7 @@ const styles = StyleSheet.create({
   suggestionDraftBody: {
     fontFamily: fontFamilies.body,
     fontSize: typography.bodyMd,
-    lineHeight: 20,
+    lineHeight: 18.6,
     color: colors.textMuted,
   },
   suggestionReasonLabel: {
@@ -451,7 +451,7 @@ const styles = StyleSheet.create({
   suggestionReason: {
     fontFamily: fontFamilies.body,
     fontSize: typography.bodyMd,
-    lineHeight: 24,
+    lineHeight: 22.3,
     color: colors.textMuted,
   },
   // Identity card

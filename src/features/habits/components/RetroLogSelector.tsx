@@ -136,7 +136,7 @@ const styles = StyleSheet.create({
   lockedText: {
     color: colors.textMuted,
     fontSize: typography.bodyLg,
-    lineHeight: 22,
+    lineHeight: 19.3,
   },
   statusLabel: {
     color: colors.textMuted,

@@ -716,7 +716,7 @@ const styles = StyleSheet.create({
   sectionLabel: {
     fontFamily: fontFamilies.displaySemi,
     fontSize: typography.titleMd,
-    lineHeight: 24,
+    lineHeight: 21.3,
     color: colors.text,
     marginBottom: spacing.md,
   },
@@ -810,7 +810,7 @@ const styles = StyleSheet.create({
   formulaPreview: {
     fontFamily: fontFamilies.body,
     fontSize: typography.bodyMd,
-    lineHeight: 21,
+    lineHeight: 19.5,
     color: colors.textMuted,
   },
   goalBadge: {
@@ -853,7 +853,7 @@ const styles = StyleSheet.create({
   gateQuestion: {
     fontFamily: fontFamilies.displaySemi,
     fontSize: typography.titleLg,
-    lineHeight: 28,
+    lineHeight: 25.2,
     color: colors.text,
   },
   gateActionBold: {

@@ -86,7 +86,7 @@ const styles = StyleSheet.create({
   eyebrow: {
     fontFamily: fontFamilies.bodyMedium,
     fontSize: typography.bodyMd,
-    lineHeight: 21,
+    lineHeight: 19.5,
     color: colors.primary,
     marginBottom: 8,
   },

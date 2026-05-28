@@ -423,7 +423,7 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     fontFamily: fontFamilies.body,
     fontSize: typography.bodyMd,
-    lineHeight: 20,
+    lineHeight: 18.6,
   },
   archiveCard: {
     backgroundColor: colors.surfaceMuted,
@@ -513,7 +513,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontFamily: fontFamilies.body,
     fontSize: typography.bodyMd,
-    lineHeight: 22,
+    lineHeight: 20.4,
     paddingTop: 4,
   },
   screen: {
@@ -529,13 +529,13 @@ const styles = StyleSheet.create({
     color: colors.danger,
     fontFamily: fontFamilies.body,
     fontSize: typography.bodyMd,
-    lineHeight: 20,
+    lineHeight: 18.6,
   },
   reviewPromptText: {
     color: colors.text,
     fontFamily: fontFamilies.body,
     fontSize: typography.bodyMd,
-    lineHeight: 20,
+    lineHeight: 18.6,
   },
   streakCopyText: {
     color: colors.primary,

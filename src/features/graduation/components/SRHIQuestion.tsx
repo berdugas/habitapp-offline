@@ -101,7 +101,7 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontFamily: fontFamilies.body,
     fontSize: typography.bodyLg,
-    lineHeight: 22,
+    lineHeight: 19.3,
   },
   scaleLabels: {
     flexDirection: "row",

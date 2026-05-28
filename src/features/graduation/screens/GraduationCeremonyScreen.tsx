@@ -273,7 +273,7 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     fontFamily: fontFamilies.body,
     fontSize: typography.bodyLg,
-    lineHeight: 24,
+    lineHeight: 21,
   },
   content: {
     gap: spacing.xl,
@@ -283,7 +283,7 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     fontFamily: fontFamilies.body,
     fontSize: typography.bodyLg,
-    lineHeight: 24,
+    lineHeight: 21,
   },
   habitTitle: {
     color: colors.text,
@@ -303,7 +303,7 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontFamily: fontFamilies.body,
     fontSize: typography.bodyLg,
-    lineHeight: 24,
+    lineHeight: 21,
   },
   outcomeScore: {
     color: colors.textFaint,

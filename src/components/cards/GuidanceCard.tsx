@@ -36,7 +36,7 @@ const styles = StyleSheet.create({
   },
   body: {
     fontSize: typography.bodyMd,
-    lineHeight: 22.4,
+    lineHeight: 20.8,
     fontFamily: fontFamilies.body,
     color: colors.textMuted,
   },

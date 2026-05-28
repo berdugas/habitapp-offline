@@ -244,7 +244,7 @@ const styles = StyleSheet.create({
   formula: {
     fontFamily: fontFamilies.body,
     fontSize: typography.bodyMd,
-    lineHeight: 21,
+    lineHeight: 19.5,
     color: colors.textMuted,
   },
   formulaBold: {
@@ -270,13 +270,13 @@ const styles = StyleSheet.create({
   phase2Eyebrow: {
     fontFamily: fontFamilies.bodyMedium,
     fontSize: typography.bodyMd,
-    lineHeight: 21,
+    lineHeight: 19.5,
     color: colors.primary,
   },
   phase2Question: {
     fontFamily: fontFamilies.displaySemi,
     fontSize: typography.titleLg,
-    lineHeight: 26,
+    lineHeight: 23.4,
     color: colors.text,
     marginTop: spacing.sm,
   },

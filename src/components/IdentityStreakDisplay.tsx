@@ -38,6 +38,6 @@ const styles = StyleSheet.create({
     fontFamily: fontFamilies.body,
     fontSize: typography.bodyLg,
     fontStyle: "italic",
-    lineHeight: 24,
+    lineHeight: 21,
   },
 });

@@ -600,7 +600,7 @@ const styles = StyleSheet.create({
     fontFamily: fontFamilies.body,
     fontSize: typography.bodyLg,
     fontStyle: "italic",
-    lineHeight: 22,
+    lineHeight: 19.3,
   },
   graduatedBadge: {
     alignSelf: "flex-start",
@@ -618,7 +618,7 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     fontFamily: fontFamilies.body,
     fontSize: typography.bodyLg,
-    lineHeight: 24,
+    lineHeight: 21,
   },
   frequencyText: {
     color: colors.textFaint,
@@ -644,7 +644,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontFamily: fontFamilies.body,
     fontSize: typography.bodyMd,
-    lineHeight: 22,
+    lineHeight: 20.4,
     paddingTop: 4,
   },
   content: {
@@ -788,7 +788,7 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     fontFamily: fontFamilies.body,
     fontSize: typography.bodyLg,
-    lineHeight: 24,
+    lineHeight: 21,
   },
   reviewCompletedText: {
     color: colors.primary,
@@ -804,6 +804,6 @@ const styles = StyleSheet.create({
     color: colors.danger,
     fontFamily: fontFamilies.body,
     fontSize: typography.bodyMd,
-    lineHeight: 20,
+    lineHeight: 18.6,
   },
 });

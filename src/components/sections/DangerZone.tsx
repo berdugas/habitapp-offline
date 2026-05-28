@@ -52,6 +52,6 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     fontFamily: fontFamilies.body,
     fontSize: typography.bodyMd,
-    lineHeight: 20,
+    lineHeight: 18.6,
   },
 });

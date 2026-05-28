@@ -39,6 +39,6 @@ const styles = StyleSheet.create({
   message: {
     color: colors.text,
     fontSize: typography.bodyMd,
-    lineHeight: 20,
+    lineHeight: 18.6,
   },
 });

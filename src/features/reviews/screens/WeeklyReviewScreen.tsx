@@ -339,7 +339,7 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     fontFamily: fontFamilies.body,
     fontSize: typography.bodyLg,
-    lineHeight: 24,
+    lineHeight: 21,
   },
   booleanField: {
     gap: spacing.sm,
@@ -348,7 +348,7 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     fontFamily: fontFamilies.body,
     fontSize: typography.bodyMd,
-    lineHeight: 20,
+    lineHeight: 18.6,
   },
   booleanLabel: {
     color: colors.text,
@@ -383,7 +383,7 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     fontFamily: fontFamilies.body,
     fontSize: typography.bodyMd,
-    lineHeight: 20,
+    lineHeight: 18.6,
   },
   successCard: {
     backgroundColor: colors.primarySoft,
@@ -397,13 +397,13 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     fontFamily: fontFamilies.body,
     fontSize: typography.bodyMd,
-    lineHeight: 20,
+    lineHeight: 18.6,
   },
   suggestionReason: {
     color: colors.textMuted,
     fontFamily: fontFamilies.body,
     fontSize: typography.bodyMd,
-    lineHeight: 20,
+    lineHeight: 18.6,
   },
   suggestionReasonLabel: {
     color: colors.text,

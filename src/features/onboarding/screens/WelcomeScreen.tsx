@@ -45,7 +45,7 @@ const styles = StyleSheet.create({
   subhead: {
     fontFamily: fontFamilies.body,
     fontSize: typography.bodyLg,
-    lineHeight: 25.6,
+    lineHeight: 22.4,
     color: colors.textMuted,
     letterSpacing: 0.32,
     marginBottom: 8,

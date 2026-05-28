@@ -42,7 +42,7 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     fontFamily: fontFamilies.body,
     fontSize: typography.bodyMd,
-    lineHeight: 20,
+    lineHeight: 18.6,
   },
   container: {
     backgroundColor: colors.surface,
@@ -57,7 +57,7 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     fontSize: typography.titleLg,
     fontWeight: "300",
-    lineHeight: 22,
+    lineHeight: 19.8,
   },
   headline: {
     color: colors.text,

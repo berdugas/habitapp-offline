@@ -42,7 +42,7 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     fontFamily: fontFamilies.body,
     fontSize: typography.bodyMd,
-    lineHeight: 22,
+    lineHeight: 20.4,
   },
   heading: {
     color: colors.text,
