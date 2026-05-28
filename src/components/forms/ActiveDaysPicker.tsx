@@ -4,6 +4,7 @@ import { getActiveDaysLabel } from "@/features/habits/activeDays";
 import { colors } from "@/theme/colors";
 import { fontFamilies } from "@/theme/fontFamilies";
 import { spacing } from "@/theme/spacing";
+import { typography } from "@/theme/typography";
 
 // ISO weekday: Mon=1 … Sun=7
 const DAY_LABELS: { day: number; label: string }[] = [
@@ -75,7 +76,7 @@ const styles = StyleSheet.create({
   fieldLabel: {
     color: colors.textMuted,
     fontFamily: fontFamilies.bodyMedium,
-    fontSize: 13,
+    fontSize: typography.labelMd,
   },
   row: {
     flexDirection: "row",
@@ -98,7 +99,7 @@ const styles = StyleSheet.create({
   letter: {
     color: colors.textMuted,
     fontFamily: fontFamilies.bodySemi,
-    fontSize: 13,
+    fontSize: typography.labelMd,
   },
   letterSelected: {
     color: colors.primaryText,
@@ -106,6 +107,6 @@ const styles = StyleSheet.create({
   scheduleLabel: {
     color: colors.textFaint,
     fontFamily: fontFamilies.body,
-    fontSize: 13,
+    fontSize: typography.labelMd,
   },
 });

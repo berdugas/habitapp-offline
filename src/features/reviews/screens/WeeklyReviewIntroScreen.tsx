@@ -14,6 +14,7 @@ import { trackEvent } from "@/services/analytics";
 import { colors } from "@/theme/colors";
 import { fontFamilies } from "@/theme/fontFamilies";
 import { spacing } from "@/theme/spacing";
+import { typography } from "@/theme/typography";
 import { normalizeParam } from "@/utils/params";
 
 const HEADLINE = "A weekly look back.";
@@ -119,7 +120,7 @@ const styles = StyleSheet.create({
   body: {
     color: colors.textMuted,
     fontFamily: fontFamilies.body,
-    fontSize: 16,
+    fontSize: typography.bodyLg,
     letterSpacing: 0.16,
     lineHeight: 26,
     maxWidth: 330,
@@ -188,7 +189,7 @@ const styles = StyleSheet.create({
   headline: {
     color: colors.text,
     fontFamily: fontFamilies.displayBold,
-    fontSize: 28,
+    fontSize: typography.headlineLg,
     letterSpacing: -0.2,
     lineHeight: 34,
     marginBottom: spacing.lg,
@@ -201,6 +202,6 @@ const styles = StyleSheet.create({
   skipLabel: {
     color: colors.textMuted,
     fontFamily: fontFamilies.bodySemi,
-    fontSize: 14,
+    fontSize: typography.bodyMd,
   },
 });

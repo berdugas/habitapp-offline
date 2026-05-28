@@ -396,7 +396,7 @@ const styles = StyleSheet.create({
   appName: {
     color: colors.primary,
     fontFamily: fontFamilies.bodySemi,
-    fontSize: 13,
+    fontSize: typography.labelMd,
     letterSpacing: 1.5,
     textTransform: "uppercase",
   },
@@ -427,6 +427,6 @@ const styles = StyleSheet.create({
   newGoalText: {
     color: colors.textMuted,
     fontFamily: fontFamilies.body,
-    fontSize: 14,
+    fontSize: typography.bodyMd,
   },
 });

@@ -660,7 +660,7 @@ const styles = StyleSheet.create({
   goalLabel: {
     color: colors.primary,
     fontFamily: fontFamilies.bodySemi,
-    fontSize: 13,
+    fontSize: typography.labelMd,
     letterSpacing: 0.5,
     marginBottom: spacing.xs,
   },
@@ -697,7 +697,7 @@ const styles = StyleSheet.create({
   editReminderLabel: {
     color: colors.primary,
     fontFamily: fontFamilies.bodyMedium,
-    fontSize: 14,
+    fontSize: typography.bodyMd,
   },
   reminderEditor: {
     gap: spacing.md,
@@ -712,7 +712,7 @@ const styles = StyleSheet.create({
   reminderPlaceholder: {
     color: colors.textFaint,
     fontFamily: fontFamilies.body,
-    fontSize: 14,
+    fontSize: typography.bodyMd,
   },
   reminderSaveButton: {
     alignItems: "center",
@@ -739,7 +739,7 @@ const styles = StyleSheet.create({
   reminderTimeLabel: {
     color: colors.textMuted,
     fontFamily: fontFamilies.body,
-    fontSize: 13,
+    fontSize: typography.labelMd,
   },
   reminderTimeLabelSelected: {
     color: colors.primary,
@@ -764,7 +764,7 @@ const styles = StyleSheet.create({
   reminderTypeLabel: {
     color: colors.textMuted,
     fontFamily: fontFamilies.body,
-    fontSize: 14,
+    fontSize: typography.bodyMd,
   },
   reminderTypeLabelSelected: {
     color: colors.primary,

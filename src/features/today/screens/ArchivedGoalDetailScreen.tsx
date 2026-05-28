@@ -369,7 +369,7 @@ const styles = StyleSheet.create({
   bodyText: {
     color: colors.textMuted,
     fontFamily: fontFamilies.body,
-    fontSize: 14,
+    fontSize: typography.bodyMd,
     lineHeight: 20,
   },
   restoreCard: {

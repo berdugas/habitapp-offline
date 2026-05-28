@@ -42,6 +42,7 @@ import {
   screen as posthogScreen,
 } from "@/services/posthog";
 import { colors } from "@/theme/colors";
+import { typography } from "@/theme/typography";
 import { useAuthSession } from "@/features/auth/hooks";
 
 // Suppress two Expo Go-only startup warnings that confuse testers but are
@@ -211,7 +212,7 @@ function ErrorFallback() {
         backgroundColor: colors.bg,
       }}
     >
-      <Text style={{ color: colors.text, fontSize: 16, textAlign: "center" }}>
+      <Text style={{ color: colors.text, fontSize: typography.bodyLg, textAlign: "center" }}>
         Something went wrong. Reopen the app.
       </Text>
     </View>

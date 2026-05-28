@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { isoWeekday } from "@/features/habits/activeDays";
 import { colors } from "@/theme/colors";
 import { fontFamilies } from "@/theme/fontFamilies";
+import { typography } from "@/theme/typography";
 import { todayDateString } from "@/utils/clock";
 import { addDeviceDays, toDeviceDateString } from "@/utils/dates";
 
@@ -251,7 +252,7 @@ const styles = StyleSheet.create({
   headerText: {
     color: colors.textFaint,
     fontFamily: fontFamilies.body,
-    fontSize: 11,
+    fontSize: typography.micro,
   },
   legend: {
     flexDirection: "row",
@@ -267,7 +268,7 @@ const styles = StyleSheet.create({
   legendLabel: {
     color: colors.textFaint,
     fontFamily: fontFamilies.body,
-    fontSize: 11,
+    fontSize: typography.micro,
   },
   legendSwatch: {
     borderRadius: 3,

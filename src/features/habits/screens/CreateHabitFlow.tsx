@@ -43,6 +43,7 @@ import { fontFamilies } from "@/theme/fontFamilies";
 import { radius } from "@/theme/radius";
 import { shadows } from "@/theme/shadows";
 import { SCREEN_TOP_PADDING, spacing } from "@/theme/spacing";
+import { typography } from "@/theme/typography";
 import { toDeviceDateString } from "@/utils/dates";
 import { getCreateHabitErrorMessage } from "@/utils/userFacingErrors";
 
@@ -706,7 +707,7 @@ const styles = StyleSheet.create({
   },
   readOnlyPillText: {
     fontFamily: fontFamilies.bodySemi,
-    fontSize: 14,
+    fontSize: typography.bodyMd,
     color: colors.primary,
   },
   sectionGap: {
@@ -714,7 +715,7 @@ const styles = StyleSheet.create({
   },
   sectionLabel: {
     fontFamily: fontFamilies.displaySemi,
-    fontSize: 18,
+    fontSize: typography.titleMd,
     lineHeight: 24,
     color: colors.text,
     marginBottom: spacing.md,
@@ -727,7 +728,7 @@ const styles = StyleSheet.create({
   },
   formulaEyebrow: {
     fontFamily: fontFamilies.bodyMedium,
-    fontSize: 11,
+    fontSize: typography.micro,
     color: colors.primary,
     textTransform: "uppercase",
     letterSpacing: 0.6,
@@ -788,19 +789,19 @@ const styles = StyleSheet.create({
   },
   nameHint: {
     fontFamily: fontFamilies.body,
-    fontSize: 11,
+    fontSize: typography.micro,
     color: colors.textFaint,
     marginBottom: 2,
   },
   nameInput: {
     fontFamily: fontFamilies.displayBold,
-    fontSize: 18,
+    fontSize: typography.titleMd,
     color: colors.text,
     padding: 0,
   },
   nameLocked: {
     fontFamily: fontFamilies.displayBold,
-    fontSize: 18,
+    fontSize: typography.titleMd,
     color: colors.text,
   },
   pickerContainer: {
@@ -808,7 +809,7 @@ const styles = StyleSheet.create({
   },
   formulaPreview: {
     fontFamily: fontFamilies.body,
-    fontSize: 14,
+    fontSize: typography.bodyMd,
     lineHeight: 21,
     color: colors.textMuted,
   },
@@ -824,12 +825,12 @@ const styles = StyleSheet.create({
   },
   goalBadgeText: {
     fontFamily: fontFamilies.bodySemi,
-    fontSize: 13,
+    fontSize: typography.labelMd,
     color: colors.primary,
   },
   micro: {
     fontFamily: fontFamilies.body,
-    fontSize: 13,
+    fontSize: typography.labelMd,
     color: colors.textFaint,
     marginTop: 4,
     marginBottom: spacing.xl,
@@ -851,7 +852,7 @@ const styles = StyleSheet.create({
   },
   gateQuestion: {
     fontFamily: fontFamilies.displaySemi,
-    fontSize: 20,
+    fontSize: typography.titleLg,
     lineHeight: 28,
     color: colors.text,
   },

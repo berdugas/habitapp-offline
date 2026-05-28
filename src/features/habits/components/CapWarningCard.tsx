@@ -4,6 +4,7 @@ import { AlertTriangle } from "lucide-react-native";
 import { fontFamilies } from "@/theme/fontFamilies";
 import { radius } from "@/theme/radius";
 import { spacing } from "@/theme/spacing";
+import { typography } from "@/theme/typography";
 
 type CapWarningCardProps = {
   count: number;
@@ -35,7 +36,7 @@ const styles = StyleSheet.create({
     color: "#92400e",
     flex: 1,
     fontFamily: fontFamilies.body,
-    fontSize: 13,
+    fontSize: typography.labelMd,
     lineHeight: 19,
   },
 });

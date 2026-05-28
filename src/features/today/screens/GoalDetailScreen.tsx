@@ -413,7 +413,7 @@ const styles = StyleSheet.create({
   chevron: {
     color: colors.textFaint,
     fontFamily: fontFamilies.body,
-    fontSize: 20,
+    fontSize: typography.titleLg,
   },
   content: {
     gap: spacing.xl,
@@ -422,7 +422,7 @@ const styles = StyleSheet.create({
   archiveBody: {
     color: colors.textMuted,
     fontFamily: fontFamilies.body,
-    fontSize: 14,
+    fontSize: typography.bodyMd,
     lineHeight: 20,
   },
   archiveCard: {

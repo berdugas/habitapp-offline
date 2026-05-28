@@ -3,6 +3,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { colors } from "@/theme/colors";
 import { fontFamilies } from "@/theme/fontFamilies";
+import { typography } from "@/theme/typography";
 
 type LucideIconPickerProps = {
   selected: string | null;
@@ -110,7 +111,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   categoryLabel: {
-    fontSize: 11,
+    fontSize: typography.micro,
     fontFamily: fontFamilies.bodyMedium,
     color: colors.textFaint,
     textTransform: "uppercase",

@@ -6,6 +6,7 @@ import { colors } from '@/theme/colors';
 import { fontFamilies } from '@/theme/fontFamilies';
 import { radius } from '@/theme/radius';
 import { shadows } from '@/theme/shadows';
+import { typography } from '@/theme/typography';
 
 type OnboardingInputProps = {
   label: string;
@@ -39,7 +40,7 @@ export const OnboardingInput = forwardRef<TextInput, OnboardingInputProps>(
 
 const styles = StyleSheet.create({
   label: {
-    fontSize: 13,
+    fontSize: typography.labelMd,
     fontFamily: fontFamilies.bodyMedium,
     color: colors.primary,
     marginBottom: 8,

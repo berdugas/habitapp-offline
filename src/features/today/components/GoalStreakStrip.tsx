@@ -280,7 +280,7 @@ const styles = StyleSheet.create({
   headerText: {
     color: colors.textFaint,
     fontFamily: fontFamilies.body,
-    fontSize: 11,
+    fontSize: typography.micro,
   },
   legend: {
     flexDirection: "row",
@@ -296,7 +296,7 @@ const styles = StyleSheet.create({
   legendLabel: {
     color: colors.textFaint,
     fontFamily: fontFamilies.body,
-    fontSize: 11,
+    fontSize: typography.micro,
   },
   legendSwatch: {
     borderRadius: 3,

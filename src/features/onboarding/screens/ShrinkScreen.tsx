@@ -13,6 +13,7 @@ import { colors } from "@/theme/colors";
 import { fontFamilies } from "@/theme/fontFamilies";
 import { radius } from "@/theme/radius";
 import { spacing } from "@/theme/spacing";
+import { typography } from "@/theme/typography";
 
 export default function ShrinkScreen() {
   const { draft, update } = useOnboarding();
@@ -113,7 +114,7 @@ const styles = StyleSheet.create({
   },
   contextText: {
     fontFamily: fontFamilies.body,
-    fontSize: 14,
+    fontSize: typography.bodyMd,
     color: colors.text,
     flex: 1,
   },

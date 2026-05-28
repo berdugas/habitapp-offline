@@ -184,7 +184,7 @@ const styles = StyleSheet.create({
   addHabitText: {
     color: colors.textMuted,
     fontFamily: fontFamilies.body,
-    fontSize: 14,
+    fontSize: typography.bodyMd,
   },
   pill: {
     alignSelf: "flex-start",

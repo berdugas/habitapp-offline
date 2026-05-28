@@ -55,7 +55,7 @@ const styles = StyleSheet.create({
   },
   dismissText: {
     color: colors.textMuted,
-    fontSize: 20,
+    fontSize: typography.titleLg,
     fontWeight: "300",
     lineHeight: 22,
   },

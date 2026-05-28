@@ -4,6 +4,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { colors } from '@/theme/colors';
 import { fontFamilies } from '@/theme/fontFamilies';
 import { radius } from '@/theme/radius';
+import { typography } from '@/theme/typography';
 
 type GuidanceCardProps = {
   title: string;
@@ -29,12 +30,12 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   title: {
-    fontSize: 13,
+    fontSize: typography.labelMd,
     fontFamily: fontFamilies.bodyMedium,
     color: colors.primary,
   },
   body: {
-    fontSize: 14,
+    fontSize: typography.bodyMd,
     lineHeight: 22.4,
     fontFamily: fontFamilies.body,
     color: colors.textMuted,

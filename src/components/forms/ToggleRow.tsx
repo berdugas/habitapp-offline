@@ -2,6 +2,7 @@ import { StyleSheet, Switch, Text, View } from "react-native";
 
 import { colors } from "@/theme/colors";
 import { spacing } from "@/theme/spacing";
+import { typography } from "@/theme/typography";
 
 type ToggleRowProps = {
   description?: string;
@@ -40,11 +41,11 @@ const styles = StyleSheet.create({
   },
   description: {
     color: colors.textMuted,
-    fontSize: 13,
+    fontSize: typography.labelMd,
   },
   label: {
     color: colors.text,
-    fontSize: 16,
+    fontSize: typography.bodyLg,
     fontWeight: "600",
   },
   row: {

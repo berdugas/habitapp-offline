@@ -126,14 +126,14 @@ const styles = StyleSheet.create({
   consist: {
     color: colors.text,
     fontFamily: fontFamilies.bodySemi,
-    fontSize: 20,
+    fontSize: typography.titleLg,
     lineHeight: 30,
     textAlign: "center",
   },
   consistPct: {
     color: colors.primary,
     fontFamily: fontFamilies.displayBold,
-    fontSize: 28,
+    fontSize: typography.headlineLg,
   },
   container: { gap: spacing.xl },
   content: {
@@ -143,7 +143,7 @@ const styles = StyleSheet.create({
   dayLine: {
     color: colors.text,
     fontFamily: fontFamilies.displayBold,
-    fontSize: 36,
+    fontSize: typography.displayLg,
     letterSpacing: -0.72,
     lineHeight: 40,
     marginTop: spacing.xs,
@@ -204,7 +204,7 @@ const styles = StyleSheet.create({
     alignSelf: "stretch",
     color: colors.primaryGradientEnd,
     fontFamily: fontFamilies.displaySemiItalic,
-    fontSize: 22,
+    fontSize: typography.headlineMd,
     lineHeight: 36,
     marginTop: spacing.md,
     paddingHorizontal: spacing.lg,

@@ -7,6 +7,7 @@ import { OnboardingLayout } from "@/components/layouts/OnboardingLayout";
 import { useOnboarding } from "@/features/onboarding/OnboardingProvider";
 import { colors } from "@/theme/colors";
 import { fontFamilies } from "@/theme/fontFamilies";
+import { typography } from "@/theme/typography";
 
 export default function WelcomeScreen() {
   const { update } = useOnboarding();
@@ -43,7 +44,7 @@ const styles = StyleSheet.create({
   },
   subhead: {
     fontFamily: fontFamilies.body,
-    fontSize: 16,
+    fontSize: typography.bodyLg,
     lineHeight: 25.6,
     color: colors.textMuted,
     letterSpacing: 0.32,

@@ -12,6 +12,7 @@ import { colors } from "@/theme/colors";
 import { fontFamilies } from "@/theme/fontFamilies";
 import { radius } from "@/theme/radius";
 import { spacing } from "@/theme/spacing";
+import { typography } from "@/theme/typography";
 
 export default function CueScreen() {
   const { draft, update } = useOnboarding();
@@ -84,7 +85,7 @@ export default function CueScreen() {
 const styles = StyleSheet.create({
   eyebrow: {
     fontFamily: fontFamilies.bodyMedium,
-    fontSize: 14,
+    fontSize: typography.bodyMd,
     lineHeight: 21,
     color: colors.primary,
     marginBottom: 8,
@@ -106,7 +107,7 @@ const styles = StyleSheet.create({
   },
   fieldLabel: {
     fontFamily: fontFamilies.bodyMedium,
-    fontSize: 13,
+    fontSize: typography.labelMd,
     color: colors.textMuted,
     paddingLeft: 4,
   },

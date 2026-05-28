@@ -17,6 +17,7 @@ import { fontFamilies } from "@/theme/fontFamilies";
 import { radius } from "@/theme/radius";
 import { shadows } from "@/theme/shadows";
 import { spacing } from "@/theme/spacing";
+import { typography } from "@/theme/typography";
 
 type Phase = "personalize" | "worstday";
 
@@ -222,19 +223,19 @@ const styles = StyleSheet.create({
   },
   nameHint: {
     fontFamily: fontFamilies.body,
-    fontSize: 11,
+    fontSize: typography.micro,
     color: colors.textFaint,
     marginBottom: 2,
   },
   nameInput: {
     fontFamily: fontFamilies.displayBold,
-    fontSize: 18,
+    fontSize: typography.titleMd,
     color: colors.text,
     padding: 0,
   },
   nameLocked: {
     fontFamily: fontFamilies.displayBold,
-    fontSize: 18,
+    fontSize: typography.titleMd,
     color: colors.text,
   },
   pickerContainer: {
@@ -242,7 +243,7 @@ const styles = StyleSheet.create({
   },
   formula: {
     fontFamily: fontFamilies.body,
-    fontSize: 14,
+    fontSize: typography.bodyMd,
     lineHeight: 21,
     color: colors.textMuted,
   },
@@ -252,7 +253,7 @@ const styles = StyleSheet.create({
   },
   micro: {
     fontFamily: fontFamilies.body,
-    fontSize: 13,
+    fontSize: typography.labelMd,
     color: colors.textFaint,
     marginTop: 4,
   },
@@ -268,13 +269,13 @@ const styles = StyleSheet.create({
   },
   phase2Eyebrow: {
     fontFamily: fontFamilies.bodyMedium,
-    fontSize: 14,
+    fontSize: typography.bodyMd,
     lineHeight: 21,
     color: colors.primary,
   },
   phase2Question: {
     fontFamily: fontFamilies.displaySemi,
-    fontSize: 20,
+    fontSize: typography.titleLg,
     lineHeight: 26,
     color: colors.text,
     marginTop: spacing.sm,
@@ -300,7 +301,7 @@ const styles = StyleSheet.create({
   },
   goalText: {
     fontFamily: fontFamilies.bodySemi,
-    fontSize: 13,
+    fontSize: typography.labelMd,
     color: colors.primary,
   },
 });

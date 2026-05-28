@@ -6,6 +6,7 @@ import { colors } from "@/theme/colors";
 import { fontFamilies } from "@/theme/fontFamilies";
 import { radius } from "@/theme/radius";
 import { spacing } from "@/theme/spacing";
+import { typography } from "@/theme/typography";
 
 type DangerZoneProps = {
   title: string;
@@ -50,7 +51,7 @@ const styles = StyleSheet.create({
   body: {
     color: colors.textMuted,
     fontFamily: fontFamilies.body,
-    fontSize: 14,
+    fontSize: typography.bodyMd,
     lineHeight: 20,
   },
 });

@@ -415,7 +415,7 @@ const styles = StyleSheet.create({
   },
   suggestionEyebrow: {
     fontFamily: fontFamilies.bodyMedium,
-    fontSize: 11,
+    fontSize: typography.micro,
     color: colors.textFaint,
     letterSpacing: 0.5,
   },
@@ -426,31 +426,31 @@ const styles = StyleSheet.create({
   },
   suggestionBody: {
     fontFamily: fontFamilies.body,
-    fontSize: 14,
+    fontSize: typography.bodyMd,
     lineHeight: 20,
     color: colors.textMuted,
   },
   suggestionDraftLabel: {
     fontFamily: fontFamilies.bodySemi,
-    fontSize: 13,
+    fontSize: typography.labelMd,
     lineHeight: 20,
     color: colors.text,
   },
   suggestionDraftBody: {
     fontFamily: fontFamilies.body,
-    fontSize: 14,
+    fontSize: typography.bodyMd,
     lineHeight: 20,
     color: colors.textMuted,
   },
   suggestionReasonLabel: {
     fontFamily: fontFamilies.bodySemi,
-    fontSize: 13,
+    fontSize: typography.labelMd,
     lineHeight: 22,
     color: colors.text,
   },
   suggestionReason: {
     fontFamily: fontFamilies.body,
-    fontSize: 14,
+    fontSize: typography.bodyMd,
     lineHeight: 24,
     color: colors.textMuted,
   },
@@ -463,7 +463,7 @@ const styles = StyleSheet.create({
   },
   identityEyebrow: {
     fontFamily: fontFamilies.bodyMedium,
-    fontSize: 11,
+    fontSize: typography.micro,
     color: colors.primary,
     letterSpacing: 0.5,
     marginBottom: 2,
@@ -486,12 +486,12 @@ const styles = StyleSheet.create({
   },
   fieldLabel: {
     fontFamily: fontFamilies.bodyMedium,
-    fontSize: 13,
+    fontSize: typography.labelMd,
     color: colors.textMuted,
   },
   fieldHint: {
     fontFamily: fontFamilies.body,
-    fontSize: 13,
+    fontSize: typography.labelMd,
     color: colors.textFaint,
   },
   fieldRow: {
@@ -540,7 +540,7 @@ const styles = StyleSheet.create({
   },
   formulaEyebrow: {
     fontFamily: fontFamilies.bodyMedium,
-    fontSize: 11,
+    fontSize: typography.micro,
     color: colors.textFaint,
     letterSpacing: 0.5,
   },
@@ -587,7 +587,7 @@ const styles = StyleSheet.create({
   readOnlyHelper: {
     color: colors.textMuted,
     fontFamily: fontFamilies.body,
-    fontSize: 14,
+    fontSize: typography.bodyMd,
     textAlign: "center",
   },
 });

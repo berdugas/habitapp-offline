@@ -8,6 +8,7 @@ import { SecondaryButton } from "@/components/buttons/SecondaryButton";
 import { colors } from "@/theme/colors";
 import { fontFamilies } from "@/theme/fontFamilies";
 import { SCREEN_TOP_PADDING, spacing } from "@/theme/spacing";
+import { typography } from "@/theme/typography";
 
 export default function WelcomeScreen() {
   const insets = useSafeAreaInsets();
@@ -80,7 +81,7 @@ const styles = StyleSheet.create({
   },
   subhead: {
     fontFamily: fontFamilies.body,
-    fontSize: 16,
+    fontSize: typography.bodyLg,
     lineHeight: 25.6,
     color: colors.textMuted,
     letterSpacing: 0.32,
