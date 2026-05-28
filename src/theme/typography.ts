@@ -8,6 +8,7 @@ export const typography = {
   headlineMd: 20,
   titleLg: 18,
   titleMd: 16,
+  titleSm: 14,
   bodyLg: 14,
   bodyMd: 13,
   labelMd: 13,

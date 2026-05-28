@@ -162,7 +162,7 @@ export default function CreateHabitFlow() {
         tinyAction: stripLeadingIWill(draft.tinyAction),
         minimumViableAction: "",
         preferredTimeWindow: "",
-        icon: draft.icon.trim(),
+        icon: draft.icon.trim() || "Sparkles",
         activeDays: draft.activeDays,
         habitState: "active",
         status: mode,
@@ -488,10 +488,43 @@ function PersonalizeStep({
   const insets = useSafeAreaInsets();
   const [phase, setPhase] = useState<PersonalizePhase>("personalize");
   const [showPicker, setShowPicker] = useState(false);
+  const [iconTapped, setIconTapped] = useState(false);
 
   const phase2Opacity = useRef(new Animated.Value(0)).current;
   const phase2Translate = useRef(new Animated.Value(16)).current;
+  const iconScale = useRef(new Animated.Value(1)).current;
   const scrollRef = useRef<ScrollView>(null);
+
+  useEffect(() => {
+    if (iconTapped || phase !== "personalize") return;
+
+    // Heartbeat: two quick beats, longer rest, loop until tapped.
+    const pulse = Animated.loop(
+      Animated.sequence([
+        Animated.timing(iconScale, { toValue: 1.2, duration: 220, useNativeDriver: true }),
+        Animated.timing(iconScale, { toValue: 1.0, duration: 220, useNativeDriver: true }),
+        Animated.delay(120),
+        Animated.timing(iconScale, { toValue: 1.2, duration: 220, useNativeDriver: true }),
+        Animated.timing(iconScale, { toValue: 1.0, duration: 220, useNativeDriver: true }),
+        Animated.delay(900),
+      ]),
+    );
+
+    const startTimer = setTimeout(() => pulse.start(), 400);
+
+    return () => {
+      clearTimeout(startTimer);
+      pulse.stop();
+    };
+  }, [iconTapped, phase, iconScale]);
+
+  const handleIconPress = () => {
+    if (!iconTapped) {
+      setIconTapped(true);
+      Animated.timing(iconScale, { toValue: 1, duration: 150, useNativeDriver: true }).start();
+    }
+    setShowPicker((v) => !v);
+  };
 
   const canLooksGood = draft.habitName.trim().length >= 2;
 
@@ -572,25 +605,27 @@ function PersonalizeStep({
         {/* Preview card */}
         <View style={[styles.previewCard, phase === "worstday" && styles.previewCardLocked]}>
           <View style={styles.cardHeader}>
-            <Pressable
-              disabled={phase === "worstday"}
-              onPress={() => phase === "personalize" && setShowPicker((v) => !v)}
-              style={styles.iconButton}
-            >
-              <LucideIcon
-                name={draft.icon || "Sparkles"}
-                size={22}
-                color={draft.icon ? colors.primary : colors.textFaint}
-                strokeWidth={1.8}
-              />
-            </Pressable>
+            <Animated.View style={{ transform: [{ scale: iconScale }] }}>
+              <Pressable
+                disabled={phase === "worstday"}
+                onPress={handleIconPress}
+                style={styles.iconButton}
+              >
+                <LucideIcon
+                  name={draft.icon || "Sparkles"}
+                  size={22}
+                  color={draft.icon ? colors.primary : colors.textFaint}
+                  strokeWidth={1.8}
+                />
+              </Pressable>
+            </Animated.View>
 
             <View style={styles.nameContainer}>
               <Text style={styles.nameHint}>Give it a name</Text>
               {phase === "personalize" ? (
                 <TextInput
                   autoCorrect
-                  placeholder="Tap to name your habit"
+                  placeholder="Tap to name"
                   placeholderTextColor={colors.textFaint}
                   style={styles.nameInput}
                   value={draft.habitName}
@@ -794,14 +829,14 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   nameInput: {
-    fontFamily: fontFamilies.displayBold,
-    fontSize: typography.titleMd,
+    fontFamily: fontFamilies.displaySemi,
+    fontSize: typography.titleSm,
     color: colors.text,
     padding: 0,
   },
   nameLocked: {
-    fontFamily: fontFamilies.displayBold,
-    fontSize: typography.titleMd,
+    fontFamily: fontFamilies.displaySemi,
+    fontSize: typography.titleSm,
     color: colors.text,
   },
   pickerContainer: {

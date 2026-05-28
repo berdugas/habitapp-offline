@@ -73,7 +73,7 @@ export function HabitRow({
           <LucideIcon
             name={habit.icon ?? "Sparkles"}
             color={colors.textFaint}
-            size={18}
+            size={22}
             strokeWidth={1.75}
           />
         </View>
@@ -136,7 +136,7 @@ export function HabitRow({
         <LucideIcon
           name={habit.icon ?? "Sparkles"}
           color={isLogged ? colors.textFaint : colors.primary}
-          size={18}
+          size={22}
           strokeWidth={1.75}
         />
       </View>
