@@ -8,11 +8,8 @@ import { SecondaryButton } from "@/components/buttons/SecondaryButton";
 import { ZenCard } from "@/components/cards/ZenCard";
 import { useReactivateHabitMutation } from "@/features/library/hooks";
 import { formatLibraryDate } from "@/features/library/metrics";
-import { colors } from "@/theme/colors";
-import { fontFamilies } from "@/theme/fontFamilies";
-import { radius } from "@/theme/radius";
-import { spacing } from "@/theme/spacing";
-import { typography } from "@/theme/typography";
+import { useTheme } from "@/theme/useTheme";
+import { useThemedStyles } from "@/theme/useThemedStyles";
 
 import type { LibraryHabit } from "@/features/library/hooks";
 
@@ -23,6 +20,75 @@ type LibraryHabitCardProps = {
 export function LibraryHabitCard({ habit }: LibraryHabitCardProps) {
   const [confirming, setConfirming] = useState(false);
   const reactivateMutation = useReactivateHabitMutation();
+  const theme = useTheme();
+  const styles = useThemedStyles((t) =>
+    StyleSheet.create({
+      confirmButtons: {
+        flexDirection: "row",
+        gap: t.spacing.md,
+      },
+      confirmRow: {
+        gap: t.spacing.md,
+      },
+      confirmText: {
+        color: t.colors.textMuted,
+        fontFamily: t.fontFamilies.body,
+        fontSize: t.typography.bodyMd,
+        lineHeight: 18.6,
+      },
+      errorText: {
+        color: t.colors.danger,
+        fontFamily: t.fontFamilies.body,
+        fontSize: t.typography.bodyMd,
+      },
+      graduatedBadge: {
+        alignSelf: "flex-start",
+        backgroundColor: t.colors.graduatedBadge,
+        borderRadius: t.radius.pill,
+        paddingHorizontal: t.spacing.sm + 2,
+        paddingVertical: t.spacing.xs,
+      },
+      graduatedBadgeText: {
+        color: t.colors.graduatedCircle,
+        fontFamily: t.fontFamilies.bodySemi,
+        fontSize: t.typography.micro,
+      },
+      metric: {
+        color: t.colors.textMuted,
+        fontFamily: t.fontFamilies.body,
+        fontSize: t.typography.bodyMd,
+      },
+      metricDot: {
+        color: t.colors.textFaint,
+        fontFamily: t.fontFamilies.body,
+        fontSize: t.typography.bodyMd,
+      },
+      metricsRow: {
+        alignItems: "center",
+        flexDirection: "row",
+        gap: t.spacing.sm,
+      },
+      srhi: {
+        color: t.colors.textFaint,
+        fontFamily: t.fontFamilies.body,
+        fontSize: t.typography.bodyMd,
+      },
+      tapZone: {
+        gap: t.spacing.sm,
+      },
+      title: {
+        color: t.colors.text,
+        flex: 1,
+        fontFamily: t.fontFamilies.bodySemi,
+        fontSize: t.typography.titleMd,
+      },
+      titleRow: {
+        alignItems: "center",
+        flexDirection: "row",
+        gap: t.spacing.sm,
+      },
+    }),
+  );
 
   const goToDetail = () => {
     router.push({
@@ -44,7 +110,7 @@ export function LibraryHabitCard({ habit }: LibraryHabitCardProps) {
   const automaticityScore = habit.latestSRHI?.average_score ?? null;
 
   return (
-    <ZenCard gap={spacing.md}>
+    <ZenCard gap={theme.spacing.md}>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={`Open ${habit.title} details`}
@@ -56,7 +122,7 @@ export function LibraryHabitCard({ habit }: LibraryHabitCardProps) {
             <LucideIcon
               name={habit.icon}
               size={20}
-              color={colors.primary}
+              color={theme.colors.primary}
               strokeWidth={1.75}
             />
           ) : null}
@@ -116,70 +182,3 @@ export function LibraryHabitCard({ habit }: LibraryHabitCardProps) {
     </ZenCard>
   );
 }
-
-const styles = StyleSheet.create({
-  confirmButtons: {
-    flexDirection: "row",
-    gap: spacing.md,
-  },
-  confirmRow: {
-    gap: spacing.md,
-  },
-  confirmText: {
-    color: colors.textMuted,
-    fontFamily: fontFamilies.body,
-    fontSize: typography.bodyMd,
-    lineHeight: 18.6,
-  },
-  errorText: {
-    color: colors.danger,
-    fontFamily: fontFamilies.body,
-    fontSize: typography.bodyMd,
-  },
-  graduatedBadge: {
-    alignSelf: "flex-start",
-    backgroundColor: colors.graduatedBadge,
-    borderRadius: radius.pill,
-    paddingHorizontal: spacing.sm + 2,
-    paddingVertical: spacing.xs,
-  },
-  graduatedBadgeText: {
-    color: colors.graduatedCircle,
-    fontFamily: fontFamilies.bodySemi,
-    fontSize: typography.micro,
-  },
-  metric: {
-    color: colors.textMuted,
-    fontFamily: fontFamilies.body,
-    fontSize: typography.bodyMd,
-  },
-  metricDot: {
-    color: colors.textFaint,
-    fontFamily: fontFamilies.body,
-    fontSize: typography.bodyMd,
-  },
-  metricsRow: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: spacing.sm,
-  },
-  srhi: {
-    color: colors.textFaint,
-    fontFamily: fontFamilies.body,
-    fontSize: typography.bodyMd,
-  },
-  tapZone: {
-    gap: spacing.sm,
-  },
-  title: {
-    color: colors.text,
-    flex: 1,
-    fontFamily: fontFamilies.bodySemi,
-    fontSize: typography.titleMd,
-  },
-  titleRow: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: spacing.sm,
-  },
-});

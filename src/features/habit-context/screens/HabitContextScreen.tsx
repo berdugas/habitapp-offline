@@ -2,12 +2,27 @@ import { ScrollView, StyleSheet, Text } from "react-native";
 import { useLocalSearchParams } from "expo-router";
 
 import { EmptyState } from "@/components/feedback/EmptyState";
-import { colors } from "@/theme/colors";
-import { spacing } from "@/theme/spacing";
-import { typography } from "@/theme/typography";
+import { useThemedStyles } from "@/theme/useThemedStyles";
 
 export default function HabitContextScreen() {
   const { habitId } = useLocalSearchParams<{ habitId: string }>();
+  const styles = useThemedStyles((t) =>
+    StyleSheet.create({
+      content: {
+        gap: t.spacing.xl,
+        padding: t.spacing.xl,
+      },
+      screen: {
+        backgroundColor: t.colors.bg,
+        flex: 1,
+      },
+      title: {
+        color: t.colors.text,
+        fontSize: t.typography.headlineLg,
+        fontWeight: "800",
+      },
+    }),
+  );
 
   return (
     <ScrollView
@@ -25,19 +40,3 @@ export default function HabitContextScreen() {
     </ScrollView>
   );
 }
-
-const styles = StyleSheet.create({
-  content: {
-    gap: spacing.xl,
-    padding: spacing.xl,
-  },
-  screen: {
-    backgroundColor: colors.bg,
-    flex: 1,
-  },
-  title: {
-    color: colors.text,
-    fontSize: typography.headlineLg,
-    fontWeight: "800",
-  },
-});

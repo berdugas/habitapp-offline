@@ -1,10 +1,7 @@
 import { StyleSheet, Text, View } from "react-native";
 
 import { LibraryHabitCard } from "@/features/library/components/LibraryHabitCard";
-import { colors } from "@/theme/colors";
-import { fontFamilies } from "@/theme/fontFamilies";
-import { spacing } from "@/theme/spacing";
-import { typography } from "@/theme/typography";
+import { useThemedStyles } from "@/theme/useThemedStyles";
 
 import type { LibraryGoalGroup as LibraryGoalGroupType } from "@/features/library/hooks";
 
@@ -13,6 +10,33 @@ type LibraryGoalGroupProps = {
 };
 
 export function LibraryGoalGroup({ group }: LibraryGoalGroupProps) {
+  const styles = useThemedStyles((t) =>
+    StyleSheet.create({
+      badge: {
+        color: t.colors.graduatedCircle,
+        fontFamily: t.fontFamilies.body,
+        fontSize: t.typography.micro,
+        fontStyle: "italic",
+      },
+      cardList: {
+        gap: t.spacing.lg,
+      },
+      header: {
+        color: t.colors.primary,
+        fontFamily: t.fontFamilies.bodySemi,
+        fontSize: t.typography.bodyLg,
+      },
+      headerRow: {
+        alignItems: "center",
+        flexDirection: "row",
+        gap: t.spacing.sm,
+      },
+      root: {
+        gap: t.spacing.md,
+      },
+    }),
+  );
+
   const headerLabel = group.identityPhrase
     ? `Become ${group.identityPhrase}`
     : "Other";
@@ -33,28 +57,3 @@ export function LibraryGoalGroup({ group }: LibraryGoalGroupProps) {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  badge: {
-    color: colors.graduatedCircle,
-    fontFamily: fontFamilies.body,
-    fontSize: typography.micro,
-    fontStyle: "italic",
-  },
-  cardList: {
-    gap: spacing.lg,
-  },
-  header: {
-    color: colors.primary,
-    fontFamily: fontFamilies.bodySemi,
-    fontSize: typography.bodyLg,
-  },
-  headerRow: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: spacing.sm,
-  },
-  root: {
-    gap: spacing.md,
-  },
-});

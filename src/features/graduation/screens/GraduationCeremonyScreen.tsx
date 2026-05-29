@@ -15,10 +15,8 @@ import { useRecordGraduationMutation } from "@/features/graduation/hooks";
 import { scoreGraduation } from "@/features/graduation/graduation";
 import { useHabitDetail } from "@/features/habits/hooks";
 import { useTrialValidation } from "@/features/trial/hooks";
-import { colors } from "@/theme/colors";
-import { fontFamilies } from "@/theme/fontFamilies";
-import { SCREEN_TOP_PADDING, spacing } from "@/theme/spacing";
-import { typography } from "@/theme/typography";
+import { useTheme } from "@/theme/useTheme";
+import { useThemedStyles } from "@/theme/useThemedStyles";
 import { daysBetweenDates } from "@/utils/dates";
 import { useTodayDateString } from "@/utils/dayBoundary";
 import {
@@ -70,6 +68,65 @@ export default function GraduationCeremonyScreen() {
   const isReadOnly = accessMode === "read_only";
   const habitDetail = useHabitDetail(habitId);
   const recordGraduation = useRecordGraduationMutation();
+  const theme = useTheme();
+  const styles = useThemedStyles((t) =>
+    StyleSheet.create({
+      backButton: {
+        alignItems: "center",
+        height: 36,
+        justifyContent: "center",
+        width: 36,
+      },
+      blockedBody: {
+        color: t.colors.textMuted,
+        fontFamily: t.fontFamilies.body,
+        fontSize: t.typography.bodyLg,
+        lineHeight: 21,
+      },
+      content: {
+        gap: t.spacing.xl,
+        padding: t.spacing.xl,
+      },
+      framingText: {
+        color: t.colors.textMuted,
+        fontFamily: t.fontFamilies.body,
+        fontSize: t.typography.bodyLg,
+        lineHeight: 21,
+      },
+      habitTitle: {
+        color: t.colors.text,
+        fontFamily: t.fontFamilies.displayBold,
+        fontSize: t.typography.headlineLg,
+      },
+      header: {
+        gap: t.spacing.sm,
+      },
+      identityText: {
+        color: t.colors.primary,
+        fontFamily: t.fontFamilies.body,
+        fontSize: t.typography.bodyMd,
+        fontStyle: "italic",
+      },
+      outcomeMessage: {
+        color: t.colors.text,
+        fontFamily: t.fontFamilies.body,
+        fontSize: t.typography.bodyLg,
+        lineHeight: 21,
+      },
+      outcomeScore: {
+        color: t.colors.textFaint,
+        fontFamily: t.fontFamilies.body,
+        fontSize: t.typography.bodyMd,
+      },
+      questionsBlock: {
+        gap: t.spacing.lg,
+      },
+      screen: {
+        backgroundColor: t.colors.bg,
+        flex: 1,
+      },
+    }),
+  );
 
   const [q1, setQ1] = useState<number | null>(null);
   const [q2, setQ2] = useState<number | null>(null);
@@ -90,7 +147,7 @@ export default function GraduationCeremonyScreen() {
   if (habitDetail.error || !habitDetail.habit) {
     return (
       <ScrollView
-        contentContainerStyle={[styles.content, { paddingTop: insets.top + SCREEN_TOP_PADDING }]}
+        contentContainerStyle={[styles.content, { paddingTop: insets.top + theme.spacing.lg }]}
         contentInsetAdjustmentBehavior="automatic"
         style={styles.screen}
       >
@@ -160,7 +217,7 @@ export default function GraduationCeremonyScreen() {
 
   return (
     <ScrollView
-      contentContainerStyle={[styles.content, { paddingTop: insets.top + SCREEN_TOP_PADDING }]}
+      contentContainerStyle={[styles.content, { paddingTop: insets.top + theme.spacing.lg }]}
       contentInsetAdjustmentBehavior="automatic"
       style={styles.screen}
     >
@@ -171,7 +228,7 @@ export default function GraduationCeremonyScreen() {
           onPress={safeBack}
           style={styles.backButton}
         >
-          <ChevronLeft color={colors.textMuted} size={22} strokeWidth={1.75} />
+          <ChevronLeft color={theme.colors.textMuted} size={22} strokeWidth={1.75} />
         </Pressable>
         <Text selectable style={styles.habitTitle}>
           {habit.title}
@@ -248,9 +305,29 @@ function BlockedState({
   body: string;
   topInset: number;
 }) {
+  const theme = useTheme();
+  const styles = useThemedStyles((t) =>
+    StyleSheet.create({
+      blockedBody: {
+        color: t.colors.textMuted,
+        fontFamily: t.fontFamilies.body,
+        fontSize: t.typography.bodyLg,
+        lineHeight: 21,
+      },
+      content: {
+        gap: t.spacing.xl,
+        padding: t.spacing.xl,
+      },
+      screen: {
+        backgroundColor: t.colors.bg,
+        flex: 1,
+      },
+    }),
+  );
+
   return (
     <ScrollView
-      contentContainerStyle={[styles.content, { paddingTop: topInset + SCREEN_TOP_PADDING }]}
+      contentContainerStyle={[styles.content, { paddingTop: topInset + theme.spacing.lg }]}
       contentInsetAdjustmentBehavior="automatic"
       style={styles.screen}
     >
@@ -264,60 +341,3 @@ function BlockedState({
     </ScrollView>
   );
 }
-
-const styles = StyleSheet.create({
-  backButton: {
-    alignItems: "center",
-    height: 36,
-    justifyContent: "center",
-    width: 36,
-  },
-  blockedBody: {
-    color: colors.textMuted,
-    fontFamily: fontFamilies.body,
-    fontSize: typography.bodyLg,
-    lineHeight: 21,
-  },
-  content: {
-    gap: spacing.xl,
-    padding: spacing.xl,
-  },
-  framingText: {
-    color: colors.textMuted,
-    fontFamily: fontFamilies.body,
-    fontSize: typography.bodyLg,
-    lineHeight: 21,
-  },
-  habitTitle: {
-    color: colors.text,
-    fontFamily: fontFamilies.displayBold,
-    fontSize: typography.headlineLg,
-  },
-  header: {
-    gap: spacing.sm,
-  },
-  identityText: {
-    color: colors.primary,
-    fontFamily: fontFamilies.body,
-    fontSize: typography.bodyMd,
-    fontStyle: "italic",
-  },
-  outcomeMessage: {
-    color: colors.text,
-    fontFamily: fontFamilies.body,
-    fontSize: typography.bodyLg,
-    lineHeight: 21,
-  },
-  outcomeScore: {
-    color: colors.textFaint,
-    fontFamily: fontFamilies.body,
-    fontSize: typography.bodyMd,
-  },
-  questionsBlock: {
-    gap: spacing.lg,
-  },
-  screen: {
-    backgroundColor: colors.bg,
-    flex: 1,
-  },
-});

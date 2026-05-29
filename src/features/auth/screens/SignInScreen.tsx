@@ -9,11 +9,8 @@ import { TextField } from "@/components/forms/TextField";
 import { OnboardingLayout } from "@/components/layouts/OnboardingLayout";
 import { signInWithPassword } from "@/features/auth/api";
 import { logger } from "@/services/logger";
-import { colors } from "@/theme/colors";
-import { fontFamilies } from "@/theme/fontFamilies";
-import { radius } from "@/theme/radius";
-import { spacing } from "@/theme/spacing";
-import { typography } from "@/theme/typography";
+import { useTheme } from "@/theme/useTheme";
+import { useThemedStyles } from "@/theme/useThemedStyles";
 import { isBlank, isLikelyEmail } from "@/utils/validation";
 import {
   getSignInErrorMessage,
@@ -27,6 +24,93 @@ export default function SignInScreen() {
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const submitLockRef = useRef(false);
+  const theme = useTheme();
+  const styles = useThemedStyles((t) =>
+    StyleSheet.create({
+      brandRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 9,
+        marginBottom: 48,
+      },
+      brandName: {
+        fontFamily: t.fontFamilies.displaySemi,
+        fontSize: t.typography.labelMd,
+        color: t.colors.primary,
+        letterSpacing: 0.84,
+        textTransform: "uppercase",
+      },
+      headline: {
+        fontFamily: t.fontFamilies.displayBold,
+        fontSize: 30,
+        lineHeight: 35.4,
+        color: t.colors.text,
+        marginBottom: 12,
+      },
+      subhead: {
+        fontFamily: t.fontFamilies.body,
+        fontSize: 15,
+        lineHeight: 23,
+        color: t.colors.textMuted,
+        marginBottom: 28,
+      },
+      formCard: {
+        backgroundColor: t.colors.surface,
+        borderRadius: t.radius.lg,
+        paddingTop: 28,
+        paddingHorizontal: t.spacing.xl,
+        paddingBottom: 32,
+        gap: t.spacing.lg,
+      },
+      error: {
+        fontFamily: t.fontFamilies.body,
+        fontSize: t.typography.bodyMd,
+        color: t.colors.danger,
+      },
+      fieldWrapper: {
+        gap: t.spacing.sm,
+      },
+      fieldLabel: {
+        fontFamily: t.fontFamilies.bodyMedium,
+        fontSize: t.typography.labelMd,
+        color: t.colors.textMuted,
+      },
+      passwordRow: {
+        backgroundColor: t.colors.surfaceHigh,
+        borderRadius: t.radius.md,
+        paddingHorizontal: 18,
+        paddingVertical: 14,
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 10,
+      },
+      passwordInput: {
+        flex: 1,
+        fontFamily: t.fontFamilies.body,
+        fontSize: 15,
+        color: t.colors.text,
+        padding: 0,
+      },
+      forgotRow: {
+        alignItems: "flex-end",
+        marginTop: -t.spacing.sm,
+      },
+      forgotText: {
+        fontFamily: t.fontFamilies.bodyMedium,
+        fontSize: t.typography.labelMd,
+        color: t.colors.primary,
+      },
+      createLink: {
+        alignItems: "center",
+        paddingVertical: t.spacing.md,
+      },
+      createLinkText: {
+        fontFamily: t.fontFamilies.bodySemi,
+        fontSize: t.typography.bodyMd,
+        color: t.colors.primary,
+      },
+    }),
+  );
 
   async function handleSubmit() {
     if (submitLockRef.current) return;
@@ -102,7 +186,7 @@ export default function SignInScreen() {
             <TextInput
               autoCapitalize="none"
               placeholder="Your password"
-              placeholderTextColor={colors.textFaint}
+              placeholderTextColor={theme.colors.textFaint}
               secureTextEntry={!showPassword}
               style={styles.passwordInput}
               value={password}
@@ -113,8 +197,8 @@ export default function SignInScreen() {
               onPress={() => setShowPassword((v) => !v)}
             >
               {showPassword
-                ? <EyeOff color={colors.textFaint} size={18} strokeWidth={1.5} />
-                : <Eye color={colors.textFaint} size={18} strokeWidth={1.5} />
+                ? <EyeOff color={theme.colors.textFaint} size={18} strokeWidth={1.5} />
+                : <Eye color={theme.colors.textFaint} size={18} strokeWidth={1.5} />
               }
             </Pressable>
           </View>
@@ -134,88 +218,3 @@ export default function SignInScreen() {
     </OnboardingLayout>
   );
 }
-
-const styles = StyleSheet.create({
-  brandRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 9,
-    marginBottom: 48,
-  },
-  brandName: {
-    fontFamily: fontFamilies.displaySemi,
-    fontSize: typography.labelMd,
-    color: colors.primary,
-    letterSpacing: 0.84,
-    textTransform: "uppercase",
-  },
-  headline: {
-    fontFamily: fontFamilies.displayBold,
-    fontSize: 30,
-    lineHeight: 35.4,
-    color: colors.text,
-    marginBottom: 12,
-  },
-  subhead: {
-    fontFamily: fontFamilies.body,
-    fontSize: 15,
-    lineHeight: 23,
-    color: colors.textMuted,
-    marginBottom: 28,
-  },
-  formCard: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    paddingTop: 28,
-    paddingHorizontal: spacing.xl,
-    paddingBottom: 32,
-    gap: spacing.lg,
-  },
-  error: {
-    fontFamily: fontFamilies.body,
-    fontSize: typography.bodyMd,
-    color: colors.danger,
-  },
-  fieldWrapper: {
-    gap: spacing.sm,
-  },
-  fieldLabel: {
-    fontFamily: fontFamilies.bodyMedium,
-    fontSize: typography.labelMd,
-    color: colors.textMuted,
-  },
-  passwordRow: {
-    backgroundColor: colors.surfaceHigh,
-    borderRadius: radius.md,
-    paddingHorizontal: 18,
-    paddingVertical: 14,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
-  passwordInput: {
-    flex: 1,
-    fontFamily: fontFamilies.body,
-    fontSize: 15,
-    color: colors.text,
-    padding: 0,
-  },
-  forgotRow: {
-    alignItems: "flex-end",
-    marginTop: -spacing.sm,
-  },
-  forgotText: {
-    fontFamily: fontFamilies.bodyMedium,
-    fontSize: typography.labelMd,
-    color: colors.primary,
-  },
-  createLink: {
-    alignItems: "center",
-    paddingVertical: spacing.md,
-  },
-  createLinkText: {
-    fontFamily: fontFamilies.bodySemi,
-    fontSize: typography.bodyMd,
-    color: colors.primary,
-  },
-});

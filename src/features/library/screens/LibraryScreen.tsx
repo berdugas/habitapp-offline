@@ -5,13 +5,45 @@ import { LoadingState } from "@/components/feedback/LoadingState";
 import { LibraryEmptyState } from "@/features/library/components/LibraryEmptyState";
 import { LibraryGoalGroup } from "@/features/library/components/LibraryGoalGroup";
 import { useLibraryHabits } from "@/features/library/hooks";
-import { colors } from "@/theme/colors";
-import { fontFamilies } from "@/theme/fontFamilies";
-import { spacing } from "@/theme/spacing";
-import { typography } from "@/theme/typography";
+import { useThemedStyles } from "@/theme/useThemedStyles";
 
 export default function LibraryScreen() {
   const libraryQuery = useLibraryHabits();
+  const styles = useThemedStyles((t) =>
+    StyleSheet.create({
+      centered: {
+        alignItems: "center",
+        backgroundColor: t.colors.bg,
+        flex: 1,
+        justifyContent: "center",
+        padding: t.spacing.xl,
+      },
+      content: {
+        gap: t.spacing.lg,
+        padding: t.spacing.xl,
+        paddingBottom: t.spacing.xxl,
+      },
+      groupList: {
+        gap: t.spacing.xl,
+        marginTop: t.spacing.md,
+      },
+      screen: {
+        backgroundColor: t.colors.bg,
+        flex: 1,
+      },
+      subtitle: {
+        color: t.colors.textMuted,
+        fontFamily: t.fontFamilies.body,
+        fontSize: t.typography.bodyLg,
+        lineHeight: 21,
+      },
+      title: {
+        color: t.colors.text,
+        fontFamily: t.fontFamilies.displayBold,
+        fontSize: t.typography.headlineLg,
+      },
+    }),
+  );
 
   if (libraryQuery.isLoading) {
     return (
@@ -56,37 +88,3 @@ export default function LibraryScreen() {
     </ScrollView>
   );
 }
-
-const styles = StyleSheet.create({
-  centered: {
-    alignItems: "center",
-    backgroundColor: colors.bg,
-    flex: 1,
-    justifyContent: "center",
-    padding: spacing.xl,
-  },
-  content: {
-    gap: spacing.lg,
-    padding: spacing.xl,
-    paddingBottom: spacing.xxl,
-  },
-  groupList: {
-    gap: spacing.xl,
-    marginTop: spacing.md,
-  },
-  screen: {
-    backgroundColor: colors.bg,
-    flex: 1,
-  },
-  subtitle: {
-    color: colors.textMuted,
-    fontFamily: fontFamilies.body,
-    fontSize: typography.bodyLg,
-    lineHeight: 21,
-  },
-  title: {
-    color: colors.text,
-    fontFamily: fontFamilies.displayBold,
-    fontSize: typography.headlineLg,
-  },
-});
