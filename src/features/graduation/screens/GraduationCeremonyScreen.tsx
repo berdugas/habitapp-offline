@@ -19,8 +19,8 @@ import { colors } from "@/theme/colors";
 import { fontFamilies } from "@/theme/fontFamilies";
 import { SCREEN_TOP_PADDING, spacing } from "@/theme/spacing";
 import { typography } from "@/theme/typography";
-import { now } from "@/utils/clock";
-import { daysBetweenDates, toDeviceDateString } from "@/utils/dates";
+import { daysBetweenDates } from "@/utils/dates";
+import { useTodayDateString } from "@/utils/dayBoundary";
 import {
   getLoadGraduationErrorMessage,
   getSaveGraduationErrorMessage,
@@ -35,9 +35,11 @@ function normalizeHabitId(habitId: string | string[] | undefined) {
 
 // Inclusive calendar-day count from start_date through today (start day = 1),
 // matching the inclusive habit-age semantics used elsewhere in the app.
-function daysSinceStart(startDate: string | null | undefined): number {
+function daysSinceStart(
+  startDate: string | null | undefined,
+  today: string,
+): number {
   if (!startDate) return 0;
-  const today = toDeviceDateString(now());
   const elapsed = daysBetweenDates(startDate, today);
   return Math.max(0, elapsed) + 1;
 }
@@ -79,6 +81,7 @@ export default function GraduationCeremonyScreen() {
     message: string;
   } | null>(null);
   const [saveError, setSaveError] = useState(false);
+  const todayDate = useTodayDateString();
 
   if (habitDetail.isLoading) {
     return <LoadingState message="Loading..." />;
@@ -124,7 +127,7 @@ export default function GraduationCeremonyScreen() {
 
   const allAnswered = q1 !== null && q2 !== null && q3 !== null;
   const disableQuestions = state === "submitting";
-  const days = daysSinceStart(habit.start_date);
+  const days = daysSinceStart(habit.start_date, todayDate);
 
   async function handleSubmit() {
     if (!allAnswered || state === "submitting" || recordGraduation.isPending) {
