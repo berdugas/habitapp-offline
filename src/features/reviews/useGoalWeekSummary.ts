@@ -5,6 +5,7 @@ import { listEligibleHabitsForToday } from "@/features/habits/api";
 import { buildGoalWeekSummary } from "@/features/reviews/buildGoalWeekSummary";
 import { listLogsForHabitsInRange } from "@/lib/db/repositories/habit_logs";
 import { addDeviceDays, toDeviceDateString } from "@/utils/dates";
+import { useTodayDateString } from "@/utils/dayBoundary";
 
 import type { GoalWeekSummary } from "@/features/reviews/buildGoalWeekSummary";
 
@@ -34,7 +35,7 @@ export function useGoalWeekSummary(
   weekStartDate: string,
 ) {
   const { user } = useAuthSession();
-  const todayDate = toDeviceDateString();
+  const todayDate = useTodayDateString();
 
   return useQuery<GoalWeekSummary>({
     enabled: Boolean(user?.id && identityPhrase),

@@ -26,31 +26,31 @@ afterEach(() => {
 
 describe("buildGrid — startDate mode", () => {
   it("day-1 start: startDate = today → 1 row (7 cells)", () => {
-    const cells = buildGrid([], ALL_DAYS, TODAY);
+    const cells = buildGrid([], ALL_DAYS, TODAY, TODAY);
     expect(cells).toHaveLength(7);
   });
 
   it("startDate = last Monday → 2 rows (14 cells)", () => {
-    const cells = buildGrid([], ALL_DAYS, PREV_MONDAY);
+    const cells = buildGrid([], ALL_DAYS, PREV_MONDAY, TODAY);
     expect(cells).toHaveLength(14);
   });
 
   it("startDate = ~4 weeks ago Monday → 5 rows (35 cells)", () => {
-    const cells = buildGrid([], ALL_DAYS, FOUR_WEEKS_AGO_MONDAY);
+    const cells = buildGrid([], ALL_DAYS, FOUR_WEEKS_AGO_MONDAY, TODAY);
     expect(cells).toHaveLength(35);
   });
 
   it("cells before startDate have state 'future'", () => {
     // startDate = today (Tuesday). gridStart = Monday of this week = May 4.
     // May 4 < May 5 (startDate) → state should be "future"
-    const cells = buildGrid([], ALL_DAYS, TODAY);
+    const cells = buildGrid([], ALL_DAYS, TODAY, TODAY);
     const monday = cells.find((c) => c.date === THIS_MONDAY);
     expect(monday).toBeDefined();
     expect(monday!.state).toBe("future");
   });
 
   it("today itself is 'today-pending' when startDate = today and today is active", () => {
-    const cells = buildGrid([], ALL_DAYS, TODAY);
+    const cells = buildGrid([], ALL_DAYS, TODAY, TODAY);
     const today = cells.find((c) => c.date === TODAY);
     expect(today).toBeDefined();
     expect(today!.state).toBe("today-pending");
@@ -59,7 +59,7 @@ describe("buildGrid — startDate mode", () => {
 
 describe("buildGrid — fixed-window fallback", () => {
   it("no startDate → 5 rows (35 cells, backward compat)", () => {
-    const cells = buildGrid([], ALL_DAYS);
+    const cells = buildGrid([], ALL_DAYS, undefined, TODAY);
     expect(cells).toHaveLength(35);
   });
 });

@@ -43,6 +43,7 @@ import { colors } from "@/theme/colors";
 import { fontFamilies } from "@/theme/fontFamilies";
 import { SCREEN_TOP_PADDING_HERO, spacing } from "@/theme/spacing";
 import { typography } from "@/theme/typography";
+import { useTodayAnchorDate } from "@/utils/dayBoundary";
 import {
   getLoadHabitsErrorMessage,
   getSaveTodayStatusErrorMessage,
@@ -53,7 +54,8 @@ import type { HabitLog } from "@/lib/db/repositories/habit_logs";
 
 
 function AppHeader() {
-  const label = new Date().toLocaleDateString(undefined, {
+  const today = useTodayAnchorDate();
+  const label = today.toLocaleDateString(undefined, {
     day: "numeric",
     month: "long",
     weekday: "long",

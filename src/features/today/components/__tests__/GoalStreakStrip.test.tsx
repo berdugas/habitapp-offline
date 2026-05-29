@@ -3,6 +3,7 @@ import { fireEvent, render, screen } from "@testing-library/react-native";
 import { GoalStreakStrip } from "@/features/today/components/GoalStreakStrip";
 import { colors } from "@/theme/colors";
 import { resetClockForTesting, setNowForTesting } from "@/utils/clock";
+import { resetDayBoundaryForTesting } from "@/utils/dayBoundary";
 
 import type { GoalDayState } from "@/features/today/goalMetrics";
 
@@ -12,10 +13,12 @@ import type { GoalDayState } from "@/features/today/goalMetrics";
 const TODAY_ISO = "2026-05-18";
 
 beforeEach(() => {
+  resetDayBoundaryForTesting();
   setNowForTesting(new Date(`${TODAY_ISO}T10:00:00`));
 });
 afterEach(() => {
   resetClockForTesting();
+  resetDayBoundaryForTesting();
 });
 
 // Build a 28-length dailyStates array, oldest first, newest (today) last.

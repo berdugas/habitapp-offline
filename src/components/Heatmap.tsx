@@ -1,8 +1,8 @@
 import { Pressable, StyleSheet, View } from "react-native";
 
 import { colors } from "@/theme/colors";
-import { todayDateString } from "@/utils/clock";
 import { addDeviceDays, toDeviceDateString } from "@/utils/dates";
+import { useTodayAnchorDate, useTodayDateString } from "@/utils/dayBoundary";
 
 import type { HabitLogStatus } from "@/features/habits/types";
 
@@ -26,7 +26,8 @@ const CELL_GAP = 4;
 
 export function Heatmap({ days, logs, onCellPress }: HeatmapProps) {
   const { rows, cols, cellSize } = GRID_CONFIG[days];
-  const today = todayDateString();
+  const today = useTodayDateString();
+  const todayAnchor = useTodayAnchorDate();
 
   const statusByDate = new Map<string, HabitLogStatus>();
   for (const log of logs) {
@@ -36,7 +37,7 @@ export function Heatmap({ days, logs, onCellPress }: HeatmapProps) {
   // Oldest first (top-left), today last (bottom-right).
   const dates: string[] = [];
   for (let i = days - 1; i >= 0; i--) {
-    dates.push(toDeviceDateString(addDeviceDays(new Date(), -i)));
+    dates.push(toDeviceDateString(addDeviceDays(todayAnchor, -i)));
   }
 
   return (

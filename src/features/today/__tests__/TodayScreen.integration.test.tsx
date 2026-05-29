@@ -15,11 +15,31 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 import React from "react";
 
+import { AppState } from "react-native";
+
 import TodayScreen from "@/features/today/screens/TodayScreen";
 import { closeDb, initDb } from "@/lib/db/client";
 import { createHabit } from "@/lib/db/repositories/habits";
 import { upsertReminder } from "@/lib/db/repositories/reminders";
 import { resetClockForTesting, setNowForTesting } from "@/utils/clock";
+import {
+  initDayBoundary,
+  resetDayBoundaryForTesting,
+  triggerDayBoundaryCheckForTesting,
+} from "@/utils/dayBoundary";
+
+// AppState listener capture via jest.spyOn (jest-expo's mock of react-native
+// stubs AppState but the captured listener still fires under emit).
+const appStateListeners = new Set<(state: string) => void>();
+jest.spyOn(AppState, "addEventListener").mockImplementation(
+  (event: string, listener: (state: string) => void) => {
+    if (event === "change") appStateListeners.add(listener);
+    return { remove: () => appStateListeners.delete(listener) } as never;
+  },
+);
+function emitAppStateActive(): void {
+  for (const l of appStateListeners) l("active");
+}
 
 jest.mock("expo-router", () => ({
   router: { push: jest.fn(), replace: jest.fn() },
@@ -53,6 +73,7 @@ function getGoalOrder(): string[] {
 
 describe("TodayScreen integration — log round-trip", () => {
   beforeEach(async () => {
+    resetDayBoundaryForTesting();
     setNowForTesting(new Date("2026-04-30T10:00:00.000Z"));
     await initDb();
     await createHabit({
@@ -72,6 +93,7 @@ describe("TodayScreen integration — log round-trip", () => {
   afterEach(async () => {
     await closeDb();
     resetClockForTesting();
+    resetDayBoundaryForTesting();
   });
 
   it("marks habit as done when circle is tapped", async () => {
@@ -457,5 +479,72 @@ describe("TodayScreen integration — action-first ordering", () => {
 
     // Use aHabit to keep the variable from going stale (lint).
     expect(aHabit.identity_phrase).toBe("a-goal");
+  });
+});
+
+describe("TodayScreen integration — day rollover", () => {
+  let cleanup: (() => void) | null = null;
+
+  beforeEach(async () => {
+    resetDayBoundaryForTesting();
+    setNowForTesting(new Date("2026-04-30T23:59:00.000Z"));
+    await initDb();
+    await createHabit({
+      user_id: "user-1",
+      title: "Run",
+      identity_phrase: "a runner",
+      cue: "morning coffee",
+      tiny_action: "run for 2 minutes",
+      minimum_viable_action: null,
+      preferred_time_window: null,
+      start_date: "2026-04-01",
+      habit_state: "active",
+      status: "active",
+    });
+    cleanup = initDayBoundary();
+  });
+
+  afterEach(async () => {
+    cleanup?.();
+    cleanup = null;
+    await closeDb();
+    resetClockForTesting();
+    resetDayBoundaryForTesting();
+  });
+
+  it("refreshes when the app foregrounds after midnight", async () => {
+    renderWithClient(<TodayScreen />);
+
+    await waitFor(() => {
+      expect(screen.getByLabelText("Log Run")).toBeTruthy();
+    });
+    // Header on 2026-04-30 (date label varies by locale — match the day number).
+    const initial = screen.UNSAFE_root;
+    expect(initial).toBeTruthy();
+
+    // Advance the clock across midnight and emit a foreground event.
+    setNowForTesting(new Date("2026-05-01T00:01:00.000Z"));
+    emitAppStateActive();
+
+    // The header date label flips to the new day.
+    await waitFor(() => {
+      // Match any rendered text containing "May" and "1" (the new day).
+      expect(screen.queryByText(/May.*\b1\b/)).toBeTruthy();
+    });
+  });
+
+  it("refreshes when local midnight passes while the app is open", async () => {
+    renderWithClient(<TodayScreen />);
+
+    await waitFor(() => {
+      expect(screen.getByLabelText("Log Run")).toBeTruthy();
+    });
+
+    setNowForTesting(new Date("2026-05-01T00:01:00.000Z"));
+    triggerDayBoundaryCheckForTesting();
+
+    await waitFor(() => {
+      expect(screen.queryByText(/May.*\b1\b/)).toBeTruthy();
+    });
   });
 });

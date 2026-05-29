@@ -5,13 +5,13 @@ import { Eyebrow } from "@/components/text/Eyebrow";
 import { colors } from "@/theme/colors";
 import { fontFamilies } from "@/theme/fontFamilies";
 import { typography } from "@/theme/typography";
-import { now, todayDateString } from "@/utils/clock";
 import {
   addDeviceDays,
   daysBetweenDates,
   getWeekStartDate,
   toDeviceDateString,
 } from "@/utils/dates";
+import { useTodayAnchorDate, useTodayDateString } from "@/utils/dayBoundary";
 
 import type { GoalDayState } from "@/features/today/goalMetrics";
 
@@ -68,9 +68,9 @@ function buildCells(
   dailyStates: GoalDayState[],
   startDate: string,
   today: string,
+  todayAnchor: Date,
 ): Cell[] {
-  const todayDate = now();
-  const currentMonday = getWeekStartDate(todayDate);
+  const currentMonday = getWeekStartDate(todayAnchor);
   const gridEndSunday = addDeviceDays(currentMonday, WEEK_DAYS - 1);
   const earliestAllowedMonday = addDeviceDays(
     currentMonday,
@@ -117,8 +117,9 @@ export function GoalStreakStrip({
   onCellPress,
 }: GoalStreakStripProps) {
   const [measuredWidth, setMeasuredWidth] = useState(0);
-  const today = todayDateString();
-  const cells = buildCells(dailyStates, startDate, today);
+  const today = useTodayDateString();
+  const todayAnchor = useTodayAnchorDate();
+  const cells = buildCells(dailyStates, startDate, today, todayAnchor);
   const rows = cells.length / WEEK_DAYS;
   const scopeLabel = scope === "habit" ? "Habit" : "Goal";
   const streakLabel = `${streak} day ${scopeLabel} streak`;

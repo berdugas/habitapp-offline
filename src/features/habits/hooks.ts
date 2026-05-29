@@ -38,6 +38,7 @@ import {
   toDeviceDateString,
 } from "@/utils/dates";
 import { todayDateString } from "@/utils/clock";
+import { useTodayDateString } from "@/utils/dayBoundary";
 import { goalIdFor } from "@/services/goalIdRegistry";
 import { TODAY_PROGRESS_WINDOW_DAYS } from "@/features/today/constants";
 
@@ -117,7 +118,7 @@ export function getArchivedGoalDetailQueryKey(
 
 export function useEligibleHabitsQuery() {
   const { user } = useAuthSession();
-  const todayDate = toDeviceDateString();
+  const todayDate = useTodayDateString();
 
   return useQuery({
     enabled: Boolean(user?.id),
@@ -128,7 +129,7 @@ export function useEligibleHabitsQuery() {
 
 export function useUpcomingActiveHabitsQuery() {
   const { user } = useAuthSession();
-  const todayDate = toDeviceDateString();
+  const todayDate = useTodayDateString();
 
   return useQuery({
     enabled: Boolean(user?.id),

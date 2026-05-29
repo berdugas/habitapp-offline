@@ -49,6 +49,7 @@ import {
 } from "@/lib/db/repositories/habit_logs";
 import { listRemindersForUser } from "@/lib/db/repositories/reminders";
 import { now, todayDateString } from "@/utils/clock";
+import { useTodayAnchorDate, useTodayDateString } from "@/utils/dayBoundary";
 
 import type { HabitLogRecord, HabitLogStatus } from "@/features/habits/types";
 import type {
@@ -76,8 +77,9 @@ export function getHabitLogsRangeQueryKey(
 }
 
 export function useHabitLogsForRange(habitId: string | undefined, days: number) {
-  const today = todayDateString();
-  const fromDate = toDeviceDateString(addDeviceDays(new Date(), -(days - 1)));
+  const today = useTodayDateString();
+  const todayAnchor = useTodayAnchorDate();
+  const fromDate = toDeviceDateString(addDeviceDays(todayAnchor, -(days - 1)));
   return useQuery({
     enabled: Boolean(habitId),
     queryFn: () => listLogsForHabitInRange(habitId!, fromDate, today),
@@ -96,8 +98,9 @@ export const HABIT_LOGS_BULK_RANGE_KEY_PREFIX = [
 ] as const;
 
 export function useHabitLogsForHabitsInRange(habitIds: string[], days: number) {
-  const today = todayDateString();
-  const fromDate = toDeviceDateString(addDeviceDays(new Date(), -(days - 1)));
+  const today = useTodayDateString();
+  const todayAnchor = useTodayAnchorDate();
+  const fromDate = toDeviceDateString(addDeviceDays(todayAnchor, -(days - 1)));
   return useQuery({
     enabled: habitIds.length > 0,
     queryFn: () => listLogsForHabitsInRange(habitIds, fromDate, today),
@@ -108,6 +111,8 @@ export function useHabitLogsForHabitsInRange(habitIds: string[], days: number) {
 
 export function useTodayHabits() {
   const { user } = useAuthSession();
+  const todayDate = useTodayDateString();
+  const todayAnchor = useTodayAnchorDate();
   const eligibleHabitsQuery = useEligibleHabitsQuery();
   const upcomingHabitsQuery = useUpcomingActiveHabitsQuery();
   // Orphan filter: habits with null/empty identity_phrase are not surfaced
@@ -115,7 +120,6 @@ export function useTodayHabits() {
   const eligibleHabits = (eligibleHabitsQuery.data ?? []).filter(
     (h) => Boolean(h.identity_phrase),
   );
-  const todayDate = todayDateString();
 
   // Sibling reminders query keyed as a prefix-extension of the eligible-habits
   // key. Existing prefix-matching invalidations of
@@ -137,7 +141,7 @@ export function useTodayHabits() {
 
   const { endDate, startDate } = getTrailingDateRangeStrings(
     TODAY_PROGRESS_WINDOW_DAYS,
-    now(),
+    todayAnchor,
   );
   const historyLogsQuery = useQuery({
     enabled: Boolean(user?.id),
@@ -204,8 +208,8 @@ export function useTodayHabits() {
     );
   }
 
-  const weekStartForReview = getWeekStartDateString(now());
-  const todayDateForReview = toDeviceDateString();
+  const weekStartForReview = getWeekStartDateString(todayAnchor);
+  const todayDateForReview = todayDate;
   const reviewIdentityKeys = Array.from(habitsByIdentity.keys());
   const reviewQueries = useQueries({
     queries: reviewIdentityKeys.map((identity) => {
@@ -461,7 +465,8 @@ export type GoalHabitDetail = {
 };
 
 export function useGoalDetail(identityPhrase: string | undefined) {
-  const { endDate } = getTrailingDateRangeStrings(TODAY_PROGRESS_WINDOW_DAYS, now());
+  const todayAnchor = useTodayAnchorDate();
+  const { endDate } = getTrailingDateRangeStrings(TODAY_PROGRESS_WINDOW_DAYS, todayAnchor);
   const endDateObj = new Date(`${endDate}T12:00:00`);
 
   const allHabitsQuery = useEligibleHabitsQuery();
@@ -514,7 +519,7 @@ export function useGoalDetail(identityPhrase: string | undefined) {
     if (!oldest) return 0;
     const start = new Date(`${oldest.startDate}T12:00:00`);
     start.setHours(0, 0, 0, 0);
-    const today = now();
+    const today = new Date(todayAnchor);
     today.setHours(0, 0, 0, 0);
     let count = 0;
     const cursor = new Date(start);
@@ -525,7 +530,7 @@ export function useGoalDetail(identityPhrase: string | undefined) {
     return count;
   })();
 
-  const thisWeekMonday = getWeekStartDate(now());
+  const thisWeekMonday = getWeekStartDate(todayAnchor);
   const elevenWeeksBackMonday = addDeviceDays(thisWeekMonday, -11 * 7);
   const elevenWeeksBackMondayIso = toDeviceDateString(elevenWeeksBackMonday);
 
@@ -533,7 +538,7 @@ export function useGoalDetail(identityPhrase: string | undefined) {
     habits.length > 0
       ? [...habits].sort((a, b) => a.startDate.localeCompare(b.startDate))[0]
           .startDate
-      : toDeviceDateString(now());
+      : toDeviceDateString(todayAnchor);
   const oldestStartMondayIso = toDeviceDateString(
     getWeekStartDate(new Date(`${oldestStartIso}T12:00:00`)),
   );

@@ -23,6 +23,7 @@ import {
 } from "@/features/reviews/queryKeys";
 import { logger } from "@/services/logger";
 import { getWeekStartDateString, toDeviceDateString } from "@/utils/dates";
+import { useTodayAnchorDate, useTodayDateString } from "@/utils/dayBoundary";
 import { normalizeParam } from "@/utils/params";
 
 import type { GoalReviewStatus } from "@/features/reviews/due";
@@ -58,8 +59,9 @@ export function useCurrentWeeklyReviewQuery(
 export function useGoalReviewStatusQuery(identityPhrase: string | undefined) {
   const { user } = useAuthSession();
   const eligibleHabitsQuery = useEligibleHabitsQuery();
-  const weekStart = getWeekStartDateString();
-  const todayDate = toDeviceDateString();
+  const todayAnchor = useTodayAnchorDate();
+  const weekStart = getWeekStartDateString(todayAnchor);
+  const todayDate = useTodayDateString();
   const goalHabits = (eligibleHabitsQuery.data ?? []).filter(
     (h) => identityPhrase && h.identity_phrase === identityPhrase,
   );
