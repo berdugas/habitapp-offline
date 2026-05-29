@@ -2,10 +2,8 @@ import { StyleSheet, Text, View } from "react-native";
 
 import { LucideIcon } from "@/components/LucideIconPicker";
 import { ZenCard } from "@/components/cards/ZenCard";
-import { colors } from "@/theme/colors";
-import { fontFamilies } from "@/theme/fontFamilies";
-import { spacing } from "@/theme/spacing";
-import { typography } from "@/theme/typography";
+import { useThemedStyles } from "@/theme/useThemedStyles";
+import { useTheme } from "@/theme/useTheme";
 
 import type { HabitWeekSummary } from "@/features/reviews/buildGoalWeekSummary";
 
@@ -26,6 +24,53 @@ function getStrongHabitMessage(habit: HabitWeekSummary): string {
 }
 
 export function WhatsWorkingStep({ strongHabits }: WhatsWorkingStepProps) {
+  const theme = useTheme();
+  const styles = useThemedStyles((t) =>
+    StyleSheet.create({
+      closing: {
+        color: t.colors.textMuted,
+        fontFamily: t.fontFamilies.body,
+        fontSize: t.typography.bodyMd,
+        lineHeight: 18.6,
+      },
+      headline: {
+        color: t.colors.text,
+        fontFamily: t.fontFamilies.displayBold,
+        fontSize: t.typography.headlineMd,
+        letterSpacing: -0.2,
+        lineHeight: 25.5,
+      },
+      count: {
+        color: t.colors.primary,
+        fontFamily: t.fontFamilies.bodySemi,
+        fontSize: t.typography.bodyMd,
+      },
+      item: {
+        gap: t.spacing.xs,
+      },
+      list: {
+        gap: t.spacing.lg,
+      },
+      message: {
+        color: t.colors.textMuted,
+        fontFamily: t.fontFamilies.body,
+        fontSize: t.typography.bodyMd,
+        fontStyle: "italic",
+        lineHeight: 18.6,
+      },
+      title: {
+        color: t.colors.text,
+        fontFamily: t.fontFamilies.bodySemi,
+        fontSize: t.typography.bodyMd,
+      },
+      titleRow: {
+        alignItems: "center",
+        flexDirection: "row",
+        gap: t.spacing.xs,
+      },
+    }),
+  );
+
   return (
     <ZenCard>
       {/* Promoted from the small uppercase eyebrow to a display-bold
@@ -39,7 +84,7 @@ export function WhatsWorkingStep({ strongHabits }: WhatsWorkingStepProps) {
           <View key={habit.habitId} style={styles.item}>
             <View style={styles.titleRow}>
               {habit.icon ? (
-                <LucideIcon color={colors.text} name={habit.icon} size={16} />
+                <LucideIcon color={theme.colors.text} name={habit.icon} size={16} />
               ) : null}
               <Text style={styles.title}>{habit.title}</Text>
             </View>
@@ -58,46 +103,3 @@ export function WhatsWorkingStep({ strongHabits }: WhatsWorkingStepProps) {
   );
 }
 
-const styles = StyleSheet.create({
-  closing: {
-    color: colors.textMuted,
-    fontFamily: fontFamilies.body,
-    fontSize: typography.bodyMd,
-    lineHeight: 18.6,
-  },
-  headline: {
-    color: colors.text,
-    fontFamily: fontFamilies.displayBold,
-    fontSize: typography.headlineMd,
-    letterSpacing: -0.2,
-    lineHeight: 25.5,
-  },
-  count: {
-    color: colors.primary,
-    fontFamily: fontFamilies.bodySemi,
-    fontSize: typography.bodyMd,
-  },
-  item: {
-    gap: spacing.xs,
-  },
-  list: {
-    gap: spacing.lg,
-  },
-  message: {
-    color: colors.textMuted,
-    fontFamily: fontFamilies.body,
-    fontSize: typography.bodyMd,
-    fontStyle: "italic",
-    lineHeight: 18.6,
-  },
-  title: {
-    color: colors.text,
-    fontFamily: fontFamilies.bodySemi,
-    fontSize: typography.bodyMd,
-  },
-  titleRow: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: spacing.xs,
-  },
-});

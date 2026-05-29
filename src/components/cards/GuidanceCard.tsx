@@ -1,10 +1,7 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
-import { colors } from '@/theme/colors';
-import { fontFamilies } from '@/theme/fontFamilies';
-import { radius } from '@/theme/radius';
-import { typography } from '@/theme/typography';
+import { useThemedStyles } from '@/theme/useThemedStyles';
 
 type GuidanceCardProps = {
   title: string;
@@ -13,6 +10,32 @@ type GuidanceCardProps = {
 };
 
 export function GuidanceCard({ title, body, children }: GuidanceCardProps) {
+  const styles = useThemedStyles((t) =>
+    StyleSheet.create({
+      container: {
+        backgroundColor: t.colors.surface,
+        borderRadius: t.radius.md,
+        padding: 20,
+        gap: 6,
+      },
+      title: {
+        fontSize: t.typography.labelMd,
+        fontFamily: t.fontFamilies.bodyMedium,
+        color: t.colors.primary,
+      },
+      body: {
+        fontSize: t.typography.bodyMd,
+        lineHeight: 20.8,
+        fontFamily: t.fontFamilies.body,
+        color: t.colors.textMuted,
+      },
+      examples: {
+        gap: 8,
+        marginTop: 4,
+      },
+    }),
+  );
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>{title}</Text>
@@ -21,27 +44,3 @@ export function GuidanceCard({ title, body, children }: GuidanceCardProps) {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.md,
-    padding: 20,
-    gap: 6,
-  },
-  title: {
-    fontSize: typography.labelMd,
-    fontFamily: fontFamilies.bodyMedium,
-    color: colors.primary,
-  },
-  body: {
-    fontSize: typography.bodyMd,
-    lineHeight: 20.8,
-    fontFamily: fontFamilies.body,
-    color: colors.textMuted,
-  },
-  examples: {
-    gap: 8,
-    marginTop: 4,
-  },
-});

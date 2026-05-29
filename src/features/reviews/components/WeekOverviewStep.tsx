@@ -3,10 +3,7 @@ import { StyleSheet, Text, View } from "react-native";
 import { ZenCard } from "@/components/cards/ZenCard";
 import { Eyebrow } from "@/components/text/Eyebrow";
 import { WeekStrip } from "@/features/reviews/components/WeekStrip";
-import { colors } from "@/theme/colors";
-import { fontFamilies } from "@/theme/fontFamilies";
-import { spacing } from "@/theme/spacing";
-import { typography } from "@/theme/typography";
+import { useThemedStyles } from "@/theme/useThemedStyles";
 
 import type {
   GoalWeekSummary,
@@ -105,6 +102,57 @@ export function getAgendaLine(summary: GoalWeekSummary): string {
 }
 
 export function WeekOverviewStep({ summary }: WeekOverviewStepProps) {
+  const styles = useThemedStyles((theme) =>
+    StyleSheet.create({
+      agenda: {
+        color: theme.colors.textMuted,
+        fontFamily: theme.fontFamilies.body,
+        fontSize: theme.typography.bodyMd,
+        fontStyle: "italic",
+        lineHeight: 20.4,
+      },
+      container: {
+        gap: theme.spacing.lg,
+      },
+      dayLabel: {
+        color: theme.colors.textFaint,
+        fontFamily: theme.fontFamilies.bodyBold,
+        fontSize: theme.typography.micro,
+        letterSpacing: 0.6,
+        textAlign: "center",
+        width: 20,
+      },
+      dayLabelsCells: {
+        flexDirection: "row",
+        gap: theme.spacing.xs,
+      },
+      dayLabelsRow: {
+        alignItems: "center",
+        flexDirection: "row",
+      },
+      dayLabelsSpacer: {
+        flex: 1,
+      },
+      headline: {
+        color: theme.colors.text,
+        fontFamily: theme.fontFamilies.displaySemi,
+        fontSize: theme.typography.headlineMd,
+      },
+      interpretation: {
+        color: theme.colors.textMuted,
+        fontFamily: theme.fontFamilies.body,
+        fontSize: theme.typography.bodyLg,
+        lineHeight: 21,
+      },
+      intro: {
+        gap: theme.spacing.sm,
+      },
+      stripsList: {
+        gap: theme.spacing.md,
+      },
+    }),
+  );
+
   return (
     <View style={styles.container}>
       <View style={styles.intro}>
@@ -147,51 +195,3 @@ export function WeekOverviewStep({ summary }: WeekOverviewStepProps) {
   );
 }
 
-const styles = StyleSheet.create({
-  agenda: {
-    color: colors.textMuted,
-    fontFamily: fontFamilies.body,
-    fontSize: typography.bodyMd,
-    fontStyle: "italic",
-    lineHeight: 20.4,
-  },
-  container: {
-    gap: spacing.lg,
-  },
-  dayLabel: {
-    color: colors.textFaint,
-    fontFamily: fontFamilies.bodyBold,
-    fontSize: typography.micro,
-    letterSpacing: 0.6,
-    textAlign: "center",
-    width: 20,
-  },
-  dayLabelsCells: {
-    flexDirection: "row",
-    gap: spacing.xs,
-  },
-  dayLabelsRow: {
-    alignItems: "center",
-    flexDirection: "row",
-  },
-  dayLabelsSpacer: {
-    flex: 1,
-  },
-  headline: {
-    color: colors.text,
-    fontFamily: fontFamilies.displaySemi,
-    fontSize: typography.headlineMd,
-  },
-  interpretation: {
-    color: colors.textMuted,
-    fontFamily: fontFamilies.body,
-    fontSize: typography.bodyLg,
-    lineHeight: 21,
-  },
-  intro: {
-    gap: spacing.sm,
-  },
-  stripsList: {
-    gap: spacing.md,
-  },
-});

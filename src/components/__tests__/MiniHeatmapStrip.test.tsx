@@ -1,7 +1,7 @@
 import { render, screen } from "@/tests/setup/render";
 
 import { MiniHeatmapStrip, buildStripCells } from "@/components/MiniHeatmapStrip";
-import { colors } from "@/theme/colors";
+import { colors } from "@/tests/setup/themeValues";
 import { resetClockForTesting, setNowForTesting } from "@/utils/clock";
 
 const ALL_DAYS = [1, 2, 3, 4, 5, 6, 7];

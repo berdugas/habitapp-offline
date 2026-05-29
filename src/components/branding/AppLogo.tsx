@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { Animated, StyleSheet, View, ViewStyle } from 'react-native';
 
-import { colors } from '@/theme/colors';
+import { useTheme } from '@/theme/useTheme';
 
 type AppLogoProps = {
   size?: number;
@@ -9,10 +9,11 @@ type AppLogoProps = {
   style?: ViewStyle;
 };
 
-const LOGO_COLOR = colors.primary;
 const GAP = 2;
 
 export function AppLogo({ size = 56, animated = false, style }: AppLogoProps) {
+  const theme = useTheme();
+  const logoColor = theme.colors.primary;
   const cellSize = (size - GAP) / 2;
   const borderWidth = size < 30 ? 1.5 : 2;
   const baseRadius = size < 30 ? 2 : 4;
@@ -24,6 +25,7 @@ export function AppLogo({ size = 56, animated = false, style }: AppLogoProps) {
         cellSize={cellSize}
         borderWidth={borderWidth}
         baseRadius={baseRadius}
+        logoColor={logoColor}
         style={style}
       />
     );
@@ -31,10 +33,10 @@ export function AppLogo({ size = 56, animated = false, style }: AppLogoProps) {
 
   return (
     <View style={[styles.grid, { width: size, height: size }, style]}>
-      <QuadrantTopLeft cellSize={cellSize} borderWidth={borderWidth} baseRadius={baseRadius} />
-      <QuadrantTopRight cellSize={cellSize} />
-      <QuadrantBottomLeft cellSize={cellSize} borderWidth={borderWidth} baseRadius={baseRadius} />
-      <QuadrantBottomRight cellSize={cellSize} borderWidth={borderWidth} baseRadius={baseRadius} />
+      <QuadrantTopLeft cellSize={cellSize} borderWidth={borderWidth} baseRadius={baseRadius} logoColor={logoColor} />
+      <QuadrantTopRight cellSize={cellSize} logoColor={logoColor} />
+      <QuadrantBottomLeft cellSize={cellSize} borderWidth={borderWidth} baseRadius={baseRadius} logoColor={logoColor} />
+      <QuadrantBottomRight cellSize={cellSize} borderWidth={borderWidth} baseRadius={baseRadius} logoColor={logoColor} />
     </View>
   );
 }
@@ -43,10 +45,12 @@ function QuadrantTopLeft({
   cellSize,
   borderWidth,
   baseRadius,
+  logoColor,
 }: {
   cellSize: number;
   borderWidth: number;
   baseRadius: number;
+  logoColor: string;
 }) {
   return (
     <View
@@ -54,7 +58,7 @@ function QuadrantTopLeft({
         width: cellSize,
         height: cellSize,
         borderWidth,
-        borderColor: LOGO_COLOR,
+        borderColor: logoColor,
         borderTopLeftRadius: baseRadius + 1,
         borderTopRightRadius: baseRadius,
         borderBottomLeftRadius: baseRadius,
@@ -64,13 +68,13 @@ function QuadrantTopLeft({
   );
 }
 
-function QuadrantTopRight({ cellSize }: { cellSize: number }) {
+function QuadrantTopRight({ cellSize, logoColor }: { cellSize: number; logoColor: string }) {
   return (
     <View
       style={{
         width: cellSize,
         height: cellSize,
-        backgroundColor: LOGO_COLOR,
+        backgroundColor: logoColor,
         borderRadius: cellSize / 2,
       }}
     />
@@ -81,10 +85,12 @@ function QuadrantBottomLeft({
   cellSize,
   borderWidth,
   baseRadius,
+  logoColor,
 }: {
   cellSize: number;
   borderWidth: number;
   baseRadius: number;
+  logoColor: string;
 }) {
   return (
     <View
@@ -92,7 +98,7 @@ function QuadrantBottomLeft({
         width: cellSize,
         height: cellSize,
         borderWidth,
-        borderColor: LOGO_COLOR,
+        borderColor: logoColor,
         borderTopLeftRadius: baseRadius,
         borderTopRightRadius: baseRadius,
         borderBottomLeftRadius: baseRadius + 1,
@@ -106,10 +112,12 @@ function QuadrantBottomRight({
   cellSize,
   borderWidth,
   baseRadius,
+  logoColor,
 }: {
   cellSize: number;
   borderWidth: number;
   baseRadius: number;
+  logoColor: string;
 }) {
   return (
     <View
@@ -117,7 +125,7 @@ function QuadrantBottomRight({
         width: cellSize,
         height: cellSize,
         borderWidth,
-        borderColor: LOGO_COLOR,
+        borderColor: logoColor,
         borderTopLeftRadius: baseRadius,
         borderTopRightRadius: baseRadius,
         borderBottomLeftRadius: baseRadius,
@@ -132,12 +140,14 @@ function AnimatedLogo({
   cellSize,
   borderWidth,
   baseRadius,
+  logoColor,
   style,
 }: {
   size: number;
   cellSize: number;
   borderWidth: number;
   baseRadius: number;
+  logoColor: string;
   style?: ViewStyle;
 }) {
   const spread = cellSize * 0.6;
@@ -202,7 +212,7 @@ function AnimatedLogo({
     {
       transform: [{ translateX: anim0.x }, { translateY: anim0.y }],
       borderWidth,
-      borderColor: LOGO_COLOR,
+      borderColor: logoColor,
       borderTopLeftRadius: baseRadius + 1,
       borderTopRightRadius: baseRadius,
       borderBottomLeftRadius: baseRadius,
@@ -210,13 +220,13 @@ function AnimatedLogo({
     },
     {
       transform: [{ translateX: anim1.x }, { translateY: anim1.y }],
-      backgroundColor: LOGO_COLOR,
+      backgroundColor: logoColor,
       borderRadius: cellSize / 2,
     },
     {
       transform: [{ translateX: anim2.x }, { translateY: anim2.y }],
       borderWidth,
-      borderColor: LOGO_COLOR,
+      borderColor: logoColor,
       borderTopLeftRadius: baseRadius,
       borderTopRightRadius: baseRadius,
       borderBottomLeftRadius: baseRadius + 1,
@@ -225,7 +235,7 @@ function AnimatedLogo({
     {
       transform: [{ translateX: anim3.x }, { translateY: anim3.y }],
       borderWidth,
-      borderColor: LOGO_COLOR,
+      borderColor: logoColor,
       borderTopLeftRadius: baseRadius,
       borderTopRightRadius: baseRadius,
       borderBottomLeftRadius: baseRadius,

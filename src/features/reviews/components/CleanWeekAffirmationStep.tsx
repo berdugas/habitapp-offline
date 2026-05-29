@@ -1,9 +1,6 @@
 import { StyleSheet, Text, View } from "react-native";
 
-import { colors } from "@/theme/colors";
-import { fontFamilies } from "@/theme/fontFamilies";
-import { spacing } from "@/theme/spacing";
-import { typography } from "@/theme/typography";
+import { useThemedStyles } from "@/theme/useThemedStyles";
 
 /**
  * Replaces the old `GoalReflectionStep` on clean weeks (zero
@@ -41,6 +38,27 @@ type CleanWeekAffirmationStepProps = {
 export function CleanWeekAffirmationStep({
   hasActiveDays,
 }: CleanWeekAffirmationStepProps) {
+  const styles = useThemedStyles((theme) =>
+    StyleSheet.create({
+      body: {
+        color: theme.colors.textMuted,
+        fontFamily: theme.fontFamilies.body,
+        fontSize: theme.typography.bodyMd,
+        lineHeight: 18.6,
+      },
+      container: {
+        gap: theme.spacing.sm,
+      },
+      headline: {
+        color: theme.colors.text,
+        fontFamily: theme.fontFamilies.displayBold,
+        fontSize: theme.typography.headlineMd,
+        letterSpacing: -0.2,
+        lineHeight: 27.3,
+      },
+    }),
+  );
+
   const headline = hasActiveDays ? "Solid week." : "Just getting started.";
   const body = hasActiveDays
     ? "Every habit was on track. Take the win and keep showing up."
@@ -53,22 +71,3 @@ export function CleanWeekAffirmationStep({
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  body: {
-    color: colors.textMuted,
-    fontFamily: fontFamilies.body,
-    fontSize: typography.bodyMd,
-    lineHeight: 18.6,
-  },
-  container: {
-    gap: spacing.sm,
-  },
-  headline: {
-    color: colors.text,
-    fontFamily: fontFamilies.displayBold,
-    fontSize: typography.headlineMd,
-    letterSpacing: -0.2,
-    lineHeight: 27.3,
-  },
-});

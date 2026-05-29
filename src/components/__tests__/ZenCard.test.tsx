@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react-native";
+import { render, screen } from "@/tests/setup/render";
 import { Text } from "react-native";
 
 import { ZenCard } from "@/components/cards/ZenCard";

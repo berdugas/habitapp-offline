@@ -1,9 +1,6 @@
 import { StyleSheet, Text, View } from "react-native";
 
-import { colors } from "@/theme/colors";
-import { fontFamilies } from "@/theme/fontFamilies";
-import { spacing } from "@/theme/spacing";
-import { typography } from "@/theme/typography";
+import { useThemedStyles } from "@/theme/useThemedStyles";
 
 type ReviewStepIndicatorProps = {
   total: number;
@@ -19,6 +16,41 @@ export function ReviewStepIndicator({
   total,
   currentIndex,
 }: ReviewStepIndicatorProps) {
+  const styles = useThemedStyles((theme) =>
+    StyleSheet.create({
+      container: {
+        alignItems: "center",
+        gap: theme.spacing.xs,
+      },
+      dot: {
+        backgroundColor: theme.colors.surfaceHigh,
+        borderRadius: 4,
+        height: 8,
+        width: 8,
+      },
+      dotActive: {
+        backgroundColor: theme.colors.primary,
+        width: 24,
+      },
+      dotDone: {
+        backgroundColor: theme.colors.primaryLight,
+      },
+      row: {
+        alignItems: "center",
+        flexDirection: "row",
+        gap: theme.spacing.xs,
+        justifyContent: "center",
+      },
+      stepText: {
+        color: theme.colors.textMuted,
+        fontFamily: theme.fontFamilies.bodySemi,
+        fontSize: theme.typography.micro,
+        letterSpacing: 0.6,
+        textTransform: "uppercase",
+      },
+    }),
+  );
+
   return (
     <View
       accessibilityLabel={`Step ${currentIndex + 1} of ${total}`}
@@ -49,36 +81,3 @@ export function ReviewStepIndicator({
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    alignItems: "center",
-    gap: spacing.xs,
-  },
-  dot: {
-    backgroundColor: colors.surfaceHigh,
-    borderRadius: 4,
-    height: 8,
-    width: 8,
-  },
-  dotActive: {
-    backgroundColor: colors.primary,
-    width: 24,
-  },
-  dotDone: {
-    backgroundColor: colors.primaryLight,
-  },
-  row: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: spacing.xs,
-    justifyContent: "center",
-  },
-  stepText: {
-    color: colors.textMuted,
-    fontFamily: fontFamilies.bodySemi,
-    fontSize: typography.micro,
-    letterSpacing: 0.6,
-    textTransform: "uppercase",
-  },
-});

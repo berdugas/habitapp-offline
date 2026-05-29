@@ -1,7 +1,7 @@
 import { render } from "@/tests/setup/render";
 
 import { ConsistencyDonut } from "@/features/today/components/ConsistencyDonut";
-import { colors } from "@/theme/colors";
+import { colors } from "@/tests/setup/themeValues";
 
 // react-native-svg encodes color props as { type: 0, payload: 0xFFRRGGBB }.
 // Convert a "#RRGGBB" string to that integer to compare against rendered props.

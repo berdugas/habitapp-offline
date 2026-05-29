@@ -5,17 +5,67 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AppLogo } from "@/components/branding/AppLogo";
 import { PrimaryButton } from "@/components/buttons/PrimaryButton";
 import { SecondaryButton } from "@/components/buttons/SecondaryButton";
-import { colors } from "@/theme/colors";
-import { fontFamilies } from "@/theme/fontFamilies";
-import { SCREEN_TOP_PADDING, spacing } from "@/theme/spacing";
-import { typography } from "@/theme/typography";
+import { useTheme } from "@/theme/useTheme";
+import { useThemedStyles } from "@/theme/useThemedStyles";
 
 export default function WelcomeScreen() {
   const insets = useSafeAreaInsets();
+  const theme = useTheme();
+  const styles = useThemedStyles((t) =>
+    StyleSheet.create({
+      screen: {
+        flex: 1,
+        backgroundColor: t.colors.bg,
+      },
+      header: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 9,
+        paddingTop: 20,
+        paddingHorizontal: t.spacing.xl,
+        marginBottom: 48,
+      },
+      appName: {
+        fontFamily: t.fontFamilies.displaySemi,
+        fontSize: 14,
+        color: t.colors.primary,
+        letterSpacing: 0.84,
+        textTransform: "uppercase",
+      },
+      heroBlock: {
+        paddingHorizontal: t.spacing.xl,
+      },
+      headline: {
+        fontFamily: t.fontFamilies.displayBold,
+        fontSize: 32,
+        lineHeight: 36.8,
+        color: t.colors.text,
+        marginBottom: 12,
+      },
+      subhead: {
+        fontFamily: t.fontFamilies.body,
+        fontSize: t.typography.bodyLg,
+        lineHeight: 22.4,
+        color: t.colors.textMuted,
+        letterSpacing: 0.32,
+      },
+      logoContainer: {
+        flex: 1,
+        justifyContent: "center",
+        alignItems: "center",
+      },
+      actions: {
+        paddingHorizontal: t.spacing.xl,
+        paddingBottom: 40,
+        gap: t.spacing.md,
+      },
+    }),
+  );
+
   return (
     <View style={styles.screen}>
       {/* Header: small logo + app name */}
-      <View style={[styles.header, { paddingTop: insets.top + SCREEN_TOP_PADDING }]}>
+      <View style={[styles.header, { paddingTop: insets.top + theme.spacing.lg }]}>
         <AppLogo size={24} />
         <Text style={styles.appName}>Habitapp</Text>
       </View>
@@ -48,52 +98,3 @@ export default function WelcomeScreen() {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: colors.bg,
-  },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 9,
-    paddingTop: 20,
-    paddingHorizontal: spacing.xl,
-    marginBottom: 48,
-  },
-  appName: {
-    fontFamily: fontFamilies.displaySemi,
-    fontSize: 14,
-    color: colors.primary,
-    letterSpacing: 0.84,
-    textTransform: "uppercase",
-  },
-  heroBlock: {
-    paddingHorizontal: spacing.xl,
-  },
-  headline: {
-    fontFamily: fontFamilies.displayBold,
-    fontSize: 32,
-    lineHeight: 36.8,
-    color: colors.text,
-    marginBottom: 12,
-  },
-  subhead: {
-    fontFamily: fontFamilies.body,
-    fontSize: typography.bodyLg,
-    lineHeight: 22.4,
-    color: colors.textMuted,
-    letterSpacing: 0.32,
-  },
-  logoContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  actions: {
-    paddingHorizontal: spacing.xl,
-    paddingBottom: 40,
-    gap: spacing.md,
-  },
-});

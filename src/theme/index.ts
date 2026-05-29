@@ -1,12 +1,4 @@
-export { colors } from './colors';
-export { typography } from './typography';
-export { spacing } from './spacing';
-export { radius } from './radius';
-export { shadows } from './shadows';
-export { fontFamilies } from './fontFamilies';
-
-// New theming API. Components migrated to runtime themes use these instead of
-// the static exports above.
+// Runtime theming API. All components use these hooks to access theme tokens.
 export { useTheme } from './useTheme';
 export { useThemedStyles } from './useThemedStyles';
 export { ThemeProvider, useThemeContext } from './ThemeProvider';

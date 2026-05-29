@@ -20,10 +20,8 @@ import { FirstRunTipBanner } from "@/features/reviews/components/FirstRunTipBann
 import { WeekStrip } from "@/features/reviews/components/WeekStrip";
 import { formatMissedDays } from "@/features/reviews/formatMissedDays";
 import { getHabitAdjustmentSuggestions } from "@/features/recommendations/habitAdjustmentEngine";
-import { colors } from "@/theme/colors";
-import { fontFamilies } from "@/theme/fontFamilies";
-import { spacing } from "@/theme/spacing";
-import { typography } from "@/theme/typography";
+import { useThemedStyles } from "@/theme/useThemedStyles";
+import { useTheme } from "@/theme/useTheme";
 
 import type { HabitWeekSummary } from "@/features/reviews/buildGoalWeekSummary";
 import type { ApplyTuneUpForHabitPayload } from "@/features/reviews/api";
@@ -293,6 +291,80 @@ export function TuneUpStep({
     }
   }
 
+  const theme = useTheme();
+  const styles = useThemedStyles((t) =>
+    StyleSheet.create({
+      callout: {
+        color: t.colors.textMuted,
+        fontFamily: t.fontFamilies.body,
+        fontSize: t.typography.bodyMd,
+        lineHeight: 18.6,
+      },
+      container: {
+        gap: t.spacing.lg,
+      },
+      count: {
+        color: t.colors.textMuted,
+        fontFamily: t.fontFamilies.body,
+        fontSize: t.typography.bodyMd,
+      },
+      fields: {
+        gap: t.spacing.md,
+      },
+      placeholder: {
+        alignItems: "center",
+        backgroundColor: t.colors.surface,
+        borderRadius: 12,
+        justifyContent: "center",
+        padding: t.spacing.xl,
+      },
+      placeholderText: {
+        color: t.colors.textFaint,
+        fontFamily: t.fontFamilies.body,
+        fontSize: t.typography.bodyMd,
+        fontStyle: "italic",
+        textAlign: "center",
+      },
+      revealContent: {
+        gap: t.spacing.lg,
+      },
+      revealRegion: {
+        gap: t.spacing.lg,
+      },
+      skipButton: {
+        alignItems: "center",
+        paddingVertical: t.spacing.sm,
+      },
+      skipLabel: {
+        color: t.colors.textMuted,
+        fontFamily: t.fontFamilies.bodySemi,
+        fontSize: t.typography.bodyMd,
+      },
+      suggestionBody: {
+        color: t.colors.textMuted,
+        fontFamily: t.fontFamilies.body,
+        fontSize: t.typography.bodyMd,
+        lineHeight: 18.6,
+      },
+      suggestionTitle: {
+        color: t.colors.text,
+        fontFamily: t.fontFamilies.displaySemi,
+        fontSize: t.typography.titleMd,
+      },
+      title: {
+        color: t.colors.text,
+        flexShrink: 1,
+        fontFamily: t.fontFamilies.bodySemi,
+        fontSize: t.typography.bodyLg,
+      },
+      titleRow: {
+        alignItems: "center",
+        flexDirection: "row",
+        gap: t.spacing.sm,
+      },
+    }),
+  );
+
   const missedCallout = formatMissedDays(habit.weekLogs);
 
   /**
@@ -384,7 +456,7 @@ export function TuneUpStep({
       <ZenCard>
         <View style={styles.titleRow}>
           {habit.icon ? (
-            <LucideIcon color={colors.text} name={habit.icon} size={18} />
+            <LucideIcon color={theme.colors.text} name={habit.icon} size={18} />
           ) : null}
           <Text style={styles.title}>{habit.title}</Text>
         </View>
@@ -504,73 +576,3 @@ export function TuneUpStep({
   );
 }
 
-const styles = StyleSheet.create({
-  callout: {
-    color: colors.textMuted,
-    fontFamily: fontFamilies.body,
-    fontSize: typography.bodyMd,
-    lineHeight: 18.6,
-  },
-  container: {
-    gap: spacing.lg,
-  },
-  count: {
-    color: colors.textMuted,
-    fontFamily: fontFamilies.body,
-    fontSize: typography.bodyMd,
-  },
-  fields: {
-    gap: spacing.md,
-  },
-  placeholder: {
-    alignItems: "center",
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    justifyContent: "center",
-    padding: spacing.xl,
-  },
-  placeholderText: {
-    color: colors.textFaint,
-    fontFamily: fontFamilies.body,
-    fontSize: typography.bodyMd,
-    fontStyle: "italic",
-    textAlign: "center",
-  },
-  revealContent: {
-    gap: spacing.lg,
-  },
-  revealRegion: {
-    gap: spacing.lg,
-  },
-  skipButton: {
-    alignItems: "center",
-    paddingVertical: spacing.sm,
-  },
-  skipLabel: {
-    color: colors.textMuted,
-    fontFamily: fontFamilies.bodySemi,
-    fontSize: typography.bodyMd,
-  },
-  suggestionBody: {
-    color: colors.textMuted,
-    fontFamily: fontFamilies.body,
-    fontSize: typography.bodyMd,
-    lineHeight: 18.6,
-  },
-  suggestionTitle: {
-    color: colors.text,
-    fontFamily: fontFamilies.displaySemi,
-    fontSize: typography.titleMd,
-  },
-  title: {
-    color: colors.text,
-    flexShrink: 1,
-    fontFamily: fontFamilies.bodySemi,
-    fontSize: typography.bodyLg,
-  },
-  titleRow: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: spacing.sm,
-  },
-});

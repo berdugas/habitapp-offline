@@ -21,11 +21,7 @@ import {
   useUpsertWeeklyReviewMutation,
 } from "@/features/reviews/hooks";
 import { useTrialValidation } from "@/features/trial/hooks";
-import { colors } from "@/theme/colors";
-import { fontFamilies } from "@/theme/fontFamilies";
-import { radius } from "@/theme/radius";
-import { spacing } from "@/theme/spacing";
-import { typography } from "@/theme/typography";
+import { useThemedStyles } from "@/theme/useThemedStyles";
 import { getWeekStartDateString } from "@/utils/dates";
 import { normalizeParam } from "@/utils/params";
 import {
@@ -52,6 +48,42 @@ function NullableBooleanField({
   onChange,
   value,
 }: NullableBooleanFieldProps) {
+  const styles = useThemedStyles((t) =>
+    StyleSheet.create({
+      booleanField: {
+        gap: t.spacing.sm,
+      },
+      booleanLabel: {
+        color: t.colors.text,
+        fontFamily: t.fontFamilies.bodySemi,
+        fontSize: t.typography.bodyMd,
+      },
+      segmentedControl: {
+        flexDirection: "row",
+        flexWrap: "wrap",
+        gap: t.spacing.sm,
+      },
+      segmentButton: {
+        backgroundColor: t.colors.surface,
+        borderRadius: t.radius.pill,
+        paddingHorizontal: t.spacing.md,
+        paddingVertical: t.spacing.sm,
+      },
+      segmentButtonSelected: {
+        backgroundColor: t.colors.primarySoft,
+      },
+      segmentButtonLabel: {
+        color: t.colors.textMuted,
+        fontFamily: t.fontFamilies.bodyMedium,
+        fontSize: t.typography.bodyMd,
+      },
+      segmentButtonLabelSelected: {
+        color: t.colors.primary,
+        fontFamily: t.fontFamilies.bodySemi,
+      },
+    }),
+  );
+
   const options: Array<{ label: string; value: boolean }> = [
     { label: "Yes", value: true },
     { label: "No", value: false },
@@ -95,6 +127,83 @@ function NullableBooleanField({
 }
 
 export default function WeeklyReviewScreen() {
+  const styles = useThemedStyles((t) =>
+    StyleSheet.create({
+      body: {
+        color: t.colors.textMuted,
+        fontFamily: t.fontFamilies.body,
+        fontSize: t.typography.bodyLg,
+        lineHeight: 21,
+      },
+      booleanHelper: {
+        color: t.colors.textMuted,
+        fontFamily: t.fontFamilies.body,
+        fontSize: t.typography.bodyMd,
+        lineHeight: 18.6,
+      },
+      cardTitle: {
+        color: t.colors.text,
+        fontFamily: t.fontFamilies.displaySemi,
+        fontSize: t.typography.titleLg,
+      },
+      content: {
+        gap: t.spacing.xl,
+        padding: t.spacing.xl,
+      },
+      formSection: {
+        gap: t.spacing.lg,
+      },
+      header: {
+        gap: t.spacing.sm,
+      },
+      screen: {
+        backgroundColor: t.colors.bg,
+        flex: 1,
+      },
+      successBody: {
+        color: t.colors.textMuted,
+        fontFamily: t.fontFamilies.body,
+        fontSize: t.typography.bodyMd,
+        lineHeight: 18.6,
+      },
+      successCard: {
+        backgroundColor: t.colors.primarySoft,
+      },
+      successTitle: {
+        color: t.colors.primary,
+        fontFamily: t.fontFamilies.bodySemi,
+        fontSize: t.typography.bodyLg,
+      },
+      suggestionBody: {
+        color: t.colors.textMuted,
+        fontFamily: t.fontFamilies.body,
+        fontSize: t.typography.bodyMd,
+        lineHeight: 18.6,
+      },
+      suggestionReason: {
+        color: t.colors.textMuted,
+        fontFamily: t.fontFamilies.body,
+        fontSize: t.typography.bodyMd,
+        lineHeight: 18.6,
+      },
+      suggestionReasonLabel: {
+        color: t.colors.text,
+        fontFamily: t.fontFamilies.bodySemi,
+        fontSize: t.typography.labelMd,
+      },
+      suggestionTitle: {
+        color: t.colors.text,
+        fontFamily: t.fontFamilies.displaySemi,
+        fontSize: t.typography.titleMd,
+      },
+      title: {
+        color: t.colors.text,
+        fontFamily: t.fontFamilies.displayBold,
+        fontSize: t.typography.headlineLg,
+      },
+    }),
+  );
+
   const {
     habitId: habitIdParam,
     returnTo: returnToParam,
@@ -334,108 +443,3 @@ export default function WeeklyReviewScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  body: {
-    color: colors.textMuted,
-    fontFamily: fontFamilies.body,
-    fontSize: typography.bodyLg,
-    lineHeight: 21,
-  },
-  booleanField: {
-    gap: spacing.sm,
-  },
-  booleanHelper: {
-    color: colors.textMuted,
-    fontFamily: fontFamilies.body,
-    fontSize: typography.bodyMd,
-    lineHeight: 18.6,
-  },
-  booleanLabel: {
-    color: colors.text,
-    fontFamily: fontFamilies.bodySemi,
-    fontSize: typography.bodyMd,
-  },
-  cardTitle: {
-    color: colors.text,
-    fontFamily: fontFamilies.displaySemi,
-    fontSize: typography.titleLg,
-  },
-  content: {
-    gap: spacing.xl,
-    padding: spacing.xl,
-  },
-  formSection: {
-    gap: spacing.lg,
-  },
-  header: {
-    gap: spacing.sm,
-  },
-  screen: {
-    backgroundColor: colors.bg,
-    flex: 1,
-  },
-  segmentedControl: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: spacing.sm,
-  },
-  successBody: {
-    color: colors.textMuted,
-    fontFamily: fontFamilies.body,
-    fontSize: typography.bodyMd,
-    lineHeight: 18.6,
-  },
-  successCard: {
-    backgroundColor: colors.primarySoft,
-  },
-  successTitle: {
-    color: colors.primary,
-    fontFamily: fontFamilies.bodySemi,
-    fontSize: typography.bodyLg,
-  },
-  suggestionBody: {
-    color: colors.textMuted,
-    fontFamily: fontFamilies.body,
-    fontSize: typography.bodyMd,
-    lineHeight: 18.6,
-  },
-  suggestionReason: {
-    color: colors.textMuted,
-    fontFamily: fontFamilies.body,
-    fontSize: typography.bodyMd,
-    lineHeight: 18.6,
-  },
-  suggestionReasonLabel: {
-    color: colors.text,
-    fontFamily: fontFamilies.bodySemi,
-    fontSize: typography.labelMd,
-  },
-  suggestionTitle: {
-    color: colors.text,
-    fontFamily: fontFamilies.displaySemi,
-    fontSize: typography.titleMd,
-  },
-  segmentButton: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.pill,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-  },
-  segmentButtonLabel: {
-    color: colors.textMuted,
-    fontFamily: fontFamilies.bodyMedium,
-    fontSize: typography.bodyMd,
-  },
-  segmentButtonLabelSelected: {
-    color: colors.primary,
-    fontFamily: fontFamilies.bodySemi,
-  },
-  segmentButtonSelected: {
-    backgroundColor: colors.primarySoft,
-  },
-  title: {
-    color: colors.text,
-    fontFamily: fontFamilies.displayBold,
-    fontSize: typography.headlineLg,
-  },
-});

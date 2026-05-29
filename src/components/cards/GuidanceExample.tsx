@@ -1,8 +1,6 @@
 import { StyleSheet, Text, View } from 'react-native';
 
-import { colors } from '@/theme/colors';
-import { fontFamilies } from '@/theme/fontFamilies';
-import { typography } from '@/theme/typography';
+import { useThemedStyles } from '@/theme/useThemedStyles';
 
 type GuidanceExampleProps = {
   context?: string;
@@ -23,6 +21,78 @@ export function GuidanceExample({
   trigger,
   action,
 }: GuidanceExampleProps) {
+  const styles = useThemedStyles((t) =>
+    StyleSheet.create({
+      container: {
+        backgroundColor: t.colors.surfaceHigh,
+        borderRadius: 16,
+        paddingVertical: 12,
+        paddingHorizontal: 14,
+        gap: 4,
+      },
+      context: {
+        fontSize: 12,
+        fontFamily: t.fontFamilies.body,
+        color: t.colors.textFaint,
+        marginBottom: 2,
+      },
+      row: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        flexWrap: 'wrap',
+      },
+      badgeRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        flexWrap: 'wrap',
+      },
+      triggerBadge: {
+        backgroundColor: t.colors.primary,
+        borderRadius: 999,
+        paddingVertical: 4,
+        paddingHorizontal: 10,
+      },
+      triggerText: {
+        fontSize: 12,
+        fontFamily: t.fontFamilies.bodySemi,
+        color: t.colors.primaryText,
+      },
+      actionBadge: {
+        backgroundColor: t.colors.primaryLight,
+        borderRadius: 999,
+        paddingVertical: 4,
+        paddingHorizontal: 10,
+      },
+      actionText: {
+        fontSize: 12,
+        fontFamily: t.fontFamilies.bodySemi,
+        color: t.colors.primary,
+      },
+      arrow: {
+        fontSize: t.typography.labelMd,
+        color: t.colors.textFaint,
+        fontFamily: t.fontFamilies.body,
+      },
+      beforeText: {
+        fontSize: t.typography.bodyMd,
+        fontFamily: t.fontFamilies.body,
+        color: t.colors.textFaint,
+      },
+      goodText: {
+        fontSize: t.typography.bodyMd,
+        fontFamily: t.fontFamilies.body,
+        color: t.colors.text,
+      },
+      badText: {
+        fontSize: t.typography.bodyMd,
+        fontFamily: t.fontFamilies.body,
+        color: t.colors.textFaint,
+      },
+    }),
+  );
+
   return (
     <View style={styles.container}>
       {context != null && <Text style={styles.context}>{context}</Text>}
@@ -51,73 +121,3 @@ export function GuidanceExample({
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    backgroundColor: colors.surfaceHigh,
-    borderRadius: 16,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    gap: 4,
-  },
-  context: {
-    fontSize: 12,
-    fontFamily: fontFamilies.body,
-    color: colors.textFaint,
-    marginBottom: 2,
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    flexWrap: 'wrap',
-  },
-  badgeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    flexWrap: 'wrap',
-  },
-  triggerBadge: {
-    backgroundColor: colors.primary,
-    borderRadius: 999,
-    paddingVertical: 4,
-    paddingHorizontal: 10,
-  },
-  triggerText: {
-    fontSize: 12,
-    fontFamily: fontFamilies.bodySemi,
-    color: colors.primaryText,
-  },
-  actionBadge: {
-    backgroundColor: colors.primaryLight,
-    borderRadius: 999,
-    paddingVertical: 4,
-    paddingHorizontal: 10,
-  },
-  actionText: {
-    fontSize: 12,
-    fontFamily: fontFamilies.bodySemi,
-    color: colors.primary,
-  },
-  arrow: {
-    fontSize: typography.labelMd,
-    color: colors.textFaint,
-    fontFamily: fontFamilies.body,
-  },
-  beforeText: {
-    fontSize: typography.bodyMd,
-    fontFamily: fontFamilies.body,
-    color: colors.textFaint,
-  },
-  goodText: {
-    fontSize: typography.bodyMd,
-    fontFamily: fontFamilies.body,
-    color: colors.text,
-  },
-  badText: {
-    fontSize: typography.bodyMd,
-    fontFamily: fontFamilies.body,
-    color: colors.textFaint,
-  },
-});
