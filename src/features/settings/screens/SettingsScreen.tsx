@@ -67,6 +67,21 @@ export default function SettingsScreen() {
         fontSize: t.typography.bodyMd,
         fontStyle: "italic",
       },
+      dot: {
+        width: 8,
+        height: 8,
+        borderRadius: 4,
+      },
+      themeName: {
+        color: t.colors.textMuted,
+        fontFamily: t.fontFamilies.body,
+        fontSize: t.typography.bodyMd,
+      },
+      appearanceValue: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: t.spacing.sm,
+      },
     }),
   );
 
@@ -120,18 +135,20 @@ export default function SettingsScreen() {
         </Pressable>
       </ZenCard>
 
-      {__DEV__ ? (
-        <ZenCard gap={0}>
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => router.push("/(app)/settings/appearance")}
-            style={styles.row}
-          >
-            <Text style={styles.rowLabel}>[DEV] Appearance</Text>
+      <ZenCard gap={0}>
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => router.push("/(app)/settings/appearance")}
+          style={styles.row}
+        >
+          <Text style={styles.rowLabel}>Appearance</Text>
+          <View style={styles.appearanceValue}>
+            <View style={[styles.dot, { backgroundColor: theme.colors.primary }]} />
+            <Text style={styles.themeName}>{theme.name}</Text>
             <ChevronRight color={theme.colors.textFaint} size={18} strokeWidth={1.75} />
-          </Pressable>
-        </ZenCard>
-      ) : null}
+          </View>
+        </Pressable>
+      </ZenCard>
 
       <ZenCard gap={theme.spacing.md}>
         <Eyebrow label="Privacy & Data" />
