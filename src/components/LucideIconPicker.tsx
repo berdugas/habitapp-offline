@@ -1,9 +1,10 @@
 import * as LucideIcons from "lucide-react-native";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
-import { colors } from "@/theme/colors";
-import { fontFamilies } from "@/theme/fontFamilies";
-import { typography } from "@/theme/typography";
+import { useTheme } from "@/theme/useTheme";
+import { useThemedStyles } from "@/theme/useThemedStyles";
+
+import type { Theme } from "@/theme/contract";
 
 type LucideIconPickerProps = {
   selected: string | null;
@@ -53,7 +54,7 @@ const CATEGORIES: IconCategory[] = [
 export function LucideIcon({
   name,
   size = 18,
-  color = colors.primary,
+  color,
   strokeWidth = 1.8,
 }: {
   name: string;
@@ -61,16 +62,60 @@ export function LucideIcon({
   color?: string;
   strokeWidth?: number;
 }) {
+  const { colors } = useTheme();
+  const resolvedColor = color ?? colors.primary;
   const Component = (LucideIcons as Record<string, unknown>)[name] as React.ComponentType<{
     size?: number;
     color?: string;
     strokeWidth?: number;
   }> | undefined;
   if (!Component) return null;
-  return <Component size={size} color={color} strokeWidth={strokeWidth} />;
+  return <Component size={size} color={resolvedColor} strokeWidth={strokeWidth} />;
+}
+
+function buildStyles(theme: Theme) {
+  return StyleSheet.create({
+    container: {
+      backgroundColor: theme.colors.surface,
+      borderRadius: 16,
+      padding: 12,
+      maxHeight: 300,
+    },
+    category: {
+      marginBottom: 12,
+    },
+    categoryLabel: {
+      fontSize: theme.typography.micro,
+      fontFamily: theme.fontFamilies.bodyMedium,
+      color: theme.colors.textFaint,
+      textTransform: "uppercase" as const,
+      letterSpacing: 0.5,
+      marginBottom: 8,
+      paddingLeft: 2,
+    },
+    grid: {
+      flexDirection: "row" as const,
+      flexWrap: "wrap" as const,
+      gap: 4,
+    },
+    iconCell: {
+      width: 38,
+      height: 38,
+      borderRadius: 10,
+      alignItems: "center" as const,
+      justifyContent: "center" as const,
+      backgroundColor: "transparent",
+    },
+    iconCellSelected: {
+      backgroundColor: theme.colors.primarySoft,
+    },
+  });
 }
 
 export function LucideIconPicker({ selected, onSelect }: LucideIconPickerProps) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(buildStyles);
+
   return (
     <ScrollView
       style={styles.container}
@@ -99,40 +144,3 @@ export function LucideIconPicker({ selected, onSelect }: LucideIconPickerProps) 
     </ScrollView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    backgroundColor: colors.surface,
-    borderRadius: 16,
-    padding: 12,
-    maxHeight: 300,
-  },
-  category: {
-    marginBottom: 12,
-  },
-  categoryLabel: {
-    fontSize: typography.micro,
-    fontFamily: fontFamilies.bodyMedium,
-    color: colors.textFaint,
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-    marginBottom: 8,
-    paddingLeft: 2,
-  },
-  grid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 4,
-  },
-  iconCell: {
-    width: 38,
-    height: 38,
-    borderRadius: 10,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "transparent",
-  },
-  iconCellSelected: {
-    backgroundColor: colors.primarySoft,
-  },
-});

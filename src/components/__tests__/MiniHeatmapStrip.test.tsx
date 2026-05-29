@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react-native";
+import { render, screen } from "@/tests/setup/render";
 
 import { MiniHeatmapStrip, buildStripCells } from "@/components/MiniHeatmapStrip";
 import { colors } from "@/theme/colors";

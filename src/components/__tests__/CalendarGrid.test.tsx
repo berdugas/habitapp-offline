@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react-native";
+import { render, screen } from "@/tests/setup/render";
 
 import { buildGrid, CalendarGrid } from "@/components/CalendarGrid";
 import { colors } from "@/theme/colors";

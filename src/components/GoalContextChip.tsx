@@ -1,17 +1,44 @@
 import { Target } from "lucide-react-native";
 import { StyleSheet, Text, View } from "react-native";
 
-import { colors } from "@/theme/colors";
-import { fontFamilies } from "@/theme/fontFamilies";
-import { radius } from "@/theme/radius";
-import { spacing } from "@/theme/spacing";
-import { typography } from "@/theme/typography";
+import { useTheme } from "@/theme/useTheme";
+import { useThemedStyles } from "@/theme/useThemedStyles";
+
+import type { Theme } from "@/theme/contract";
 
 type GoalContextChipProps = {
   identityPhrase: string;
 };
 
+function buildStyles(theme: Theme) {
+  return StyleSheet.create({
+    chip: {
+      flexDirection: "row" as const,
+      alignItems: "center" as const,
+      gap: theme.spacing.xs,
+      alignSelf: "flex-start" as const,
+      backgroundColor: theme.colors.primarySoft,
+      borderRadius: theme.radius.pill,
+      paddingHorizontal: theme.spacing.md,
+      paddingVertical: theme.spacing.xs,
+      marginBottom: theme.spacing.lg,
+    },
+    text: {
+      fontFamily: theme.fontFamilies.body,
+      fontSize: theme.typography.labelMd,
+      color: theme.colors.primary,
+    },
+    bold: {
+      fontFamily: theme.fontFamilies.bodySemi,
+      color: theme.colors.primary,
+    },
+  });
+}
+
 export function GoalContextChip({ identityPhrase }: GoalContextChipProps) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(buildStyles);
+
   return (
     <View style={styles.chip}>
       <Target color={colors.primary} size={14} strokeWidth={2} />
@@ -22,26 +49,3 @@ export function GoalContextChip({ identityPhrase }: GoalContextChipProps) {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  chip: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.xs,
-    alignSelf: "flex-start",
-    backgroundColor: colors.primarySoft,
-    borderRadius: radius.pill,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    marginBottom: spacing.lg,
-  },
-  text: {
-    fontFamily: fontFamilies.body,
-    fontSize: typography.labelMd,
-    color: colors.primary,
-  },
-  bold: {
-    fontFamily: fontFamilies.bodySemi,
-    color: colors.primary,
-  },
-});

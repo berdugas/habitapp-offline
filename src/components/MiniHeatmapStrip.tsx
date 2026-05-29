@@ -1,10 +1,12 @@
 import { StyleSheet, View } from "react-native";
 
 import { isoWeekday } from "@/features/habits/activeDays";
-import { colors } from "@/theme/colors";
+import { useTheme } from "@/theme/useTheme";
+import { useThemedStyles } from "@/theme/useThemedStyles";
 import { toDeviceDateString } from "@/utils/dates";
 import { useTodayDateString } from "@/utils/dayBoundary";
 
+import type { Colors } from "@/theme/contract";
 import type { HeatmapLog } from "@/components/CalendarGrid";
 import type { HabitLogStatus } from "@/features/habits/types";
 
@@ -74,7 +76,7 @@ export function buildStripCells(
   return cells;
 }
 
-function dotStyle(state: CellState): object {
+function dotStyle(state: CellState, colors: Colors): object {
   switch (state) {
     case "done":
       return { backgroundColor: colors.heatDone };
@@ -114,26 +116,28 @@ export function MiniHeatmapStrip({
 }: MiniHeatmapStripProps) {
   const today = useTodayDateString();
   const cells = buildStripCells(logs, activeDays, startDate, today, maxDays);
+  const { colors } = useTheme();
+  const styles = useThemedStyles(() =>
+    StyleSheet.create({
+      dot: {
+        borderRadius: 2,
+      },
+      strip: {
+        flexDirection: "row" as const,
+        flexWrap: "nowrap" as const,
+        justifyContent: "flex-end" as const,
+      },
+    }),
+  );
 
   return (
     <View style={[styles.strip, { gap: cellGap }]}>
       {cells.map((cell, i) => (
         <View
           key={i}
-          style={[styles.dot, { height: cellSize, width: cellSize }, dotStyle(cell.state)]}
+          style={[styles.dot, { height: cellSize, width: cellSize }, dotStyle(cell.state, colors)]}
         />
       ))}
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  dot: {
-    borderRadius: 2,
-  },
-  strip: {
-    flexDirection: "row",
-    flexWrap: "nowrap",
-    justifyContent: "flex-end",
-  },
-});

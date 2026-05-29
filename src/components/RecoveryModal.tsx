@@ -2,12 +2,9 @@ import { BlurView } from "expo-blur";
 import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { TertiaryButton } from "@/components/buttons/TertiaryButton";
-import { colors } from "@/theme/colors";
-import { fontFamilies } from "@/theme/fontFamilies";
-import { radius } from "@/theme/radius";
-import { shadows } from "@/theme/shadows";
-import { spacing } from "@/theme/spacing";
-import { typography } from "@/theme/typography";
+import { useThemedStyles } from "@/theme/useThemedStyles";
+
+import type { Theme } from "@/theme/contract";
 
 type RecoveryModalProps = {
   visible: boolean;
@@ -36,6 +33,64 @@ const ACTIONS = [
   },
 ] as const;
 
+function buildStyles(theme: Theme) {
+  return StyleSheet.create({
+    actionCard: {
+      backgroundColor: theme.colors.surfaceCard,
+      borderRadius: theme.radius.md,
+      boxShadow: theme.shadows.lift,
+      gap: theme.spacing.xs,
+      padding: theme.spacing.lg,
+    },
+    actionCardPressed: {
+      opacity: 0.88,
+    },
+    actionHint: {
+      color: theme.colors.textMuted,
+      fontFamily: theme.fontFamilies.body,
+      fontSize: theme.typography.bodyMd,
+      lineHeight: 16.7,
+    },
+    actionLabel: {
+      color: theme.colors.text,
+      fontFamily: theme.fontFamilies.bodySemi,
+      fontSize: theme.typography.bodyLg,
+    },
+    actions: {
+      gap: theme.spacing.sm,
+    },
+    blurContainer: {
+      borderTopLeftRadius: theme.radius.lg,
+      borderTopRightRadius: theme.radius.lg,
+      overflow: "hidden" as const,
+      width: "100%" as const,
+    },
+    body: {
+      color: theme.colors.text,
+      fontFamily: theme.fontFamilies.body,
+      fontSize: theme.typography.bodyLg,
+      lineHeight: 21,
+    },
+    eyebrow: {
+      color: theme.colors.textMuted,
+      fontFamily: theme.fontFamilies.bodyBold,
+      fontSize: theme.typography.micro,
+      letterSpacing: 1,
+    },
+    overlay: {
+      flex: 1,
+      justifyContent: "flex-end" as const,
+      backgroundColor: "rgba(0,0,0,0.3)",
+    },
+    sheet: {
+      backgroundColor: "rgba(251, 249, 245, 0.9)",
+      gap: theme.spacing.lg,
+      padding: theme.spacing.xl,
+      paddingBottom: theme.spacing.xxl,
+    },
+  });
+}
+
 export function RecoveryModal({
   visible,
   habitTitle,
@@ -44,6 +99,8 @@ export function RecoveryModal({
   onPauseForNow,
   onClose,
 }: RecoveryModalProps) {
+  const styles = useThemedStyles(buildStyles);
+
   const handlers: Record<string, () => void> = {
     restart: onRestart,
     smaller: onMakeItSmaller,
@@ -91,59 +148,3 @@ export function RecoveryModal({
     </Modal>
   );
 }
-
-const styles = StyleSheet.create({
-  actionCard: {
-    backgroundColor: colors.surfaceCard,
-    borderRadius: radius.md,
-    boxShadow: shadows.lift,
-    gap: spacing.xs,
-    padding: spacing.lg,
-  },
-  actionCardPressed: {
-    opacity: 0.88,
-  },
-  actionHint: {
-    color: colors.textMuted,
-    fontFamily: fontFamilies.body,
-    fontSize: typography.bodyMd,
-    lineHeight: 16.7,
-  },
-  actionLabel: {
-    color: colors.text,
-    fontFamily: fontFamilies.bodySemi,
-    fontSize: typography.bodyLg,
-  },
-  actions: {
-    gap: spacing.sm,
-  },
-  blurContainer: {
-    borderTopLeftRadius: radius.lg,
-    borderTopRightRadius: radius.lg,
-    overflow: "hidden",
-    width: "100%",
-  },
-  body: {
-    color: colors.text,
-    fontFamily: fontFamilies.body,
-    fontSize: typography.bodyLg,
-    lineHeight: 21,
-  },
-  eyebrow: {
-    color: colors.textMuted,
-    fontFamily: fontFamilies.bodyBold,
-    fontSize: typography.micro,
-    letterSpacing: 1,
-  },
-  overlay: {
-    flex: 1,
-    justifyContent: "flex-end",
-    backgroundColor: "rgba(0,0,0,0.3)",
-  },
-  sheet: {
-    backgroundColor: "rgba(251, 249, 245, 0.9)",
-    gap: spacing.lg,
-    padding: spacing.xl,
-    paddingBottom: spacing.xxl,
-  },
-});

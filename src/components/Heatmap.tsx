@@ -1,9 +1,11 @@
 import { Pressable, StyleSheet, View } from "react-native";
 
-import { colors } from "@/theme/colors";
+import { useTheme } from "@/theme/useTheme";
+import { useThemedStyles } from "@/theme/useThemedStyles";
 import { addDeviceDays, toDeviceDateString } from "@/utils/dates";
 import { useTodayAnchorDate, useTodayDateString } from "@/utils/dayBoundary";
 
+import type { Colors } from "@/theme/contract";
 import type { HabitLogStatus } from "@/features/habits/types";
 
 export type HeatmapLog = {
@@ -24,10 +26,40 @@ const GRID_CONFIG: Record<30 | 90, { rows: number; cols: number; cellSize: numbe
 
 const CELL_GAP = 4;
 
+function getCellColor(status: HabitLogStatus | null, colors: Colors): string {
+  if (status === "done") return colors.heatDone;
+  if (status === "skipped") return colors.heatSkipped;
+  return colors.heatMissed;
+}
+
+function getCellAccessibilityLabel(
+  date: string,
+  status: HabitLogStatus | null,
+  isToday: boolean,
+): string {
+  const datePart = isToday ? "Today" : date;
+  if (status === null) return `${datePart}, not logged`;
+  return `${datePart}, ${status}`;
+}
+
 export function Heatmap({ days, logs, onCellPress }: HeatmapProps) {
   const { rows, cols, cellSize } = GRID_CONFIG[days];
   const today = useTodayDateString();
   const todayAnchor = useTodayAnchorDate();
+  const { colors } = useTheme();
+  const styles = useThemedStyles((theme) =>
+    StyleSheet.create({
+      cell: {
+        borderRadius: 4,
+      },
+      grid: {
+        alignSelf: "center" as const,
+      },
+      row: {
+        flexDirection: "row" as const,
+      },
+    }),
+  );
 
   const statusByDate = new Map<string, HabitLogStatus>();
   for (const log of logs) {
@@ -54,12 +86,12 @@ export function Heatmap({ days, logs, onCellPress }: HeatmapProps) {
             const isToday = date === today;
             const isUnlogged = status === null;
 
-            const cellStyle = [
+            const cellStyleArr = [
               styles.cell,
               {
                 width: cellSize,
                 height: cellSize,
-                backgroundColor: getCellColor(status),
+                backgroundColor: getCellColor(status, colors),
                 opacity: isUnlogged ? 0.6 : 1,
               },
               // Inset border for today's unlogged cell — keeps cell size identical to siblings.
@@ -75,7 +107,7 @@ export function Heatmap({ days, logs, onCellPress }: HeatmapProps) {
                   accessibilityRole="button"
                   key={colIdx}
                   onPress={() => onCellPress(date)}
-                  style={cellStyle}
+                  style={cellStyleArr}
                 />
               );
             }
@@ -83,7 +115,7 @@ export function Heatmap({ days, logs, onCellPress }: HeatmapProps) {
               <View
                 accessibilityLabel={getCellAccessibilityLabel(date, status, isToday)}
                 key={colIdx}
-                style={cellStyle}
+                style={cellStyleArr}
               />
             );
           })}
@@ -92,31 +124,3 @@ export function Heatmap({ days, logs, onCellPress }: HeatmapProps) {
     </View>
   );
 }
-
-function getCellColor(status: HabitLogStatus | null): string {
-  if (status === "done") return colors.heatDone;
-  if (status === "skipped") return colors.heatSkipped;
-  return colors.heatMissed;
-}
-
-function getCellAccessibilityLabel(
-  date: string,
-  status: HabitLogStatus | null,
-  isToday: boolean,
-): string {
-  const datePart = isToday ? "Today" : date;
-  if (status === null) return `${datePart}, not logged`;
-  return `${datePart}, ${status}`;
-}
-
-const styles = StyleSheet.create({
-  cell: {
-    borderRadius: 4,
-  },
-  grid: {
-    alignSelf: "center",
-  },
-  row: {
-    flexDirection: "row",
-  },
-});
