@@ -37,10 +37,10 @@ module.exports = ({ config }) => ({
     },
     ios: {
       supportsTablet: true,
-      bundleIdentifier: "com.berdugas.habits",
+      bundleIdentifier: "com.habitapp.mobile",
     },
     android: {
-      package: "com.berdugas.habits",
+      package: "com.habitapp.mobile",
       adaptiveIcon: {
         foregroundImage: "./assets/icons/adaptive-icon.png",
         backgroundColor: "#fbf9f5",
