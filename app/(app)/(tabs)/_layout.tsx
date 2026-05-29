@@ -3,15 +3,16 @@ import { BookOpen, Clock, Settings } from "lucide-react-native";
 import { Tabs } from "expo-router";
 import { StyleSheet } from "react-native";
 
-import { colors } from "@/theme/colors";
+import { useTheme } from "@/theme/useTheme";
 
 export default function AppTabsLayout() {
+  const theme = useTheme();
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.textMuted,
+        tabBarActiveTintColor: theme.colors.primary,
+        tabBarInactiveTintColor: theme.colors.textMuted,
         tabBarStyle: styles.tabBar,
         tabBarBackground: () => (
           <BlurView intensity={80} style={StyleSheet.absoluteFill} tint="light" />
