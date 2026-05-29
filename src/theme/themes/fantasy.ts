@@ -1,3 +1,5 @@
+import { fantasyPreviewSvg } from "@/theme/themes/previews";
+
 import type { Theme } from "@/theme/contract";
 
 export const fantasy: Theme = {
@@ -83,5 +85,5 @@ export const fantasy: Theme = {
       IBMPlexMono_700Bold:     { uri: "https://wrytjnucrxsqdrbwxsgi.supabase.co/storage/v1/object/public/fonts/v1/ibm-plex-mono/IBMPlexMono_700Bold.ttf",     hash: "db56912fab2cd5e53703db5d7d1be51dc0b5956eb2f3af9fd7cdebc8eed839e0", bytes: 136008 },
     },
   },
-  previewSvg: require("./previews/fantasy.svg"),
+  previewSvg: fantasyPreviewSvg,
 };

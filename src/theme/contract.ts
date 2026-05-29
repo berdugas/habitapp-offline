@@ -96,5 +96,5 @@ export type Theme = {
   shadows: Shadows;
   fontFamilies: FontFamilies;
   fontAssets: FontAssets;
-  previewSvg: number; // require() result for the SVG asset
+  previewSvg: string; // SVG XML markup, rendered via react-native-svg SvgXml
 };

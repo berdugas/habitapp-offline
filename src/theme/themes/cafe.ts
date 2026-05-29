@@ -1,3 +1,5 @@
+import { cafePreviewSvg } from "@/theme/themes/previews";
+
 import type { Theme } from "@/theme/contract";
 
 export const cafe: Theme = {
@@ -84,5 +86,5 @@ export const cafe: Theme = {
       Poppins_800ExtraBold:   { uri: "https://wrytjnucrxsqdrbwxsgi.supabase.co/storage/v1/object/public/fonts/v1/poppins/Poppins_800ExtraBold.ttf",   hash: "48fc1768b54f2fe698fcea4573c410af81a2c56fe6274b7bc2f036368111b37d", bytes: 152764 },
     },
   },
-  previewSvg: require("./previews/cafe.svg"),
+  previewSvg: cafePreviewSvg,
 };

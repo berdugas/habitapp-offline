@@ -11,6 +11,8 @@ import {
   Manrope_800ExtraBold,
 } from "@expo-google-fonts/manrope";
 
+import { zenPreviewSvg } from "@/theme/themes/previews";
+
 import type { Theme } from "@/theme/contract";
 
 export const zen: Theme = {
@@ -99,5 +101,5 @@ export const zen: Theme = {
       Manrope_800ExtraBold,
     },
   },
-  previewSvg: require("./previews/zen.svg"),
+  previewSvg: zenPreviewSvg,
 };
