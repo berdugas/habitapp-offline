@@ -184,15 +184,17 @@ export default function GoalDetailScreen() {
   }
 
   function cancelEditingGoal() {
+    renameLockRef.current = false;
     setIsEditingGoal(false);
     setRenameError(null);
   }
 
   async function commitRename(cleaned: string) {
-    if (renameLockRef.current || !identityPhrase) return;
-    renameLockRef.current = true;
-    // Suppress the stale-route redirect: the old phrase's habit list is about
-    // to go empty, which would otherwise bounce us to Today before we
+    if (!identityPhrase) return;
+    // The lock is already held by handleSaveGoalRename (set before the
+    // goalExists check and before any merge dialog), so we don't re-check it
+    // here. Suppress the stale-route redirect: the old phrase's habit list is
+    // about to go empty, which would otherwise bounce us to Today before we
     // navigate to the renamed goal. Same guard the archive flow uses.
     isExitingRef.current = true;
     try {
@@ -221,7 +223,7 @@ export default function GoalDetailScreen() {
   }
 
   async function handleSaveGoalRename() {
-    if (!identityPhrase || !user?.id) return;
+    if (renameLockRef.current || !identityPhrase || !user?.id) return;
     if (!isValidIdentityPhraseDraft(goalDraft)) {
       setRenameError("Enter at least 2 characters.");
       return;
@@ -234,19 +236,37 @@ export default function GoalDetailScreen() {
     }
     setRenameError(null);
 
-    const exists = await goalExists(user.id, cleaned);
-    if (exists) {
-      Alert.alert(
-        "Combine goals?",
-        `You already have a goal called "${cleaned}". Saving will combine them.`,
-        [
-          { text: "Cancel", style: "cancel" },
-          { text: "Combine", onPress: () => void commitRename(cleaned) },
-        ],
-      );
-      return;
+    // Hold the lock across the whole save attempt — including the goalExists
+    // round trip and any merge dialog — so a second Save press can't fire a
+    // duplicate existence check or stack a second confirm dialog. Released on
+    // every non-committing exit (existence-check failure, merge Cancel, editor
+    // Cancel) and in commitRename's catch; left held on success since we
+    // navigate away.
+    renameLockRef.current = true;
+    try {
+      const exists = await goalExists(user.id, cleaned);
+      if (exists) {
+        Alert.alert(
+          "Combine goals?",
+          `You already have a goal called "${cleaned}". Saving will combine them.`,
+          [
+            {
+              text: "Cancel",
+              style: "cancel",
+              onPress: () => {
+                renameLockRef.current = false;
+              },
+            },
+            { text: "Combine", onPress: () => void commitRename(cleaned) },
+          ],
+        );
+        return;
+      }
+      await commitRename(cleaned);
+    } catch {
+      renameLockRef.current = false;
+      setRenameError("We couldn't rename this goal. Try again.");
     }
-    await commitRename(cleaned);
   }
 
   function confirmArchiveGoal() {
