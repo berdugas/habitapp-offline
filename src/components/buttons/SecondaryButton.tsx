@@ -1,11 +1,6 @@
 import { Pressable, StyleSheet, Text } from "react-native";
 
-import { colors } from "@/theme/colors";
-import { fontFamilies } from "@/theme/fontFamilies";
-import { radius } from "@/theme/radius";
-import { shadows } from "@/theme/shadows";
-import { spacing } from "@/theme/spacing";
-import { typography } from "@/theme/typography";
+import { useThemedStyles } from "@/theme/useThemedStyles";
 
 type SecondaryButtonProps = {
   disabled?: boolean;
@@ -20,6 +15,33 @@ export function SecondaryButton({
   label,
   onPress,
 }: SecondaryButtonProps) {
+  const styles = useThemedStyles((theme) =>
+    StyleSheet.create({
+      button: {
+        alignItems: "center",
+        backgroundColor: theme.colors.surfaceCard,
+        borderRadius: theme.radius.pill,
+        boxShadow: theme.shadows.lift,
+        paddingHorizontal: theme.spacing.xxl,
+        paddingVertical: theme.spacing.lg + 2,
+      },
+      buttonDisabled: {
+        opacity: 0.55,
+      },
+      buttonPressed: {
+        opacity: 0.88,
+      },
+      label: {
+        color: theme.colors.text,
+        fontFamily: theme.fontFamilies.bodySemi,
+        fontSize: theme.typography.bodyLg,
+      },
+      labelDanger: {
+        color: theme.colors.danger,
+      },
+    }),
+  );
+
   return (
     <Pressable
       accessibilityRole="button"
@@ -35,28 +57,3 @@ export function SecondaryButton({
     </Pressable>
   );
 }
-
-const styles = StyleSheet.create({
-  button: {
-    alignItems: "center",
-    backgroundColor: colors.surfaceCard,
-    borderRadius: radius.pill,
-    boxShadow: shadows.lift,
-    paddingHorizontal: spacing.xxl,
-    paddingVertical: spacing.lg + 2,
-  },
-  buttonDisabled: {
-    opacity: 0.55,
-  },
-  buttonPressed: {
-    opacity: 0.88,
-  },
-  label: {
-    color: colors.text,
-    fontFamily: fontFamilies.bodySemi,
-    fontSize: typography.bodyLg,
-  },
-  labelDanger: {
-    color: colors.danger,
-  },
-});

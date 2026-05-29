@@ -1,9 +1,7 @@
 import { StyleSheet, View, ViewProps } from "react-native";
 
-import { colors } from "@/theme/colors";
-import { radius } from "@/theme/radius";
-import { shadows } from "@/theme/shadows";
-import { spacing } from "@/theme/spacing";
+import { useTheme } from "@/theme/useTheme";
+import { useThemedStyles } from "@/theme/useThemedStyles";
 
 type ZenCardProps = {
   children: React.ReactNode;
@@ -14,23 +12,27 @@ type ZenCardProps = {
 
 export function ZenCard({
   children,
-  gap = spacing.xl,
+  gap,
   padding = "xl",
   style,
 }: ZenCardProps) {
-  const paddingValue = padding === "xxl" ? spacing.xxl : spacing.xl;
+  const theme = useTheme();
+  const styles = useThemedStyles((t) =>
+    StyleSheet.create({
+      card: {
+        backgroundColor: t.colors.surfaceCard,
+        borderRadius: t.radius.md,
+        boxShadow: t.shadows.card,
+      },
+    }),
+  );
+
+  const resolvedGap = gap ?? theme.spacing.xl;
+  const paddingValue = padding === "xxl" ? theme.spacing.xxl : theme.spacing.xl;
 
   return (
-    <View style={[styles.card, { padding: paddingValue, gap }, style]}>
+    <View style={[styles.card, { padding: paddingValue, gap: resolvedGap }, style]}>
       {children}
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  card: {
-    backgroundColor: colors.surfaceCard,
-    borderRadius: radius.md,
-    boxShadow: shadows.card,
-  },
-});

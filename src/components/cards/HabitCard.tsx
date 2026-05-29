@@ -2,11 +2,7 @@ import type { ReactNode } from "react";
 
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
-import { colors } from "@/theme/colors";
-import { radius } from "@/theme/radius";
-import { shadows } from "@/theme/shadows";
-import { spacing } from "@/theme/spacing";
-import { typography } from "@/theme/typography";
+import { useThemedStyles } from "@/theme/useThemedStyles";
 
 type HabitCardProps = {
   children?: ReactNode;
@@ -23,6 +19,45 @@ export function HabitCard({
   name,
   onPress,
 }: HabitCardProps) {
+  const styles = useThemedStyles((theme) =>
+    StyleSheet.create({
+      card: {
+        backgroundColor: theme.colors.surface,
+        borderColor: 'transparent',
+        borderRadius: theme.radius.lg,
+        borderWidth: 1,
+        boxShadow: theme.shadows.card,
+        gap: theme.spacing.md,
+        padding: theme.spacing.xl,
+      },
+      formula: {
+        color: theme.colors.textMuted,
+        fontSize: 15,
+        lineHeight: 22,
+      },
+      headerPressable: {
+        gap: theme.spacing.md,
+      },
+      metaRow: {
+        backgroundColor: theme.colors.primarySoft,
+        borderRadius: theme.radius.pill,
+        paddingHorizontal: theme.spacing.md,
+        paddingVertical: theme.spacing.sm,
+        alignSelf: "flex-start",
+      },
+      metaText: {
+        color: theme.colors.primary,
+        fontSize: theme.typography.labelMd,
+        fontWeight: "600",
+      },
+      name: {
+        color: theme.colors.text,
+        fontSize: theme.typography.titleLg,
+        fontWeight: "700",
+      },
+    }),
+  );
+
   const headerContent = (
     <>
       <Text selectable style={styles.name}>
@@ -57,40 +92,3 @@ export function HabitCard({
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  card: {
-    backgroundColor: colors.surface,
-    borderColor: 'transparent',
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    boxShadow: shadows.card,
-    gap: spacing.md,
-    padding: spacing.xl,
-  },
-  formula: {
-    color: colors.textMuted,
-    fontSize: 15,
-    lineHeight: 22,
-  },
-  headerPressable: {
-    gap: spacing.md,
-  },
-  metaRow: {
-    backgroundColor: colors.primarySoft,
-    borderRadius: radius.pill,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    alignSelf: "flex-start",
-  },
-  metaText: {
-    color: colors.primary,
-    fontSize: typography.labelMd,
-    fontWeight: "600",
-  },
-  name: {
-    color: colors.text,
-    fontSize: typography.titleLg,
-    fontWeight: "700",
-  },
-});

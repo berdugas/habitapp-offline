@@ -2,12 +2,8 @@ import { LinearGradient } from "expo-linear-gradient";
 import { ArrowRight } from "lucide-react-native";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
-import { colors } from "@/theme/colors";
-import { fontFamilies } from "@/theme/fontFamilies";
-import { radius } from "@/theme/radius";
-import { shadows } from "@/theme/shadows";
-import { spacing } from "@/theme/spacing";
-import { typography } from "@/theme/typography";
+import { useTheme } from "@/theme/useTheme";
+import { useThemedStyles } from "@/theme/useThemedStyles";
 
 type PrimaryButtonProps = {
   disabled?: boolean;
@@ -22,6 +18,42 @@ export function PrimaryButton({
   onPress,
   showArrow = false,
 }: PrimaryButtonProps) {
+  const theme = useTheme();
+  const styles = useThemedStyles((t) =>
+    StyleSheet.create({
+      button: {
+        borderRadius: t.radius.pill,
+        overflow: "hidden",
+      },
+      buttonEnabled: {
+        boxShadow: t.shadows.button,
+      },
+      buttonDisabled: {
+        backgroundColor: t.colors.surfaceHigh,
+      },
+      buttonPressed: {
+        opacity: 0.92,
+      },
+      inner: {
+        alignItems: "center",
+        flexDirection: "row",
+        justifyContent: "center",
+        paddingHorizontal: t.spacing.xxl,
+        paddingVertical: t.spacing.lg + 2,
+        gap: 10,
+      },
+      label: {
+        color: t.colors.primaryText,
+        fontFamily: t.fontFamilies.bodyBold,
+        fontSize: t.typography.bodyLg,
+        letterSpacing: 0.16,
+      },
+      labelDisabled: {
+        color: t.colors.textFaint,
+      },
+    }),
+  );
+
   return (
     <Pressable
       accessibilityRole="button"
@@ -37,55 +69,22 @@ export function PrimaryButton({
         <View style={styles.inner}>
           <Text style={[styles.label, styles.labelDisabled]}>{label}</Text>
           {showArrow && (
-            <ArrowRight color={colors.textFaint} size={16} strokeWidth={2} />
+            <ArrowRight color={theme.colors.textFaint} size={16} strokeWidth={2} />
           )}
         </View>
       ) : (
         <LinearGradient
-          colors={[colors.primary, colors.primaryGradientEnd]}
+          colors={[theme.colors.primary, theme.colors.primaryGradientEnd]}
           end={{ x: 1, y: 1 }}
           start={{ x: 0, y: 0 }}
           style={styles.inner}
         >
           <Text style={styles.label}>{label}</Text>
           {showArrow && (
-            <ArrowRight color={colors.primaryText} size={16} strokeWidth={2} />
+            <ArrowRight color={theme.colors.primaryText} size={16} strokeWidth={2} />
           )}
         </LinearGradient>
       )}
     </Pressable>
   );
 }
-
-const styles = StyleSheet.create({
-  button: {
-    borderRadius: radius.pill,
-    overflow: "hidden",
-  },
-  buttonEnabled: {
-    boxShadow: shadows.button,
-  },
-  buttonDisabled: {
-    backgroundColor: colors.surfaceHigh,
-  },
-  buttonPressed: {
-    opacity: 0.92,
-  },
-  inner: {
-    alignItems: "center",
-    flexDirection: "row",
-    justifyContent: "center",
-    paddingHorizontal: spacing.xxl,
-    paddingVertical: spacing.lg + 2,
-    gap: 10,
-  },
-  label: {
-    color: colors.primaryText,
-    fontFamily: fontFamilies.bodyBold,
-    fontSize: typography.bodyLg,
-    letterSpacing: 0.16,
-  },
-  labelDisabled: {
-    color: colors.textFaint,
-  },
-});

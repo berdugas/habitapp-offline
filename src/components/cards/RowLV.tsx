@@ -1,9 +1,6 @@
 import { StyleSheet, Text, View } from "react-native";
 
-import { colors } from "@/theme/colors";
-import { fontFamilies } from "@/theme/fontFamilies";
-import { spacing } from "@/theme/spacing";
-import { typography } from "@/theme/typography";
+import { useThemedStyles } from "@/theme/useThemedStyles";
 
 type RowLVProps = {
   label: string;
@@ -11,6 +8,25 @@ type RowLVProps = {
 };
 
 export function RowLV({ label, value }: RowLVProps) {
+  const styles = useThemedStyles((theme) =>
+    StyleSheet.create({
+      label: {
+        color: theme.colors.textMuted,
+        fontFamily: theme.fontFamilies.bodyBold,
+        fontSize: theme.typography.micro,
+        letterSpacing: 1,
+      },
+      row: {
+        gap: theme.spacing.xs,
+      },
+      value: {
+        color: theme.colors.text,
+        fontFamily: theme.fontFamilies.body,
+        fontSize: theme.typography.bodyLg,
+      },
+    }),
+  );
+
   return (
     <View style={styles.row}>
       <Text style={styles.label}>{label.toUpperCase()}</Text>
@@ -18,20 +34,3 @@ export function RowLV({ label, value }: RowLVProps) {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  label: {
-    color: colors.textMuted,
-    fontFamily: fontFamilies.bodyBold,
-    fontSize: typography.micro,
-    letterSpacing: 1,
-  },
-  row: {
-    gap: spacing.xs,
-  },
-  value: {
-    color: colors.text,
-    fontFamily: fontFamilies.body,
-    fontSize: typography.bodyLg,
-  },
-});
