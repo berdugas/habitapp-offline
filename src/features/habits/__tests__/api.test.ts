@@ -16,8 +16,10 @@ import {
   createHabit,
   deleteGoal,
   deleteHabit,
+  goalExists,
   listArchivedGoals,
   reactivateHabit,
+  renameGoal,
   restoreGoal,
   restoreHabit,
 } from "@/features/habits/api";
@@ -674,6 +676,27 @@ describe("habits/api — new mutations", () => {
       expect(result.restored).toBe(false);
       expect(result.wasExBacklog).toBe(false);
       expect(mockMaterializePendingReminder).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("renameGoal / goalExists (api)", () => {
+    it("renameGoal renames every habit under the phrase and returns their ids", async () => {
+      const a = await seedActiveHabit({ identity_phrase: "a runner" });
+      const b = await seedActiveHabit({ identity_phrase: "a runner" });
+      await seedActiveHabit({ identity_phrase: "a writer" });
+
+      const result = await renameGoal("user-1", "a runner", "runner");
+
+      expect(result.renamedHabitIds.sort()).toEqual([a.id, b.id].sort());
+      expect((await listHabits({ user_id: "user-1", identity_phrase: "runner" })).length).toBe(2);
+      expect((await listHabits({ user_id: "user-1", identity_phrase: "a writer" })).length).toBe(1);
+    });
+
+    it("goalExists reflects whether a phrase is in use for the user", async () => {
+      await seedActiveHabit({ identity_phrase: "a runner" });
+      expect(await goalExists("user-1", "a runner")).toBe(true);
+      expect(await goalExists("user-1", "a writer")).toBe(false);
+      expect(await goalExists("user-2", "a runner")).toBe(false);
     });
   });
 

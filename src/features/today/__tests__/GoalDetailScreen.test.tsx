@@ -42,6 +42,16 @@ jest.mock("@/features/habits/hooks", () => ({
   useArchiveGoalMutation: jest.fn(),
   useGoalCascadeCountQuery: jest.fn(),
   useGoalHabitCountQuery: jest.fn(),
+  useRenameGoalMutation: jest.fn(),
+}));
+
+jest.mock("@/features/auth/hooks", () => ({
+  useAuthSession: () => ({ user: { id: "user-1" } }),
+}));
+
+const mockGoalExists = jest.fn();
+jest.mock("@/features/habits/api", () => ({
+  goalExists: (...args: unknown[]) => mockGoalExists(...args),
 }));
 
 const { useGoalReviewStatusQuery: mockUseGoalReviewStatusQuery } = jest.requireMock(
@@ -56,10 +66,12 @@ const {
   useArchiveGoalMutation,
   useGoalCascadeCountQuery,
   useGoalHabitCountQuery,
+  useRenameGoalMutation,
 } = jest.requireMock("@/features/habits/hooks") as {
   useArchiveGoalMutation: jest.Mock;
   useGoalCascadeCountQuery: jest.Mock;
   useGoalHabitCountQuery: jest.Mock;
+  useRenameGoalMutation: jest.Mock;
 };
 
 function renderWithClient(ui: React.ReactElement) {
@@ -100,6 +112,12 @@ beforeEach(() => {
     mutateAsync: jest.fn().mockResolvedValue({ cascadedHabitCount: 0 }),
     isPending: false,
   });
+  useRenameGoalMutation.mockReturnValue({
+    mutate: jest.fn(),
+    mutateAsync: jest.fn().mockResolvedValue({ renamedHabitIds: [] }),
+    isPending: false,
+  });
+  mockGoalExists.mockResolvedValue(false);
   setNowForTesting(new Date("2026-05-05T10:00:00.000Z"));
 });
 afterEach(() => {
@@ -549,6 +567,201 @@ describe("GoalDetailScreen", () => {
       // Archive is recoverable — must not carry the iOS destructive treatment.
       expect(archiveBtn?.style).not.toBe("destructive");
       alertSpy.mockRestore();
+    });
+  });
+
+  describe("goal editing", () => {
+    it("renames the goal and navigates to the new phrase on save", async () => {
+      const renameMutateAsync = jest.fn().mockResolvedValue({ renamedHabitIds: ["h1"] });
+      useRenameGoalMutation.mockReturnValue({
+        mutate: jest.fn(),
+        mutateAsync: renameMutateAsync,
+        isPending: false,
+      });
+      useGoalDetail.mockReturnValue(baseDetail({ habits: [makeHabit()] }));
+
+      renderWithClient(<GoalDetailScreen />);
+
+      fireEvent.press(screen.getByTestId("edit-goal-button"));
+      fireEvent.changeText(screen.getByTestId("goal-phrase-input"), "healthy");
+      fireEvent.press(screen.getByTestId("save-goal-rename"));
+
+      await waitFor(() => {
+        expect(renameMutateAsync).toHaveBeenCalledWith({
+          oldPhrase: "a reader",
+          newPhrase: "healthy",
+        });
+      });
+      expect(mockReplace).toHaveBeenCalledWith({
+        pathname: "/(app)/goals/[identityPhrase]",
+        params: { identityPhrase: encodeURIComponent("healthy") },
+      });
+      // The editor must close after a successful save. router.replace updates
+      // params without necessarily remounting, so the screen relies on the
+      // explicit reset in commitRename — not on a remount — to clear it.
+      expect(screen.queryByTestId("goal-phrase-input")).toBeNull();
+    });
+
+    it("does not rename when the cleaned phrase is too short", async () => {
+      const renameMutateAsync = jest.fn().mockResolvedValue({ renamedHabitIds: [] });
+      useRenameGoalMutation.mockReturnValue({
+        mutate: jest.fn(),
+        mutateAsync: renameMutateAsync,
+        isPending: false,
+      });
+      useGoalDetail.mockReturnValue(baseDetail({ habits: [makeHabit()] }));
+
+      renderWithClient(<GoalDetailScreen />);
+
+      fireEvent.press(screen.getByTestId("edit-goal-button"));
+      fireEvent.changeText(screen.getByTestId("goal-phrase-input"), "become a");
+      fireEvent.press(screen.getByTestId("save-goal-rename"));
+
+      await waitFor(() => {
+        expect(screen.getByText("Enter at least 2 characters.")).toBeTruthy();
+      });
+      expect(renameMutateAsync).not.toHaveBeenCalled();
+    });
+
+    it("closes without renaming when the phrase is unchanged (no-op)", async () => {
+      const renameMutateAsync = jest.fn().mockResolvedValue({ renamedHabitIds: [] });
+      useRenameGoalMutation.mockReturnValue({
+        mutate: jest.fn(),
+        mutateAsync: renameMutateAsync,
+        isPending: false,
+      });
+      useGoalDetail.mockReturnValue(baseDetail({ habits: [makeHabit()] }));
+
+      renderWithClient(<GoalDetailScreen />);
+
+      fireEvent.press(screen.getByTestId("edit-goal-button"));
+      // Field pre-fills with "a reader"; save unchanged.
+      fireEvent.press(screen.getByTestId("save-goal-rename"));
+
+      await waitFor(() => {
+        expect(screen.queryByTestId("goal-phrase-input")).toBeNull();
+      });
+      expect(renameMutateAsync).not.toHaveBeenCalled();
+      expect(mockReplace).not.toHaveBeenCalled();
+    });
+
+    it("confirms before merging when the target phrase already exists", async () => {
+      mockGoalExists.mockResolvedValue(true);
+      const alertSpy = jest
+        .spyOn(require("react-native").Alert, "alert")
+        .mockImplementation(() => {});
+      const renameMutateAsync = jest.fn().mockResolvedValue({ renamedHabitIds: ["h1"] });
+      useRenameGoalMutation.mockReturnValue({
+        mutate: jest.fn(),
+        mutateAsync: renameMutateAsync,
+        isPending: false,
+      });
+      useGoalDetail.mockReturnValue(baseDetail({ habits: [makeHabit()] }));
+
+      renderWithClient(<GoalDetailScreen />);
+
+      fireEvent.press(screen.getByTestId("edit-goal-button"));
+      fireEvent.changeText(screen.getByTestId("goal-phrase-input"), "a runner");
+      fireEvent.press(screen.getByTestId("save-goal-rename"));
+
+      await waitFor(() => {
+        expect(alertSpy).toHaveBeenCalled();
+      });
+      // mutateAsync waits for the user to confirm in the dialog.
+      expect(renameMutateAsync).not.toHaveBeenCalled();
+
+      // Invoke the confirm button's onPress from the Alert call.
+      const buttons = alertSpy.mock.calls[0][2] as { text: string; onPress?: () => void }[];
+      const confirm = buttons.find((b) => b.text === "Combine");
+      confirm?.onPress?.();
+
+      await waitFor(() => {
+        expect(renameMutateAsync).toHaveBeenCalledWith({
+          oldPhrase: "a reader",
+          newPhrase: "a runner",
+        });
+      });
+      alertSpy.mockRestore();
+    });
+
+    it("closes the editor without renaming when Cancel is pressed", () => {
+      const renameMutateAsync = jest.fn().mockResolvedValue({ renamedHabitIds: [] });
+      useRenameGoalMutation.mockReturnValue({
+        mutate: jest.fn(),
+        mutateAsync: renameMutateAsync,
+        isPending: false,
+      });
+      useGoalDetail.mockReturnValue(baseDetail({ habits: [makeHabit()] }));
+
+      renderWithClient(<GoalDetailScreen />);
+
+      fireEvent.press(screen.getByTestId("edit-goal-button"));
+      fireEvent.changeText(screen.getByTestId("goal-phrase-input"), "healthy");
+      fireEvent.press(screen.getByTestId("cancel-goal-rename"));
+
+      expect(screen.queryByTestId("goal-phrase-input")).toBeNull();
+      expect(renameMutateAsync).not.toHaveBeenCalled();
+      expect(mockReplace).not.toHaveBeenCalled();
+    });
+
+    it("surfaces an error when the existence check fails", async () => {
+      mockGoalExists.mockRejectedValue(new Error("offline"));
+      const renameMutateAsync = jest.fn().mockResolvedValue({ renamedHabitIds: [] });
+      useRenameGoalMutation.mockReturnValue({
+        mutate: jest.fn(),
+        mutateAsync: renameMutateAsync,
+        isPending: false,
+      });
+      useGoalDetail.mockReturnValue(baseDetail({ habits: [makeHabit()] }));
+
+      renderWithClient(<GoalDetailScreen />);
+
+      fireEvent.press(screen.getByTestId("edit-goal-button"));
+      fireEvent.changeText(screen.getByTestId("goal-phrase-input"), "healthy");
+      fireEvent.press(screen.getByTestId("save-goal-rename"));
+
+      await waitFor(() => {
+        expect(screen.getByText("We couldn't rename this goal. Try again.")).toBeTruthy();
+      });
+      expect(renameMutateAsync).not.toHaveBeenCalled();
+    });
+
+    it("surfaces an error and keeps the editor open when the rename fails", async () => {
+      const renameMutateAsync = jest.fn().mockRejectedValue(new Error("boom"));
+      useRenameGoalMutation.mockReturnValue({
+        mutate: jest.fn(),
+        mutateAsync: renameMutateAsync,
+        isPending: false,
+      });
+      useGoalDetail.mockReturnValue(baseDetail({ habits: [makeHabit()] }));
+
+      renderWithClient(<GoalDetailScreen />);
+
+      fireEvent.press(screen.getByTestId("edit-goal-button"));
+      fireEvent.changeText(screen.getByTestId("goal-phrase-input"), "healthy");
+      fireEvent.press(screen.getByTestId("save-goal-rename"));
+
+      await waitFor(() => {
+        expect(screen.getByText("We couldn't rename this goal. Try again.")).toBeTruthy();
+      });
+      expect(screen.getByTestId("goal-phrase-input")).toBeTruthy();
+      expect(mockReplace).not.toHaveBeenCalled();
+    });
+
+    it("hides the edit control in read-only mode", () => {
+      const { useTrialValidation } = jest.requireMock("@/features/trial/hooks") as {
+        useTrialValidation: jest.Mock;
+      };
+      useTrialValidation.mockReturnValue({
+        accessMode: "read_only",
+        isValidating: false,
+        refresh: jest.fn().mockResolvedValue(undefined),
+      });
+      useGoalDetail.mockReturnValue(baseDetail({ habits: [makeHabit()] }));
+
+      renderWithClient(<GoalDetailScreen />);
+
+      expect(screen.queryByTestId("edit-goal-button")).toBeNull();
     });
   });
 });

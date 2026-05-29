@@ -154,6 +154,29 @@ export function goalIdFor(phrase: string): string {
   return id;
 }
 
+/**
+ * Carry a goal's analytics id from one phrase to another when the goal is
+ * renamed. Copies cachedMap[oldPhrase] to newPhrase ONLY if newPhrase is not
+ * already mapped — so renaming onto an existing goal keeps that target's id
+ * (the target "wins"). When the target is unmapped (brand-new name, or an
+ * existing goal that was never viewed/mutated), the source id carries over so
+ * funnels stay continuous. If the source itself has no id, this is a no-op and
+ * the new phrase mints a fresh id on next read.
+ *
+ * The in-memory write is synchronous: callers rely on goalIdFor(newPhrase)
+ * returning the carried id immediately, before navigating to a screen that
+ * emits an event under the new phrase (see GoalDetailScreen rename → replace).
+ * Persistence is fire-and-forget and gated on hydration, exactly like goalIdFor.
+ */
+export function aliasGoalId(oldPhrase: string, newPhrase: string): void {
+  if (oldPhrase === newPhrase) return;
+  if (newPhrase in cachedMap) return;
+  const oldId = cachedMap[oldPhrase];
+  if (!oldId) return;
+  cachedMap[newPhrase] = oldId;
+  if (hydrated) void persistMap();
+}
+
 // Single-flight persist loop with coalescing. Without serialization, two
 // concurrent persistMap() calls each snapshot cachedMap independently and
 // each fire an AsyncStorage.setItem; under the hood AsyncStorage can

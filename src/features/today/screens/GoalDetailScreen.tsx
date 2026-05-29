@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { Alert, ScrollView, StyleSheet, Text, View, Pressable } from "react-native";
-import { ChevronLeft } from "lucide-react-native";
+import { Alert, ScrollView, StyleSheet, Text, TextInput, View, Pressable } from "react-native";
+import { ChevronLeft, Pencil } from "lucide-react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -19,11 +19,18 @@ import { GoalStreakStrip } from "@/features/today/components/GoalStreakStrip";
 import { WeeklyConsistencyChart } from "@/features/today/components/WeeklyConsistencyChart";
 import { getGoalNarrative } from "@/features/today/goalNarrativeCopy";
 import { PrimaryButton } from "@/components/buttons/PrimaryButton";
+import { useAuthSession } from "@/features/auth/hooks";
+import { goalExists } from "@/features/habits/api";
 import {
   useArchiveGoalMutation,
   useGoalCascadeCountQuery,
   useGoalHabitCountQuery,
+  useRenameGoalMutation,
 } from "@/features/habits/hooks";
+import {
+  isValidIdentityPhraseDraft,
+  normaliseBecomingPhrase,
+} from "@/utils/normalisePhrase";
 import { useGoalReviewStatusQuery } from "@/features/reviews/hooks";
 import { openGoalWeeklyReview } from "@/features/reviews/openReview";
 import { useGoalDetail } from "@/features/today/hooks";
@@ -75,6 +82,13 @@ export default function GoalDetailScreen() {
   const goalHabitCountQuery = useGoalHabitCountQuery(identityPhrase);
   const cascadeCount = goalCascadeCountQuery.data ?? 0;
   const archiveGoalMutation = useArchiveGoalMutation();
+
+  const { user } = useAuthSession();
+  const renameGoalMutation = useRenameGoalMutation();
+  const [isEditingGoal, setIsEditingGoal] = useState(false);
+  const [goalDraft, setGoalDraft] = useState("");
+  const [renameError, setRenameError] = useState<string | null>(null);
+  const renameLockRef = useRef(false);
 
   // Submit-lock for the archive flow. Set true synchronously before
   // mutateAsync runs so the post-archive query invalidation (which
@@ -163,6 +177,98 @@ export default function GoalDetailScreen() {
     router.replace("/(app)/(tabs)/today");
   }, [shouldRedirect, identityPhrase, totalCount, cascadeCount]);
 
+  function startEditingGoal() {
+    setGoalDraft(identityPhrase ?? "");
+    setRenameError(null);
+    setIsEditingGoal(true);
+  }
+
+  function cancelEditingGoal() {
+    renameLockRef.current = false;
+    setIsEditingGoal(false);
+    setRenameError(null);
+  }
+
+  async function commitRename(cleaned: string) {
+    if (!identityPhrase) return;
+    // The lock is already held by handleSaveGoalRename (set before the
+    // goalExists check and before any merge dialog), so we don't re-check it
+    // here. Suppress the stale-route redirect: the old phrase's habit list is
+    // about to go empty, which would otherwise bounce us to Today before we
+    // navigate to the renamed goal. Same guard the archive flow uses.
+    isExitingRef.current = true;
+    try {
+      await renameGoalMutation.mutateAsync({
+        oldPhrase: identityPhrase,
+        newPhrase: cleaned,
+      });
+      // Close the editor explicitly. A param-only router.replace may re-render
+      // this screen instead of remounting it, so the local editor state would
+      // otherwise persist over the renamed goal. Do NOT reset isExitingRef
+      // here: the route param is still the now-empty old phrase until
+      // navigation lands, and re-arming the redirect guard would race a bounce
+      // to Today.
+      setIsEditingGoal(false);
+      setGoalDraft("");
+      setRenameError(null);
+      router.replace({
+        pathname: "/(app)/goals/[identityPhrase]",
+        params: { identityPhrase: encodeURIComponent(cleaned) },
+      });
+    } catch {
+      isExitingRef.current = false;
+      renameLockRef.current = false;
+      setRenameError("We couldn't rename this goal. Try again.");
+    }
+  }
+
+  async function handleSaveGoalRename() {
+    if (renameLockRef.current || !identityPhrase || !user?.id) return;
+    if (!isValidIdentityPhraseDraft(goalDraft)) {
+      setRenameError("Enter at least 2 characters.");
+      return;
+    }
+    const cleaned = normaliseBecomingPhrase(goalDraft);
+    if (cleaned === identityPhrase) {
+      // No-op: nothing changed after cleaning.
+      cancelEditingGoal();
+      return;
+    }
+    setRenameError(null);
+
+    // Hold the lock across the whole save attempt — including the goalExists
+    // round trip and any merge dialog — so a second Save press can't fire a
+    // duplicate existence check or stack a second confirm dialog. Released on
+    // every non-committing exit (existence-check failure, merge Cancel, editor
+    // Cancel) and in commitRename's catch; left held on success since we
+    // navigate away.
+    renameLockRef.current = true;
+    try {
+      const exists = await goalExists(user.id, cleaned);
+      if (exists) {
+        Alert.alert(
+          "Combine goals?",
+          `You already have a goal called "${cleaned}". Saving will combine them.`,
+          [
+            {
+              text: "Cancel",
+              style: "cancel",
+              onPress: () => {
+                renameLockRef.current = false;
+              },
+            },
+            { text: "Combine", onPress: () => void commitRename(cleaned) },
+          ],
+        );
+        return;
+      }
+      await commitRename(cleaned);
+    } catch {
+      renameLockRef.current = false;
+      setRenameError("We couldn't rename this goal. Try again.");
+    }
+  }
+
   function confirmArchiveGoal() {
     Alert.alert(
       "Archive this goal?",
@@ -236,14 +342,55 @@ export default function GoalDetailScreen() {
         <Pressable hitSlop={12} onPress={() => router.back()} style={styles.backButton}>
           <ChevronLeft color={colors.textMuted} size={22} strokeWidth={1.75} />
         </Pressable>
-        <Text
-          style={[styles.headlineText, goalGraduated && styles.headlineTextGraduated]}
-        >
-          Become {identityPhrase ?? ""}
-          {goalGraduated ? (
-            <Text style={styles.graduatedSuffix}> (Graduated)</Text>
-          ) : null}
-        </Text>
+
+        {isEditingGoal ? (
+          <View style={styles.editGoalRow}>
+            <Text style={styles.editGoalPrefix}>Become</Text>
+            <TextInput
+              testID="goal-phrase-input"
+              style={styles.editGoalInput}
+              value={goalDraft}
+              onChangeText={setGoalDraft}
+              autoFocus
+              placeholder="healthier, a calmer person…"
+              placeholderTextColor={colors.textFaint}
+            />
+            <Pressable
+              testID="save-goal-rename"
+              hitSlop={8}
+              onPress={() => void handleSaveGoalRename()}
+              disabled={renameGoalMutation.isPending}
+            >
+              <Text style={styles.editGoalSave}>Save</Text>
+            </Pressable>
+            <Pressable testID="cancel-goal-rename" hitSlop={8} onPress={cancelEditingGoal}>
+              <Text style={styles.editGoalCancel}>Cancel</Text>
+            </Pressable>
+          </View>
+        ) : (
+          <View style={styles.headlineRow}>
+            <Text
+              style={[styles.headlineText, goalGraduated && styles.headlineTextGraduated]}
+            >
+              Become {identityPhrase ?? ""}
+              {goalGraduated ? (
+                <Text style={styles.graduatedSuffix}> (Graduated)</Text>
+              ) : null}
+            </Text>
+            {!isReadOnly ? (
+              <Pressable
+                testID="edit-goal-button"
+                hitSlop={12}
+                onPress={startEditingGoal}
+                style={styles.editGoalButton}
+              >
+                <Pencil color={colors.textMuted} size={16} strokeWidth={1.75} />
+              </Pressable>
+            ) : null}
+          </View>
+        )}
+
+        {renameError ? <Text style={styles.renameErrorText}>{renameError}</Text> : null}
         <Text style={styles.streakCopyText}>{getStreakCopy(goalStreak)}</Text>
       </View>
 
@@ -542,5 +689,54 @@ const styles = StyleSheet.create({
     fontFamily: fontFamilies.body,
     fontStyle: "italic",
     fontSize: typography.bodyMd,
+  },
+  headlineRow: {
+    alignItems: "flex-start",
+    flexDirection: "row",
+    gap: spacing.sm,
+    justifyContent: "space-between",
+  },
+  editGoalButton: {
+    alignItems: "center",
+    height: 28,
+    justifyContent: "center",
+    width: 28,
+  },
+  editGoalRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.sm,
+  },
+  editGoalPrefix: {
+    color: colors.text,
+    fontFamily: fontFamilies.bodyMedium,
+    fontSize: 21,
+    fontWeight: "500",
+  },
+  editGoalInput: {
+    borderBottomColor: colors.primary,
+    borderBottomWidth: 1,
+    color: colors.text,
+    flexGrow: 1,
+    fontFamily: fontFamilies.bodyMedium,
+    fontSize: 21,
+    minWidth: 120,
+    paddingVertical: 2,
+  },
+  editGoalSave: {
+    color: colors.primary,
+    fontFamily: fontFamilies.bodySemi,
+    fontSize: typography.bodyMd,
+  },
+  editGoalCancel: {
+    color: colors.textMuted,
+    fontFamily: fontFamilies.body,
+    fontSize: typography.bodyMd,
+  },
+  renameErrorText: {
+    color: colors.danger,
+    fontFamily: fontFamilies.body,
+    fontSize: 12,
   },
 });

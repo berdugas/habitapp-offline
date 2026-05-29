@@ -263,7 +263,18 @@ export default function EditHabitScreen() {
         <View style={styles.identityCard}>
           <Text style={styles.identityEyebrow}>IDENTITY</Text>
           <Text style={styles.identityPhrase}>{identityPhrase}</Text>
-          <Text style={styles.identityHint}>Part of a goal · change in goal settings</Text>
+          <Pressable
+            testID="goal-settings-link"
+            hitSlop={8}
+            onPress={() =>
+              router.push({
+                pathname: "/(app)/goals/[identityPhrase]",
+                params: { identityPhrase: encodeURIComponent(identityPhrase) },
+              })
+            }
+          >
+            <Text style={styles.identityHint}>Part of a goal · edit on the goal page ›</Text>
+          </Pressable>
         </View>
       ) : null}
 

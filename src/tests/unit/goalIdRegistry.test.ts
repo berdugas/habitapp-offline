@@ -6,6 +6,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import {
   __resetForTests,
+  aliasGoalId,
   goalIdFor,
   initGoalIdRegistry,
   isGoalIdRegistryHydrated,
@@ -266,5 +267,45 @@ describe("persist serialization", () => {
     const parsed = JSON.parse(stored!) as Record<string, string>;
     expect(parsed).toHaveProperty("A");
     expect(parsed).toHaveProperty("Z");
+  });
+});
+
+describe("aliasGoalId (rename id carry-over)", () => {
+  it("carries the source id to a brand-new target phrase", () => {
+    const oldId = goalIdFor("a healthy");
+    aliasGoalId("a healthy", "healthy");
+    expect(goalIdFor("healthy")).toBe(oldId);
+  });
+
+  it("does not overwrite an existing target id (target wins on merge)", () => {
+    const targetId = goalIdFor("a runner");
+    goalIdFor("jogger");
+    aliasGoalId("jogger", "a runner");
+    expect(goalIdFor("a runner")).toBe(targetId);
+  });
+
+  it("is a no-op when the source phrase has no id yet", () => {
+    aliasGoalId("never seen", "fresh name");
+    // The new phrase still mints its own valid id on first read.
+    expect(goalIdFor("fresh name")).toMatch(/^[0-9a-f]{8}$/);
+  });
+
+  it("makes the carried id available synchronously (before persistence flushes)", () => {
+    const oldId = goalIdFor("old");
+    aliasGoalId("old", "new");
+    // No await: the in-memory write must already be visible.
+    expect(goalIdFor("new")).toBe(oldId);
+  });
+
+  it("persists the carried id after hydration", async () => {
+    await initGoalIdRegistry();
+    const oldId = goalIdFor("old");
+    aliasGoalId("old", "new");
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const stored = JSON.parse((await AsyncStorage.getItem(STORAGE_KEY))!) as Record<
+      string,
+      string
+    >;
+    expect(stored["new"]).toBe(oldId);
   });
 });

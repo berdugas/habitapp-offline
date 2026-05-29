@@ -30,6 +30,7 @@ function renderEdit() {
 
 const mockReplace = jest.fn();
 const mockBack = jest.fn();
+const mockPush = jest.fn();
 const mockCanGoBack = jest.fn(() => true);
 const mockUseLocalSearchParams = jest.fn();
 const mockUseOwnedHabitQuery = jest.fn();
@@ -40,6 +41,7 @@ jest.mock("expo-router", () => ({
   router: {
     replace: (...args: unknown[]) => mockReplace(...args),
     back: (...args: unknown[]) => mockBack(...args),
+    push: (...args: unknown[]) => mockPush(...args),
     canGoBack: () => mockCanGoBack(),
   },
   useLocalSearchParams: () => mockUseLocalSearchParams(),
@@ -347,6 +349,20 @@ describe("EditHabitScreen", () => {
     await waitFor(() => { expect(mockMutateAsync).toHaveBeenCalled(); });
 
     expect(cancelReminder).not.toHaveBeenCalled();
+  });
+
+  it("navigates to the goal page when the identity hint is tapped", async () => {
+    renderEdit();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("goal-settings-link")).toBeTruthy();
+    });
+    fireEvent.press(screen.getByTestId("goal-settings-link"));
+
+    expect(mockPush).toHaveBeenCalledWith({
+      pathname: "/(app)/goals/[identityPhrase]",
+      params: { identityPhrase: encodeURIComponent("Become a reader") },
+    });
   });
 
   it("preserves user input when save fails", async () => {

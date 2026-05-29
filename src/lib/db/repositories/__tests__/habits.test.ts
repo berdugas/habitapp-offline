@@ -9,7 +9,9 @@ import {
   deleteGoal,
   deleteHabit,
   getHabit,
+  goalExists,
   listHabits,
+  renameGoal,
   restoreGoal,
   restoreHabit,
   updateHabit,
@@ -698,5 +700,74 @@ describe("habits repository", () => {
 
     expect(row?.sql).toContain("CHECK (habit_state IN ('active', 'automatic'))");
     expect(row?.sql).toContain("CHECK (status IN ('active', 'archived', 'backlog'))");
+  });
+
+  describe("renameGoal", () => {
+    it("renames identity_phrase across every status for the user", async () => {
+      const active = await createHabit(makeInput({ identity_phrase: "a runner", title: "A" }));
+      const backlog = await createHabit(
+        makeInput({ identity_phrase: "a runner", title: "B", status: "backlog" }),
+      );
+      const toArchive = await createHabit(makeInput({ identity_phrase: "a runner", title: "C" }));
+      await archiveHabit(toArchive.id);
+      const other = await createHabit(makeInput({ identity_phrase: "a writer", title: "D" }));
+
+      await new Promise((r) => setTimeout(r, 5));
+      const result = await renameGoal("user-1", "a runner", "runner");
+
+      expect(result.renamedHabitIds.sort()).toEqual(
+        [active.id, backlog.id, toArchive.id].sort(),
+      );
+      expect((await listHabits({ user_id: "user-1", identity_phrase: "runner" })).length).toBe(3);
+      expect((await listHabits({ user_id: "user-1", identity_phrase: "a runner" })).length).toBe(0);
+      const writer = await getHabit(other.id);
+      expect(writer!.identity_phrase).toBe("a writer");
+
+      const renamedActive = await getHabit(active.id);
+      expect(renamedActive!.updated_at > active.updated_at).toBe(true);
+    });
+
+    it("is scoped to the user", async () => {
+      await createHabit(makeInput({ user_id: "user-1", identity_phrase: "a runner" }));
+      const theirs = await createHabit(
+        makeInput({ user_id: "user-2", identity_phrase: "a runner" }),
+      );
+
+      await renameGoal("user-1", "a runner", "runner");
+
+      const after = await getHabit(theirs.id);
+      expect(after!.identity_phrase).toBe("a runner");
+    });
+
+    it("returns no ids when nothing matches the old phrase", async () => {
+      const result = await renameGoal("user-1", "ghost goal", "runner");
+      expect(result.renamedHabitIds).toEqual([]);
+    });
+
+    it("merges into an existing target phrase", async () => {
+      await createHabit(makeInput({ identity_phrase: "a runner", title: "Src" }));
+      await createHabit(makeInput({ identity_phrase: "runner", title: "Target" }));
+
+      await renameGoal("user-1", "a runner", "runner");
+
+      expect((await listHabits({ user_id: "user-1", identity_phrase: "runner" })).length).toBe(2);
+    });
+  });
+
+  describe("goalExists", () => {
+    it("returns true when any status carries the phrase", async () => {
+      const h = await createHabit(makeInput({ identity_phrase: "a writer" }));
+      await archiveHabit(h.id);
+      expect(await goalExists("user-1", "a writer")).toBe(true);
+    });
+
+    it("returns false for an unknown phrase", async () => {
+      expect(await goalExists("user-1", "nobody")).toBe(false);
+    });
+
+    it("is user-scoped", async () => {
+      await createHabit(makeInput({ user_id: "user-2", identity_phrase: "a runner" }));
+      expect(await goalExists("user-1", "a runner")).toBe(false);
+    });
   });
 });

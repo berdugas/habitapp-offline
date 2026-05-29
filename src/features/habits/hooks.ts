@@ -16,6 +16,7 @@ import {
   listEligibleHabitsForToday,
   listGoalHabits,
   listUpcomingHabits,
+  renameGoal,
   restoreGoal,
   restoreHabit,
   updateHabit,
@@ -39,7 +40,7 @@ import {
 } from "@/utils/dates";
 import { todayDateString } from "@/utils/clock";
 import { useTodayDateString } from "@/utils/dayBoundary";
-import { goalIdFor } from "@/services/goalIdRegistry";
+import { aliasGoalId, goalIdFor } from "@/services/goalIdRegistry";
 import { TODAY_PROGRESS_WINDOW_DAYS } from "@/features/today/constants";
 
 import type {
@@ -597,6 +598,57 @@ export function useDeleteGoalMutation() {
       logger.error("Goal delete mutation failed", {
         error,
         identityPhrase: variables.identityPhrase,
+        userId: user?.id ?? null,
+      });
+    },
+  });
+}
+
+export function useRenameGoalMutation() {
+  const { user } = useAuthSession();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      oldPhrase,
+      newPhrase,
+    }: {
+      oldPhrase: string;
+      newPhrase: string;
+    }) => {
+      if (!user?.id) {
+        throw new Error("You need an account session before renaming a goal.");
+      }
+      return renameGoal(user.id, oldPhrase, newPhrase);
+    },
+    onSuccess: async (result, variables) => {
+      if (!user?.id) return;
+
+      // Carry the goal's analytics id to the new phrase FIRST and
+      // synchronously, before the screen navigates and the remounted goal
+      // page emits goal_detail_viewed under the new phrase. No-ops on a
+      // merge (target keeps its id). See src/services/goalIdRegistry.ts.
+      aliasGoalId(variables.oldPhrase, variables.newPhrase);
+
+      trackEvent("goal_renamed", {
+        goal_id: goalIdFor(variables.newPhrase),
+      });
+
+      // Surviving-row mutation: every renamed habit still exists (only its
+      // identity_phrase changed), so refresh per-habit caches via the surface
+      // helper — NOT the list helper, which forbids the getHabitById fetch.
+      // The goal-scoped caches it invalidates use broad-prefix keys that omit
+      // the phrase, so this one loop refreshes both the old (now empty) and
+      // new (now populated) goals.
+      for (const habitId of result.renamedHabitIds) {
+        await invalidateHabitSurfaceQueries(user.id, habitId, queryClient);
+      }
+    },
+    onError: (error, variables) => {
+      logger.error("Goal rename mutation failed", {
+        error,
+        oldPhrase: variables.oldPhrase,
+        newPhrase: variables.newPhrase,
         userId: user?.id ?? null,
       });
     },
