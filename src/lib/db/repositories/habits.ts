@@ -498,3 +498,50 @@ export async function deleteGoal(
 
   return { deletedHabitCount: deletedCount };
 }
+
+export async function renameGoal(
+  userId: string,
+  oldPhrase: string,
+  newPhrase: string,
+): Promise<{ renamedHabitIds: string[] }> {
+  const db = getDb();
+  const now = new Date().toISOString();
+
+  // SELECT the affected ids (every status) BEFORE the UPDATE so the caller
+  // can refresh each habit's per-habit caches — mirrors deleteGoal. A bare
+  // UPDATE would only return a count.
+  const rows = await db.getAllAsync<{ id: string }>(
+    "SELECT id FROM local_habits WHERE user_id = ? AND identity_phrase = ?",
+    userId,
+    oldPhrase,
+  );
+  if (rows.length === 0) return { renamedHabitIds: [] };
+
+  const ids = rows.map((r) => r.id);
+  await db.withTransactionAsync(async () => {
+    await db.runAsync(
+      `UPDATE local_habits
+         SET identity_phrase = ?, updated_at = ?
+       WHERE user_id = ? AND identity_phrase = ?`,
+      newPhrase,
+      now,
+      userId,
+      oldPhrase,
+    );
+  });
+
+  return { renamedHabitIds: ids };
+}
+
+export async function goalExists(
+  userId: string,
+  phrase: string,
+): Promise<boolean> {
+  const db = getDb();
+  const row = await db.getFirstAsync<{ one: number }>(
+    "SELECT 1 AS one FROM local_habits WHERE user_id = ? AND identity_phrase = ? LIMIT 1",
+    userId,
+    phrase,
+  );
+  return row !== null;
+}
