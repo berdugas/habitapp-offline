@@ -2952,3 +2952,17 @@ Cross-checking against the spec:
 4. Cold-start banner — spec calls for a non-dismissable ~3s banner on first render after offline fallback. The current plan defers this UI to a follow-up; for PR 1 ship without the banner and document as a v1 follow-up (the fallback still happens correctly; only the user notification is missing). This is a known gap — track for completion before PR 6 ships.
 
 The implementer should resolve items 1-3 inline during execution (small additions to existing tasks). Item 4 is a real defer.
+
+---
+
+## EXECUTION FINDING (2026-05-29): branch is behind main — rebase required
+
+During Task 5, the full test suite showed 5 failures (2 in `Heatmap.test.tsx`, 3 in `007_srhi_constraints.test.ts`). Investigation proved these are **NOT caused by any PR-1 theme work**:
+- This branch (`claude/sleepy-mirzakhani-2ccfa5`) forked from `697f2ff`.
+- `origin/main` is **23 commits ahead**, including an app-wide "day-boundary" feature: `70bb857`/`e9ce6fb`/`f5e6940` (dayBoundary store + hooks), `7dee89b feat(providers): init day-boundary listener at app root`, `f952359 refactor(heatmap): subscribe Heatmap to day boundary`, and `c954f3f test(today): add day-rollover regression scenarios`, among others.
+- The 5 tests pass on `main` and fail here purely because this branch predates that feature.
+
+**Required actions:**
+1. **Rebase this branch onto `origin/main` BEFORE Task 21.** `7dee89b` edited `app/_layout.tsx`'s provider tree — the exact file Task 21 modifies. Rebasing first avoids a guaranteed conflict and gives a green baseline. Our changes are almost entirely additive (new files under `src/theme/`, `src/features/settings/screens/AppearanceScreen.tsx`, `app/(app)/settings/appearance.tsx`); expected conflict surface is small (`jest.config.js` testMatch lines; possibly `_layout.tsx` once we touch it — hence rebasing before we do).
+2. Until the rebase, validate Tasks 6–20 with **targeted `npm test -- <path>` + `npm run typecheck`**, not full-suite green (the 5 unrelated reds would otherwise mask signal).
+3. After rebase, re-run the full suite; the 5 should be green. Re-verify Task 5's shims still typecheck against any `_layout.tsx`/theme touch from main.
