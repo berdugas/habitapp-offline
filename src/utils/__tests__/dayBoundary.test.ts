@@ -35,3 +35,77 @@ describe("msUntilNextLocalMidnight()", () => {
     expect(ms).toBeLessThanOrEqual(24 * 60 * 60 * 1000);
   });
 });
+
+import {
+  getDayBoundarySnapshotForTesting,
+  subscribeDayBoundary,
+  triggerDayBoundaryCheckForTesting,
+  resetDayBoundaryForTesting,
+} from "@/utils/dayBoundary";
+
+afterEach(() => {
+  resetDayBoundaryForTesting();
+});
+
+describe("day-boundary store", () => {
+  it("getSnapshot returns the current date string and a noon-anchored Date", () => {
+    setNowForTesting(new Date(2026, 4, 29, 10, 0, 0));
+    const snap = getDayBoundarySnapshotForTesting();
+    expect(snap.todayDateString).toBe("2026-05-29");
+    expect(snap.todayAnchorDate.getHours()).toBe(12);
+    expect(snap.todayAnchorDate.getDate()).toBe(29);
+  });
+
+  it("getSnapshot returns referentially-equal snapshot until rollover", () => {
+    setNowForTesting(new Date(2026, 4, 29, 10, 0, 0));
+    const a = getDayBoundarySnapshotForTesting();
+    const b = getDayBoundarySnapshotForTesting();
+    expect(a).toBe(b);
+    expect(a.todayAnchorDate).toBe(b.todayAnchorDate);
+  });
+
+  it("triggerDayBoundaryCheckForTesting is a no-op when date is unchanged", () => {
+    setNowForTesting(new Date(2026, 4, 29, 10, 0, 0));
+    const listener = jest.fn();
+    subscribeDayBoundary(listener);
+    triggerDayBoundaryCheckForTesting();
+    expect(listener).not.toHaveBeenCalled();
+  });
+
+  it("triggerDayBoundaryCheckForTesting notifies subscribers when date has changed", () => {
+    setNowForTesting(new Date(2026, 4, 29, 10, 0, 0));
+    getDayBoundarySnapshotForTesting(); // prime the cache
+    const listener = jest.fn();
+    subscribeDayBoundary(listener);
+
+    setNowForTesting(new Date(2026, 4, 30, 0, 0, 5));
+    triggerDayBoundaryCheckForTesting();
+
+    expect(listener).toHaveBeenCalledTimes(1);
+    const snap = getDayBoundarySnapshotForTesting();
+    expect(snap.todayDateString).toBe("2026-05-30");
+  });
+
+  it("subscribe returns an unsubscribe function", () => {
+    setNowForTesting(new Date(2026, 4, 29, 10, 0, 0));
+    getDayBoundarySnapshotForTesting();
+    const listener = jest.fn();
+    const unsubscribe = subscribeDayBoundary(listener);
+    unsubscribe();
+
+    setNowForTesting(new Date(2026, 4, 30, 0, 0, 5));
+    triggerDayBoundaryCheckForTesting();
+    expect(listener).not.toHaveBeenCalled();
+  });
+
+  it("resetDayBoundaryForTesting clears the listener set", () => {
+    setNowForTesting(new Date(2026, 4, 29, 10, 0, 0));
+    const listener = jest.fn();
+    subscribeDayBoundary(listener);
+    resetDayBoundaryForTesting();
+
+    setNowForTesting(new Date(2026, 4, 30, 0, 0, 5));
+    triggerDayBoundaryCheckForTesting();
+    expect(listener).not.toHaveBeenCalled();
+  });
+});
