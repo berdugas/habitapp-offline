@@ -2,8 +2,8 @@ import { StyleSheet, View } from "react-native";
 
 import { isoWeekday } from "@/features/habits/activeDays";
 import { colors } from "@/theme/colors";
-import { todayDateString } from "@/utils/clock";
 import { toDeviceDateString } from "@/utils/dates";
+import { useTodayDateString } from "@/utils/dayBoundary";
 
 import type { HeatmapLog } from "@/components/CalendarGrid";
 import type { HabitLogStatus } from "@/features/habits/types";
@@ -23,15 +23,15 @@ export function buildStripCells(
   logs: HeatmapLog[],
   activeDays: number[],
   startDate: string,
+  today: string,
   maxDays: number = MAX_DAYS,
 ): StripCell[] {
-  const today = todayDateString();
   const todayDate = new Date(`${today}T12:00:00`);
 
   // Show up to maxDays, but no earlier than startDate
   const windowStart = new Date(todayDate);
   windowStart.setDate(windowStart.getDate() - (maxDays - 1));
-  const effectiveStart = startDate > todayDateString()
+  const effectiveStart = startDate > today
     ? todayDate
     : new Date(`${startDate}T12:00:00`) > windowStart
       ? new Date(`${startDate}T12:00:00`)
@@ -112,7 +112,8 @@ export function MiniHeatmapStrip({
   maxDays = MAX_DAYS,
   startDate,
 }: MiniHeatmapStripProps) {
-  const cells = buildStripCells(logs, activeDays, startDate, maxDays);
+  const today = useTodayDateString();
+  const cells = buildStripCells(logs, activeDays, startDate, today, maxDays);
 
   return (
     <View style={[styles.strip, { gap: cellGap }]}>
