@@ -1,89 +1,94 @@
-import { normaliseBecomingPhrase } from "@/utils/normalisePhrase";
+import {
+  isValidIdentityPhraseDraft,
+  normaliseBecomingPhrase,
+} from "@/utils/normalisePhrase";
 
 describe("normaliseBecomingPhrase", () => {
-  // Baseline article logic
-  it("prepends 'a' to a plain noun phrase", () => {
-    expect(normaliseBecomingPhrase("runner")).toBe("a runner");
+  it("keeps a plain noun as typed (no article added)", () => {
+    expect(normaliseBecomingPhrase("runner")).toBe("runner");
   });
 
-  it("lowercases and prepends 'a' to a capitalised phrase", () => {
-    expect(normaliseBecomingPhrase("Healthy Guy")).toBe("a healthy guy");
+  it("lowercases a capitalised phrase", () => {
+    expect(normaliseBecomingPhrase("Healthy Guy")).toBe("healthy guy");
   });
 
-  it("prepends 'an' for a vowel-initial phrase", () => {
-    expect(normaliseBecomingPhrase("active person")).toBe("an active person");
+  it("keeps a vowel-initial phrase as typed (no 'an' added)", () => {
+    expect(normaliseBecomingPhrase("active person")).toBe("active person");
   });
 
-  it("is a no-op when phrase already starts with 'a '", () => {
+  it("preserves a leading article the user typed", () => {
     expect(normaliseBecomingPhrase("a runner")).toBe("a runner");
-  });
-
-  it("is a no-op when phrase already starts with 'an '", () => {
     expect(normaliseBecomingPhrase("An honest person")).toBe("an honest person");
-  });
-
-  it("is a no-op when phrase starts with 'the '", () => {
     expect(normaliseBecomingPhrase("the focused parent")).toBe("the focused parent");
   });
 
-  it("is a no-op when phrase starts with 'someone'", () => {
+  it("preserves 'someone who' / 'people who' forms", () => {
     expect(normaliseBecomingPhrase("someone who reads daily")).toBe("someone who reads daily");
-  });
-
-  it("is a no-op when phrase starts with 'people'", () => {
     expect(normaliseBecomingPhrase("people who exercise")).toBe("people who exercise");
   });
 
   it("trims surrounding whitespace", () => {
-    expect(normaliseBecomingPhrase("  runner  ")).toBe("a runner");
+    expect(normaliseBecomingPhrase("  runner  ")).toBe("runner");
   });
 
   it("collapses internal whitespace", () => {
-    expect(normaliseBecomingPhrase("better  partner")).toBe("a better partner");
+    expect(normaliseBecomingPhrase("better  partner")).toBe("better partner");
   });
 
   it("returns empty string for blank input", () => {
     expect(normaliseBecomingPhrase("   ")).toBe("");
   });
 
-  // Strip redundant sentence starters
-  it("strips 'I am a ' prefix", () => {
+  it("strips 'I am a ' / 'I am ' lead-ins without adding an article", () => {
     expect(normaliseBecomingPhrase("I am a runner")).toBe("a runner");
+    expect(normaliseBecomingPhrase("I am runner")).toBe("runner");
   });
 
-  it("strips 'I am ' prefix and adds article to bare noun", () => {
-    expect(normaliseBecomingPhrase("I am runner")).toBe("a runner");
-  });
-
-  it("strips 'I'm a ' prefix", () => {
+  it("strips 'I'm a ' / 'I'm ' lead-ins", () => {
     expect(normaliseBecomingPhrase("I'm a runner")).toBe("a runner");
+    expect(normaliseBecomingPhrase("I'm runner")).toBe("runner");
   });
 
-  it("strips 'I'm ' prefix and adds article", () => {
-    expect(normaliseBecomingPhrase("I'm runner")).toBe("a runner");
-  });
-
-  it("strips 'Become a ' prefix", () => {
+  it("strips 'Become a ' / 'Becoming a ' lead-ins", () => {
     expect(normaliseBecomingPhrase("Become a runner")).toBe("a runner");
-  });
-
-  it("strips 'Becoming a ' prefix", () => {
     expect(normaliseBecomingPhrase("Becoming a runner")).toBe("a runner");
   });
 
-  it("strips 'I want to be a ' prefix", () => {
+  it("strips 'I want to be a ' / 'I want to become a ' lead-ins", () => {
     expect(normaliseBecomingPhrase("I want to be a runner")).toBe("a runner");
-  });
-
-  it("strips 'I want to become a ' prefix", () => {
     expect(normaliseBecomingPhrase("I want to become a better reader")).toBe("a better reader");
   });
 
-  it("strips prefix and preserves 'someone who' form", () => {
+  it("strips a lead-in and preserves the 'someone who' form", () => {
     expect(normaliseBecomingPhrase("I am someone who reads daily")).toBe("someone who reads daily");
   });
 
   it("handles mixed case 'BECOME a runner'", () => {
     expect(normaliseBecomingPhrase("BECOME a runner")).toBe("a runner");
+  });
+
+  it("regression: adjectives and verb phrases are no longer mangled with 'a'", () => {
+    expect(normaliseBecomingPhrase("healthy")).toBe("healthy");
+    expect(normaliseBecomingPhrase("read the bible")).toBe("read the bible");
+  });
+});
+
+describe("isValidIdentityPhraseDraft", () => {
+  it("accepts a cleaned phrase of length >= 2", () => {
+    expect(isValidIdentityPhraseDraft("healthy")).toBe(true);
+    expect(isValidIdentityPhraseDraft("ab")).toBe(true);
+  });
+
+  it("rejects input that cleans to fewer than 2 chars", () => {
+    expect(isValidIdentityPhraseDraft("")).toBe(false);
+    expect(isValidIdentityPhraseDraft("   ")).toBe(false);
+    expect(isValidIdentityPhraseDraft("a")).toBe(false);
+    // "become a" strips the "become " lead-in -> "a" (1 char)
+    expect(isValidIdentityPhraseDraft("become a")).toBe(false);
+  });
+
+  it("rejects a cleaned phrase longer than the 240-char cap", () => {
+    expect(isValidIdentityPhraseDraft("x".repeat(240))).toBe(true);
+    expect(isValidIdentityPhraseDraft("x".repeat(241))).toBe(false);
   });
 });
