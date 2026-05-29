@@ -28,7 +28,10 @@ import { listEligibleHabitsForToday } from "@/features/habits/api";
 import { CapWarningCard } from "@/features/habits/components/CapWarningCard";
 import { assertCanCreateActiveHabit } from "@/features/habits/validators";
 import { formatHabitFormula, stripLeadingAfter, stripLeadingIWill } from "@/features/habits/formatters";
-import { normaliseBecomingPhrase } from "@/utils/normalisePhrase";
+import {
+  isValidIdentityPhraseDraft,
+  normaliseBecomingPhrase,
+} from "@/utils/normalisePhrase";
 import {
   getEligibleHabitsQueryKey,
   useCreateHabitMutation,
@@ -217,7 +220,7 @@ export default function CreateHabitFlow() {
   let stepContent: React.ReactNode;
 
   if (step === "goal") {
-    const canContinue = draft.identityPhrase.trim().length >= 2;
+    const canContinue = isValidIdentityPhraseDraft(draft.identityPhrase);
     stepContent = (
       <OnboardingLayout
         keyboardAware
@@ -238,8 +241,8 @@ export default function CreateHabitFlow() {
         <Text style={styles.headline}>What kind of person do you want to become?</Text>
         <Text style={styles.subline}>This is the transformation your new habits will support.</Text>
         <OnboardingInput
-          label="Become someone who..."
-          placeholder="runs regularly, reads daily..."
+          label="Become…"
+          placeholder="a calmer person, healthier, someone who reads daily"
           value={draft.identityPhrase}
           onChangeText={(text) => update({ identityPhrase: text })}
           onBlur={() => {
