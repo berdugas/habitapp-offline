@@ -70,6 +70,50 @@ function checkAndMaybeNotify() {
 
 Idempotent by construction: if the cached date already matches, nothing notifies. Back-to-back fires (e.g. an overdue timer firing immediately after a foreground `AppState` change) are safe — the second call is a no-op.
 
+### Implementation primitives
+
+Two helpers are load-bearing and must be specified — naive implementations reintroduce the bug.
+
+**`msUntilNextLocalMidnight(now = new Date()): number`** — must compute against the local *calendar day*, not "add 86,400,000 ms". On spring-forward days local midnight is 23 hours away; on fall-back, 25. Required form:
+
+```ts
+function msUntilNextLocalMidnight(now = new Date()): number {
+  const tomorrow = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate() + 1,
+  );
+  // Local-date constructor: this is "tomorrow 00:00 local", spanning the
+  // correct number of ms across DST transitions because the constructor
+  // applies the destination day's UTC offset.
+  return tomorrow.getTime() - now.getTime();
+}
+```
+
+A future "simplification" to `setTimeout(fn, 86_400_000)` or any UTC-arithmetic variant reintroduces the bug noon-pinning was supposed to prevent. The +1s safety margin added by `checkAndMaybeNotify()` (`setTimeout(handler, msUntilNextLocalMidnight() + 1000)`) absorbs timer skew so the fire lands a tick *after* local midnight, not a few ms before it.
+
+**`noonOf(dateString): Date`** — must use the local-date constructor, not string parsing. `new Date("2026-05-29T12:00:00")` parses as local in Hermes (per spec — no `Z`), but a contributor "cleaning up" to ISO-with-Z silently shifts the anchor by the local offset. Required form:
+
+```ts
+function noonOf(dateString: string): Date {
+  // dateString is "YYYY-MM-DD" from todayDateString().
+  const [y, m, d] = dateString.split("-").map(Number);
+  return new Date(y, m - 1, d, 12, 0, 0, 0);
+}
+```
+
+### Initial state and lazy init
+
+The store's cache is lazy-initialized on first read of `getSnapshot()` (or on module load — implementation choice, but `getSnapshot()` must always return a valid value). This guarantees that if any component renders before `initDayBoundary()` fires from `AppProviders`'s effect, the first paint sees a correct snapshot. The AppState listener and midnight timer remain unwired until `initDayBoundary()` runs — rollover behavior is the only thing gated on init.
+
+### Hot-reload and init idempotency
+
+`initDayBoundary()` is idempotent: a second call (e.g. from a Metro fast-refresh re-running the `AppProviders` effect) detects the existing subscription and is a no-op. Implementation: guard with a module-level `initialized` flag set by `initDayBoundary()` and cleared by `resetDayBoundaryForTesting()` / the returned cleanup. The useEffect cleanup remains the authoritative teardown path; the idempotency guard exists only to prevent double-subscription on fast-refresh.
+
+### Listener-set memory
+
+Each `useSyncExternalStore` consumer subscribes via the store's `subscribe(listener)` and unsubscribes via the returned cleanup when the component unmounts. The listener set is therefore bounded by the number of mounted consumers — no leaks across navigation, no leaks across hot reloads (handled by the idempotency guard above).
+
 ### Why noon for the anchor Date
 
 A `Date` pinned to 12:00:00 local is DST-safe. If a DST transition happens at 02:00 local (spring forward) or 03:00 local (fall back), noon is well clear of the discontinuity. Midnight would land *on* the boundary on transition days and produce off-by-one date conversions in helpers that read `getDate()` after a timezone offset shift. A future contributor who "simplifies" to midnight reintroduces this bug; the rationale lives here so they don't.
@@ -86,6 +130,8 @@ export function useTodayAnchorDate(): Date;
 ```
 
 Both subscribe to the same store via `useSyncExternalStore`. The store ensures each hook receives a referentially-equal value between rollovers, so consumers using either as a `useMemo` dep do not over-invalidate.
+
+`useSyncExternalStore` requires a third `getServerSnapshot` argument. React Native has no SSR; pass `getSnapshot` itself for this argument and document it as a no-op. Omitting or mistyping this causes a runtime warning during implementation, not a silent failure — flagged here so the implementer doesn't waste time chasing it.
 
 **Constraint on `useTodayAnchorDate`** — documented on the hook signature and in this doc:
 
@@ -122,7 +168,7 @@ Approximately 30 sites in total. All edits are mechanical 1–2 line substitutio
 
 - [HabitDetailScreen](../../../src/features/habits/screens/HabitDetailScreen.tsx) — five sites: `calendarDays`, `todayDate`, `currentWeekStart`, `activeDaysCount`, `weeklyData` chart endpoint.
 - [GraduationCeremonyScreen `daysSinceStart`](../../../src/features/graduation/screens/GraduationCeremonyScreen.tsx) helper.
-- [TodayScreen `AppHeader`](../../../src/features/today/screens/TodayScreen.tsx) — currently calls `new Date()` directly, bypassing the clock module entirely. Migrate to `useTodayAnchorDate()` so the visible date label flips at rollover. **Easy to overlook; surfaced as its own line in the plan.**
+- [TodayScreen `AppHeader`](../../../src/features/today/screens/TodayScreen.tsx) — currently calls `new Date()` directly, bypassing the clock module entirely. Verified date-only at design time: `toLocaleDateString` is called with `{ day: "numeric", month: "long", weekday: "long" }`, no time component. Safe to noon-pin. Migrate to `useTodayAnchorDate()` so the visible date label flips at rollover. **Easy to overlook; surfaced as its own line in the plan.**
 
 ### Render-time presentational components
 
@@ -175,6 +221,8 @@ Verified at design time: no current useEffect in the codebase falls into the sec
 | `CalendarGrid`, `Heatmap`, `MiniHeatmapStrip`, `GoalStreakStrip` | `todayDateString()` for cell comparisons (`===`, `<`, `>`) | Day-granular strings. Safe. |
 
 No sub-day comparisons in the inventory.
+
+**Coverage caveat:** the table above enumerates sites that touch a `Date` (where the noon-pin matters). Sites whose migrated value is a `string` — `useUpcomingActiveHabitsQuery`, `useHabitLogsForRange`, `useHabitLogsForHabitsInRange`, `useTodayHabits.todayDate`, `HabitDetailScreen.todayDate`, `HabitDetailScreen.currentWeekStart`, and all four presentational components — are day-granular by construction (`"YYYY-MM-DD"`) and cannot do sub-day comparisons regardless of how the underlying clock advances. Audited; safe.
 
 ### Query-key cycling on rollover
 
