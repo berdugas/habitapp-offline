@@ -44,6 +44,12 @@ import {
 import { colors } from "@/theme/colors";
 import { typography } from "@/theme/typography";
 import { useAuthSession } from "@/features/auth/hooks";
+import { getPreference, setPreference } from "@/lib/db/repositories/preferences";
+import { THEMES, isKnownThemeId } from "@/theme/registry";
+import { ThemeProvider } from "@/theme/ThemeProvider";
+import { loadFontsFor } from "@/theme/fonts/loader";
+import { trackEvent } from "@/services/analytics";
+import type { ThemeId } from "@/theme/contract";
 
 // Suppress two Expo Go-only startup warnings that confuse testers but are
 // harmless:
@@ -230,6 +236,38 @@ function ErrorFallback() {
   );
 }
 
+// Resolve the theme to render at cold start. Reads the persisted theme_id and
+// loads its fonts. Fallback rules (see theming spec §3.4/§6):
+//  - missing pref      -> Zen (no telemetry).
+//  - unknown id        -> Zen, AND overwrite the bad pref (no valid choice to keep).
+//  - known id whose fonts fail to load (offline/parse) -> render Zen at runtime
+//    but PRESERVE the pref so the next launch retries; surface telemetry.
+async function resolveInitialTheme(): Promise<{
+  initialThemeId: ThemeId;
+  intendedThemeId: ThemeId;
+}> {
+  const stored = await getPreference("theme_id");
+
+  if (stored == null) {
+    return { initialThemeId: "zen", intendedThemeId: "zen" };
+  }
+  if (!isKnownThemeId(stored)) {
+    await setPreference("theme_id", "zen");
+    trackEvent("theme_unknown_id_recovered", { bad_id: stored });
+    return { initialThemeId: "zen", intendedThemeId: "zen" };
+  }
+
+  const controller = new AbortController();
+  try {
+    await loadFontsFor(THEMES[stored], controller.signal);
+    return { initialThemeId: stored, intendedThemeId: stored };
+  } catch {
+    // Preference is preserved unchanged so the next cold-start retries.
+    trackEvent("theme_offline_fallback_triggered", { intended_theme_id: stored });
+    return { initialThemeId: "zen", intendedThemeId: stored };
+  }
+}
+
 function RootLayout() {
   const [fontsLoaded] = useFonts({
     PlusJakartaSans_700Bold,
@@ -242,6 +280,10 @@ function RootLayout() {
     Manrope_800ExtraBold,
   });
   const [dbReady, setDbReady] = useState(false);
+  const [themeResolved, setThemeResolved] = useState<{
+    initialThemeId: ThemeId;
+    intendedThemeId: ThemeId;
+  } | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -262,12 +304,23 @@ function RootLayout() {
   }, []);
 
   useEffect(() => {
-    if (fontsLoaded && dbReady) {
+    if (!dbReady) return;
+    let cancelled = false;
+    void resolveInitialTheme().then((resolved) => {
+      if (!cancelled) setThemeResolved(resolved);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [dbReady]);
+
+  useEffect(() => {
+    if (fontsLoaded && dbReady && themeResolved) {
       void SplashScreen.hideAsync();
     }
-  }, [fontsLoaded, dbReady]);
+  }, [fontsLoaded, dbReady, themeResolved]);
 
-  if (!fontsLoaded || !dbReady) {
+  if (!fontsLoaded || !dbReady || !themeResolved) {
     return null;
   }
 
@@ -275,30 +328,35 @@ function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <TelemetryProvider>
-          <AppProviders>
-            <NotificationHandler />
-            <ScreenTracker />
-            <StatusBar
-              backgroundColor={colors.surface}
-              style="dark"
-              translucent={false}
-            />
-            <ErrorBoundary fallback={<ErrorFallback />}>
-              <View style={{ flex: 1 }}>
-                <Stack
-                  screenOptions={{
-                    contentStyle: { backgroundColor: colors.bg },
-                    headerBackButtonDisplayMode: "minimal",
-                  }}
-                >
-                  <Stack.Screen name="index" options={{ headerShown: false }} />
-                  <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-                  <Stack.Screen name="(app)" options={{ headerShown: false }} />
-                  <Stack.Screen name="(onboarding)" options={{ headerShown: false }} />
-                </Stack>
-              </View>
-            </ErrorBoundary>
-          </AppProviders>
+          <ThemeProvider
+            initialThemeId={themeResolved.initialThemeId}
+            intendedThemeId={themeResolved.intendedThemeId}
+          >
+            <AppProviders>
+              <NotificationHandler />
+              <ScreenTracker />
+              <StatusBar
+                backgroundColor={colors.surface}
+                style="dark"
+                translucent={false}
+              />
+              <ErrorBoundary fallback={<ErrorFallback />}>
+                <View style={{ flex: 1 }}>
+                  <Stack
+                    screenOptions={{
+                      contentStyle: { backgroundColor: colors.bg },
+                      headerBackButtonDisplayMode: "minimal",
+                    }}
+                  >
+                    <Stack.Screen name="index" options={{ headerShown: false }} />
+                    <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+                    <Stack.Screen name="(app)" options={{ headerShown: false }} />
+                    <Stack.Screen name="(onboarding)" options={{ headerShown: false }} />
+                  </Stack>
+                </View>
+              </ErrorBoundary>
+            </AppProviders>
+          </ThemeProvider>
         </TelemetryProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
