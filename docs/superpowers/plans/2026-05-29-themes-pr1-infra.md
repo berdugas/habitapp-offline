@@ -63,74 +63,48 @@ package.json                                (+expo-crypto)
 
 ---
 
-## Task 0: Pre-PR-1 manual blockers
+## Task 0: Pre-PR-1 manual blockers — ✅ COMPLETE (2026-05-29)
 
-**Files:** none (these produce external artifacts referenced by later tasks).
+**Files:** none (these produced external artifacts referenced by later tasks).
 
-These two tasks are **manual** and must complete before Task 1 lands. They produce inputs Tasks 3, 4, and 14 need.
+**Status: DONE.** Both sub-tasks were completed before plan execution started. The font URIs/hashes/bytes are already inlined into Task 3 (Cafe) and Task 4 (Fantasy) below. The preview SVGs are already committed (`eb8d9eb`). The implementer does NOT need to redo any of this. The detail below is preserved for the record.
 
-### 0a — Upload fonts to Supabase storage
+### 0a — Upload fonts to Supabase storage — ✅ DONE
 
-- [ ] **Step 1:** Download font files (TTF) from Google Fonts:
-  - Poppins: 400, 500, 600, 700, 800 regular weights (5 files; download from https://fonts.google.com/specimen/Poppins → "Download family").
-  - Poppins: 700 Italic (1 file; same source).
-  - New Rocker: 400 regular (1 file; https://fonts.google.com/specimen/New+Rocker).
-  - IBM Plex Mono: 400, 500, 600, 700 (4 files; https://fonts.google.com/specimen/IBM+Plex+Mono).
+11 font TTFs were downloaded (from `@expo-google-fonts/*` packages), uploaded to the public `fonts` bucket in the `habitapp` Supabase project (id `wrytjnucrxsqdrbwxsgi`), and verified by re-downloading and comparing hashes.
 
-- [ ] **Step 2:** In Supabase dashboard, create a public storage bucket named `fonts` (if not present) with read-only public access.
+Bucket paths (all live and publicly readable):
+```
+fonts/v1/poppins/Poppins_400Regular.ttf
+fonts/v1/poppins/Poppins_500Medium.ttf
+fonts/v1/poppins/Poppins_600SemiBold.ttf
+fonts/v1/poppins/Poppins_700Bold.ttf
+fonts/v1/poppins/Poppins_700Bold_Italic.ttf
+fonts/v1/poppins/Poppins_800ExtraBold.ttf
+fonts/v1/new-rocker/NewRocker_400Regular.ttf
+fonts/v1/ibm-plex-mono/IBMPlexMono_400Regular.ttf
+fonts/v1/ibm-plex-mono/IBMPlexMono_500Medium.ttf
+fonts/v1/ibm-plex-mono/IBMPlexMono_600SemiBold.ttf
+fonts/v1/ibm-plex-mono/IBMPlexMono_700Bold.ttf
+```
 
-- [ ] **Step 3:** Upload all 11 files to `fonts/v1/` in the bucket. Paths should be:
-  ```
-  fonts/v1/poppins/Poppins_400Regular.ttf
-  fonts/v1/poppins/Poppins_500Medium.ttf
-  fonts/v1/poppins/Poppins_600SemiBold.ttf
-  fonts/v1/poppins/Poppins_700Bold.ttf
-  fonts/v1/poppins/Poppins_700Bold_Italic.ttf
-  fonts/v1/poppins/Poppins_800ExtraBold.ttf
-  fonts/v1/new-rocker/NewRocker_400Regular.ttf
-  fonts/v1/ibm-plex-mono/IBMPlexMono_400Regular.ttf
-  fonts/v1/ibm-plex-mono/IBMPlexMono_500Medium.ttf
-  fonts/v1/ibm-plex-mono/IBMPlexMono_600SemiBold.ttf
-  fonts/v1/ibm-plex-mono/IBMPlexMono_700Bold.ttf
-  ```
+**CRITICAL — hashing method (locks Task 7's deferred decision):** The recorded `hash` values are the SHA256 of the **base64-encoded** file content, NOT the raw bytes. This matches what `cache.ts` (Task 7) computes: it reads the downloaded file via `FileSystem.readAsStringAsync({ encoding: Base64 })` and passes that base64 string to `Crypto.digestStringAsync(SHA256, ..., HEX)`. **Task 7 MUST use the base64 path** — do NOT switch to a binary digest, or every integrity check will fail against these recorded hashes.
 
-- [ ] **Step 4:** For each uploaded file, record:
-  - Public URL (from the Supabase storage UI's "Get public URL" action; format `https://<project>.supabase.co/storage/v1/object/public/fonts/v1/.../...ttf`).
-  - SHA256 hash. From the local downloaded file:
-    ```bash
-    shasum -a 256 Poppins_400Regular.ttf
-    # or on Windows PowerShell:
-    Get-FileHash Poppins_400Regular.ttf -Algorithm SHA256
-    ```
-  - Byte size:
-    ```bash
-    stat -c%s Poppins_400Regular.ttf
-    # or on Windows PowerShell:
-    (Get-Item Poppins_400Regular.ttf).Length
-    ```
+The reference recipe used to compute the recorded hashes (Node, matching the RN runtime path):
+```js
+const base64 = fs.readFileSync(file).toString("base64");
+const hash = crypto.createHash("sha256").update(base64, "utf8").digest("hex");
+```
 
-- [ ] **Step 5:** Record all 11 triples (`{ family, weight, uri, hash, bytes }`) in a local notes file. These get pasted into `themes/cafe.ts` (Task 3) and `themes/fantasy.ts` (Task 4).
+### 0b — Render preview SVGs — ✅ DONE
 
-### 0b — Render preview SVGs
-
-- [ ] **Step 1:** In any design tool (Figma, Illustrator, Inkscape), create a 240×80 px artboard for each theme.
-
-- [ ] **Step 2:** For each theme, render:
-  - Background fill: theme `bg` value (`#fbf9f5` Zen, `#F9F7F5` Cafe, `#FFFFFF` Fantasy).
-  - Top-left: "Aa" in the theme's `displayBold` font at 32 px (Plus Jakarta Sans 800 / Poppins 800 / New Rocker 400), color = theme `text`.
-  - Bottom-left: "Build daily." in the theme's `bodyMedium` font at 16 px (Manrope 500 / Poppins 500 / IBM Plex Mono 500), color = theme `text`.
-
-- [ ] **Step 3:** Convert text to outlines/paths so no font fallback is needed at render time.
-
-- [ ] **Step 4:** Export as SVG. Optimize via SVGO (`svgo file.svg --multipass`) so each file is ≤ 6 KB.
-
-- [ ] **Step 5:** Save to:
-  ```
-  src/theme/themes/previews/zen.svg
-  src/theme/themes/previews/cafe.svg
-  src/theme/themes/previews/fantasy.svg
-  ```
-  These directories don't exist yet — they're created by Task 2.
+The 3 preview SVGs were generated via `opentype.js` (text rendered glyph-by-glyph, bypassing the shaper which throws on Plus Jakarta Sans's substitution tables, then converted to path data) and committed at `eb8d9eb` to:
+```
+src/theme/themes/previews/zen.svg       (5.0 KB)
+src/theme/themes/previews/cafe.svg      (4.5 KB)
+src/theme/themes/previews/fantasy.svg   (7.1 KB — over the 6 KB target due to New Rocker's blackletter glyph complexity; acceptable)
+```
+Each shows "Aa" in the display font and "Build daily." in the body font over the theme's `bg`. **The implementer does not regenerate these.** Note: Task 2 below references creating the `previews/` directory — it already exists with these files, so Task 2's `require("./previews/zen.svg")` resolves immediately.
 
 ---
 
@@ -544,12 +518,12 @@ export const cafe: Theme = {
   fontAssets: {
     kind: "remote",
     assets: {
-      Poppins_400Regular: { uri: "<URI>", hash: "<HASH>", bytes: <BYTES> },
-      Poppins_500Medium:  { uri: "<URI>", hash: "<HASH>", bytes: <BYTES> },
-      Poppins_600SemiBold:{ uri: "<URI>", hash: "<HASH>", bytes: <BYTES> },
-      Poppins_700Bold:    { uri: "<URI>", hash: "<HASH>", bytes: <BYTES> },
-      Poppins_700Bold_Italic: { uri: "<URI>", hash: "<HASH>", bytes: <BYTES> },
-      Poppins_800ExtraBold:   { uri: "<URI>", hash: "<HASH>", bytes: <BYTES> },
+      Poppins_400Regular: { uri: "https://wrytjnucrxsqdrbwxsgi.supabase.co/storage/v1/object/public/fonts/v1/poppins/Poppins_400Regular.ttf", hash: "126b8ecc83e5ccabf83655b8492481eb6980de452b1768d07907cb60b1dd94b9", bytes: 158240 },
+      Poppins_500Medium:  { uri: "https://wrytjnucrxsqdrbwxsgi.supabase.co/storage/v1/object/public/fonts/v1/poppins/Poppins_500Medium.ttf",  hash: "b09fd8b77bdafa519a2db316ee159bfd4d1577934bfbc6255c11f91db6e13650", bytes: 156520 },
+      Poppins_600SemiBold:{ uri: "https://wrytjnucrxsqdrbwxsgi.supabase.co/storage/v1/object/public/fonts/v1/poppins/Poppins_600SemiBold.ttf", hash: "04ddbc357d05a0ec6cb987f6c99902a238d127af15e3b45e3be47e5842363ace", bytes: 155232 },
+      Poppins_700Bold:    { uri: "https://wrytjnucrxsqdrbwxsgi.supabase.co/storage/v1/object/public/fonts/v1/poppins/Poppins_700Bold.ttf",    hash: "7d654c9b4cac39e4bedee2ae45805c6640423dd798ea4791993143d7f4b96443", bytes: 153944 },
+      Poppins_700Bold_Italic: { uri: "https://wrytjnucrxsqdrbwxsgi.supabase.co/storage/v1/object/public/fonts/v1/poppins/Poppins_700Bold_Italic.ttf", hash: "579c43eb7fa56eeaee0cdb2a86de4e21f6806dcd205f88951681a0acc4871687", bytes: 176588 },
+      Poppins_800ExtraBold:   { uri: "https://wrytjnucrxsqdrbwxsgi.supabase.co/storage/v1/object/public/fonts/v1/poppins/Poppins_800ExtraBold.ttf",   hash: "48fc1768b54f2fe698fcea4573c410af81a2c56fe6274b7bc2f036368111b37d", bytes: 152764 },
     },
   },
   previewSvg: require("./previews/cafe.svg"),
@@ -660,11 +634,11 @@ export const fantasy: Theme = {
   fontAssets: {
     kind: "remote",
     assets: {
-      NewRocker_400Regular:    { uri: "<URI>", hash: "<HASH>", bytes: <BYTES> },
-      IBMPlexMono_400Regular:  { uri: "<URI>", hash: "<HASH>", bytes: <BYTES> },
-      IBMPlexMono_500Medium:   { uri: "<URI>", hash: "<HASH>", bytes: <BYTES> },
-      IBMPlexMono_600SemiBold: { uri: "<URI>", hash: "<HASH>", bytes: <BYTES> },
-      IBMPlexMono_700Bold:     { uri: "<URI>", hash: "<HASH>", bytes: <BYTES> },
+      NewRocker_400Regular:    { uri: "https://wrytjnucrxsqdrbwxsgi.supabase.co/storage/v1/object/public/fonts/v1/new-rocker/NewRocker_400Regular.ttf", hash: "bfb212a3aa384fcb8358c8a38f566c81b8da3d31c1c3daa08cf1fda728358fe3", bytes: 168128 },
+      IBMPlexMono_400Regular:  { uri: "https://wrytjnucrxsqdrbwxsgi.supabase.co/storage/v1/object/public/fonts/v1/ibm-plex-mono/IBMPlexMono_400Regular.ttf",  hash: "672cf61a82031e9e9f500d891fff2112e9d95ddeca6ed73720816494ef9d2141", bytes: 133796 },
+      IBMPlexMono_500Medium:   { uri: "https://wrytjnucrxsqdrbwxsgi.supabase.co/storage/v1/object/public/fonts/v1/ibm-plex-mono/IBMPlexMono_500Medium.ttf",   hash: "64678febce16437f53a291b3ccf44b906b3f725bc8f5d4405595ab6ca403df37", bytes: 134956 },
+      IBMPlexMono_600SemiBold: { uri: "https://wrytjnucrxsqdrbwxsgi.supabase.co/storage/v1/object/public/fonts/v1/ibm-plex-mono/IBMPlexMono_600SemiBold.ttf", hash: "ccfcd55897ef2be1a1fa69de6ac93ad655971d7183b4cad1cdf89e507ee5db73", bytes: 138448 },
+      IBMPlexMono_700Bold:     { uri: "https://wrytjnucrxsqdrbwxsgi.supabase.co/storage/v1/object/public/fonts/v1/ibm-plex-mono/IBMPlexMono_700Bold.ttf",     hash: "db56912fab2cd5e53703db5d7d1be51dc0b5956eb2f3af9fd7cdebc8eed839e0", bytes: 136008 },
     },
   },
   previewSvg: require("./previews/fantasy.svg"),
@@ -871,7 +845,12 @@ Create `src/theme/fonts/__tests__/cache.test.ts`:
 ```ts
 import { ensureCachedFont, deleteCachedFont, getCachePath } from "@/theme/fonts/cache";
 
-jest.mock("expo-file-system", () => ({
+// IMPORTANT: SDK 54's expo-file-system default export is the new OO API
+// (File/Directory/Paths) and no longer exposes downloadAsync/getInfoAsync/
+// cacheDirectory/EncodingType. The functional API lives at the
+// `expo-file-system/legacy` subpath. We mock that subpath, and the
+// implementation imports from it too.
+jest.mock("expo-file-system/legacy", () => ({
   cacheDirectory: "file:///mock-cache/",
   documentDirectory: "file:///mock-docs/",
   getInfoAsync: jest.fn(),
@@ -880,6 +859,10 @@ jest.mock("expo-file-system", () => ({
   moveAsync: jest.fn(),
   makeDirectoryAsync: jest.fn(),
   readAsStringAsync: jest.fn(),
+  // EncodingType is referenced by the implementation (readAsStringAsync's
+  // encoding option). Without it in the mock, FileSystem.EncodingType.Base64
+  // is `undefined.Base64` and throws. Mirror the real enum values.
+  EncodingType: { Base64: "base64", UTF8: "utf8" },
 }));
 
 jest.mock("expo-crypto", () => ({
@@ -888,7 +871,7 @@ jest.mock("expo-crypto", () => ({
   CryptoEncoding: { HEX: "hex" },
 }));
 
-import * as FileSystem from "expo-file-system";
+import * as FileSystem from "expo-file-system/legacy";
 import * as Crypto from "expo-crypto";
 
 const mockedFs = FileSystem as jest.Mocked<typeof FileSystem>;
@@ -979,7 +962,11 @@ Expected: FAIL — module not found at `@/theme/fonts/cache`.
 Create `src/theme/fonts/cache.ts`:
 
 ```ts
-import * as FileSystem from "expo-file-system";
+// SDK 54: the functional file-system API moved to the `/legacy` subpath.
+// The default `expo-file-system` export is now the File/Directory/Paths OO
+// API. We use legacy here for v1 — it's deprecated but fully supported on
+// SDK 54. Migrating to the new API is a documented follow-up (see plan tail).
+import * as FileSystem from "expo-file-system/legacy";
 import * as Crypto from "expo-crypto";
 
 import type { RemoteFontAsset } from "@/theme/contract";
@@ -1057,7 +1044,7 @@ export async function deleteCachedFont(hash: string): Promise<void> {
 }
 ```
 
-Note about Base64 vs raw bytes for hashing: `digestStringAsync` requires the input encoding to match the file encoding. If a future bug shows hash mismatches on otherwise-correct files, switch to reading the file directly via a streaming reader and hashing raw bytes — this is a known limitation of running SHA256 over base64-encoded content in older expo-crypto versions. For SDK 54, the digest of base64 content is consistent if compared against a hash computed the same way on the server side. To keep things simple in the v1 implementation, the Pre-PR-1 hash recording step (Task 0a) must compute hashes the same way: from the base64 representation of the file content. **Update Task 0a step 4 to use base64 hashing if needed**, OR change this implementation to use a binary digest API. Decision deferred to implementer; document choice in the commit message.
+**Base64 hashing is LOCKED — do not change it.** The recorded hashes in Tasks 3 and 4 are SHA256 of the **base64-encoded** file content. This implementation MUST read the file via `FileSystem.readAsStringAsync(tmpPath, { encoding: Base64 })` and hash that base64 string with `Crypto.digestStringAsync(SHA256, base64String, { encoding: HEX })`. Do NOT switch to a binary/raw-bytes digest — doing so would make every integrity check fail against the pre-computed hashes (see Task 0 for how they were generated). The test in Step 2 mocks both `readAsStringAsync` and `digestStringAsync`, so it does not exercise the real algorithm; the integration verification happens in Task 24's manual smoke test where a real download is hashed against a real recorded value.
 
 - [ ] **Step 5: Run the test to verify it passes**
 
@@ -2513,17 +2500,16 @@ git commit -m "feat(theme): classify load errors and surface inline retry banner
 
 - [ ] **Step 1: Add a clear-cache helper to the cache module**
 
-Open `src/theme/fonts/cache.ts`. Add at the bottom:
+Open `src/theme/fonts/cache.ts`. The `expo-file-system/legacy` import already
+exists at the top of the file (from Task 7) — do NOT add a second import.
+Just add the function at the bottom, reusing the existing `FileSystem` import
+and the module-scope `FONTS_DIR` constant:
 
 ```ts
-import * as FileSystem from "expo-file-system";
-
 export async function clearFontCache(): Promise<void> {
   await FileSystem.deleteAsync(FONTS_DIR, { idempotent: true });
 }
 ```
-
-(The `FONTS_DIR` constant already exists at module scope.)
 
 - [ ] **Step 2: Add a test for the dev action**
 
@@ -2939,6 +2925,7 @@ git commit --allow-empty -m "chore(theme): PR 1 manual smoke verification comple
 - The real (non-dev) Settings entry to AppearanceScreen — deferred to PR 6.
 - Deleting the re-export shims — deferred to PR 6.
 - Beta/production rollout — covered by the spec's rollout section once PR 6 lands.
+- **Migrating `cache.ts` off `expo-file-system/legacy` to the new SDK 54 File/Directory/Paths OO API** — v1 uses the legacy subpath (deprecated but supported). When the app next bumps Expo SDK, this import must migrate or it will break. Tracked as a follow-up; not blocking v1.
 
 ---
 
@@ -2959,7 +2946,7 @@ Cross-checking against the spec:
 
 **Follow-up items discovered during self-review:**
 
-1. `theme_offline_download_blocked` — fires when user taps a remote-uncached theme while offline. Currently the plan treats offline as a generic load failure (Task 18 classifies as `'network'`). Add a pre-check in Task 17 using `@react-native-community/netinfo` (already in the project? verify) before showing the confirm modal. If offline, show a different one-button modal and emit `theme_offline_download_blocked` instead of opening the download path. **If netinfo is not installed**, defer to a follow-up PR and emit `'network'` from Task 18 as the catch-all.
+1. `theme_offline_download_blocked` — **DECISION: DEFER (verified `@react-native-community/netinfo` is NOT installed).** Do not add a netinfo dependency in PR 1. Offline-while-tapping a remote-uncached theme falls through Task 18's error path: the `downloadAsync` fails, gets classified as `'network'` by `classifyError`, and surfaces the inline retry banner. The dedicated `theme_offline_download_blocked` pre-check event is a follow-up PR (add netinfo + a pre-modal connectivity check then). For v1, the user still gets a correct error + retry; only the finer-grained telemetry distinction is missing.
 2. `theme_picker_dismissed` — fires when user navigates away from AppearanceScreen. Requires a `useFocusEffect` cleanup hook tracking whether any card was pressed during the session. Trivial — add as a final-pass enhancement in Task 22 or defer to a small follow-up.
 3. `theme_offline_fallback_triggered` and `theme_unknown_id_recovered` — these belong in `resolveInitialTheme` in Task 21. The current Task 21 implementation captures the fallback reason but doesn't emit telemetry. Add emission inside `resolveInitialTheme` based on `fallbackReason`.
 4. Cold-start banner — spec calls for a non-dismissable ~3s banner on first render after offline fallback. The current plan defers this UI to a follow-up; for PR 1 ship without the banner and document as a v1 follow-up (the fallback still happens correctly; only the user notification is missing). This is a known gap — track for completion before PR 6 ships.
