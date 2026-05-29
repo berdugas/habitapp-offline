@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { getPreference } from "@/lib/db/repositories/preferences";
 import { useHabitLogsForHabitsInRange } from "@/features/today/hooks";
 import { todayDateString } from "@/utils/clock";
+import { useTodayDateString } from "@/utils/dayBoundary";
 
 import {
   detectSingleMiss,
@@ -32,7 +33,7 @@ type RecoveryCheckResult = {
 // can forward them to useSingleMissBanner without a second subscription.
 export function useRecoveryCheck(habits: RecoveryHabitRef[]): RecoveryCheckResult {
   const habitIds = habits.map((h) => h.id);
-  const today = todayDateString();
+  const today = useTodayDateString();
 
   const logsQuery = useHabitLogsForHabitsInRange(habitIds, 90);
   const allLogs = logsQuery.data ?? [];
@@ -96,7 +97,7 @@ export function useSingleMissBanner(
   allLogs: HabitLog[],
   shouldShowModal: boolean,
 ): SingleMissBannerResult {
-  const today = todayDateString();
+  const today = useTodayDateString();
 
   const logsByHabitId = new Map<string, HabitLog[]>();
   for (const log of allLogs) {
