@@ -21,9 +21,10 @@ jest.mock("@/features/auth/hooks", () => ({
   useAuthSession: () => ({ user: { id: "user-1" } }),
 }));
 
-function wrapper({ children }: { children: React.ReactNode }) {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
+function wrapWith(client: QueryClient) {
+  return function Wrapper({ children }: { children: React.ReactNode }) {
+    return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
+  };
 }
 
 beforeEach(() => {
@@ -37,7 +38,8 @@ describe("useRenameGoalMutation", () => {
   it("renames, carries the analytics id to the new phrase, and emits goal_renamed", async () => {
     const oldId = goalIdFor("a healthy");
 
-    const { result } = renderHook(() => useRenameGoalMutation(), { wrapper });
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const { result } = renderHook(() => useRenameGoalMutation(), { wrapper: wrapWith(client) });
     await result.current.mutateAsync({ oldPhrase: "a healthy", newPhrase: "healthy" });
 
     await waitFor(() => {
@@ -47,13 +49,17 @@ describe("useRenameGoalMutation", () => {
     expect(goalIdFor("healthy")).toBe(oldId);
     // Event fired with the continuous id.
     expect(mockTrackEvent).toHaveBeenCalledWith("goal_renamed", { goal_id: oldId });
+    // The invalidation loop ran over result.renamedHabitIds — the surface helper
+    // fetches each renamed habit, so getHabitById is called with the looped id.
+    expect(mockGetHabitById).toHaveBeenCalledWith("user-1", "h1");
   });
 
   it("on a merge, keeps the existing target id and reports it (alias no-ops)", async () => {
     const targetId = goalIdFor("runner");
     goalIdFor("a healthy");
 
-    const { result } = renderHook(() => useRenameGoalMutation(), { wrapper });
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const { result } = renderHook(() => useRenameGoalMutation(), { wrapper: wrapWith(client) });
     await result.current.mutateAsync({ oldPhrase: "a healthy", newPhrase: "runner" });
 
     await waitFor(() => {
