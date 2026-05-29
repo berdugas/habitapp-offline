@@ -44,6 +44,7 @@ import { getReminderByHabitId } from "@/lib/db/repositories/reminders";
 import { useAuthSession } from "@/features/auth/hooks";
 import { trackEvent } from "@/services/analytics";
 import { now } from "@/utils/clock";
+import { useTodayAnchorDate, useTodayDateString } from "@/utils/dayBoundary";
 import { daysBetweenDates, getWeekStartDateString, toDeviceDateString } from "@/utils/dates";
 import { colors } from "@/theme/colors";
 import { fontFamilies } from "@/theme/fontFamilies";
@@ -100,11 +101,14 @@ export default function HabitDetailScreen() {
     canEdit: boolean;
     readOnlyReason?: "window" | "app";
   } | null>(null);
+  const todayAnchor = useTodayAnchorDate();
+  const todayDate = useTodayDateString();
+  const currentWeekStart = getWeekStartDateString(todayAnchor);
   // Fetch logs covering the full range from start_date (or 35 days minimum)
   const calendarDays = (() => {
     if (!habit?.start_date) return 35;
     const start = new Date(`${habit.start_date}T12:00:00`);
-    const diff = Math.ceil((now().getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+    const diff = Math.ceil((todayAnchor.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
     return Math.max(diff, 35);
   })();
   const calendarLogs = useHabitLogsForRange(habit?.id, calendarDays).data ?? [];
@@ -142,8 +146,6 @@ export default function HabitDetailScreen() {
   }, [habit?.id, habit?.status, isLoading, error]);
 
   // Weekly review state
-  const todayDate = toDeviceDateString(now());
-  const currentWeekStart = getWeekStartDateString(now());
   const latestReviewQuery = useLatestWeeklyReviewQuery(habitId);
   const latestReview = latestReviewQuery.data ?? null;
   const latestReviewErrored = Boolean(latestReviewQuery.error);
@@ -203,8 +205,8 @@ export default function HabitDetailScreen() {
     if (!habit) return 0;
     const start = habit.start_date
       ? new Date(`${habit.start_date}T12:00:00`)
-      : now();
-    const today = now();
+      : todayAnchor;
+    const today = new Date(todayAnchor);
     today.setHours(0, 0, 0, 0);
     let count = 0;
     const d = new Date(start);
@@ -219,11 +221,9 @@ export default function HabitDetailScreen() {
   // Journey Card data — reuses the goal-level helpers with a one-element
   // habit array, which degenerates to single-habit aggregation.
   //
-  // now() is intentionally NOT in the deps list: it's used as the chart's
-  // end-of-window cursor and only crosses a meaningful boundary across days,
-  // not renders. Adding it would force a fresh `Date` per render and defeat
-  // memoization entirely. The memo invalidates correctly when `habit` /
-  // `calendarLogs` / `activeDays` change, which is what we actually care about.
+  // todayAnchor is reference-stable until local-day rollover (see
+  // useTodayAnchorDate), so including it in deps does not churn memoization
+  // on normal re-renders but correctly invalidates the chart at rollover.
   const weeklyData = useMemo(() => {
     if (!habit) return [];
     // Snap to the Monday of the habit's start week. `computeWeeklyConsistency`
@@ -244,9 +244,9 @@ export default function HabitDetailScreen() {
         },
       ],
       chartStartIso,
-      now(),
+      todayAnchor,
     );
-  }, [habit, calendarLogs, activeDays]);
+  }, [habit, calendarLogs, activeDays, todayAnchor]);
 
   const habitDailyStates = useMemo(() => {
     if (!habit) return [];
