@@ -1,3 +1,4 @@
+import { useSyncExternalStore } from "react";
 import { AppState } from "react-native";
 
 import {
@@ -137,3 +138,21 @@ export function getDayBoundarySnapshotForTesting(): DaySnapshot {
 
 export const __noonOfForTesting = noonOf;
 export const __msUntilNextLocalMidnightForTesting = msUntilNextLocalMidnight;
+
+// --- Hooks ---
+
+export function useTodayDateString(): string {
+  return useSyncExternalStore(
+    subscribeDayBoundary,
+    () => getDayBoundarySnapshot().todayDateString,
+    () => getDayBoundarySnapshot().todayDateString, // getServerSnapshot: no-op for RN
+  );
+}
+
+export function useTodayAnchorDate(): Date {
+  return useSyncExternalStore(
+    subscribeDayBoundary,
+    () => getDayBoundarySnapshot().todayAnchorDate,
+    () => getDayBoundarySnapshot().todayAnchorDate,
+  );
+}
