@@ -45,7 +45,8 @@ yarn-error.*
 .codex-temp/
 
 # project docs
-/docs/
+/docs/*
+!/docs/superpowers/
 
 # local scaffolding
 _foundation/
