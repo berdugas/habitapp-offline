@@ -7,7 +7,10 @@ import { OnboardingInput } from "@/components/forms/OnboardingInput";
 import { OnboardingLayout } from "@/components/layouts/OnboardingLayout";
 import { OnboardingHeader } from "@/components/navigation/OnboardingHeader";
 import { useOnboarding } from "@/features/onboarding/OnboardingProvider";
-import { normaliseBecomingPhrase } from "@/utils/normalisePhrase";
+import {
+  isValidIdentityPhraseDraft,
+  normaliseBecomingPhrase,
+} from "@/utils/normalisePhrase";
 import { colors } from "@/theme/colors";
 import { fontFamilies } from "@/theme/fontFamilies";
 import { typography } from "@/theme/typography";
@@ -40,7 +43,7 @@ export default function BecomingScreen() {
       keyboardAware
       footer={
         <PrimaryButton
-          disabled={draft.becomingPhrase.trim().length < 2}
+          disabled={!isValidIdentityPhraseDraft(draft.becomingPhrase)}
           label="Continue"
           showArrow
           onPress={handleContinue}
