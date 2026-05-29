@@ -1,3 +1,28 @@
+jest.mock("react-native", () => {
+  const listeners = new Set();
+  const AppState = {
+    currentState: "active",
+    addEventListener: (event, listener) => {
+      if (event === "change") listeners.add(listener);
+      return { remove: () => listeners.delete(listener) };
+    },
+    __listeners: listeners,
+  };
+  return { AppState };
+});
+
+import { AppState as _MockAppState } from "react-native";
+const mockAppState = _MockAppState as unknown as {
+  currentState: string;
+  __listeners: Set<(state: string) => void>;
+};
+const appStateListeners = mockAppState.__listeners;
+
+function emitAppState(state: string): void {
+  mockAppState.currentState = state;
+  for (const l of appStateListeners) l(state);
+}
+
 import { setNowForTesting, resetClockForTesting } from "@/utils/clock";
 import {
   __noonOfForTesting,
@@ -107,5 +132,100 @@ describe("day-boundary store", () => {
     setNowForTesting(new Date(2026, 4, 30, 0, 0, 5));
     triggerDayBoundaryCheckForTesting();
     expect(listener).not.toHaveBeenCalled();
+  });
+});
+
+import { initDayBoundary } from "@/utils/dayBoundary";
+
+describe("initDayBoundary — AppState listener", () => {
+  beforeEach(() => {
+    appStateListeners.clear();
+    mockAppState.currentState = "active";
+  });
+
+  it("registers an AppState change listener and runs checkAndMaybeNotify on 'active'", () => {
+    setNowForTesting(new Date(2026, 4, 29, 23, 0, 0));
+    getDayBoundarySnapshotForTesting(); // prime
+    const listener = jest.fn();
+    subscribeDayBoundary(listener);
+
+    const cleanup = initDayBoundary();
+
+    setNowForTesting(new Date(2026, 4, 30, 0, 0, 5));
+    emitAppState("active");
+
+    expect(listener).toHaveBeenCalledTimes(1);
+    cleanup();
+  });
+
+  it("does not notify on 'background' or 'inactive' transitions", () => {
+    setNowForTesting(new Date(2026, 4, 29, 23, 0, 0));
+    getDayBoundarySnapshotForTesting();
+    const listener = jest.fn();
+    subscribeDayBoundary(listener);
+
+    const cleanup = initDayBoundary();
+
+    setNowForTesting(new Date(2026, 4, 30, 0, 0, 5));
+    emitAppState("background");
+    emitAppState("inactive");
+
+    expect(listener).not.toHaveBeenCalled();
+    cleanup();
+  });
+
+  it("cleanup removes the AppState subscription", () => {
+    const cleanup = initDayBoundary();
+    expect(appStateListeners.size).toBe(1);
+    cleanup();
+    expect(appStateListeners.size).toBe(0);
+  });
+
+  it("init is idempotent: a second call without cleanup does not double-subscribe", () => {
+    const cleanup1 = initDayBoundary();
+    const cleanup2 = initDayBoundary();
+    expect(appStateListeners.size).toBe(1);
+    cleanup1();
+    cleanup2();
+  });
+});
+
+describe("initDayBoundary — midnight timer", () => {
+  beforeEach(() => {
+    jest.useFakeTimers();
+    appStateListeners.clear();
+  });
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  it("fires checkAndMaybeNotify at the next local midnight", () => {
+    setNowForTesting(new Date(2026, 4, 29, 23, 59, 0));
+    getDayBoundarySnapshotForTesting();
+    const listener = jest.fn();
+    subscribeDayBoundary(listener);
+
+    const cleanup = initDayBoundary();
+
+    setNowForTesting(new Date(2026, 4, 30, 0, 0, 2));
+    // Advance past the scheduled timer: 60s + 1s margin
+    jest.advanceTimersByTime(62_000);
+
+    expect(listener).toHaveBeenCalledTimes(1);
+    cleanup();
+  });
+
+  it("reschedules the timer after firing", () => {
+    setNowForTesting(new Date(2026, 4, 29, 23, 59, 30));
+    getDayBoundarySnapshotForTesting();
+    const cleanup = initDayBoundary();
+
+    setNowForTesting(new Date(2026, 4, 30, 0, 0, 2));
+    jest.advanceTimersByTime(31_000); // fire the first timer
+
+    // A second timer should now be queued for next midnight.
+    expect(jest.getTimerCount()).toBeGreaterThan(0);
+
+    cleanup();
   });
 });
