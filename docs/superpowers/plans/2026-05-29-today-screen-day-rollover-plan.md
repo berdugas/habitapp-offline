@@ -1278,7 +1278,7 @@ New:
   })();
 ```
 
-Note: `todayAnchor` is captured *below* line 107 in the original ordering — move the `useTodayAnchorDate()` capture up so `calendarDays` can use it. The component body order may need a small shuffle: put both hook captures right after the `useHabitDetail` / state hooks block.
+(Steps 2 and 3 already chose the hook-capture position; `todayAnchor` is in scope by the time `calendarDays` runs.)
 
 - [ ] **Step 5: Update `activeDaysCount` (line ~207)**
 
