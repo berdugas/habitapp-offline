@@ -87,6 +87,19 @@ export default function SettingsScreen() {
         </Pressable>
       </ZenCard>
 
+      {__DEV__ ? (
+        <ZenCard gap={0}>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => router.push("/(app)/settings/appearance")}
+            style={styles.row}
+          >
+            <Text style={styles.rowLabel}>[DEV] Appearance</Text>
+            <ChevronRight color={colors.textFaint} size={18} strokeWidth={1.75} />
+          </Pressable>
+        </ZenCard>
+      ) : null}
+
       <ZenCard gap={spacing.md}>
         <Eyebrow label="Privacy & Data" />
         <Pressable
