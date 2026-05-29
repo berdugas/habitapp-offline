@@ -1,10 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
-import { colors } from "@/theme/colors";
-import { fontFamilies } from "@/theme/fontFamilies";
-import { radius } from "@/theme/radius";
-import { spacing } from "@/theme/spacing";
-import { typography } from "@/theme/typography";
+import { useThemedStyles } from "@/theme/useThemedStyles";
 
 type NullableBooleanFieldProps = {
   label: string;
@@ -17,6 +13,57 @@ export function NullableBooleanField({
   onChange,
   value,
 }: NullableBooleanFieldProps) {
+  const styles = useThemedStyles((theme) =>
+    StyleSheet.create({
+      label: {
+        color: theme.colors.text,
+        fontFamily: theme.fontFamilies.bodySemi,
+        fontSize: theme.typography.bodyMd,
+      },
+      pill: {
+        // The border lives on both states so a selected pill doesn't shift
+        // neighbors when toggled. Width is identical (1.5px); only color
+        // changes between states.
+        borderRadius: theme.radius.pill,
+        borderWidth: 1.5,
+        paddingHorizontal: theme.spacing.lg,
+        paddingVertical: theme.spacing.sm,
+      },
+      pillLabel: {
+        fontSize: theme.typography.bodyMd,
+      },
+      pillLabelSelected: {
+        // White-on-primary matches PrimaryButton's text style — the
+        // selected state should read as decisively "chosen," not just
+        // tinted. Pairs with the solid `colors.primary` background below.
+        color: theme.colors.primaryText,
+        fontFamily: theme.fontFamilies.bodyBold,
+      },
+      pillLabelUnselected: {
+        color: theme.colors.textMuted,
+        fontFamily: theme.fontFamilies.bodyMedium,
+      },
+      pillPressed: {
+        opacity: 0.86,
+      },
+      pillRow: {
+        flexDirection: "row",
+        gap: theme.spacing.sm,
+      },
+      pillSelected: {
+        backgroundColor: theme.colors.primary,
+        borderColor: theme.colors.primary,
+      },
+      pillUnselected: {
+        backgroundColor: theme.colors.surface,
+        borderColor: theme.colors.surfaceHigh,
+      },
+      wrapper: {
+        gap: theme.spacing.sm,
+      },
+    }),
+  );
+
   const options: { label: string; value: boolean }[] = [
     { label: "Yes", value: true },
     { label: "No", value: false },
@@ -58,52 +105,3 @@ export function NullableBooleanField({
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  label: {
-    color: colors.text,
-    fontFamily: fontFamilies.bodySemi,
-    fontSize: typography.bodyMd,
-  },
-  pill: {
-    // The border lives on both states so a selected pill doesn't shift
-    // neighbors when toggled. Width is identical (1.5px); only color
-    // changes between states.
-    borderRadius: radius.pill,
-    borderWidth: 1.5,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-  },
-  pillLabel: {
-    fontSize: typography.bodyMd,
-  },
-  pillLabelSelected: {
-    // White-on-primary matches PrimaryButton's text style — the
-    // selected state should read as decisively "chosen," not just
-    // tinted. Pairs with the solid `colors.primary` background below.
-    color: colors.primaryText,
-    fontFamily: fontFamilies.bodyBold,
-  },
-  pillLabelUnselected: {
-    color: colors.textMuted,
-    fontFamily: fontFamilies.bodyMedium,
-  },
-  pillPressed: {
-    opacity: 0.86,
-  },
-  pillRow: {
-    flexDirection: "row",
-    gap: spacing.sm,
-  },
-  pillSelected: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  pillUnselected: {
-    backgroundColor: colors.surface,
-    borderColor: colors.surfaceHigh,
-  },
-  wrapper: {
-    gap: spacing.sm,
-  },
-});

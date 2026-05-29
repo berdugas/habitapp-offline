@@ -1,10 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { getActiveDaysLabel } from "@/features/habits/activeDays";
-import { colors } from "@/theme/colors";
-import { fontFamilies } from "@/theme/fontFamilies";
-import { spacing } from "@/theme/spacing";
-import { typography } from "@/theme/typography";
+import { useThemedStyles } from "@/theme/useThemedStyles";
 
 // ISO weekday: Mon=1 … Sun=7
 const DAY_LABELS: { day: number; label: string }[] = [
@@ -24,6 +21,50 @@ type ActiveDaysPickerProps = {
 };
 
 export function ActiveDaysPicker({ disabled, onChange, value }: ActiveDaysPickerProps) {
+  const styles = useThemedStyles((theme) =>
+    StyleSheet.create({
+      container: {
+        gap: theme.spacing.sm,
+      },
+      fieldLabel: {
+        color: theme.colors.textMuted,
+        fontFamily: theme.fontFamilies.bodyMedium,
+        fontSize: theme.typography.labelMd,
+      },
+      row: {
+        flexDirection: "row",
+        gap: 8,
+      },
+      circle: {
+        alignItems: "center",
+        backgroundColor: theme.colors.surface,
+        borderRadius: CIRCLE_SIZE / 2,
+        height: CIRCLE_SIZE,
+        justifyContent: "center",
+        width: CIRCLE_SIZE,
+      },
+      circleSelected: {
+        backgroundColor: theme.colors.primary,
+      },
+      circleDisabled: {
+        opacity: 0.4,
+      },
+      letter: {
+        color: theme.colors.textMuted,
+        fontFamily: theme.fontFamilies.bodySemi,
+        fontSize: theme.typography.labelMd,
+      },
+      letterSelected: {
+        color: theme.colors.primaryText,
+      },
+      scheduleLabel: {
+        color: theme.colors.textFaint,
+        fontFamily: theme.fontFamilies.body,
+        fontSize: theme.typography.labelMd,
+      },
+    }),
+  );
+
   function toggle(day: number) {
     if (disabled) return;
     const isSelected = value.includes(day);
@@ -68,45 +109,3 @@ export function ActiveDaysPicker({ disabled, onChange, value }: ActiveDaysPicker
 }
 
 const CIRCLE_SIZE = 38;
-
-const styles = StyleSheet.create({
-  container: {
-    gap: spacing.sm,
-  },
-  fieldLabel: {
-    color: colors.textMuted,
-    fontFamily: fontFamilies.bodyMedium,
-    fontSize: typography.labelMd,
-  },
-  row: {
-    flexDirection: "row",
-    gap: 8,
-  },
-  circle: {
-    alignItems: "center",
-    backgroundColor: colors.surface,
-    borderRadius: CIRCLE_SIZE / 2,
-    height: CIRCLE_SIZE,
-    justifyContent: "center",
-    width: CIRCLE_SIZE,
-  },
-  circleSelected: {
-    backgroundColor: colors.primary,
-  },
-  circleDisabled: {
-    opacity: 0.4,
-  },
-  letter: {
-    color: colors.textMuted,
-    fontFamily: fontFamilies.bodySemi,
-    fontSize: typography.labelMd,
-  },
-  letterSelected: {
-    color: colors.primaryText,
-  },
-  scheduleLabel: {
-    color: colors.textFaint,
-    fontFamily: fontFamilies.body,
-    fontSize: typography.labelMd,
-  },
-});

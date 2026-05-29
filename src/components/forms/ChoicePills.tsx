@@ -1,12 +1,8 @@
 import { LinearGradient } from "expo-linear-gradient";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
-import { colors } from "@/theme/colors";
-import { fontFamilies } from "@/theme/fontFamilies";
-import { radius } from "@/theme/radius";
-import { shadows } from "@/theme/shadows";
-import { spacing } from "@/theme/spacing";
-import { typography } from "@/theme/typography";
+import { useTheme } from "@/theme/useTheme";
+import { useThemedStyles } from "@/theme/useThemedStyles";
 
 type ChoicePillOption = {
   label: string;
@@ -26,6 +22,53 @@ export function ChoicePills({
   options,
   value,
 }: ChoicePillsProps) {
+  const theme = useTheme();
+  const styles = useThemedStyles((t) =>
+    StyleSheet.create({
+      label: {
+        color: t.colors.text,
+        fontFamily: t.fontFamilies.bodySemi,
+        fontSize: t.typography.bodyMd,
+      },
+      pill: {
+        borderRadius: t.radius.pill,
+        overflow: "hidden",
+      },
+      pillGradient: {
+        boxShadow: t.shadows.lift,
+        paddingHorizontal: t.spacing.lg,
+        paddingVertical: t.spacing.sm,
+      },
+      pillInner: {
+        backgroundColor: t.colors.surface,
+        paddingHorizontal: t.spacing.lg,
+        paddingVertical: t.spacing.sm,
+      },
+      pillLabel: {
+        color: t.colors.text,
+        fontFamily: t.fontFamilies.bodySemi,
+        fontSize: t.typography.bodyMd,
+      },
+      pillLabelSelected: {
+        color: t.colors.primaryText,
+      },
+      pillPressed: {
+        opacity: 0.86,
+      },
+      pillRow: {
+        flexDirection: "row",
+        flexWrap: "wrap",
+        gap: t.spacing.sm,
+      },
+      pillSelected: {
+        boxShadow: t.shadows.lift,
+      },
+      wrapper: {
+        gap: t.spacing.sm,
+      },
+    }),
+  );
+
   const displayedOptions =
     value && !options.some((option) => option.value === value)
       ? [...options, { label: value, value }]
@@ -56,7 +99,7 @@ export function ChoicePills({
             >
               {isSelected ? (
                 <LinearGradient
-                  colors={[colors.primary, colors.primaryGradientEnd]}
+                  colors={[theme.colors.primary, theme.colors.primaryGradientEnd]}
                   end={{ x: 1, y: 1 }}
                   start={{ x: 0, y: 0 }}
                   style={styles.pillGradient}
@@ -77,47 +120,3 @@ export function ChoicePills({
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  label: {
-    color: colors.text,
-    fontFamily: fontFamilies.bodySemi,
-    fontSize: typography.bodyMd,
-  },
-  pill: {
-    borderRadius: radius.pill,
-    overflow: "hidden",
-  },
-  pillGradient: {
-    boxShadow: shadows.lift,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-  },
-  pillInner: {
-    backgroundColor: colors.surface,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-  },
-  pillLabel: {
-    color: colors.text,
-    fontFamily: fontFamilies.bodySemi,
-    fontSize: typography.bodyMd,
-  },
-  pillLabelSelected: {
-    color: colors.primaryText,
-  },
-  pillPressed: {
-    opacity: 0.86,
-  },
-  pillRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: spacing.sm,
-  },
-  pillSelected: {
-    boxShadow: shadows.lift,
-  },
-  wrapper: {
-    gap: spacing.sm,
-  },
-});

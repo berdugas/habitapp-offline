@@ -2,11 +2,8 @@ import { forwardRef } from 'react';
 import { PenLine } from 'lucide-react-native';
 import { StyleSheet, Text, TextInput, View } from 'react-native';
 
-import { colors } from '@/theme/colors';
-import { fontFamilies } from '@/theme/fontFamilies';
-import { radius } from '@/theme/radius';
-import { shadows } from '@/theme/shadows';
-import { typography } from '@/theme/typography';
+import { useTheme } from '@/theme/useTheme';
+import { useThemedStyles } from '@/theme/useThemedStyles';
 
 type OnboardingInputProps = {
   label: string;
@@ -18,15 +15,44 @@ type OnboardingInputProps = {
 
 export const OnboardingInput = forwardRef<TextInput, OnboardingInputProps>(
   function OnboardingInput({ label, placeholder, value, onChangeText, onBlur }, ref) {
+    const theme = useTheme();
+    const styles = useThemedStyles((t) =>
+      StyleSheet.create({
+        label: {
+          fontSize: t.typography.labelMd,
+          fontFamily: t.fontFamilies.bodyMedium,
+          color: t.colors.primary,
+          marginBottom: 8,
+          paddingLeft: 4,
+        },
+        inputContainer: {
+          backgroundColor: t.colors.surfaceCard,
+          borderRadius: t.radius.md,
+          paddingVertical: 12,
+          paddingHorizontal: 16,
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 12,
+          boxShadow: t.shadows.inputField,
+        },
+        input: {
+          flex: 1,
+          fontSize: 15,
+          fontFamily: t.fontFamilies.body,
+          color: t.colors.text,
+        },
+      }),
+    );
+
     return (
       <View>
         <Text style={styles.label}>{label}</Text>
         <View style={styles.inputContainer}>
-          <PenLine color={colors.primary} size={18} strokeWidth={1.5} />
+          <PenLine color={theme.colors.primary} size={18} strokeWidth={1.5} />
           <TextInput
             ref={ref}
             placeholder={placeholder}
-            placeholderTextColor={colors.textFaint}
+            placeholderTextColor={theme.colors.textFaint}
             style={styles.input}
             value={value}
             onBlur={onBlur}
@@ -37,29 +63,3 @@ export const OnboardingInput = forwardRef<TextInput, OnboardingInputProps>(
     );
   },
 );
-
-const styles = StyleSheet.create({
-  label: {
-    fontSize: typography.labelMd,
-    fontFamily: fontFamilies.bodyMedium,
-    color: colors.primary,
-    marginBottom: 8,
-    paddingLeft: 4,
-  },
-  inputContainer: {
-    backgroundColor: colors.surfaceCard,
-    borderRadius: radius.md,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    boxShadow: shadows.inputField,
-  },
-  input: {
-    flex: 1,
-    fontSize: 15,
-    fontFamily: fontFamilies.body,
-    color: colors.text,
-  },
-});
