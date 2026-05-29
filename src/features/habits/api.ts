@@ -6,8 +6,10 @@ import {
   deleteGoal as deleteGoalRow,
   deleteHabit as deleteHabitRow,
   getHabit,
+  goalExists as goalExistsRow,
   listHabits,
   reactivateHabitRow,
+  renameGoal as renameGoalRow,
   restoreGoal as restoreGoalRow,
   restoreHabit as restoreHabitRow,
   updateHabit as updateHabitRow,
@@ -270,6 +272,24 @@ export async function listGoalHabits(
   // delete-goal flows that need a true count and for cancelling reminders on
   // archived/backlog rows the UI never displays.
   return listHabits({ user_id: userId, identity_phrase: identityPhrase });
+}
+
+export async function renameGoal(
+  userId: string,
+  oldPhrase: string,
+  newPhrase: string,
+): Promise<{ renamedHabitIds: string[] }> {
+  // Pure pass-through: a rename touches only local_habits.identity_phrase.
+  // Reminders are keyed by habit id (unchanged here), so there is no
+  // OS-notification teardown to do, unlike archive/delete.
+  return renameGoalRow(userId, oldPhrase, newPhrase);
+}
+
+export async function goalExists(
+  userId: string,
+  phrase: string,
+): Promise<boolean> {
+  return goalExistsRow(userId, phrase);
 }
 
 // ─── Goal archive / restore ───────────────────────────────────────────────────
