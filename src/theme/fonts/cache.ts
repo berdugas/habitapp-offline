@@ -79,3 +79,7 @@ export async function ensureCachedFont(
 export async function deleteCachedFont(hash: string): Promise<void> {
   await FileSystem.deleteAsync(getCachePath(hash), { idempotent: true });
 }
+
+export async function clearFontCache(): Promise<void> {
+  await FileSystem.deleteAsync(FONTS_DIR, { idempotent: true });
+}
