@@ -720,42 +720,53 @@ EOF
 **Files:**
 - Modify: `src/providers/AppProviders.tsx`
 
-- [ ] **Step 1: Update AppProviders to call initDayBoundary in an effect**
+- [ ] **Step 1: Read the current `AppProviders.tsx`**
 
-Replace `src/providers/AppProviders.tsx` with:
+Read the file. Note the exact current contents — the file may have grown to include things this plan didn't anticipate (gesture handler root, safe-area provider, error boundary, theme, navigation container). **Do not rewrite the file from scratch.** The next steps are surgical edits over whatever is currently there.
+
+- [ ] **Step 2: Edit the React import to include `useEffect`**
+
+Find the existing `import` statement for React (currently `import type { PropsWithChildren } from "react";` per the file read at design time). If `useEffect` is not already imported, change it:
+
+Old:
+```ts
+import type { PropsWithChildren } from "react";
+```
+
+New:
+```ts
+import { useEffect, type PropsWithChildren } from "react";
+```
+
+If `useEffect` is already imported via a different shape, leave that line alone.
+
+- [ ] **Step 3: Add the `initDayBoundary` import**
+
+Add one line alongside the other `@/...` imports (alphabetical ordering preferred to match the file):
+
+```ts
+import { initDayBoundary } from "@/utils/dayBoundary";
+```
+
+- [ ] **Step 4: Insert the init effect inside the `AppProviders` component body**
+
+Find the `AppProviders` function. Immediately inside the function body, **before** the existing `return (...)`, insert:
 
 ```tsx
-import { useEffect, type PropsWithChildren } from "react";
-
-import { QueryClientProvider } from "@tanstack/react-query";
-
-import { queryClient } from "@/lib/query/queryClient";
-import { AuthBootstrap } from "@/providers/AuthBootstrap";
-import { TrialValidationBootstrap } from "@/providers/TrialValidationBootstrap";
-import { initDayBoundary } from "@/utils/dayBoundary";
-
-export function AppProviders({ children }: PropsWithChildren) {
   useEffect(() => {
     const cleanup = initDayBoundary();
     return cleanup;
   }, []);
-
-  return (
-    <QueryClientProvider client={queryClient}>
-      <AuthBootstrap>
-        <TrialValidationBootstrap>{children}</TrialValidationBootstrap>
-      </AuthBootstrap>
-    </QueryClientProvider>
-  );
-}
 ```
 
-- [ ] **Step 2: Run the full unit test suite to ensure no regressions**
+Do not touch anything else in the component — the existing JSX tree (whatever providers it contains) stays exactly as-is.
+
+- [ ] **Step 5: Run the full unit test suite to ensure no regressions**
 
 Run: `npm test -- src/utils src/providers`
 Expected: PASS for all dayBoundary tests and any AppProviders tests; no failures.
 
-- [ ] **Step 3: Commit**
+- [ ] **Step 6: Commit**
 
 ```bash
 git add src/providers/AppProviders.tsx
@@ -794,10 +805,43 @@ Each task migrates one file. Each migration is a mechanical substitution: `today
 
 Tests do not change in this batch — the values returned at a given moment are identical, so existing assertions hold.
 
+### Task 2.0: Verify the load-bearing helper-internal clone claim
+
+**Files (read only):**
+- Read: `src/utils/dates.ts`
+
+The plan asserts that `getTrailingDateRangeStrings`, `getWeekStartDate`, `getWeekStartDateString`, and `addDeviceDays` all construct a fresh `Date` before mutating their input. If any of them mutates via `setHours` / `setDate` / `setMonth` without cloning first, every `useTodayAnchorDate()` consumer downstream sees a corrupted cached anchor and the whole abstraction silently fails. **Verify before migrating any caller.**
+
+- [ ] **Step 1: Read `src/utils/dates.ts` end-to-end**
+
+Confirm each of these four exports begins with `new Date(<arg>)` (or `new Date()`) before any mutating method call:
+
+- `addDeviceDays(date, amount)` — first line should be `const nextDate = new Date(date);`
+- `getTrailingDateRangeStrings(windowDays, endDate)` — first line should be `const safeEndDate = new Date(endDate);`
+- `getWeekStartDate(date)` — first line should be `const localDate = new Date(date);`
+- `getWeekStartDateString(date)` — delegates to `getWeekStartDate`, no direct mutation
+
+Verified at plan-write time: all four clone first. If a later commit has changed this, fix the helper or wrap every `useTodayAnchorDate()` site in `new Date(todayAnchor)` before passing through. Do not proceed with Batch 2 until this is confirmed in the current code.
+
+- [ ] **Step 2: Spot-check with a grep**
+
+Run:
+```bash
+grep -nE "^(export )?function (addDeviceDays|getTrailingDateRangeStrings|getWeekStartDate|getWeekStartDateString)" src/utils/dates.ts
+```
+
+For each match, eyeball the next 3-5 lines for a `new Date(...)` clone before any `set*` call.
+
+No commit — this is a verification step only.
+
 ### Task 2.1: Migrate `src/features/habits/hooks.ts`
 
 **Files:**
 - Modify: `src/features/habits/hooks.ts`
+
+- [ ] **Step 0: Read the file and confirm the exact identifiers in current code**
+
+Read `src/features/habits/hooks.ts`. For each render-time date call about to be migrated, note whether the current code reads `todayDateString()` or `toDeviceDateString()` (no-arg) or something else. The plan's Old snippets reflect the file at design time (`toDeviceDateString()`), but if a more recent commit changed the identifier, the substitution will not match and the executor must reconcile before continuing.
 
 - [ ] **Step 1: Replace the render-time date reads in `useEligibleHabitsQuery` and `useUpcomingActiveHabitsQuery`**
 
@@ -916,7 +960,7 @@ Apply the analogous edit: `today = todayDateString()` → `today = useTodayDateS
 
 - [ ] **Step 4: Migrate `useTodayHabits` (line ~109)**
 
-Three render-time sites:
+Four render-time sites:
 - `const todayDate = todayDateString();` → `const todayDate = useTodayDateString();`
 - `getTrailingDateRangeStrings(TODAY_PROGRESS_WINDOW_DAYS, now())` → `getTrailingDateRangeStrings(TODAY_PROGRESS_WINDOW_DAYS, todayAnchor)` (capture `const todayAnchor = useTodayAnchorDate();` near the top)
 - `getWeekStartDateString(now())` → `getWeekStartDateString(todayAnchor)`
@@ -974,6 +1018,10 @@ EOF
 **Files:**
 - Modify: `src/features/recovery/hooks.ts`
 
+- [ ] **Step 0: Read the file and confirm the exact identifiers in current code**
+
+Read `src/features/recovery/hooks.ts`. Confirm both render-time date reads still use `todayDateString()` (per the plan's Old snippets, captured at design time). If a more recent commit changed them, reconcile before substituting.
+
 - [ ] **Step 1: Add the import**
 
 ```ts
@@ -1012,6 +1060,10 @@ EOF
 **Files:**
 - Modify: `src/features/reviews/useGoalWeekSummary.ts`
 
+- [ ] **Step 0: Read the file and confirm the exact identifier in current code**
+
+Read `src/features/reviews/useGoalWeekSummary.ts`. Confirm the render-time date read still uses `toDeviceDateString()` (per the Old snippet). If a more recent commit changed it, reconcile before substituting.
+
 - [ ] **Step 1: Add the import and replace the date read (line ~37)**
 
 Add:
@@ -1044,6 +1096,10 @@ EOF
 
 **Files:**
 - Modify: `src/features/reviews/hooks.ts`
+
+- [ ] **Step 0: Read the file and confirm the exact identifiers in current code**
+
+Read `src/features/reviews/hooks.ts`. Confirm `useGoalReviewStatusQuery` still reads `getWeekStartDateString()` (no-arg) and `toDeviceDateString()` (no-arg) at lines ~61-62. If a more recent commit changed them, reconcile before substituting.
 
 - [ ] **Step 1: Add imports**
 
@@ -1177,7 +1233,20 @@ Five render-time sites: `calendarDays` (line 107), `todayDate` / `currentWeekSta
 import { useTodayAnchorDate, useTodayDateString } from "@/utils/dayBoundary";
 ```
 
-- [ ] **Step 2: Capture both hook values once near the top of the component (after `const habit = ...`)**
+- [ ] **Step 2: Pick the hook-capture position and verify rules-of-hooks**
+
+The new hook captures must satisfy two constraints:
+
+1. They must come **before** the first use of `todayAnchor` / `todayDate` in render-time code (the earliest use is `calendarDays` at line ~107).
+2. They must come **after** all other unconditional hook calls in the component, and there must be **no conditional early return** (e.g. `if (!habit) return null;`) between any earlier hook and the new hooks. A conditional return between hooks violates rules-of-hooks.
+
+Read the current `HabitDetailScreen` function body from the top down through line ~150. Identify the last unconditional hook call before line ~107 (e.g., `useHabitDetail`, `useState`, `useRef`). Confirm that between that hook and line ~107, no `return` statement runs conditionally. The new captures go immediately after that last unconditional hook call.
+
+If a conditional return exists in the path you want to use (defensive: it most likely does not in the current file, since later hooks already run after line 107), stop and surface the conflict — do not move hooks past a conditional return. The implementer must either lift the early return below all hooks or restructure the component before continuing.
+
+- [ ] **Step 3: Insert the hook captures at the chosen position**
+
+Add:
 
 ```ts
   const todayAnchor = useTodayAnchorDate();
@@ -1185,9 +1254,9 @@ import { useTodayAnchorDate, useTodayDateString } from "@/utils/dayBoundary";
   const currentWeekStart = getWeekStartDateString(todayAnchor);
 ```
 
-This replaces the existing `const todayDate = toDeviceDateString(now());` and `const currentWeekStart = getWeekStartDateString(now());` at lines 145-146. Delete those two lines.
+Delete the existing `const todayDate = toDeviceDateString(now());` and `const currentWeekStart = getWeekStartDateString(now());` at lines 145-146 (the values are now provided by the new captures above).
 
-- [ ] **Step 3: Update `calendarDays` (line ~107)**
+- [ ] **Step 4: Update `calendarDays` (line ~107)**
 
 Old:
 ```ts
@@ -1211,7 +1280,7 @@ New:
 
 Note: `todayAnchor` is captured *below* line 107 in the original ordering — move the `useTodayAnchorDate()` capture up so `calendarDays` can use it. The component body order may need a small shuffle: put both hook captures right after the `useHabitDetail` / state hooks block.
 
-- [ ] **Step 4: Update `activeDaysCount` (line ~207)**
+- [ ] **Step 5: Update `activeDaysCount` (line ~207)**
 
 Old:
 ```ts
@@ -1233,7 +1302,7 @@ New:
 
 The `new Date(todayAnchor)` copy is required so `setHours` doesn't mutate the cached anchor. Important: without the copy, every consumer of `useTodayAnchorDate()` sees a midnight-shifted date.
 
-- [ ] **Step 5: Update `weeklyData` chart endpoint (line ~247)**
+- [ ] **Step 6: Update `weeklyData` chart endpoint (line ~247)**
 
 Old:
 ```ts
@@ -1271,16 +1340,16 @@ New:
   // on normal re-renders but correctly invalidates the chart at rollover.
 ```
 
-- [ ] **Step 6: Leave the retro-window check (~line 297) untouched**
+- [ ] **Step 7: Leave the retro-window check (~line 297) untouched**
 
 The `isWithinRetroWindow(date, now())` call inside the date-picker handler is action-time. Bare `now()` is correct there.
 
-- [ ] **Step 7: Run the HabitDetailScreen tests**
+- [ ] **Step 8: Run the HabitDetailScreen tests**
 
 Run: `npm test -- src/features/habits/screens/__tests__/HabitDetailScreen`
 Expected: All green.
 
-- [ ] **Step 8: Commit**
+- [ ] **Step 9: Commit**
 
 ```bash
 git add src/features/habits/screens/HabitDetailScreen.tsx
@@ -1703,9 +1772,13 @@ EOF
 **Files:**
 - Modify: `src/features/today/__tests__/TodayScreen.integration.test.tsx`
 
+- [ ] **Step 0: Read the current test file end-to-end**
+
+Read `src/features/today/__tests__/TodayScreen.integration.test.tsx`. Critical: check whether the file already declares `jest.mock("react-native", ...)`. The plan was written against a version that does not, but pasting a second `jest.mock` call for the same module will conflict. If the existing file already mocks `react-native`, do not add a second mock block — extend the existing factory to include the `AppState` shape from Step 1, and keep the rest of its return object intact.
+
 - [ ] **Step 1: Add the AppState mock at the top of the file**
 
-Insert at the very top, before all other imports:
+If no `jest.mock("react-native", ...)` exists per Step 0, insert at the very top, before all other imports:
 
 ```ts
 const appStateListeners = new Set<(state: string) => void>();
@@ -1727,7 +1800,7 @@ function emitAppStateActive(): void {
 }
 ```
 
-(If a `jest.mock("react-native", ...)` already exists at the top, merge the `AppState` field into the existing mock factory.)
+If a `jest.mock("react-native", ...)` factory already exists per Step 0, edit the existing factory to add the `AppState` field shown above, leaving the rest of its return object intact. Add the `appStateListeners` set and `emitAppStateActive` helper alongside the existing mock.
 
 - [ ] **Step 2: Add imports for the day-boundary test seams**
 
@@ -1735,6 +1808,7 @@ function emitAppStateActive(): void {
 import {
   initDayBoundary,
   resetDayBoundaryForTesting,
+  triggerDayBoundaryCheckForTesting,
 } from "@/utils/dayBoundary";
 ```
 
@@ -1789,16 +1863,10 @@ describe("TodayScreen integration — day rollover", () => {
 
 - [ ] **Step 5: Add the midnight-while-open regression test**
 
-Append within the same `describe`:
+Append within the same `describe`. No fake timers needed — the explicit trigger seam is the whole point of this test path:
 
 ```tsx
   it("refreshes when local midnight passes while the app is open", async () => {
-    jest.useFakeTimers({ doNotFake: ["setTimeout"] });
-    // ^ jest-expo / jest-fake-timers can interfere; use real timers for the
-    //   midnight setTimeout but freeze clock via setNowForTesting.
-    // If the above shape doesn't work, fall back to jest.useFakeTimers() and
-    // advance manually as in the dayBoundary unit tests.
-
     setNowForTesting(new Date(2026, 4, 29, 23, 59, 0));
     renderWithClient(<TodayScreen />);
 
@@ -1807,9 +1875,8 @@ Append within the same `describe`:
     });
 
     setNowForTesting(new Date(2026, 4, 30, 0, 0, 5));
-    // Use the explicit test trigger rather than waiting on real-time.
     act(() => {
-      require("@/utils/dayBoundary").triggerDayBoundaryCheckForTesting();
+      triggerDayBoundaryCheckForTesting();
     });
 
     await waitFor(() => {
@@ -1818,7 +1885,7 @@ Append within the same `describe`:
   });
 ```
 
-(Note: the integration test uses the explicit `triggerDayBoundaryCheckForTesting` test seam — see the design's "test author UX" guidance. The fake-timer approach is reserved for `dayBoundary.test.ts`.)
+Per the design's "test author UX" guidance, the integration test path uses the explicit `triggerDayBoundaryCheckForTesting` test seam. The fake-timer approach is reserved for `dayBoundary.test.ts` (where the goal is to assert the timer mechanism itself).
 
 - [ ] **Step 6: Run the integration test suite**
 
