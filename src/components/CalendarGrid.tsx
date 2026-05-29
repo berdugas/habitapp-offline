@@ -4,8 +4,8 @@ import { isoWeekday } from "@/features/habits/activeDays";
 import { colors } from "@/theme/colors";
 import { fontFamilies } from "@/theme/fontFamilies";
 import { typography } from "@/theme/typography";
-import { todayDateString } from "@/utils/clock";
 import { addDeviceDays, toDeviceDateString } from "@/utils/dates";
+import { useTodayDateString } from "@/utils/dayBoundary";
 
 import type { HabitLogStatus } from "@/features/habits/types";
 
@@ -33,9 +33,9 @@ const DAY_HEADERS = ["M", "T", "W", "T", "F", "S", "S"];
 export function buildGrid(
   logs: HeatmapLog[],
   activeDays: number[],
-  startDate?: string,
+  startDate: string | undefined,
+  today: string,
 ): CalendarCell[] {
-  const today = todayDateString();
   const todayDate = new Date(`${today}T12:00:00`);
   const todayWeekday = isoWeekday(todayDate); // Mon=1 … Sun=7
 
@@ -107,8 +107,8 @@ export function buildGrid(
 }
 
 export function CalendarGrid({ activeDays, logs, onCellPress, startDate }: CalendarGridProps) {
-  const cells = buildGrid(logs, activeDays, startDate);
-  const today = todayDateString();
+  const today = useTodayDateString();
+  const cells = buildGrid(logs, activeDays, startDate, today);
   const rows = cells.length / 7;
 
   function handlePress(cell: CalendarCell) {
