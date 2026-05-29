@@ -198,12 +198,12 @@ Fonts. New Rocker is a decorative blackletter with one weight — unreadable at 
 
 ### 4.4 Design constraint: graduatedCircle on graduatedBadge
 
-`graduatedCircle` is used as the text color on a `graduatedBadge` background in [LibraryHabitCard.tsx:139-147](src/features/library/components/LibraryHabitCard.tsx) and [HabitDetailScreen.tsx:605-613](src/features/habits/screens/HabitDetailScreen.tsx). Every theme must pick a `graduatedCircle` value that is legible on its `graduatedBadge`. **Code-enforced** via the contrast test in §7 (the pair is in the enumerated list), plus hand-tuned within each theme to land a legible pair.
+`graduatedCircle` is used as the text color on a `graduatedBadge` background in [LibraryHabitCard.tsx:139-147](src/features/library/components/LibraryHabitCard.tsx) and [HabitDetailScreen.tsx:605-613](src/features/habits/screens/HabitDetailScreen.tsx). New themes must pick a `graduatedCircle` legible on their `graduatedBadge`. **Code-enforced** via the contrast test in §7 (the pair is enumerated; new themes get it checked with no waiver).
 
-Computed v1 values:
-- Zen: `#446655` on `#c6ebd5` = **4.96:1** (passes AA Normal at thin margin — any tweak to either token should re-verify).
-- Cafe: `#7B5E3D` on `#F5EDE0` = **5.15:1**.
-- Fantasy: `#1F2937` on `#FDC800` = **9.39:1**.
+Computed v1 values (corrected — an earlier draft of this section mistakenly used Zen's `primary` `#446655` instead of its actual `graduatedCircle` `#6b9e7d`):
+- **Zen: `#6b9e7d` on `#c6ebd5` = 2.38:1 — FAILS AA.** This is the *current shipping app's* pairing (mint label on mint badge). Zen must remain visually identical to today, so its colors cannot change in this project; the pair is **grandfathered via a §7 waiver** and the underlying a11y debt is tracked as a separate fix (see §11/§12). New themes do NOT get this waiver.
+- Cafe: `#7B5E3D` on `#F5EDE0` = **5.15:1** (passes).
+- Fantasy: `#1F2937` on `#FDC800` = **9.39:1** (passes).
 
 ---
 
@@ -269,13 +269,26 @@ Preference-rewrite rule (top-level): preferences are rewritten only when the sto
 
 ```ts
 const KNOWN_CONTRAST_WAIVERS = [
-  { themeId: 'zen',     fg: 'textFaint', bg: 'bg', reason: "Body-faint copy fails AA Normal; tracked in §12 v2 followups #8" },
-  { themeId: 'cafe',    fg: 'textFaint', bg: 'bg', reason: "Body-faint copy fails AA Normal; tracked in §12 v2 followups #8" },
-  { themeId: 'fantasy', fg: 'textFaint', bg: 'bg', reason: "Body-faint copy fails AA Normal; tracked in §12 v2 followups #8" },
+  // textFaint is a deliberately-faint hint color; it fails AA Normal on every
+  // surface in all three themes (~2.3–3.1:1). Pre-existing in Zen; mirrored debt
+  // in Cafe/Fantasy. Tracked in §12 v2 followups #8.
+  { themeId: 'zen',     fg: 'textFaint',       bg: 'bg',          reason: "Body-faint copy fails AA Normal; §12 #8" },
+  { themeId: 'zen',     fg: 'textFaint',       bg: 'surfaceCard', reason: "Body-faint copy fails AA Normal; §12 #8" },
+  { themeId: 'zen',     fg: 'textFaint',       bg: 'surface',     reason: "Body-faint copy fails AA Normal; §12 #8" },
+  { themeId: 'cafe',    fg: 'textFaint',       bg: 'bg',          reason: "Body-faint copy fails AA Normal; §12 #8" },
+  { themeId: 'cafe',    fg: 'textFaint',       bg: 'surfaceCard', reason: "Body-faint copy fails AA Normal; §12 #8" },
+  { themeId: 'cafe',    fg: 'textFaint',       bg: 'surface',     reason: "Body-faint copy fails AA Normal; §12 #8" },
+  { themeId: 'fantasy', fg: 'textFaint',       bg: 'bg',          reason: "Body-faint copy fails AA Normal; §12 #8" },
+  { themeId: 'fantasy', fg: 'textFaint',       bg: 'surfaceCard', reason: "Body-faint copy fails AA Normal; §12 #8" },
+  { themeId: 'fantasy', fg: 'textFaint',       bg: 'surface',     reason: "Body-faint copy fails AA Normal; §12 #8" },
+  // Zen's graduated badge is mint label on mint badge (2.38:1) — the current
+  // shipping app's pairing. Zen must stay visually identical to today, so it
+  // cannot be changed here; grandfathered. Cafe (5.15) and Fantasy (9.39) pass.
+  { themeId: 'zen',     fg: 'graduatedCircle', bg: 'graduatedBadge', reason: "Pre-existing low-contrast graduated badge in shipping app; Zen is frozen; §12 #8" },
 ];
 ```
 
-  The test enumerates a fixed list of `(fg, bg)` token pairs actually used in the app — `text|textMuted|textFaint` on `bg|surfaceCard|surface`, `primaryText` on `primary`, `graduatedCircle` on `graduatedBadge`. Catches static token pairs only. Does not cover gradients, overlays, or text-on-image cases.
+  The test enumerates a fixed list of `(fg, bg)` token pairs actually used in the app — `text|textMuted|textFaint` on `bg|surfaceCard|surface`, `primaryText` on `primary`, `graduatedCircle` on `graduatedBadge`. `text`, `textMuted`, and `primaryText` pairs pass AA in all themes and stay enforced; any regression fails CI. A NEW theme is checked on ALL pairs (no waivers for its id), so it must meet AA on graduatedCircle/graduatedBadge and is pushed toward fixing textFaint. Catches static token pairs only — not gradients, overlays, or text-on-image.
 
 - **Hot-reload smoke check** (manual, before merging each migration PR): switch theme to Cafe, edit any themed component, verify (a) the theme persists across Fast Refresh, (b) no missing-font warnings in Metro console, (c) the updated component renders with Cafe colors.
 
@@ -358,7 +371,8 @@ Owner tests all three themes on real iOS + Android device. Specifically verifies
 
 ## 11. Accessibility (known limitations)
 
-- **Body-faint contrast.** Every theme's `textFaint` on `bg` fails WCAG AA Normal (~2.85-3.0:1 across all three). Grandfathered in `KNOWN_CONTRAST_WAIVERS`. Tracked for v2.
+- **Body-faint contrast.** Every theme's `textFaint` fails WCAG AA Normal on `bg`, `surfaceCard`, AND `surface` (~2.3–3.1:1 across all three). Grandfathered in `KNOWN_CONTRAST_WAIVERS`. Tracked for v2.
+- **Zen graduated badge.** Zen's `graduatedCircle` (#6b9e7d, mint) on `graduatedBadge` (#c6ebd5, mint) is 2.38:1 — fails AA. This is the current shipping app's pairing and is left unchanged (Zen is frozen to today's look); grandfathered. Cafe (5.15:1) and Fantasy (9.39:1) pass. Fixing Zen's graduated-badge contrast is a separate a11y task, not part of theming v1.
 - **Dyslexia.** New Rocker (blackletter) and IBM Plex Mono (monospace) are both harder to read for dyslexic users. Fantasy is the worst of three on this dimension. No mitigation in v1.
 - **CVD.** Fantasy's blue/gold heatmap can be confused under tritan-type color blindness (rare but real). Cafe's brown/tan ramp is safe for all CVD types. No mitigation in v1.
 

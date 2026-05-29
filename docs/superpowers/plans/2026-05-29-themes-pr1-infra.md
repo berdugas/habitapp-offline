@@ -1634,9 +1634,19 @@ type Waiver = {
 };
 
 const KNOWN_CONTRAST_WAIVERS: Waiver[] = [
-  { themeId: "zen",     fg: "textFaint", bg: "bg", reason: "Body-faint copy fails AA Normal; tracked in spec §12 v2 followups #8" },
-  { themeId: "cafe",    fg: "textFaint", bg: "bg", reason: "Body-faint copy fails AA Normal; tracked in spec §12 v2 followups #8" },
-  { themeId: "fantasy", fg: "textFaint", bg: "bg", reason: "Body-faint copy fails AA Normal; tracked in spec §12 v2 followups #8" },
+  // textFaint fails AA Normal on every surface in all 3 themes (~2.3-3.1:1).
+  { themeId: "zen",     fg: "textFaint",       bg: "bg",             reason: "Body-faint copy fails AA Normal; §12 #8" },
+  { themeId: "zen",     fg: "textFaint",       bg: "surfaceCard",    reason: "Body-faint copy fails AA Normal; §12 #8" },
+  { themeId: "zen",     fg: "textFaint",       bg: "surface",        reason: "Body-faint copy fails AA Normal; §12 #8" },
+  { themeId: "cafe",    fg: "textFaint",       bg: "bg",             reason: "Body-faint copy fails AA Normal; §12 #8" },
+  { themeId: "cafe",    fg: "textFaint",       bg: "surfaceCard",    reason: "Body-faint copy fails AA Normal; §12 #8" },
+  { themeId: "cafe",    fg: "textFaint",       bg: "surface",        reason: "Body-faint copy fails AA Normal; §12 #8" },
+  { themeId: "fantasy", fg: "textFaint",       bg: "bg",             reason: "Body-faint copy fails AA Normal; §12 #8" },
+  { themeId: "fantasy", fg: "textFaint",       bg: "surfaceCard",    reason: "Body-faint copy fails AA Normal; §12 #8" },
+  { themeId: "fantasy", fg: "textFaint",       bg: "surface",        reason: "Body-faint copy fails AA Normal; §12 #8" },
+  // Zen's mint-on-mint graduated badge (2.38:1) is the shipping app's pairing;
+  // Zen is frozen to today's look, so grandfather it. Cafe/Fantasy pass.
+  { themeId: "zen",     fg: "graduatedCircle", bg: "graduatedBadge", reason: "Pre-existing low-contrast graduated badge; Zen frozen; §12 #8" },
 ];
 
 const REQUIRED_PAIRS: Array<{ fg: keyof Colors; bg: keyof Colors }> = [
