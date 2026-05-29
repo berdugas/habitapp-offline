@@ -110,6 +110,12 @@ so it would pass. Validate the **cleaned** result instead: length ≥ 2 and ≤ 
 [validators.ts:54](../../../src/features/habits/validators.ts) — consistency, not a
 new rule).
 
+The onboarding "Who do you want to become?" screen has the **same** raw-length gate
+([BecomingScreen.tsx:43](../../../src/features/onboarding/screens/BecomingScreen.tsx))
+and normalise-after pattern, so `"become a"` → `"a"` slips through there too. Apply
+the cleaned-value validation on **both** screens — they are the matched pair for
+goal-phrase entry.
+
 ---
 
 ## Part 2 — Editing a goal (on the goal page)
@@ -118,9 +124,12 @@ new rule).
 
 Add a small **edit (pencil) control** next to the "Become …" title on the
 [goal detail page](../../../src/features/today/screens/GoalDetailScreen.tsx).
-Tapping it turns the title into a text field, pre-filled with the current wording
-(minus the "Become" prefix), with **Save / Cancel**. The control is hidden when the
-account is read-only (trial expired), the same as the existing Archive button.
+Tapping it turns the title into a text field, pre-filled with the current
+`identity_phrase` as-is, with **Save / Cancel**. (The stored phrase never contains
+"Become" — that word lives only in the `Become {phrase}` display template, and
+`normaliseBecomingPhrase` strips any "become " lead-in at write time — so there is
+nothing to strip on pre-fill.) The control is hidden when the account is read-only
+(trial expired), the same as the existing Archive button.
 
 ### Save behaviour
 
@@ -128,9 +137,10 @@ account is read-only (trial expired), the same as the existing Archive button.
 - Validate the **cleaned** value: ≥ 2 and ≤ 240. Block otherwise.
 - **No-op guard:** if the cleaned new phrase equals the old, just close the editor —
   no mutation, no navigation.
-- **Merge confirm:** if the cleaned new phrase matches an existing goal of the
-  user's, confirm first ("You already have a goal called X — saving will combine
-  them"). Saving is allowed; the goals merge (see Edge cases).
+- **Merge confirm:** detect whether the cleaned new phrase already names one of the
+  user's goals via the `goalExists` lookup (Part 3). If it does, confirm first
+  ("You already have a goal called X — saving will combine them"). Saving is
+  allowed; the goals merge (see Edge cases).
 - On save, rename `identity_phrase` across **every habit under the goal** — active,
   backlog, and archived — matching how archive/delete already behave. Habits with
   no identity phrase are untouched (rename is phrase-scoped).
@@ -169,6 +179,18 @@ because the hook needs them to refresh per-habit caches.
 ### api.ts — `renameGoal` wrapper
 
 Thin wrapper, mirroring the other goal-level api functions.
+
+### Goal-existence lookup (drives the merge confirm)
+
+There is no existing way to ask "does a goal with this phrase exist?" — the repo
+only has `listArchivedGoals` (archived-only) and `listGoalHabits` (habits for one
+phrase). Add a `goalExists(userId, phrase)` repo/api function:
+`SELECT 1 FROM local_habits WHERE user_id = ? AND identity_phrase = ? LIMIT 1`,
+**across all statuses** (active, backlog, archived) — an archived-only target still
+counts as a merge because it changes grouping. The renamed goal needs no explicit
+exclusion: the check runs against the **new** phrase before the mutation, while the
+source habits still hold the **old** phrase, so they cannot self-match (the
+`new == old` case is already handled by the no-op guard).
 
 ### Hook — `useRenameGoalMutation`
 
@@ -224,10 +246,13 @@ then navigate.**
 
 - **Merge** (rename onto an existing goal): allowed, after the confirm dialog. The
   DB is safe — there is no unique constraint on the phrase; goals are already just
-  multiple rows sharing a phrase. Analytics: the target id wins automatically
-  (`goalIdFor(newPhrase)` already resolves to it; the alias does not fire because
-  the target is mapped). Broad-prefix invalidation refreshes both the now-empty
-  source and the now-bigger target for free.
+  multiple rows sharing a phrase. Analytics: if the target **already has** an id
+  (it had been viewed or mutated), that id wins — `goalIdFor(newPhrase)` resolves to
+  it and the alias does not fire because the target is mapped. If the target has
+  **no id yet** (never viewed or mutated, so unmapped), the alias fires and the
+  merged goal adopts the **source's** id. Either way the goal is consistent going
+  forward and past events are immutable. Broad-prefix invalidation refreshes both
+  the now-empty source and the now-bigger target for free.
 - **No-op:** cleaned new == old → close editor, do nothing.
 - **Read-only mode:** edit control hidden, like Archive.
 - **Cleaned < 2 chars** (e.g. "become a" → "a"): blocked by validation.
@@ -252,7 +277,12 @@ later if funnel analysis wants to distinguish merges; not required for v1.
   already mapped (target wins); persists; safe across the hydration race.
 - **`useRenameGoalMutation`** — alias-before-navigate ordering; surface-helper
   invalidation; `goal_renamed` fired with the continuous id.
+- **`goalExists` repo/api** — true when any habit of any status carries the phrase,
+  false otherwise; user-scoped.
 - **Goal page edit flow** — Save renames and navigates to the new phrase;
-  validation blocks < 2; read-only hides the control; merge confirm; no-op closes
-  without mutating.
+  cleaned-value validation blocks < 2; read-only hides the control; the merge
+  confirm fires when `goalExists` returns true (including an archived-only target);
+  no-op closes without mutating.
+- **Create + onboarding entry** — cleaned-value validation (≥ 2) blocks
+  `"become a"` → `"a"` on **both** the create goal step and the onboarding screen.
 - **Edit-habit screen** — the goal hint navigates to the goal page.
