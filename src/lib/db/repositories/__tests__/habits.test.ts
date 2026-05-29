@@ -712,6 +712,7 @@ describe("habits repository", () => {
       await archiveHabit(toArchive.id);
       const other = await createHabit(makeInput({ identity_phrase: "a writer", title: "D" }));
 
+      await new Promise((r) => setTimeout(r, 5));
       const result = await renameGoal("user-1", "a runner", "runner");
 
       expect(result.renamedHabitIds.sort()).toEqual(
@@ -721,6 +722,9 @@ describe("habits repository", () => {
       expect((await listHabits({ user_id: "user-1", identity_phrase: "a runner" })).length).toBe(0);
       const writer = await getHabit(other.id);
       expect(writer!.identity_phrase).toBe("a writer");
+
+      const renamedActive = await getHabit(active.id);
+      expect(renamedActive!.updated_at > active.updated_at).toBe(true);
     });
 
     it("is scoped to the user", async () => {
