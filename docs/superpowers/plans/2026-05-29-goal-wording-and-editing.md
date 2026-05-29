@@ -629,6 +629,21 @@ describe("useRenameGoalMutation", () => {
     // Event fired with the continuous id.
     expect(mockTrackEvent).toHaveBeenCalledWith("goal_renamed", { goal_id: oldId });
   });
+
+  it("on a merge, keeps the existing target id and reports it (alias no-ops)", async () => {
+    const targetId = goalIdFor("runner");
+    goalIdFor("a healthy");
+
+    const { result } = renderHook(() => useRenameGoalMutation(), { wrapper });
+    await result.current.mutateAsync({ oldPhrase: "a healthy", newPhrase: "runner" });
+
+    await waitFor(() => {
+      expect(mockRenameGoal).toHaveBeenCalledWith("user-1", "a healthy", "runner");
+    });
+    // Target already had an id — it wins; the alias must not overwrite it.
+    expect(goalIdFor("runner")).toBe(targetId);
+    expect(mockTrackEvent).toHaveBeenCalledWith("goal_renamed", { goal_id: targetId });
+  });
 });
 ```
 
@@ -809,6 +824,10 @@ Add this `describe` block inside the top-level `describe("GoalDetailScreen", ...
         pathname: "/(app)/goals/[identityPhrase]",
         params: { identityPhrase: encodeURIComponent("healthy") },
       });
+      // The editor must close after a successful save. router.replace updates
+      // params without necessarily remounting, so the screen relies on the
+      // explicit reset in commitRename — not on a remount — to clear it.
+      expect(screen.queryByTestId("goal-phrase-input")).toBeNull();
     });
 
     it("does not rename when the cleaned phrase is too short", async () => {
@@ -977,6 +996,15 @@ Add `useRenameGoalMutation` to the existing `@/features/habits/hooks` import blo
         oldPhrase: identityPhrase,
         newPhrase: cleaned,
       });
+      // Close the editor explicitly. A param-only router.replace may re-render
+      // this screen instead of remounting it, so the local editor state would
+      // otherwise persist over the renamed goal. Do NOT reset isExitingRef
+      // here: the route param is still the now-empty old phrase until
+      // navigation lands, and re-arming the redirect guard would race a bounce
+      // to Today.
+      setIsEditingGoal(false);
+      setGoalDraft("");
+      setRenameError(null);
       router.replace({
         pathname: "/(app)/goals/[identityPhrase]",
         params: { identityPhrase: encodeURIComponent(cleaned) },
@@ -1348,7 +1376,7 @@ Expected: no errors.
 - Part 1 "no live preview, keep on-blur rewrite" → no task needed (on-blur rewrite is left untouched; no preview is added). ✓
 - Part 2 inline editor on the live goal page, read-only hides it → Task 6.
 - Part 2 save: clean + validate + no-op guard + merge confirm → Task 6.
-- Part 2 redirect guard (isExitingRef before mutate) + navigate to new phrase → Task 6.
+- Part 2 redirect guard (isExitingRef before mutate) + navigate to new phrase + close the editor on success (explicit reset, not relying on remount) → Task 6.
 - Part 2 revive the dead hint → Task 9.
 - Part 3 repo `renameGoal` (returns ids, all statuses) + `goalExists` → Task 3.
 - Part 3 api wrappers → Task 4.
