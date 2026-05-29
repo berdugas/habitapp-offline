@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
+import { fireEvent, render, screen, waitFor } from "@/tests/setup/render";
 import React from "react";
 
 import BacklogScreen from "@/features/habits/screens/BacklogScreen";

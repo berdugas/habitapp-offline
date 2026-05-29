@@ -9,11 +9,8 @@ import {
   formatExactDate,
   inclusiveDayCount,
 } from "@/features/library/metrics";
-import { colors } from "@/theme/colors";
-import { fontFamilies } from "@/theme/fontFamilies";
-import { radius } from "@/theme/radius";
-import { spacing } from "@/theme/spacing";
-import { typography } from "@/theme/typography";
+import { useTheme } from "@/theme/useTheme";
+import { useThemedStyles } from "@/theme/useThemedStyles";
 
 import type { Habit } from "@/lib/db/repositories/habits";
 
@@ -22,6 +19,42 @@ type ArchivedHabitCardProps = {
 };
 
 export function ArchivedHabitCard({ habit }: ArchivedHabitCardProps) {
+  const theme = useTheme();
+  const styles = useThemedStyles((theme) =>
+    StyleSheet.create({
+      card: {
+        backgroundColor: theme.colors.surfaceMuted,
+        borderRadius: theme.radius.sm,
+        gap: theme.spacing.xs,
+        padding: theme.spacing.lg,
+      },
+      cardPressed: {
+        opacity: 0.7,
+      },
+      goalText: {
+        color: theme.colors.textFaint,
+        fontFamily: theme.fontFamilies.body,
+        fontSize: theme.typography.bodyMd,
+      },
+      metaText: {
+        color: theme.colors.textFaint,
+        fontFamily: theme.fontFamilies.body,
+        fontSize: theme.typography.micro,
+      },
+      title: {
+        color: theme.colors.textMuted,
+        flex: 1,
+        fontFamily: theme.fontFamilies.bodySemi,
+        fontSize: theme.typography.bodyLg,
+      },
+      titleRow: {
+        alignItems: "center",
+        flexDirection: "row",
+        gap: theme.spacing.sm,
+      },
+    }),
+  );
+
   const { user } = useAuthSession();
   const archivedAt = habit.archived_at ?? habit.updated_at;
   const archivedDay = archivedAt.slice(0, 10);
@@ -67,7 +100,7 @@ export function ArchivedHabitCard({ habit }: ArchivedHabitCardProps) {
           <LucideIcon
             name={habit.icon}
             size={18}
-            color={colors.textMuted}
+            color={theme.colors.textMuted}
             strokeWidth={1.75}
           />
         ) : null}
@@ -86,36 +119,3 @@ export function ArchivedHabitCard({ habit }: ArchivedHabitCardProps) {
     </Pressable>
   );
 }
-
-const styles = StyleSheet.create({
-  card: {
-    backgroundColor: colors.surfaceMuted,
-    borderRadius: radius.sm,
-    gap: spacing.xs,
-    padding: spacing.lg,
-  },
-  cardPressed: {
-    opacity: 0.7,
-  },
-  goalText: {
-    color: colors.textFaint,
-    fontFamily: fontFamilies.body,
-    fontSize: typography.bodyMd,
-  },
-  metaText: {
-    color: colors.textFaint,
-    fontFamily: fontFamilies.body,
-    fontSize: typography.micro,
-  },
-  title: {
-    color: colors.textMuted,
-    flex: 1,
-    fontFamily: fontFamilies.bodySemi,
-    fontSize: typography.bodyLg,
-  },
-  titleRow: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: spacing.sm,
-  },
-});

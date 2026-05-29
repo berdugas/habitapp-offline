@@ -46,11 +46,8 @@ import { trackEvent } from "@/services/analytics";
 import { now } from "@/utils/clock";
 import { useTodayAnchorDate, useTodayDateString } from "@/utils/dayBoundary";
 import { daysBetweenDates, getWeekStartDateString, toDeviceDateString } from "@/utils/dates";
-import { colors } from "@/theme/colors";
-import { fontFamilies } from "@/theme/fontFamilies";
-import { radius } from "@/theme/radius";
-import { SCREEN_TOP_PADDING, spacing } from "@/theme/spacing";
-import { typography } from "@/theme/typography";
+import { useTheme } from "@/theme/useTheme";
+import { useThemedStyles } from "@/theme/useThemedStyles";
 import { getLoadHabitDetailErrorMessage } from "@/utils/userFacingErrors";
 
 import type { HabitLogStatus, HabitRecord } from "@/features/habits/types";
@@ -74,6 +71,232 @@ export default function HabitDetailScreen() {
     goalConsistency?: string;
   }>();
   const { top } = useSafeAreaInsets();
+  const theme = useTheme();
+  const styles = useThemedStyles((theme) =>
+    StyleSheet.create({
+      backButton: {
+        alignItems: "center",
+        height: 36,
+        justifyContent: "center",
+        width: 36,
+      },
+      backRow: {
+        marginBottom: theme.spacing.sm,
+      },
+      formulaText: {
+        color: theme.colors.textMuted,
+        fontFamily: theme.fontFamilies.body,
+        fontSize: theme.typography.bodyLg,
+        fontStyle: "italic",
+        lineHeight: 19.3,
+      },
+      graduatedBadge: {
+        alignSelf: "flex-start",
+        backgroundColor: theme.colors.graduatedBadge,
+        borderRadius: theme.radius.pill,
+        paddingHorizontal: theme.spacing.sm + 2,
+        paddingVertical: theme.spacing.xs,
+      },
+      graduatedBadgeText: {
+        color: theme.colors.graduatedCircle,
+        fontFamily: theme.fontFamilies.bodySemi,
+        fontSize: theme.typography.micro,
+      },
+      graduationPromptText: {
+        color: theme.colors.textMuted,
+        fontFamily: theme.fontFamilies.body,
+        fontSize: theme.typography.bodyLg,
+        lineHeight: 21,
+      },
+      frequencyText: {
+        color: theme.colors.textFaint,
+        fontFamily: theme.fontFamilies.body,
+        fontSize: theme.typography.bodyMd,
+      },
+      goalBreadcrumb: {
+        color: theme.colors.textFaint,
+        fontFamily: theme.fontFamilies.body,
+        fontSize: theme.typography.bodyMd,
+        textAlign: "center",
+      },
+      journeyCard: {
+        gap: theme.spacing.md,
+      },
+      journeyTop: {
+        alignItems: "flex-start",
+        flexDirection: "row",
+        gap: theme.spacing.md,
+      },
+      narrativeText: {
+        color: theme.colors.textMuted,
+        flex: 1,
+        fontFamily: theme.fontFamilies.body,
+        fontSize: theme.typography.bodyMd,
+        lineHeight: 20.4,
+        paddingTop: 4,
+      },
+      content: {
+        gap: theme.spacing.xl,
+        padding: theme.spacing.xl,
+      },
+      editButton: {
+        alignItems: "center",
+        height: 32,
+        justifyContent: "center",
+        width: 32,
+      },
+      goalLabel: {
+        color: theme.colors.primary,
+        fontFamily: theme.fontFamilies.bodySemi,
+        fontSize: theme.typography.labelMd,
+        letterSpacing: 0.5,
+        marginBottom: theme.spacing.xs,
+      },
+      habitTitle: {
+        color: theme.colors.text,
+        fontFamily: theme.fontFamilies.displayBold,
+        fontSize: theme.typography.headlineLg,
+        flex: 1,
+      },
+      habitTitleRow: {
+        alignItems: "center",
+        flexDirection: "row",
+        gap: theme.spacing.sm,
+        marginBottom: theme.spacing.xs,
+        justifyContent: "space-between",
+      },
+      header: {
+        gap: 4,
+      },
+      reminderSummary: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 5,
+        marginTop: 2,
+      },
+      reminderSummaryText: {
+        fontFamily: theme.fontFamilies.body,
+        fontSize: 12,
+        color: theme.colors.textFaint,
+      },
+      editReminderButton: {
+        marginTop: theme.spacing.xs,
+      },
+      editReminderLabel: {
+        color: theme.colors.primary,
+        fontFamily: theme.fontFamilies.bodyMedium,
+        fontSize: theme.typography.bodyMd,
+      },
+      reminderEditor: {
+        gap: theme.spacing.md,
+        marginTop: theme.spacing.sm,
+      },
+      reminderHeader: {
+        alignItems: "center",
+        flexDirection: "row",
+        justifyContent: "space-between",
+        marginBottom: theme.spacing.xs,
+      },
+      reminderPlaceholder: {
+        color: theme.colors.textFaint,
+        fontFamily: theme.fontFamilies.body,
+        fontSize: theme.typography.bodyMd,
+      },
+      reminderSaveButton: {
+        alignItems: "center",
+        backgroundColor: theme.colors.primary,
+        borderRadius: theme.radius.md,
+        paddingVertical: theme.spacing.sm + 2,
+      },
+      reminderSaveLabel: {
+        color: theme.colors.primaryText,
+        fontFamily: theme.fontFamilies.bodySemi,
+        fontSize: 15,
+      },
+      reminderTimeChip: {
+        borderColor: theme.colors.surfaceHigh,
+        borderRadius: theme.radius.pill,
+        borderWidth: 1,
+        paddingHorizontal: theme.spacing.sm + 2,
+        paddingVertical: theme.spacing.xs + 1,
+      },
+      reminderTimeChipSelected: {
+        backgroundColor: theme.colors.primarySoft,
+        borderColor: theme.colors.primary,
+      },
+      reminderTimeLabel: {
+        color: theme.colors.textMuted,
+        fontFamily: theme.fontFamilies.body,
+        fontSize: theme.typography.labelMd,
+      },
+      reminderTimeLabelSelected: {
+        color: theme.colors.primary,
+        fontFamily: theme.fontFamilies.bodySemi,
+      },
+      reminderTimeRow: {
+        flexDirection: "row",
+        flexWrap: "wrap",
+        gap: theme.spacing.xs,
+      },
+      reminderTypeChip: {
+        borderColor: theme.colors.surfaceHigh,
+        borderRadius: theme.radius.pill,
+        borderWidth: 1,
+        paddingHorizontal: theme.spacing.md,
+        paddingVertical: theme.spacing.xs + 1,
+      },
+      reminderTypeChipSelected: {
+        backgroundColor: theme.colors.primarySoft,
+        borderColor: theme.colors.primary,
+      },
+      reminderTypeLabel: {
+        color: theme.colors.textMuted,
+        fontFamily: theme.fontFamilies.body,
+        fontSize: theme.typography.bodyMd,
+      },
+      reminderTypeLabelSelected: {
+        color: theme.colors.primary,
+        fontFamily: theme.fontFamilies.bodySemi,
+      },
+      reminderTypeRow: {
+        flexDirection: "row",
+        gap: theme.spacing.sm,
+      },
+      screen: {
+        backgroundColor: theme.colors.bg,
+        flex: 1,
+      },
+      setupHeader: {
+        alignItems: "center",
+        flexDirection: "row",
+        justifyContent: "space-between",
+        marginBottom: theme.spacing.xs,
+      },
+      reviewPromptText: {
+        color: theme.colors.textMuted,
+        fontFamily: theme.fontFamilies.body,
+        fontSize: theme.typography.bodyLg,
+        lineHeight: 21,
+      },
+      reviewCompletedText: {
+        color: theme.colors.primary,
+        fontFamily: theme.fontFamilies.bodySemi,
+        fontSize: theme.typography.bodyLg,
+      },
+      reviewAgainLink: {
+        color: theme.colors.textFaint,
+        fontFamily: theme.fontFamilies.bodyMedium,
+        fontSize: theme.typography.bodyMd,
+      },
+      reviewErrorText: {
+        color: theme.colors.danger,
+        fontFamily: theme.fontFamilies.body,
+        fontSize: theme.typography.bodyMd,
+        lineHeight: 18.6,
+      },
+    }),
+  );
+
   const activeStateSubmitLockRef = useRef(false);
   const { user } = useAuthSession();
   const {
@@ -374,7 +597,7 @@ export default function HabitDetailScreen() {
   if (error || !habit) {
     return (
       <ScrollView
-        contentContainerStyle={[styles.content, { paddingTop: top + SCREEN_TOP_PADDING }]}
+        contentContainerStyle={[styles.content, { paddingTop: top + theme.spacing.lg }]}
         style={styles.screen}
       >
         <View style={styles.backRow}>
@@ -386,7 +609,7 @@ export default function HabitDetailScreen() {
             }}
             style={styles.backButton}
           >
-            <ChevronLeft color={colors.textMuted} size={22} strokeWidth={1.75} />
+            <ChevronLeft color={theme.colors.textMuted} size={22} strokeWidth={1.75} />
           </Pressable>
         </View>
         <ErrorState message={getLoadHabitDetailErrorMessage()} />
@@ -400,7 +623,7 @@ export default function HabitDetailScreen() {
 
   return (
     <ScrollView
-      contentContainerStyle={[styles.content, { paddingTop: top + SCREEN_TOP_PADDING }]}
+      contentContainerStyle={[styles.content, { paddingTop: top + theme.spacing.lg }]}
       style={styles.screen}
     >
       {isReadOnly ? (
@@ -420,7 +643,7 @@ export default function HabitDetailScreen() {
           }}
           style={styles.backButton}
         >
-          <ChevronLeft color={colors.textMuted} size={22} strokeWidth={1.75} />
+          <ChevronLeft color={theme.colors.textMuted} size={22} strokeWidth={1.75} />
         </Pressable>
         {habit.identity_phrase ? (
           <Pressable
@@ -438,7 +661,7 @@ export default function HabitDetailScreen() {
         ) : null}
         <View style={styles.habitTitleRow}>
           {habit.icon ? (
-            <LucideIcon name={habit.icon} size={22} color={colors.primary} strokeWidth={1.75} />
+            <LucideIcon name={habit.icon} size={22} color={theme.colors.primary} strokeWidth={1.75} />
           ) : null}
           <Text selectable style={styles.habitTitle}>{habit.title}</Text>
           <Pressable
@@ -451,7 +674,7 @@ export default function HabitDetailScreen() {
               })
             }
           >
-            <Pencil color={isReadOnly ? colors.textFaint : colors.primary} size={16} strokeWidth={1.75} />
+            <Pencil color={isReadOnly ? theme.colors.textFaint : theme.colors.primary} size={16} strokeWidth={1.75} />
           </Pressable>
         </View>
         {habit.habit_state === "automatic" ? (
@@ -470,7 +693,7 @@ export default function HabitDetailScreen() {
         ) : null}
         {reminderEnabled ? (
           <View style={styles.reminderSummary}>
-            <Bell color={colors.textFaint} size={12} strokeWidth={1.75} />
+            <Bell color={theme.colors.textFaint} size={12} strokeWidth={1.75} />
             <Text style={styles.reminderSummaryText}>
               {reminderType === "backup" ? "Backup reminder" : "Daily reminder"}{" · "}{formatDisplayTime(reminderTime)}
             </Text>
@@ -584,226 +807,3 @@ export default function HabitDetailScreen() {
     </ScrollView>
   );
 }
-
-const styles = StyleSheet.create({
-  backButton: {
-    alignItems: "center",
-    height: 36,
-    justifyContent: "center",
-    width: 36,
-  },
-  backRow: {
-    marginBottom: spacing.sm,
-  },
-  formulaText: {
-    color: colors.textMuted,
-    fontFamily: fontFamilies.body,
-    fontSize: typography.bodyLg,
-    fontStyle: "italic",
-    lineHeight: 19.3,
-  },
-  graduatedBadge: {
-    alignSelf: "flex-start",
-    backgroundColor: colors.graduatedBadge,
-    borderRadius: radius.pill,
-    paddingHorizontal: spacing.sm + 2,
-    paddingVertical: spacing.xs,
-  },
-  graduatedBadgeText: {
-    color: colors.graduatedCircle,
-    fontFamily: fontFamilies.bodySemi,
-    fontSize: typography.micro,
-  },
-  graduationPromptText: {
-    color: colors.textMuted,
-    fontFamily: fontFamilies.body,
-    fontSize: typography.bodyLg,
-    lineHeight: 21,
-  },
-  frequencyText: {
-    color: colors.textFaint,
-    fontFamily: fontFamilies.body,
-    fontSize: typography.bodyMd,
-  },
-  goalBreadcrumb: {
-    color: colors.textFaint,
-    fontFamily: fontFamilies.body,
-    fontSize: typography.bodyMd,
-    textAlign: "center",
-  },
-  journeyCard: {
-    gap: spacing.md,
-  },
-  journeyTop: {
-    alignItems: "flex-start",
-    flexDirection: "row",
-    gap: spacing.md,
-  },
-  narrativeText: {
-    color: colors.textMuted,
-    flex: 1,
-    fontFamily: fontFamilies.body,
-    fontSize: typography.bodyMd,
-    lineHeight: 20.4,
-    paddingTop: 4,
-  },
-  content: {
-    gap: spacing.xl,
-    padding: spacing.xl,
-  },
-  editButton: {
-    alignItems: "center",
-    height: 32,
-    justifyContent: "center",
-    width: 32,
-  },
-  goalLabel: {
-    color: colors.primary,
-    fontFamily: fontFamilies.bodySemi,
-    fontSize: typography.labelMd,
-    letterSpacing: 0.5,
-    marginBottom: spacing.xs,
-  },
-  habitTitle: {
-    color: colors.text,
-    fontFamily: fontFamilies.displayBold,
-    fontSize: typography.headlineLg,
-    flex: 1,
-  },
-  habitTitleRow: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: spacing.sm,
-    marginBottom: spacing.xs,
-    justifyContent: "space-between",
-  },
-  header: {
-    gap: 4,
-  },
-  reminderSummary: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-    marginTop: 2,
-  },
-  reminderSummaryText: {
-    fontFamily: fontFamilies.body,
-    fontSize: 12,
-    color: colors.textFaint,
-  },
-  editReminderButton: {
-    marginTop: spacing.xs,
-  },
-  editReminderLabel: {
-    color: colors.primary,
-    fontFamily: fontFamilies.bodyMedium,
-    fontSize: typography.bodyMd,
-  },
-  reminderEditor: {
-    gap: spacing.md,
-    marginTop: spacing.sm,
-  },
-  reminderHeader: {
-    alignItems: "center",
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: spacing.xs,
-  },
-  reminderPlaceholder: {
-    color: colors.textFaint,
-    fontFamily: fontFamilies.body,
-    fontSize: typography.bodyMd,
-  },
-  reminderSaveButton: {
-    alignItems: "center",
-    backgroundColor: colors.primary,
-    borderRadius: radius.md,
-    paddingVertical: spacing.sm + 2,
-  },
-  reminderSaveLabel: {
-    color: colors.primaryText,
-    fontFamily: fontFamilies.bodySemi,
-    fontSize: 15,
-  },
-  reminderTimeChip: {
-    borderColor: colors.surfaceHigh,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    paddingHorizontal: spacing.sm + 2,
-    paddingVertical: spacing.xs + 1,
-  },
-  reminderTimeChipSelected: {
-    backgroundColor: colors.primarySoft,
-    borderColor: colors.primary,
-  },
-  reminderTimeLabel: {
-    color: colors.textMuted,
-    fontFamily: fontFamilies.body,
-    fontSize: typography.labelMd,
-  },
-  reminderTimeLabelSelected: {
-    color: colors.primary,
-    fontFamily: fontFamilies.bodySemi,
-  },
-  reminderTimeRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: spacing.xs,
-  },
-  reminderTypeChip: {
-    borderColor: colors.surfaceHigh,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs + 1,
-  },
-  reminderTypeChipSelected: {
-    backgroundColor: colors.primarySoft,
-    borderColor: colors.primary,
-  },
-  reminderTypeLabel: {
-    color: colors.textMuted,
-    fontFamily: fontFamilies.body,
-    fontSize: typography.bodyMd,
-  },
-  reminderTypeLabelSelected: {
-    color: colors.primary,
-    fontFamily: fontFamilies.bodySemi,
-  },
-  reminderTypeRow: {
-    flexDirection: "row",
-    gap: spacing.sm,
-  },
-  screen: {
-    backgroundColor: colors.bg,
-    flex: 1,
-  },
-  setupHeader: {
-    alignItems: "center",
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: spacing.xs,
-  },
-  reviewPromptText: {
-    color: colors.textMuted,
-    fontFamily: fontFamilies.body,
-    fontSize: typography.bodyLg,
-    lineHeight: 21,
-  },
-  reviewCompletedText: {
-    color: colors.primary,
-    fontFamily: fontFamilies.bodySemi,
-    fontSize: typography.bodyLg,
-  },
-  reviewAgainLink: {
-    color: colors.textFaint,
-    fontFamily: fontFamilies.bodyMedium,
-    fontSize: typography.bodyMd,
-  },
-  reviewErrorText: {
-    color: colors.danger,
-    fontFamily: fontFamilies.body,
-    fontSize: typography.bodyMd,
-    lineHeight: 18.6,
-  },
-});

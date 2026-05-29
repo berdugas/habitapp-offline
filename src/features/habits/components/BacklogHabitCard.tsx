@@ -14,10 +14,8 @@ import {
 import { assertCanCreateActiveHabit } from "@/features/habits/validators";
 import { useAuthSession } from "@/features/auth/hooks";
 import { formatExactDate } from "@/features/library/metrics";
-import { colors } from "@/theme/colors";
-import { fontFamilies } from "@/theme/fontFamilies";
-import { spacing } from "@/theme/spacing";
-import { typography } from "@/theme/typography";
+import { useTheme } from "@/theme/useTheme";
+import { useThemedStyles } from "@/theme/useThemedStyles";
 
 import type { Habit } from "@/lib/db/repositories/habits";
 
@@ -26,6 +24,80 @@ type BacklogHabitCardProps = {
 };
 
 export function BacklogHabitCard({ habit }: BacklogHabitCardProps) {
+  const theme = useTheme();
+  const styles = useThemedStyles((theme) =>
+    StyleSheet.create({
+      actionsRow: {
+        alignItems: "center",
+        flexDirection: "row",
+        gap: theme.spacing.md,
+        justifyContent: "space-between",
+      },
+      confirmButtons: {
+        flexDirection: "row",
+        gap: theme.spacing.md,
+      },
+      confirmRow: {
+        gap: theme.spacing.md,
+      },
+      confirmText: {
+        color: theme.colors.textMuted,
+        fontFamily: theme.fontFamilies.body,
+        fontSize: theme.typography.bodyMd,
+        lineHeight: 18.6,
+      },
+      deleteConfirmButton: {
+        paddingHorizontal: theme.spacing.md,
+        paddingVertical: theme.spacing.sm,
+      },
+      deleteConfirmLabel: {
+        color: theme.colors.danger,
+        fontFamily: theme.fontFamilies.bodySemi,
+        fontSize: theme.typography.bodyLg,
+      },
+      deleteLabel: {
+        color: theme.colors.danger,
+        fontFamily: theme.fontFamilies.bodySemi,
+        fontSize: theme.typography.bodyMd,
+      },
+      deletePressable: {
+        padding: theme.spacing.sm,
+      },
+      errorText: {
+        color: theme.colors.danger,
+        fontFamily: theme.fontFamilies.body,
+        fontSize: theme.typography.bodyMd,
+      },
+      formula: {
+        color: theme.colors.textMuted,
+        fontFamily: theme.fontFamilies.body,
+        fontSize: theme.typography.bodyMd,
+        fontStyle: "italic",
+      },
+      goalText: {
+        color: theme.colors.textFaint,
+        fontFamily: theme.fontFamilies.body,
+        fontSize: theme.typography.bodyMd,
+      },
+      saved: {
+        color: theme.colors.textFaint,
+        fontFamily: theme.fontFamilies.body,
+        fontSize: theme.typography.micro,
+      },
+      title: {
+        color: theme.colors.text,
+        flex: 1,
+        fontFamily: theme.fontFamilies.bodySemi,
+        fontSize: theme.typography.titleMd,
+      },
+      titleRow: {
+        alignItems: "center",
+        flexDirection: "row",
+        gap: theme.spacing.sm,
+      },
+    }),
+  );
+
   const { user } = useAuthSession();
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [capCount, setCapCount] = useState<number | null>(null);
@@ -71,13 +143,13 @@ export function BacklogHabitCard({ habit }: BacklogHabitCardProps) {
     : "Activate";
 
   return (
-    <ZenCard gap={spacing.md}>
+    <ZenCard gap={theme.spacing.md}>
       <View style={styles.titleRow}>
         {habit.icon ? (
           <LucideIcon
             name={habit.icon}
             size={20}
-            color={colors.primary}
+            color={theme.colors.primary}
             strokeWidth={1.75}
           />
         ) : null}
@@ -148,74 +220,3 @@ export function BacklogHabitCard({ habit }: BacklogHabitCardProps) {
     </ZenCard>
   );
 }
-
-const styles = StyleSheet.create({
-  actionsRow: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: spacing.md,
-    justifyContent: "space-between",
-  },
-  confirmButtons: {
-    flexDirection: "row",
-    gap: spacing.md,
-  },
-  confirmRow: {
-    gap: spacing.md,
-  },
-  confirmText: {
-    color: colors.textMuted,
-    fontFamily: fontFamilies.body,
-    fontSize: typography.bodyMd,
-    lineHeight: 18.6,
-  },
-  deleteConfirmButton: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-  },
-  deleteConfirmLabel: {
-    color: colors.danger,
-    fontFamily: fontFamilies.bodySemi,
-    fontSize: typography.bodyLg,
-  },
-  deleteLabel: {
-    color: colors.danger,
-    fontFamily: fontFamilies.bodySemi,
-    fontSize: typography.bodyMd,
-  },
-  deletePressable: {
-    padding: spacing.sm,
-  },
-  errorText: {
-    color: colors.danger,
-    fontFamily: fontFamilies.body,
-    fontSize: typography.bodyMd,
-  },
-  formula: {
-    color: colors.textMuted,
-    fontFamily: fontFamilies.body,
-    fontSize: typography.bodyMd,
-    fontStyle: "italic",
-  },
-  goalText: {
-    color: colors.textFaint,
-    fontFamily: fontFamilies.body,
-    fontSize: typography.bodyMd,
-  },
-  saved: {
-    color: colors.textFaint,
-    fontFamily: fontFamilies.body,
-    fontSize: typography.micro,
-  },
-  title: {
-    color: colors.text,
-    flex: 1,
-    fontFamily: fontFamilies.bodySemi,
-    fontSize: typography.titleMd,
-  },
-  titleRow: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: spacing.sm,
-  },
-});

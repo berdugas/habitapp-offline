@@ -26,13 +26,81 @@ import {
   markArchiveIntroSeen,
 } from "@/features/habits/onboardingStorage";
 import { FirstRunTipBanner } from "@/features/reviews/components/FirstRunTipBanner";
-import { colors } from "@/theme/colors";
-import { fontFamilies } from "@/theme/fontFamilies";
-import { SCREEN_TOP_PADDING, spacing } from "@/theme/spacing";
-import { typography } from "@/theme/typography";
+import { useTheme } from "@/theme/useTheme";
+import { useThemedStyles } from "@/theme/useThemedStyles";
 
 export default function BacklogScreen() {
   const insets = useSafeAreaInsets();
+  const theme = useTheme();
+  const styles = useThemedStyles((theme) =>
+    StyleSheet.create({
+      backButton: {
+        alignItems: "center",
+        height: 36,
+        justifyContent: "center",
+        width: 36,
+      },
+      cardList: {
+        gap: theme.spacing.lg,
+      },
+      centered: {
+        alignItems: "center",
+        justifyContent: "center",
+        paddingVertical: theme.spacing.xl,
+      },
+      content: {
+        flexGrow: 1,
+        gap: theme.spacing.md,
+        padding: theme.spacing.xl,
+        paddingBottom: theme.spacing.xxl,
+      },
+      empty: {
+        alignItems: "center",
+        flex: 1,
+        gap: theme.spacing.md,
+        justifyContent: "center",
+        paddingTop: theme.spacing.xxl,
+      },
+      emptyBody: {
+        color: theme.colors.textMuted,
+        fontFamily: theme.fontFamilies.body,
+        fontSize: theme.typography.bodyMd,
+        textAlign: "center",
+      },
+      emptyTitle: {
+        color: theme.colors.text,
+        fontFamily: theme.fontFamilies.bodySemi,
+        fontSize: theme.typography.titleMd,
+      },
+      headerRow: {
+        alignItems: "center",
+        flexDirection: "row",
+        gap: theme.spacing.sm,
+      },
+      screen: {
+        backgroundColor: theme.colors.bg,
+        flex: 1,
+      },
+      section: {
+        gap: theme.spacing.md,
+      },
+      sections: {
+        gap: theme.spacing.xl,
+      },
+      subtitle: {
+        color: theme.colors.textMuted,
+        fontFamily: theme.fontFamilies.body,
+        fontSize: theme.typography.bodyLg,
+        lineHeight: 21.0,
+      },
+      title: {
+        color: theme.colors.text,
+        fontFamily: theme.fontFamilies.displayBold,
+        fontSize: theme.typography.headlineLg,
+      },
+    }),
+  );
+
   const archivedGoalsQuery = useArchivedGoalsQuery();
   const backlogQuery = useBacklogHabitsQuery();
   const archivedQuery = useInactiveHabitsQuery();
@@ -91,7 +159,7 @@ export default function BacklogScreen() {
     <ScrollView
       contentContainerStyle={[
         styles.content,
-        { paddingTop: insets.top + SCREEN_TOP_PADDING },
+        { paddingTop: insets.top + theme.spacing.lg },
       ]}
       style={styles.screen}
     >
@@ -102,7 +170,7 @@ export default function BacklogScreen() {
           onPress={() => router.back()}
           style={styles.backButton}
         >
-          <ChevronLeft color={colors.textMuted} size={22} strokeWidth={1.75} />
+          <ChevronLeft color={theme.colors.textMuted} size={22} strokeWidth={1.75} />
         </Pressable>
         <Text style={styles.title}>Archive</Text>
       </View>
@@ -175,9 +243,33 @@ export default function BacklogScreen() {
 }
 
 function ArchiveEmptyState() {
+  const theme = useTheme();
+  const styles = useThemedStyles((theme) =>
+    StyleSheet.create({
+      empty: {
+        alignItems: "center",
+        flex: 1,
+        gap: theme.spacing.md,
+        justifyContent: "center",
+        paddingTop: theme.spacing.xxl,
+      },
+      emptyBody: {
+        color: theme.colors.textMuted,
+        fontFamily: theme.fontFamilies.body,
+        fontSize: theme.typography.bodyMd,
+        textAlign: "center",
+      },
+      emptyTitle: {
+        color: theme.colors.text,
+        fontFamily: theme.fontFamilies.bodySemi,
+        fontSize: theme.typography.titleMd,
+      },
+    }),
+  );
+
   return (
     <View style={styles.empty}>
-      <Lightbulb color={colors.textFaint} size={48} strokeWidth={1.25} />
+      <Lightbulb color={theme.colors.textFaint} size={48} strokeWidth={1.25} />
       <Text style={styles.emptyTitle}>Nothing in your archive yet</Text>
       <Text style={styles.emptyBody}>
         When you archive a goal or save a habit for later, it&apos;ll show up
@@ -186,70 +278,3 @@ function ArchiveEmptyState() {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  backButton: {
-    alignItems: "center",
-    height: 36,
-    justifyContent: "center",
-    width: 36,
-  },
-  cardList: {
-    gap: spacing.lg,
-  },
-  centered: {
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: spacing.xl,
-  },
-  content: {
-    flexGrow: 1,
-    gap: spacing.md,
-    padding: spacing.xl,
-    paddingBottom: spacing.xxl,
-  },
-  empty: {
-    alignItems: "center",
-    flex: 1,
-    gap: spacing.md,
-    justifyContent: "center",
-    paddingTop: spacing.xxl,
-  },
-  emptyBody: {
-    color: colors.textMuted,
-    fontFamily: fontFamilies.body,
-    fontSize: typography.bodyMd,
-    textAlign: "center",
-  },
-  emptyTitle: {
-    color: colors.text,
-    fontFamily: fontFamilies.bodySemi,
-    fontSize: typography.titleMd,
-  },
-  headerRow: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: spacing.sm,
-  },
-  screen: {
-    backgroundColor: colors.bg,
-    flex: 1,
-  },
-  section: {
-    gap: spacing.md,
-  },
-  sections: {
-    gap: spacing.xl,
-  },
-  subtitle: {
-    color: colors.textMuted,
-    fontFamily: fontFamilies.body,
-    fontSize: typography.bodyLg,
-    lineHeight: 21.0,
-  },
-  title: {
-    color: colors.text,
-    fontFamily: fontFamilies.displayBold,
-    fontSize: typography.headlineLg,
-  },
-});

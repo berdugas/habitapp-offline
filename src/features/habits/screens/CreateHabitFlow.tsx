@@ -38,12 +38,8 @@ import {
   scheduleReminder,
 } from "@/features/reminders/notifications";
 import { logger } from "@/services/logger";
-import { colors } from "@/theme/colors";
-import { fontFamilies } from "@/theme/fontFamilies";
-import { radius } from "@/theme/radius";
-import { shadows } from "@/theme/shadows";
-import { SCREEN_TOP_PADDING, spacing } from "@/theme/spacing";
-import { typography } from "@/theme/typography";
+import { useTheme } from "@/theme/useTheme";
+import { useThemedStyles } from "@/theme/useThemedStyles";
 import { toDeviceDateString } from "@/utils/dates";
 import { getCreateHabitErrorMessage } from "@/utils/userFacingErrors";
 
@@ -78,6 +74,16 @@ const STEP_ORDER: Step[] = ["goal", "action", "build", "personalize"];
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function CreateHabitFlow() {
+  const theme = useTheme();
+  const styles = useThemedStyles((theme) =>
+    StyleSheet.create({
+      root: {
+        flex: 1,
+        backgroundColor: theme.colors.bg,
+      },
+    }),
+  );
+
   const params = useLocalSearchParams<{ goalIdentityPhrase?: string | string[] }>();
   const inheritedPhrase = Array.isArray(params.goalIdentityPhrase)
     ? params.goalIdentityPhrase[0]
@@ -235,19 +241,7 @@ export default function CreateHabitFlow() {
         }
       >
         <BackRow onBack={handleBack} />
-        <Text style={styles.headline}>What kind of person do you want to become?</Text>
-        <Text style={styles.subline}>This is the transformation your new habits will support.</Text>
-        <OnboardingInput
-          label="Become someone who..."
-          placeholder="runs regularly, reads daily..."
-          value={draft.identityPhrase}
-          onChangeText={(text) => update({ identityPhrase: text })}
-          onBlur={() => {
-            const fixed = normaliseBecomingPhrase(draft.identityPhrase);
-            if (fixed !== draft.identityPhrase) update({ identityPhrase: fixed });
-          }}
-        />
-        {capWarning ? <CapWarningCard count={capWarning.count} /> : null}
+        <GoalStepContent draft={draft} update={update} capWarning={capWarning} />
       </OnboardingLayout>
     );
   } else if (step === "action") {
@@ -304,12 +298,76 @@ export default function CreateHabitFlow() {
 // ─── Shared sub-components ────────────────────────────────────────────────────
 
 function BackRow({ onBack }: { onBack: () => void }) {
+  const styles = useThemedStyles((theme) =>
+    StyleSheet.create({
+      backRow: {
+        marginBottom: theme.spacing.lg,
+      },
+      backButton: {
+        width: 36,
+        height: 36,
+        alignItems: "center",
+        justifyContent: "center",
+      },
+    }),
+  );
+  const theme = useTheme();
+
   return (
     <View style={styles.backRow}>
       <Pressable onPress={onBack} style={styles.backButton} accessibilityLabel="Go back">
-        <ChevronLeft color={colors.textMuted} size={22} strokeWidth={1.75} />
+        <ChevronLeft color={theme.colors.textMuted} size={22} strokeWidth={1.75} />
       </Pressable>
     </View>
+  );
+}
+
+// ─── Goal step content (rendered inside OnboardingLayout) ─────────────────────
+
+function GoalStepContent({
+  draft,
+  update,
+  capWarning,
+}: {
+  draft: CreateHabitDraft;
+  update: (patch: Partial<CreateHabitDraft>) => void;
+  capWarning: { count: number } | null;
+}) {
+  const styles = useThemedStyles((theme) =>
+    StyleSheet.create({
+      headline: {
+        fontFamily: theme.fontFamilies.displayBold,
+        fontSize: 26,
+        lineHeight: 32,
+        color: theme.colors.text,
+        marginBottom: theme.spacing.sm,
+      },
+      subline: {
+        fontFamily: theme.fontFamilies.body,
+        fontSize: 15,
+        lineHeight: 23,
+        color: theme.colors.textMuted,
+        marginBottom: theme.spacing.xl,
+      },
+    }),
+  );
+
+  return (
+    <>
+      <Text style={styles.headline}>What kind of person do you want to become?</Text>
+      <Text style={styles.subline}>This is the transformation your new habits will support.</Text>
+      <OnboardingInput
+        label="Become someone who..."
+        placeholder="runs regularly, reads daily..."
+        value={draft.identityPhrase}
+        onChangeText={(text) => update({ identityPhrase: text })}
+        onBlur={() => {
+          const fixed = normaliseBecomingPhrase(draft.identityPhrase);
+          if (fixed !== draft.identityPhrase) update({ identityPhrase: fixed });
+        }}
+      />
+      {capWarning ? <CapWarningCard count={capWarning.count} /> : null}
+    </>
   );
 }
 
@@ -325,6 +383,25 @@ type ActionStepProps = {
 };
 
 function ActionStep({ draft, update, onBack, onContinue, showChip, capWarning }: ActionStepProps) {
+  const styles = useThemedStyles((theme) =>
+    StyleSheet.create({
+      headline: {
+        fontFamily: theme.fontFamilies.displayBold,
+        fontSize: 26,
+        lineHeight: 32,
+        color: theme.colors.text,
+        marginBottom: theme.spacing.sm,
+      },
+      subline: {
+        fontFamily: theme.fontFamilies.body,
+        fontSize: 15,
+        lineHeight: 23,
+        color: theme.colors.textMuted,
+        marginBottom: theme.spacing.xl,
+      },
+    }),
+  );
+
   const canContinue = draft.dailyAction.trim().length >= 2;
   return (
     <OnboardingLayout
@@ -375,6 +452,73 @@ function BuildStep({
   focusTinyAction,
   onFocusConsumed,
 }: BuildStepProps) {
+  const styles = useThemedStyles((theme) =>
+    StyleSheet.create({
+      headline: {
+        fontFamily: theme.fontFamilies.displayBold,
+        fontSize: 26,
+        lineHeight: 32,
+        color: theme.colors.text,
+        marginBottom: theme.spacing.sm,
+      },
+      subline: {
+        fontFamily: theme.fontFamilies.body,
+        fontSize: 15,
+        lineHeight: 23,
+        color: theme.colors.textMuted,
+        marginBottom: theme.spacing.xl,
+      },
+      readOnlyPill: {
+        alignSelf: "flex-start",
+        backgroundColor: theme.colors.primarySoft,
+        borderRadius: theme.radius.pill,
+        paddingHorizontal: theme.spacing.md,
+        paddingVertical: theme.spacing.xs + 2,
+        marginBottom: theme.spacing.lg,
+        maxWidth: "90%",
+      },
+      readOnlyPillText: {
+        fontFamily: theme.fontFamilies.bodySemi,
+        fontSize: theme.typography.bodyMd,
+        color: theme.colors.primary,
+      },
+      sectionGap: {
+        marginBottom: theme.spacing.xl,
+      },
+      sectionLabel: {
+        fontFamily: theme.fontFamilies.displaySemi,
+        fontSize: theme.typography.titleMd,
+        lineHeight: 21.3,
+        color: theme.colors.text,
+        marginBottom: theme.spacing.md,
+      },
+      formulaCard: {
+        backgroundColor: theme.colors.primarySoft,
+        borderRadius: theme.radius.md,
+        marginTop: theme.spacing.md,
+        padding: theme.spacing.xl,
+      },
+      formulaEyebrow: {
+        fontFamily: theme.fontFamilies.bodyMedium,
+        fontSize: theme.typography.micro,
+        color: theme.colors.primary,
+        textTransform: "uppercase",
+        letterSpacing: 0.6,
+        marginBottom: theme.spacing.sm,
+      },
+      activeDaysSection: {
+        marginTop: theme.spacing.xl,
+        marginBottom: theme.spacing.xl,
+      },
+      formulaText: {
+        fontFamily: theme.fontFamilies.displaySemi,
+        fontSize: 17,
+        lineHeight: 25,
+        color: theme.colors.primary,
+      },
+    }),
+  );
+
   const tinyActionRef = useRef<TextInput>(null);
   const canContinue =
     draft.tinyAction.trim().length >= 2 && draft.cue.trim().length >= 2;
@@ -485,6 +629,150 @@ function PersonalizeStep({
   showChip,
   capWarning,
 }: PersonalizeStepProps) {
+  const theme = useTheme();
+  const styles = useThemedStyles((theme) =>
+    StyleSheet.create({
+      personalizeRoot: {
+        flex: 1,
+        backgroundColor: theme.colors.bg,
+      },
+      personalizeScroll: {
+        flexGrow: 1,
+        paddingHorizontal: theme.spacing.xl,
+        paddingBottom: theme.spacing.xl,
+      },
+      personalizeFooter: {
+        paddingHorizontal: theme.spacing.xl,
+      },
+      saveErrorWrap: {
+        marginTop: theme.spacing.lg,
+      },
+      previewCard: {
+        backgroundColor: theme.colors.surfaceCard,
+        borderRadius: theme.radius.lg,
+        padding: theme.spacing.xl,
+        boxShadow: theme.shadows.cardFloat,
+        gap: theme.spacing.md,
+        marginBottom: theme.spacing.sm,
+      },
+      previewCardLocked: {
+        opacity: 0.9,
+      },
+      cardHeader: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 14,
+      },
+      iconButton: {
+        width: 44,
+        height: 44,
+        borderRadius: 22,
+        backgroundColor: theme.colors.primarySoft,
+        alignItems: "center",
+        justifyContent: "center",
+      },
+      nameContainer: {
+        flex: 1,
+      },
+      nameHint: {
+        fontFamily: theme.fontFamilies.body,
+        fontSize: theme.typography.micro,
+        color: theme.colors.textFaint,
+        marginBottom: 2,
+      },
+      nameInput: {
+        fontFamily: theme.fontFamilies.displaySemi,
+        fontSize: theme.typography.titleSm,
+        color: theme.colors.text,
+        padding: 0,
+      },
+      nameLocked: {
+        fontFamily: theme.fontFamilies.displaySemi,
+        fontSize: theme.typography.titleSm,
+        color: theme.colors.text,
+      },
+      pickerContainer: {
+        marginTop: 4,
+      },
+      formulaPreview: {
+        fontFamily: theme.fontFamilies.body,
+        fontSize: theme.typography.bodyMd,
+        lineHeight: 19.5,
+        color: theme.colors.textMuted,
+      },
+      goalBadge: {
+        flexDirection: "row",
+        alignItems: "center",
+        alignSelf: "flex-start",
+        gap: 6,
+        backgroundColor: theme.colors.primarySoft,
+        borderRadius: theme.radius.pill,
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+      },
+      goalBadgeText: {
+        fontFamily: theme.fontFamilies.bodySemi,
+        fontSize: theme.typography.labelMd,
+        color: theme.colors.primary,
+      },
+      micro: {
+        fontFamily: theme.fontFamilies.body,
+        fontSize: theme.typography.labelMd,
+        color: theme.colors.textFaint,
+        marginTop: 4,
+        marginBottom: theme.spacing.xl,
+      },
+      optionalFields: {
+        gap: theme.spacing.xl,
+        marginTop: theme.spacing.lg,
+      },
+      gateContainer: {
+        marginTop: theme.spacing.xxl,
+        gap: theme.spacing.md,
+        paddingBottom: theme.spacing.xl,
+      },
+      gateHeadline: {
+        fontFamily: theme.fontFamilies.displayBold,
+        fontSize: 26,
+        lineHeight: 31,
+        color: theme.colors.text,
+      },
+      gateQuestion: {
+        fontFamily: theme.fontFamilies.displaySemi,
+        fontSize: theme.typography.titleLg,
+        lineHeight: 25.2,
+        color: theme.colors.text,
+      },
+      gateActionBold: {
+        fontFamily: theme.fontFamilies.displayBold,
+        color: theme.colors.primary,
+      },
+      gateBody: {
+        fontFamily: theme.fontFamilies.body,
+        fontSize: 15,
+        lineHeight: 23,
+        color: theme.colors.textMuted,
+      },
+      gateFooter: {
+        gap: theme.spacing.md,
+      },
+      headline: {
+        fontFamily: theme.fontFamilies.displayBold,
+        fontSize: 26,
+        lineHeight: 32,
+        color: theme.colors.text,
+        marginBottom: theme.spacing.sm,
+      },
+      subline: {
+        fontFamily: theme.fontFamilies.body,
+        fontSize: 15,
+        lineHeight: 23,
+        color: theme.colors.textMuted,
+        marginBottom: theme.spacing.xl,
+      },
+    }),
+  );
+
   const insets = useSafeAreaInsets();
   const [phase, setPhase] = useState<PersonalizePhase>("personalize");
   const [showPicker, setShowPicker] = useState(false);
@@ -588,7 +876,7 @@ function PersonalizeStep({
         ref={scrollRef}
         contentContainerStyle={[
           styles.personalizeScroll,
-          { paddingTop: insets.top + SCREEN_TOP_PADDING },
+          { paddingTop: insets.top + theme.spacing.lg },
         ]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
@@ -614,7 +902,7 @@ function PersonalizeStep({
                 <LucideIcon
                   name={draft.icon || "Sparkles"}
                   size={22}
-                  color={draft.icon ? colors.primary : colors.textFaint}
+                  color={draft.icon ? theme.colors.primary : theme.colors.textFaint}
                   strokeWidth={1.8}
                 />
               </Pressable>
@@ -626,7 +914,7 @@ function PersonalizeStep({
                 <TextInput
                   autoCorrect
                   placeholder="Tap to name"
-                  placeholderTextColor={colors.textFaint}
+                  placeholderTextColor={theme.colors.textFaint}
                   style={styles.nameInput}
                   value={draft.habitName}
                   onChangeText={(text) => update({ habitName: text })}
@@ -653,7 +941,7 @@ function PersonalizeStep({
 
           {draft.identityPhrase.trim().length > 0 ? (
             <View style={styles.goalBadge}>
-              <LucideIcon name="Target" size={13} color={colors.primary} strokeWidth={2} />
+              <LucideIcon name="Target" size={13} color={theme.colors.primary} strokeWidth={2} />
               <Text style={styles.goalBadgeText}>Becoming {draft.identityPhrase.trim()}</Text>
             </View>
           ) : null}
@@ -694,214 +982,9 @@ function PersonalizeStep({
         ) : null}
       </ScrollView>
 
-      <View style={[styles.personalizeFooter, { paddingBottom: Math.max(insets.bottom + spacing.lg, spacing.xxxl) }]}>
+      <View style={[styles.personalizeFooter, { paddingBottom: Math.max(insets.bottom + theme.spacing.lg, theme.spacing.xxxl) }]}>
         {footer}
       </View>
     </View>
   );
 }
-
-// ─── Styles ───────────────────────────────────────────────────────────────────
-
-const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: colors.bg,
-  },
-  backRow: {
-    marginBottom: spacing.lg,
-  },
-  backButton: {
-    width: 36,
-    height: 36,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  headline: {
-    fontFamily: fontFamilies.displayBold,
-    fontSize: 26,
-    lineHeight: 32,
-    color: colors.text,
-    marginBottom: spacing.sm,
-  },
-  subline: {
-    fontFamily: fontFamilies.body,
-    fontSize: 15,
-    lineHeight: 23,
-    color: colors.textMuted,
-    marginBottom: spacing.xl,
-  },
-  readOnlyPill: {
-    alignSelf: "flex-start",
-    backgroundColor: colors.primarySoft,
-    borderRadius: radius.pill,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs + 2,
-    marginBottom: spacing.lg,
-    maxWidth: "90%",
-  },
-  readOnlyPillText: {
-    fontFamily: fontFamilies.bodySemi,
-    fontSize: typography.bodyMd,
-    color: colors.primary,
-  },
-  sectionGap: {
-    marginBottom: spacing.xl,
-  },
-  sectionLabel: {
-    fontFamily: fontFamilies.displaySemi,
-    fontSize: typography.titleMd,
-    lineHeight: 21.3,
-    color: colors.text,
-    marginBottom: spacing.md,
-  },
-  formulaCard: {
-    backgroundColor: colors.primarySoft,
-    borderRadius: radius.md,
-    marginTop: spacing.md,
-    padding: spacing.xl,
-  },
-  formulaEyebrow: {
-    fontFamily: fontFamilies.bodyMedium,
-    fontSize: typography.micro,
-    color: colors.primary,
-    textTransform: "uppercase",
-    letterSpacing: 0.6,
-    marginBottom: spacing.sm,
-  },
-  activeDaysSection: {
-    marginTop: spacing.xl,
-    marginBottom: spacing.xl,
-  },
-  formulaText: {
-    fontFamily: fontFamilies.displaySemi,
-    fontSize: 17,
-    lineHeight: 25,
-    color: colors.primary,
-  },
-  // Personalize step
-  personalizeRoot: {
-    flex: 1,
-    backgroundColor: colors.bg,
-  },
-  personalizeScroll: {
-    flexGrow: 1,
-    paddingHorizontal: spacing.xl,
-    paddingBottom: spacing.xl,
-  },
-  personalizeFooter: {
-    paddingHorizontal: spacing.xl,
-  },
-  saveErrorWrap: {
-    marginTop: spacing.lg,
-  },
-  previewCard: {
-    backgroundColor: colors.surfaceCard,
-    borderRadius: radius.lg,
-    padding: spacing.xl,
-    boxShadow: shadows.cardFloat,
-    gap: spacing.md,
-    marginBottom: spacing.sm,
-  },
-  previewCardLocked: {
-    opacity: 0.9,
-  },
-  cardHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 14,
-  },
-  iconButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: colors.primarySoft,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  nameContainer: {
-    flex: 1,
-  },
-  nameHint: {
-    fontFamily: fontFamilies.body,
-    fontSize: typography.micro,
-    color: colors.textFaint,
-    marginBottom: 2,
-  },
-  nameInput: {
-    fontFamily: fontFamilies.displaySemi,
-    fontSize: typography.titleSm,
-    color: colors.text,
-    padding: 0,
-  },
-  nameLocked: {
-    fontFamily: fontFamilies.displaySemi,
-    fontSize: typography.titleSm,
-    color: colors.text,
-  },
-  pickerContainer: {
-    marginTop: 4,
-  },
-  formulaPreview: {
-    fontFamily: fontFamilies.body,
-    fontSize: typography.bodyMd,
-    lineHeight: 19.5,
-    color: colors.textMuted,
-  },
-  goalBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    alignSelf: "flex-start",
-    gap: 6,
-    backgroundColor: colors.primarySoft,
-    borderRadius: radius.pill,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-  goalBadgeText: {
-    fontFamily: fontFamilies.bodySemi,
-    fontSize: typography.labelMd,
-    color: colors.primary,
-  },
-  micro: {
-    fontFamily: fontFamilies.body,
-    fontSize: typography.labelMd,
-    color: colors.textFaint,
-    marginTop: 4,
-    marginBottom: spacing.xl,
-  },
-  optionalFields: {
-    gap: spacing.xl,
-    marginTop: spacing.lg,
-  },
-  gateContainer: {
-    marginTop: spacing.xxl,
-    gap: spacing.md,
-    paddingBottom: spacing.xl,
-  },
-  gateHeadline: {
-    fontFamily: fontFamilies.displayBold,
-    fontSize: 26,
-    lineHeight: 31,
-    color: colors.text,
-  },
-  gateQuestion: {
-    fontFamily: fontFamilies.displaySemi,
-    fontSize: typography.titleLg,
-    lineHeight: 25.2,
-    color: colors.text,
-  },
-  gateActionBold: {
-    fontFamily: fontFamilies.displayBold,
-    color: colors.primary,
-  },
-  gateBody: {
-    fontFamily: fontFamilies.body,
-    fontSize: 15,
-    lineHeight: 23,
-    color: colors.textMuted,
-  },
-  gateFooter: {
-    gap: spacing.md,
-  },
-});

@@ -22,16 +22,103 @@ import {
   getDeleteHabitErrorMessage,
   getRestoreHabitErrorMessage,
 } from "@/utils/userFacingErrors";
-import { colors } from "@/theme/colors";
-import { fontFamilies } from "@/theme/fontFamilies";
-import { radius } from "@/theme/radius";
-import { SCREEN_TOP_PADDING, spacing } from "@/theme/spacing";
-import { typography } from "@/theme/typography";
+import { useTheme } from "@/theme/useTheme";
+import { useThemedStyles } from "@/theme/useThemedStyles";
 
 export default function ArchivedHabitDetailScreen() {
   const { habitId: rawParam } = useLocalSearchParams<{ habitId?: string | string[] }>();
   const habitId = Array.isArray(rawParam) ? rawParam[0] : rawParam;
   const insets = useSafeAreaInsets();
+
+  const theme = useTheme();
+  const styles = useThemedStyles((theme) =>
+    StyleSheet.create({
+      archivedChip: {
+        backgroundColor: theme.colors.surfaceMuted,
+        borderRadius: theme.radius.pill,
+        paddingHorizontal: theme.spacing.sm,
+        paddingVertical: 2,
+      },
+      archivedChipText: {
+        color: theme.colors.textFaint,
+        fontFamily: theme.fontFamilies.bodySemi,
+        fontSize: theme.typography.micro,
+        letterSpacing: 0.5,
+      },
+      backButton: {
+        alignItems: "center",
+        height: 36,
+        justifyContent: "center",
+        width: 36,
+      },
+      bodyText: {
+        color: theme.colors.textMuted,
+        fontFamily: theme.fontFamilies.body,
+        fontSize: theme.typography.bodyMd,
+        lineHeight: 18.6,
+      },
+      cardContainer: {
+        gap: theme.spacing.sm,
+      },
+      content: {
+        gap: theme.spacing.xl,
+        padding: theme.spacing.xl,
+      },
+      goalLabel: {
+        color: theme.colors.textFaint,
+        fontFamily: theme.fontFamilies.bodySemi,
+        fontSize: theme.typography.labelMd,
+        letterSpacing: 0.5,
+      },
+      header: {
+        gap: theme.spacing.xs,
+      },
+      headerRow: {
+        alignItems: "center",
+        flexDirection: "row",
+        gap: theme.spacing.sm,
+      },
+      headlineText: {
+        color: theme.colors.text,
+        flexShrink: 1,
+        fontFamily: theme.fontFamilies.bodyMedium,
+        fontSize: 21,
+        fontWeight: "500",
+      },
+      metaCard: {
+        marginTop: theme.spacing.sm,
+      },
+      metaCue: {
+        color: theme.colors.textFaint,
+        fontFamily: theme.fontFamilies.body,
+        fontSize: theme.typography.bodyMd,
+      },
+      metaTinyAction: {
+        color: theme.colors.textMuted,
+        fontFamily: theme.fontFamilies.bodyMedium,
+        fontSize: theme.typography.bodyMd,
+      },
+      restoreCard: {
+        backgroundColor: theme.colors.surfaceMuted,
+      },
+      screen: {
+        backgroundColor: theme.colors.bg,
+        flex: 1,
+      },
+      titleIconRow: {
+        alignItems: "center",
+        flexDirection: "row",
+        flexShrink: 1,
+        gap: theme.spacing.sm,
+      },
+      titleRow: {
+        alignItems: "center",
+        flexDirection: "row",
+        flexWrap: "wrap",
+        gap: theme.spacing.sm,
+      },
+    }),
+  );
 
   const { accessMode, isValidating, refresh } = useTrialValidation();
   const isReadOnly = accessMode === "read_only";
@@ -157,14 +244,14 @@ export default function ArchivedHabitDetailScreen() {
   if (query.error) {
     return (
       <ScrollView contentContainerStyle={styles.content} style={styles.screen}>
-        <View style={[styles.headerRow, { paddingTop: insets.top + SCREEN_TOP_PADDING }]}>
+        <View style={[styles.headerRow, { paddingTop: insets.top + theme.spacing.lg }]}>
           <Pressable
             accessibilityLabel="Go back"
             hitSlop={12}
             onPress={() => router.back()}
             style={styles.backButton}
           >
-            <ChevronLeft color={colors.textMuted} size={22} strokeWidth={1.75} />
+            <ChevronLeft color={theme.colors.textMuted} size={22} strokeWidth={1.75} />
           </Pressable>
         </View>
         <ErrorState message="We couldn't load this archived habit. Try again." />
@@ -197,14 +284,14 @@ export default function ArchivedHabitDetailScreen() {
       ) : null}
 
       {/* Header */}
-      <View style={[styles.header, { paddingTop: insets.top + SCREEN_TOP_PADDING }]}>
+      <View style={[styles.header, { paddingTop: insets.top + theme.spacing.lg }]}>
         <Pressable
           accessibilityLabel="Go back"
           hitSlop={12}
           onPress={() => router.back()}
           style={styles.backButton}
         >
-          <ChevronLeft color={colors.textMuted} size={22} strokeWidth={1.75} />
+          <ChevronLeft color={theme.colors.textMuted} size={22} strokeWidth={1.75} />
         </Pressable>
         <View style={styles.titleRow}>
           <View style={styles.titleIconRow}>
@@ -212,7 +299,7 @@ export default function ArchivedHabitDetailScreen() {
               <LucideIcon
                 name={habit.icon}
                 size={22}
-                color={colors.textMuted}
+                color={theme.colors.textMuted}
                 strokeWidth={1.75}
               />
             ) : null}
@@ -231,7 +318,7 @@ export default function ArchivedHabitDetailScreen() {
           press feedback, muted type. */}
       <View>
         <Eyebrow label="Habit" />
-        <ZenCard style={styles.metaCard} gap={spacing.xs}>
+        <ZenCard style={styles.metaCard} gap={theme.spacing.xs}>
           <Text style={styles.metaTinyAction}>{habit.tiny_action}</Text>
           {habit.cue ? (
             <Text style={styles.metaCue}>Cue: {habit.cue}</Text>
@@ -284,90 +371,3 @@ export default function ArchivedHabitDetailScreen() {
     </ScrollView>
   );
 }
-
-const styles = StyleSheet.create({
-  archivedChip: {
-    backgroundColor: colors.surfaceMuted,
-    borderRadius: radius.pill,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 2,
-  },
-  archivedChipText: {
-    color: colors.textFaint,
-    fontFamily: fontFamilies.bodySemi,
-    fontSize: typography.micro,
-    letterSpacing: 0.5,
-  },
-  backButton: {
-    alignItems: "center",
-    height: 36,
-    justifyContent: "center",
-    width: 36,
-  },
-  bodyText: {
-    color: colors.textMuted,
-    fontFamily: fontFamilies.body,
-    fontSize: typography.bodyMd,
-    lineHeight: 18.6,
-  },
-  cardContainer: {
-    gap: spacing.sm,
-  },
-  content: {
-    gap: spacing.xl,
-    padding: spacing.xl,
-  },
-  goalLabel: {
-    color: colors.textFaint,
-    fontFamily: fontFamilies.bodySemi,
-    fontSize: typography.labelMd,
-    letterSpacing: 0.5,
-  },
-  header: {
-    gap: spacing.xs,
-  },
-  headerRow: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: spacing.sm,
-  },
-  headlineText: {
-    color: colors.text,
-    flexShrink: 1,
-    fontFamily: fontFamilies.bodyMedium,
-    fontSize: 21,
-    fontWeight: "500",
-  },
-  metaCard: {
-    marginTop: spacing.sm,
-  },
-  metaCue: {
-    color: colors.textFaint,
-    fontFamily: fontFamilies.body,
-    fontSize: typography.bodyMd,
-  },
-  metaTinyAction: {
-    color: colors.textMuted,
-    fontFamily: fontFamilies.bodyMedium,
-    fontSize: typography.bodyMd,
-  },
-  restoreCard: {
-    backgroundColor: colors.surfaceMuted,
-  },
-  screen: {
-    backgroundColor: colors.bg,
-    flex: 1,
-  },
-  titleIconRow: {
-    alignItems: "center",
-    flexDirection: "row",
-    flexShrink: 1,
-    gap: spacing.sm,
-  },
-  titleRow: {
-    alignItems: "center",
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: spacing.sm,
-  },
-});
