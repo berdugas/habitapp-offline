@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react-native";
+import { fireEvent, render, screen } from "@/tests/setup/render";
 
 import { GoalStreakStrip } from "@/features/today/components/GoalStreakStrip";
 import { colors } from "@/theme/colors";

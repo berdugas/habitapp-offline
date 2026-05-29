@@ -39,10 +39,8 @@ import {
 import { useArchiveHabitMutation } from "@/features/habits/hooks";
 import { useTrialValidation } from "@/features/trial/hooks";
 import { setPreference } from "@/lib/db/repositories/preferences";
-import { colors } from "@/theme/colors";
-import { fontFamilies } from "@/theme/fontFamilies";
-import { SCREEN_TOP_PADDING_HERO, spacing } from "@/theme/spacing";
-import { typography } from "@/theme/typography";
+import { useTheme } from "@/theme/useTheme";
+import { useThemedStyles } from "@/theme/useThemedStyles";
 import { useTodayAnchorDate } from "@/utils/dayBoundary";
 import {
   getLoadHabitsErrorMessage,
@@ -54,6 +52,33 @@ import type { HabitLog } from "@/lib/db/repositories/habit_logs";
 
 
 function AppHeader() {
+  const styles = useThemedStyles((t) =>
+    StyleSheet.create({
+      header: {
+        alignItems: "center",
+        flexDirection: "row",
+        justifyContent: "space-between",
+      },
+      headerBrand: {
+        alignItems: "center",
+        flexDirection: "row",
+        gap: t.spacing.sm,
+      },
+      appName: {
+        color: t.colors.primary,
+        fontFamily: t.fontFamilies.bodySemi,
+        fontSize: t.typography.labelMd,
+        letterSpacing: 1.5,
+        textTransform: "uppercase",
+      },
+      dateText: {
+        color: t.colors.textMuted,
+        fontFamily: t.fontFamilies.body,
+        fontSize: t.typography.bodyLg,
+      },
+    }),
+  );
+
   const today = useTodayAnchorDate();
   const label = today.toLocaleDateString(undefined, {
     day: "numeric",
@@ -74,6 +99,58 @@ function AppHeader() {
 }
 
 export default function TodayScreen() {
+  const theme = useTheme();
+  const styles = useThemedStyles((t) =>
+    StyleSheet.create({
+      content: {
+        gap: t.spacing.xl,
+        padding: t.spacing.xl,
+      },
+      emptyBody: {
+        color: t.colors.textMuted,
+        fontFamily: t.fontFamilies.body,
+        fontSize: t.typography.bodyLg,
+        lineHeight: 21.0,
+      },
+      emptyCenterWrap: {
+        flex: 1,
+        justifyContent: "center",
+      },
+      emptyContent: {
+        flexGrow: 1,
+        gap: t.spacing.xl,
+        padding: t.spacing.xl,
+      },
+      emptyEmblem: {
+        alignSelf: "center",
+      },
+      emptyTitle: {
+        color: t.colors.text,
+        fontFamily: t.fontFamilies.displaySemi,
+        fontSize: t.typography.headlineLg,
+      },
+      screen: {
+        backgroundColor: t.colors.bg,
+        flex: 1,
+      },
+      newGoalRow: {
+        alignItems: "center",
+        alignSelf: "center",
+        flexDirection: "row",
+        gap: t.spacing.sm,
+        paddingVertical: t.spacing.sm,
+      },
+      newGoalRowPressed: {
+        opacity: 0.6,
+      },
+      newGoalText: {
+        color: t.colors.textMuted,
+        fontFamily: t.fontFamilies.body,
+        fontSize: t.typography.bodyMd,
+      },
+    }),
+  );
+
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
   const {
@@ -204,7 +281,7 @@ export default function TodayScreen() {
       <ScrollView
         contentContainerStyle={[
           styles.emptyContent,
-          { paddingTop: insets.top + SCREEN_TOP_PADDING_HERO },
+          { paddingTop: insets.top + theme.spacing.lg },
         ]}
         style={styles.screen}
       >
@@ -239,7 +316,7 @@ export default function TodayScreen() {
 
   return (
     <ScrollView
-      contentContainerStyle={[styles.content, { paddingTop: insets.top + SCREEN_TOP_PADDING_HERO }]}
+      contentContainerStyle={[styles.content, { paddingTop: insets.top + theme.spacing.lg }]}
       style={styles.screen}
     >
       <AppHeader />
@@ -328,7 +405,7 @@ export default function TodayScreen() {
           ]}
           accessibilityLabel="Start a new goal"
         >
-          <Target color={colors.textMuted} size={16} strokeWidth={1.75} />
+          <Target color={theme.colors.textMuted} size={16} strokeWidth={1.75} />
           <Text style={styles.newGoalText}>Start a new goal</Text>
         </Pressable>
       ) : null}
@@ -343,74 +420,3 @@ export default function TodayScreen() {
     </ScrollView>
   );
 }
-
-const styles = StyleSheet.create({
-  content: {
-    gap: spacing.xl,
-    padding: spacing.xl,
-  },
-  dateText: {
-    color: colors.textMuted,
-    fontFamily: fontFamilies.body,
-    fontSize: typography.bodyLg,
-  },
-  emptyBody: {
-    color: colors.textMuted,
-    fontFamily: fontFamilies.body,
-    fontSize: typography.bodyLg,
-    lineHeight: 21.0,
-  },
-  emptyCenterWrap: {
-    flex: 1,
-    justifyContent: "center",
-  },
-  emptyContent: {
-    flexGrow: 1,
-    gap: spacing.xl,
-    padding: spacing.xl,
-  },
-  emptyEmblem: {
-    alignSelf: "center",
-  },
-  emptyTitle: {
-    color: colors.text,
-    fontFamily: fontFamilies.displaySemi,
-    fontSize: typography.headlineLg,
-  },
-  appName: {
-    color: colors.primary,
-    fontFamily: fontFamilies.bodySemi,
-    fontSize: typography.labelMd,
-    letterSpacing: 1.5,
-    textTransform: "uppercase",
-  },
-  header: {
-    alignItems: "center",
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  headerBrand: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: spacing.sm,
-  },
-  screen: {
-    backgroundColor: colors.bg,
-    flex: 1,
-  },
-  newGoalRow: {
-    alignItems: "center",
-    alignSelf: "center",
-    flexDirection: "row",
-    gap: spacing.sm,
-    paddingVertical: spacing.sm,
-  },
-  newGoalRowPressed: {
-    opacity: 0.6,
-  },
-  newGoalText: {
-    color: colors.textMuted,
-    fontFamily: fontFamilies.body,
-    fontSize: typography.bodyMd,
-  },
-});

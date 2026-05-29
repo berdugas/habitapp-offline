@@ -1,9 +1,8 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import Svg, { Circle } from "react-native-svg";
 
-import { colors } from "@/theme/colors";
-import { fontFamilies } from "@/theme/fontFamilies";
-import { typography } from "@/theme/typography";
+import { useTheme } from "@/theme/useTheme";
+import { useThemedStyles } from "@/theme/useThemedStyles";
 
 const DEFAULT_SIZE = 48;
 const DEFAULT_STROKE_WIDTH = 4;
@@ -30,9 +29,62 @@ export function ConsistencyDonut({
   strokeWidth = DEFAULT_STROKE_WIDTH,
   suppressed = false,
   testID,
-  tint = colors.primary,
+  tint,
   tintedBackground = false,
 }: ConsistencyDonutProps) {
+  const theme = useTheme();
+  const styles = useThemedStyles((t) =>
+    StyleSheet.create({
+      attentionDot: {
+        backgroundColor: t.colors.primary,
+        borderColor: t.colors.surfaceMuted,
+        borderRadius: 999,
+        borderWidth: 2,
+        height: 12, // 8px dot + 2px border each side = 12px total
+        position: "absolute",
+        right: 2,
+        top: 2,
+        width: 12,
+      },
+      captionText: {
+        color: t.colors.textFaint,
+        fontFamily: t.fontFamilies.body,
+        fontSize: 10,
+        marginTop: 2,
+        textAlign: "center",
+      },
+      container: {
+        alignItems: "center",
+      },
+      containerTinted: {
+        backgroundColor: t.colors.primarySoft,
+        borderRadius: 12,
+        paddingHorizontal: 12,
+        paddingVertical: 10,
+      },
+      donutWrap: {
+        position: "relative",
+      },
+      pctOverlay: {
+        alignItems: "center",
+        flex: 1,
+        justifyContent: "center",
+      },
+      pctText: {
+        color: t.colors.text,
+        fontFamily: t.fontFamilies.bodySemi,
+      },
+      pctTextFull: {
+        color: "#ffffff",
+      },
+      suppressedText: {
+        color: t.colors.textFaint,
+      },
+    }),
+  );
+
+  const resolvedTint = tint ?? theme.colors.primary;
+
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
   const center = size / 2;
@@ -48,14 +100,14 @@ export function ConsistencyDonut({
       <View style={[styles.donutWrap, { height: size, width: size }]}>
         <Svg width={size} height={size}>
           {isFull ? (
-            <Circle cx={center} cy={center} r={size / 2} fill={tint} />
+            <Circle cx={center} cy={center} r={size / 2} fill={resolvedTint} />
           ) : (
             <>
               <Circle
                 cx={center}
                 cy={center}
                 r={radius}
-                stroke={colors.surfaceHigh}
+                stroke={theme.colors.surfaceHigh}
                 strokeWidth={strokeWidth}
                 fill="none"
               />
@@ -64,7 +116,7 @@ export function ConsistencyDonut({
                   cx={center}
                   cy={center}
                   r={radius}
-                  stroke={tint}
+                  stroke={resolvedTint}
                   strokeOpacity={0.15}
                   strokeWidth={strokeWidth}
                   fill="none"
@@ -75,7 +127,7 @@ export function ConsistencyDonut({
                   cx={center}
                   cy={center}
                   r={radius}
-                  stroke={tint}
+                  stroke={resolvedTint}
                   strokeWidth={strokeWidth}
                   fill="none"
                   strokeDasharray={`${circumference} ${circumference}`}
@@ -134,51 +186,3 @@ export function ConsistencyDonut({
   }
   return content;
 }
-
-const styles = StyleSheet.create({
-  attentionDot: {
-    backgroundColor: colors.primary,
-    borderColor: colors.surfaceMuted,
-    borderRadius: 999,
-    borderWidth: 2,
-    height: 12, // 8px dot + 2px border each side = 12px total
-    position: "absolute",
-    right: 2,
-    top: 2,
-    width: 12,
-  },
-  captionText: {
-    color: colors.textFaint,
-    fontFamily: fontFamilies.body,
-    fontSize: 10,
-    marginTop: 2,
-    textAlign: "center",
-  },
-  container: {
-    alignItems: "center",
-  },
-  containerTinted: {
-    backgroundColor: colors.primarySoft,
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-  },
-  donutWrap: {
-    position: "relative",
-  },
-  pctOverlay: {
-    alignItems: "center",
-    flex: 1,
-    justifyContent: "center",
-  },
-  pctText: {
-    color: colors.text,
-    fontFamily: fontFamilies.bodySemi,
-  },
-  pctTextFull: {
-    color: "#ffffff",
-  },
-  suppressedText: {
-    color: colors.textFaint,
-  },
-});

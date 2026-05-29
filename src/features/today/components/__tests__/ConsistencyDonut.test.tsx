@@ -1,4 +1,4 @@
-import { render } from "@testing-library/react-native";
+import { render } from "@/tests/setup/render";
 
 import { ConsistencyDonut } from "@/features/today/components/ConsistencyDonut";
 import { colors } from "@/theme/colors";

@@ -2,9 +2,8 @@ import { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { Eyebrow } from "@/components/text/Eyebrow";
-import { colors } from "@/theme/colors";
-import { fontFamilies } from "@/theme/fontFamilies";
-import { typography } from "@/theme/typography";
+import { useTheme } from "@/theme/useTheme";
+import { useThemedStyles } from "@/theme/useThemedStyles";
 import {
   addDeviceDays,
   daysBetweenDates,
@@ -13,6 +12,7 @@ import {
 } from "@/utils/dates";
 import { useTodayAnchorDate, useTodayDateString } from "@/utils/dayBoundary";
 
+import type { Colors } from "@/theme/contract";
 import type { GoalDayState } from "@/features/today/goalMetrics";
 
 type CellState =
@@ -109,6 +109,31 @@ function buildCells(
   return cells;
 }
 
+function cellStyle(state: CellState, colors: Colors): object {
+  switch (state) {
+    case "done":
+      return { backgroundColor: colors.heatDone };
+    case "skipped":
+      return { backgroundColor: colors.heatSkipped };
+    case "missed":
+      return { backgroundColor: colors.heatMissed };
+    case "off-day":
+      return {
+        backgroundColor: "transparent",
+        borderColor: colors.offDayBorder,
+        borderWidth: 1,
+      };
+    case "today-pending":
+      return {
+        backgroundColor: colors.primarySoft,
+        borderColor: colors.primary,
+        borderWidth: 2,
+      };
+    case "future":
+      return { backgroundColor: "transparent" };
+  }
+}
+
 export function GoalStreakStrip({
   dailyStates,
   scope,
@@ -116,6 +141,60 @@ export function GoalStreakStrip({
   startDate,
   onCellPress,
 }: GoalStreakStripProps) {
+  const theme = useTheme();
+  const styles = useThemedStyles((t) =>
+    StyleSheet.create({
+      cell: {
+        borderRadius: 6,
+      },
+      cellPressed: {
+        opacity: 0.7,
+      },
+      cellTodayRing: {
+        borderColor: t.colors.primary,
+        borderWidth: 2,
+      },
+      container: {
+        backgroundColor: t.colors.surface,
+        borderRadius: 12,
+        gap: CELL_GAP,
+        paddingHorizontal: 12,
+        paddingVertical: 12,
+      },
+      gridRow: {
+        flexDirection: "row",
+        gap: CELL_GAP,
+      },
+      header: {
+        marginBottom: 8,
+      },
+      headerCell: {
+        alignItems: "center",
+      },
+      headerRow: {
+        flexDirection: "row",
+        gap: CELL_GAP,
+        marginBottom: 2,
+      },
+      headerText: {
+        color: t.colors.textFaint,
+        fontFamily: t.fontFamilies.body,
+        fontSize: t.typography.micro,
+      },
+      legend: {
+        flexDirection: "row",
+        flexWrap: "wrap",
+        gap: 12,
+        marginTop: 8,
+      },
+      streakLabel: {
+        color: t.colors.primary,
+        fontFamily: t.fontFamilies.bodySemi,
+        fontSize: t.typography.bodyLg,
+      },
+    }),
+  );
+
   const [measuredWidth, setMeasuredWidth] = useState(0);
   const today = useTodayDateString();
   const todayAnchor = useTodayAnchorDate();
@@ -171,7 +250,7 @@ export function GoalStreakStrip({
                 style={({ pressed }) => [
                   styles.cell,
                   cellSizeStyle,
-                  cellStyle(cell.state),
+                  cellStyle(cell.state, theme.colors),
                   isToday &&
                     cell.state === "today-pending" &&
                     styles.cellTodayRing,
@@ -185,9 +264,9 @@ export function GoalStreakStrip({
       ))}
 
       <View style={styles.legend}>
-        <LegendItem color={colors.heatDone} label="Done" />
-        <LegendItem color={colors.heatSkipped} label="Skipped" />
-        <LegendItem color={colors.heatMissed} label="Missed" border />
+        <LegendItem color={theme.colors.heatDone} label="Done" />
+        <LegendItem color={theme.colors.heatSkipped} label="Skipped" />
+        <LegendItem color={theme.colors.heatMissed} label="Missed" border />
         <LegendItem outlined label="Off day" />
       </View>
     </View>
@@ -205,6 +284,36 @@ function LegendItem({
   label: string;
   outlined?: boolean;
 }) {
+  const styles = useThemedStyles((t) =>
+    StyleSheet.create({
+      legendItem: {
+        alignItems: "center",
+        flexDirection: "row",
+        gap: 4,
+      },
+      legendLabel: {
+        color: t.colors.textFaint,
+        fontFamily: t.fontFamilies.body,
+        fontSize: t.typography.micro,
+      },
+      legendSwatch: {
+        borderRadius: 3,
+        height: 12,
+        width: 12,
+      },
+      legendSwatchBorder: {
+        backgroundColor: t.colors.heatMissed,
+        borderColor: t.colors.surfaceHigh,
+        borderWidth: 1,
+      },
+      legendSwatchOutlined: {
+        backgroundColor: "transparent",
+        borderColor: t.colors.offDayBorder,
+        borderWidth: 1,
+      },
+    }),
+  );
+
   return (
     <View style={styles.legendItem}>
       <View
@@ -219,104 +328,3 @@ function LegendItem({
     </View>
   );
 }
-
-function cellStyle(state: CellState): object {
-  switch (state) {
-    case "done":
-      return { backgroundColor: colors.heatDone };
-    case "skipped":
-      return { backgroundColor: colors.heatSkipped };
-    case "missed":
-      return { backgroundColor: colors.heatMissed };
-    case "off-day":
-      return {
-        backgroundColor: "transparent",
-        borderColor: colors.offDayBorder,
-        borderWidth: 1,
-      };
-    case "today-pending":
-      return {
-        backgroundColor: colors.primarySoft,
-        borderColor: colors.primary,
-        borderWidth: 2,
-      };
-    case "future":
-      return { backgroundColor: "transparent" };
-  }
-}
-
-const styles = StyleSheet.create({
-  cell: {
-    borderRadius: 6,
-  },
-  cellPressed: {
-    opacity: 0.7,
-  },
-  cellTodayRing: {
-    borderColor: colors.primary,
-    borderWidth: 2,
-  },
-  container: {
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    gap: CELL_GAP,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-  },
-  gridRow: {
-    flexDirection: "row",
-    gap: CELL_GAP,
-  },
-  header: {
-    marginBottom: 8,
-  },
-  headerCell: {
-    alignItems: "center",
-  },
-  headerRow: {
-    flexDirection: "row",
-    gap: CELL_GAP,
-    marginBottom: 2,
-  },
-  headerText: {
-    color: colors.textFaint,
-    fontFamily: fontFamilies.body,
-    fontSize: typography.micro,
-  },
-  legend: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 12,
-    marginTop: 8,
-  },
-  legendItem: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: 4,
-  },
-  legendLabel: {
-    color: colors.textFaint,
-    fontFamily: fontFamilies.body,
-    fontSize: typography.micro,
-  },
-  legendSwatch: {
-    borderRadius: 3,
-    height: 12,
-    width: 12,
-  },
-  legendSwatchBorder: {
-    backgroundColor: colors.heatMissed,
-    borderColor: colors.surfaceHigh,
-    borderWidth: 1,
-  },
-  legendSwatchOutlined: {
-    backgroundColor: "transparent",
-    borderColor: colors.offDayBorder,
-    borderWidth: 1,
-  },
-  streakLabel: {
-    color: colors.primary,
-    fontFamily: fontFamilies.bodySemi,
-    fontSize: typography.bodyLg,
-  },
-});

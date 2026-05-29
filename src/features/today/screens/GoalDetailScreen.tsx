@@ -35,12 +35,158 @@ import {
   isGoalIdRegistryHydrated,
   whenGoalIdRegistryHydrated,
 } from "@/services/goalIdRegistry";
-import { colors } from "@/theme/colors";
-import { fontFamilies } from "@/theme/fontFamilies";
-import { SCREEN_TOP_PADDING, spacing } from "@/theme/spacing";
-import { typography } from "@/theme/typography";
+import { useTheme } from "@/theme/useTheme";
+import { useThemedStyles } from "@/theme/useThemedStyles";
 
 export default function GoalDetailScreen() {
+  const theme = useTheme();
+  const styles = useThemedStyles((t) =>
+    StyleSheet.create({
+      backButton: {
+        alignItems: "center",
+        height: 36,
+        justifyContent: "center",
+        width: 36,
+      },
+      backRow: {
+        marginBottom: t.spacing.sm,
+      },
+      chevron: {
+        color: t.colors.textFaint,
+        fontFamily: t.fontFamilies.body,
+        fontSize: t.typography.titleLg,
+      },
+      content: {
+        gap: t.spacing.xl,
+        padding: t.spacing.xl,
+      },
+      archiveBody: {
+        color: t.colors.textMuted,
+        fontFamily: t.fontFamilies.body,
+        fontSize: t.typography.bodyMd,
+        lineHeight: 18.6,
+      },
+      archiveCard: {
+        backgroundColor: t.colors.surfaceMuted,
+      },
+      archiveZoneContainer: {
+        gap: t.spacing.sm,
+      },
+      emptyText: {
+        color: t.colors.textMuted,
+        fontFamily: t.fontFamilies.body,
+        fontSize: t.typography.bodyMd,
+        textAlign: "center",
+      },
+      habitName: {
+        color: t.colors.text,
+        flexShrink: 1,
+        fontFamily: t.fontFamilies.bodySemi,
+        fontSize: t.typography.bodyMd,
+      },
+      habitNameRow: {
+        alignItems: "center",
+        flexDirection: "row",
+        gap: t.spacing.xs,
+      },
+      habitRow: {
+        alignItems: "center",
+        flexDirection: "row",
+        justifyContent: "space-between",
+        paddingHorizontal: t.spacing.lg,
+        paddingVertical: t.spacing.md,
+      },
+      habitRowBorder: {
+        borderTopColor: t.colors.surface,
+        borderTopWidth: StyleSheet.hairlineWidth,
+      },
+      habitRowContent: {
+        flex: 1,
+        gap: t.spacing.xs,
+        paddingRight: t.spacing.sm,
+      },
+      habitRowPressed: {
+        backgroundColor: t.colors.surface,
+      },
+      habitsCard: {
+        marginTop: t.spacing.sm,
+        overflow: "hidden",
+      },
+      habitSubtitle: {
+        color: t.colors.textMuted,
+        fontFamily: t.fontFamilies.body,
+        fontSize: t.typography.micro,
+      },
+      header: {
+        gap: t.spacing.xs,
+      },
+      headlineText: {
+        color: t.colors.text,
+        fontFamily: t.fontFamilies.bodyMedium,
+        fontSize: 21,
+        fontWeight: "500",
+      },
+      headlineTextGraduated: {
+        color: t.colors.graduatedCircle,
+      },
+      graduatedSuffix: {
+        color: t.colors.graduatedCircle,
+        fontFamily: t.fontFamilies.body,
+        fontSize: t.typography.micro,
+        fontStyle: "italic",
+        fontWeight: "400",
+      },
+      journeyCard: {
+        borderRadius: 24,
+        gap: t.spacing.md,
+      },
+      journeyTop: {
+        alignItems: "flex-start",
+        flexDirection: "row",
+        gap: t.spacing.md,
+      },
+      donutPlaceholder: {
+        height: 56,
+        width: 56,
+      },
+      narrativeText: {
+        color: t.colors.textMuted,
+        flex: 1,
+        fontFamily: t.fontFamilies.body,
+        fontSize: t.typography.bodyMd,
+        lineHeight: 20.4,
+        paddingTop: 4,
+      },
+      screen: {
+        backgroundColor: t.colors.bg,
+        flex: 1,
+      },
+      reviewCompletedText: {
+        color: t.colors.primary,
+        fontFamily: t.fontFamilies.bodySemi,
+        fontSize: t.typography.bodyMd,
+      },
+      reviewErrorText: {
+        color: t.colors.danger,
+        fontFamily: t.fontFamilies.body,
+        fontSize: t.typography.bodyMd,
+        lineHeight: 18.6,
+      },
+      reviewPromptText: {
+        color: t.colors.text,
+        fontFamily: t.fontFamilies.body,
+        fontSize: t.typography.bodyMd,
+        lineHeight: 18.6,
+      },
+      streakCopyText: {
+        color: t.colors.primary,
+        fontFamily: t.fontFamilies.body,
+        fontStyle: "italic",
+        fontSize: t.typography.bodyMd,
+      },
+    }),
+  );
+
   const { identityPhrase: rawParam } = useLocalSearchParams<{ identityPhrase?: string }>();
   const identityPhrase = rawParam ? decodeURIComponent(rawParam as string) : undefined;
   const insets = useSafeAreaInsets();
@@ -209,7 +355,7 @@ export default function GoalDetailScreen() {
       <ScrollView contentContainerStyle={styles.content} style={styles.screen}>
         <View style={styles.backRow}>
           <Pressable onPress={() => router.back()} style={styles.backButton}>
-            <ChevronLeft color={colors.textMuted} size={22} strokeWidth={1.75} />
+            <ChevronLeft color={theme.colors.textMuted} size={22} strokeWidth={1.75} />
           </Pressable>
         </View>
         <ErrorState message="We couldn't load this goal right now. Try again." />
@@ -232,9 +378,9 @@ export default function GoalDetailScreen() {
       ) : null}
 
       {/* Header */}
-      <View style={[styles.header, { paddingTop: insets.top + SCREEN_TOP_PADDING }]}>
+      <View style={[styles.header, { paddingTop: insets.top + theme.spacing.lg }]}>
         <Pressable hitSlop={12} onPress={() => router.back()} style={styles.backButton}>
-          <ChevronLeft color={colors.textMuted} size={22} strokeWidth={1.75} />
+          <ChevronLeft color={theme.colors.textMuted} size={22} strokeWidth={1.75} />
         </Pressable>
         <Text
           style={[styles.headlineText, goalGraduated && styles.headlineTextGraduated]}
@@ -256,7 +402,7 @@ export default function GoalDetailScreen() {
               size={56}
               label=""
               testID="goal-consistency-donut"
-              tint={goalGraduated ? colors.graduatedCircle : undefined}
+              tint={goalGraduated ? theme.colors.graduatedCircle : undefined}
             />
           ) : (
             <View style={styles.donutPlaceholder} />
@@ -343,7 +489,7 @@ export default function GoalDetailScreen() {
                 <View style={styles.habitRowContent}>
                   <View style={styles.habitNameRow}>
                     {habit.icon ? (
-                      <LucideIcon name={habit.icon} size={16} color={colors.primary} strokeWidth={1.75} />
+                      <LucideIcon name={habit.icon} size={16} color={theme.colors.primary} strokeWidth={1.75} />
                     ) : null}
                     <Text style={styles.habitName}>{habit.name}</Text>
                   </View>
@@ -399,148 +545,3 @@ export default function GoalDetailScreen() {
     </ScrollView>
   );
 }
-
-const styles = StyleSheet.create({
-  backButton: {
-    alignItems: "center",
-    height: 36,
-    justifyContent: "center",
-    width: 36,
-  },
-  backRow: {
-    marginBottom: spacing.sm,
-  },
-  chevron: {
-    color: colors.textFaint,
-    fontFamily: fontFamilies.body,
-    fontSize: typography.titleLg,
-  },
-  content: {
-    gap: spacing.xl,
-    padding: spacing.xl,
-  },
-  archiveBody: {
-    color: colors.textMuted,
-    fontFamily: fontFamilies.body,
-    fontSize: typography.bodyMd,
-    lineHeight: 18.6,
-  },
-  archiveCard: {
-    backgroundColor: colors.surfaceMuted,
-  },
-  archiveZoneContainer: {
-    gap: spacing.sm,
-  },
-  emptyText: {
-    color: colors.textMuted,
-    fontFamily: fontFamilies.body,
-    fontSize: typography.bodyMd,
-    textAlign: "center",
-  },
-  habitName: {
-    color: colors.text,
-    flexShrink: 1,
-    fontFamily: fontFamilies.bodySemi,
-    fontSize: typography.bodyMd,
-  },
-  habitNameRow: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: spacing.xs,
-  },
-  habitRow: {
-    alignItems: "center",
-    flexDirection: "row",
-    justifyContent: "space-between",
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-  },
-  habitRowBorder: {
-    borderTopColor: colors.surface,
-    borderTopWidth: StyleSheet.hairlineWidth,
-  },
-  habitRowContent: {
-    flex: 1,
-    gap: spacing.xs,
-    paddingRight: spacing.sm,
-  },
-  habitRowPressed: {
-    backgroundColor: colors.surface,
-  },
-  habitsCard: {
-    marginTop: spacing.sm,
-    overflow: "hidden",
-  },
-  habitSubtitle: {
-    color: colors.textMuted,
-    fontFamily: fontFamilies.body,
-    fontSize: typography.micro,
-  },
-  header: {
-    gap: spacing.xs,
-  },
-  headlineText: {
-    color: colors.text,
-    fontFamily: fontFamilies.bodyMedium,
-    fontSize: 21,
-    fontWeight: "500",
-  },
-  headlineTextGraduated: {
-    color: colors.graduatedCircle,
-  },
-  graduatedSuffix: {
-    color: colors.graduatedCircle,
-    fontFamily: fontFamilies.body,
-    fontSize: typography.micro,
-    fontStyle: "italic",
-    fontWeight: "400",
-  },
-  journeyCard: {
-    borderRadius: 24,
-    gap: spacing.md,
-  },
-  journeyTop: {
-    alignItems: "flex-start",
-    flexDirection: "row",
-    gap: spacing.md,
-  },
-  donutPlaceholder: {
-    height: 56,
-    width: 56,
-  },
-  narrativeText: {
-    color: colors.textMuted,
-    flex: 1,
-    fontFamily: fontFamilies.body,
-    fontSize: typography.bodyMd,
-    lineHeight: 20.4,
-    paddingTop: 4,
-  },
-  screen: {
-    backgroundColor: colors.bg,
-    flex: 1,
-  },
-  reviewCompletedText: {
-    color: colors.primary,
-    fontFamily: fontFamilies.bodySemi,
-    fontSize: typography.bodyMd,
-  },
-  reviewErrorText: {
-    color: colors.danger,
-    fontFamily: fontFamilies.body,
-    fontSize: typography.bodyMd,
-    lineHeight: 18.6,
-  },
-  reviewPromptText: {
-    color: colors.text,
-    fontFamily: fontFamilies.body,
-    fontSize: typography.bodyMd,
-    lineHeight: 18.6,
-  },
-  streakCopyText: {
-    color: colors.primary,
-    fontFamily: fontFamilies.body,
-    fontStyle: "italic",
-    fontSize: typography.bodyMd,
-  },
-});

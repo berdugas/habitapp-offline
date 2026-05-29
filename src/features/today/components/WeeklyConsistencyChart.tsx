@@ -2,9 +2,8 @@ import { useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import Svg, { Circle, Line, Path, Text as SvgText } from "react-native-svg";
 
-import { colors } from "@/theme/colors";
-import { fontFamilies } from "@/theme/fontFamilies";
-import { typography } from "@/theme/typography";
+import { useTheme } from "@/theme/useTheme";
+import { useThemedStyles } from "@/theme/useThemedStyles";
 
 const CHART_HEIGHT = 72;
 const POINT_RADIUS = 3;
@@ -31,6 +30,22 @@ export function WeeklyConsistencyChart({
   scope,
   weeklyData,
 }: WeeklyConsistencyChartProps) {
+  const theme = useTheme();
+  const styles = useThemedStyles((t) =>
+    StyleSheet.create({
+      caption: {
+        color: t.colors.textFaint,
+        fontFamily: t.fontFamilies.body,
+        fontSize: t.typography.micro,
+        marginTop: 4,
+        textAlign: "right",
+      },
+      container: {
+        width: "100%",
+      },
+    }),
+  );
+
   const [measuredWidth, setMeasuredWidth] = useState(0);
 
   if (weeklyData.length < 1) return null;
@@ -77,16 +92,16 @@ export function WeeklyConsistencyChart({
           y1={midY}
           x2={plotLeft + innerWidth}
           y2={midY}
-          stroke={colors.offDayBorder}
+          stroke={theme.colors.offDayBorder}
           strokeWidth={1}
           strokeDasharray="3 4"
         />
         <SvgText
           x={labelX}
           y={TOP_PADDING + 4}
-          fill={colors.textFaint}
+          fill={theme.colors.textFaint}
           fontSize={AXIS_LABEL_FONT_SIZE}
-          fontFamily={fontFamilies.body}
+          fontFamily={theme.fontFamilies.body}
           textAnchor="start"
         >
           100%
@@ -94,9 +109,9 @@ export function WeeklyConsistencyChart({
         <SvgText
           x={labelX}
           y={midY + 3}
-          fill={colors.textFaint}
+          fill={theme.colors.textFaint}
           fontSize={AXIS_LABEL_FONT_SIZE}
-          fontFamily={fontFamilies.body}
+          fontFamily={theme.fontFamilies.body}
           textAnchor="start"
         >
           50%
@@ -104,9 +119,9 @@ export function WeeklyConsistencyChart({
         <SvgText
           x={labelX}
           y={TOP_PADDING + CHART_HEIGHT}
-          fill={colors.textFaint}
+          fill={theme.colors.textFaint}
           fontSize={AXIS_LABEL_FONT_SIZE}
-          fontFamily={fontFamilies.body}
+          fontFamily={theme.fontFamilies.body}
           textAnchor="start"
         >
           0%
@@ -116,7 +131,7 @@ export function WeeklyConsistencyChart({
             <Path d={areaPath} fill="rgba(68, 102, 85, 0.08)" />
             <Path
               d={linePath}
-              stroke={colors.primary}
+              stroke={theme.colors.primary}
               strokeWidth={STROKE_WIDTH}
               fill="none"
               strokeLinecap="round"
@@ -130,7 +145,7 @@ export function WeeklyConsistencyChart({
             cx={p.x}
             cy={p.y}
             r={isSinglePoint ? POINT_RADIUS + 1 : POINT_RADIUS}
-            fill={colors.primary}
+            fill={theme.colors.primary}
             stroke="#ffffff"
             strokeWidth={1.5}
           />
@@ -140,9 +155,9 @@ export function WeeklyConsistencyChart({
             key={`label-${i}`}
             x={p.x}
             y={TOP_PADDING + CHART_HEIGHT + LABEL_HEIGHT - 4}
-            fill={colors.textFaint}
-            fontSize={typography.micro}
-            fontFamily={fontFamilies.body}
+            fill={theme.colors.textFaint}
+            fontSize={theme.typography.micro}
+            fontFamily={theme.fontFamilies.body}
             textAnchor="middle"
           >
             {weeklyData[i].weekLabel}
@@ -176,16 +191,3 @@ function buildSmoothedPath(points: { x: number; y: number }[]): string {
   }
   return d;
 }
-
-const styles = StyleSheet.create({
-  caption: {
-    color: colors.textFaint,
-    fontFamily: fontFamilies.body,
-    fontSize: typography.micro,
-    marginTop: 4,
-    textAlign: "right",
-  },
-  container: {
-    width: "100%",
-  },
-});

@@ -4,10 +4,8 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { ConsistencyDonut } from "@/features/today/components/ConsistencyDonut";
 import { getStreakCopy } from "@/features/today/streakCopy";
-import { colors } from "@/theme/colors";
-import { fontFamilies } from "@/theme/fontFamilies";
-import { spacing } from "@/theme/spacing";
-import { typography } from "@/theme/typography";
+import { useTheme } from "@/theme/useTheme";
+import { useThemedStyles } from "@/theme/useThemedStyles";
 
 type GoalContainerProps = {
   banner?: React.ReactNode;
@@ -36,6 +34,120 @@ export function GoalContainer({
   reviewStatusError = false,
   streak,
 }: GoalContainerProps) {
+  const theme = useTheme();
+  const styles = useThemedStyles((t) =>
+    StyleSheet.create({
+      anchorSide: {
+        flex: 1,
+        gap: t.spacing.xs,
+        paddingRight: t.spacing.lg,
+      },
+      becomingText: {
+        color: t.colors.text,
+        fontFamily: t.fontFamilies.bodyMedium,
+        fontSize: 21,
+        fontWeight: "500",
+      },
+      becomingTextGraduated: {
+        color: t.colors.graduatedCircle,
+      },
+      graduatedSuffix: {
+        color: t.colors.graduatedCircle,
+        fontFamily: t.fontFamilies.body,
+        fontSize: t.typography.micro,
+        fontStyle: "italic",
+        fontWeight: "400",
+      },
+      container: {
+        backgroundColor: t.colors.surfaceMuted,
+        borderRadius: 20,
+        gap: t.spacing.md,
+        padding: t.spacing.lg,
+      },
+      donutColumn: {
+        width: 80,
+      },
+      habitsCard: {
+        backgroundColor: t.colors.surfaceCard,
+        borderRadius: 14,
+        overflow: "hidden",
+      },
+      header: {
+        alignItems: "flex-start",
+        flexDirection: "row",
+      },
+      addHabitRow: {
+        alignItems: "center",
+        borderTopColor: t.colors.surface,
+        borderTopWidth: StyleSheet.hairlineWidth,
+        flexDirection: "row",
+        gap: t.spacing.sm,
+        paddingHorizontal: t.spacing.lg,
+        paddingVertical: t.spacing.md + 2,
+      },
+      addHabitRowPressed: {
+        backgroundColor: t.colors.surface,
+      },
+      addHabitText: {
+        color: t.colors.textMuted,
+        fontFamily: t.fontFamilies.body,
+        fontSize: t.typography.bodyMd,
+      },
+      pill: {
+        alignSelf: "flex-start",
+        backgroundColor: t.colors.surfaceHigh,
+        borderRadius: 99,
+        paddingHorizontal: t.spacing.sm + 2,
+        paddingVertical: t.spacing.xs - 1,
+      },
+      pillComplete: {
+        backgroundColor: t.colors.primaryLight,
+      },
+      pillReview: {
+        alignItems: "center",
+        alignSelf: "flex-start",
+        backgroundColor: t.colors.primary,
+        borderRadius: 99,
+        elevation: 2,
+        flexDirection: "row",
+        gap: t.spacing.xs,
+        paddingHorizontal: t.spacing.sm + 2,
+        paddingVertical: t.spacing.xs - 1,
+        shadowColor: t.colors.primary,
+        shadowOffset: { height: 4, width: 0 },
+        shadowOpacity: 0.18,
+        shadowRadius: 8,
+      },
+      pillReviewPressed: {
+        opacity: 0.85,
+      },
+      pillReviewText: {
+        color: t.colors.primaryText,
+        fontFamily: t.fontFamilies.bodySemi,
+        fontSize: t.typography.micro,
+      },
+      pillText: {
+        color: t.colors.textMuted,
+        fontFamily: t.fontFamilies.body,
+        fontSize: t.typography.micro,
+      },
+      pillTextComplete: {
+        color: t.colors.primary,
+        fontFamily: t.fontFamilies.bodyMedium,
+      },
+      reviewErrorHintText: {
+        color: t.colors.danger,
+        fontFamily: t.fontFamilies.bodySemi,
+        fontSize: t.typography.micro,
+      },
+      streakText: {
+        color: t.colors.primary,
+        fontFamily: t.fontFamilies.body,
+        fontSize: t.typography.bodyMd,
+      },
+    }),
+  );
+
   const streakCopy = useMemo(() => getStreakCopy(streak), [streak]);
 
   return (
@@ -83,7 +195,7 @@ export function GoalContainer({
             >
               <Text style={styles.pillReviewText}>Weekly review</Text>
               <ChevronRight
-                color={colors.primaryText}
+                color={theme.colors.primaryText}
                 size={12}
                 strokeWidth={2.25}
               />
@@ -106,7 +218,7 @@ export function GoalContainer({
               onPress={onGoalPress}
               rate={consistencyRate}
               showAttentionDot={reviewDue && !reviewStatusError}
-              tint={goalGraduated ? colors.graduatedCircle : undefined}
+              tint={goalGraduated ? theme.colors.graduatedCircle : undefined}
             />
           </View>
         ) : null}
@@ -120,7 +232,7 @@ export function GoalContainer({
             style={({ pressed }) => [styles.addHabitRow, pressed && styles.addHabitRowPressed]}
             accessibilityLabel="Add a habit"
           >
-            <Plus color={colors.textMuted} size={16} strokeWidth={1.75} />
+            <Plus color={theme.colors.textMuted} size={16} strokeWidth={1.75} />
             <Text style={styles.addHabitText}>Add a habit</Text>
           </Pressable>
         ) : null}
@@ -128,114 +240,3 @@ export function GoalContainer({
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  anchorSide: {
-    flex: 1,
-    gap: spacing.xs,
-    paddingRight: spacing.lg,
-  },
-  becomingText: {
-    color: colors.text,
-    fontFamily: fontFamilies.bodyMedium,
-    fontSize: 21,
-    fontWeight: "500",
-  },
-  becomingTextGraduated: {
-    color: colors.graduatedCircle,
-  },
-  graduatedSuffix: {
-    color: colors.graduatedCircle,
-    fontFamily: fontFamilies.body,
-    fontSize: typography.micro,
-    fontStyle: "italic",
-    fontWeight: "400",
-  },
-  container: {
-    backgroundColor: colors.surfaceMuted,
-    borderRadius: 20,
-    gap: spacing.md,
-    padding: spacing.lg,
-  },
-  donutColumn: {
-    width: 80,
-  },
-  habitsCard: {
-    backgroundColor: colors.surfaceCard,
-    borderRadius: 14,
-    overflow: "hidden",
-  },
-  header: {
-    alignItems: "flex-start",
-    flexDirection: "row",
-  },
-  addHabitRow: {
-    alignItems: "center",
-    borderTopColor: colors.surface,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    flexDirection: "row",
-    gap: spacing.sm,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md + 2,
-  },
-  addHabitRowPressed: {
-    backgroundColor: colors.surface,
-  },
-  addHabitText: {
-    color: colors.textMuted,
-    fontFamily: fontFamilies.body,
-    fontSize: typography.bodyMd,
-  },
-  pill: {
-    alignSelf: "flex-start",
-    backgroundColor: colors.surfaceHigh,
-    borderRadius: 99,
-    paddingHorizontal: spacing.sm + 2,
-    paddingVertical: spacing.xs - 1,
-  },
-  pillComplete: {
-    backgroundColor: colors.primaryLight,
-  },
-  pillReview: {
-    alignItems: "center",
-    alignSelf: "flex-start",
-    backgroundColor: colors.primary,
-    borderRadius: 99,
-    elevation: 2,
-    flexDirection: "row",
-    gap: spacing.xs,
-    paddingHorizontal: spacing.sm + 2,
-    paddingVertical: spacing.xs - 1,
-    shadowColor: colors.primary,
-    shadowOffset: { height: 4, width: 0 },
-    shadowOpacity: 0.18,
-    shadowRadius: 8,
-  },
-  pillReviewPressed: {
-    opacity: 0.85,
-  },
-  pillReviewText: {
-    color: colors.primaryText,
-    fontFamily: fontFamilies.bodySemi,
-    fontSize: typography.micro,
-  },
-  pillText: {
-    color: colors.textMuted,
-    fontFamily: fontFamilies.body,
-    fontSize: typography.micro,
-  },
-  pillTextComplete: {
-    color: colors.primary,
-    fontFamily: fontFamilies.bodyMedium,
-  },
-  reviewErrorHintText: {
-    color: colors.danger,
-    fontFamily: fontFamilies.bodySemi,
-    fontSize: typography.micro,
-  },
-  streakText: {
-    color: colors.primary,
-    fontFamily: fontFamilies.body,
-    fontSize: typography.bodyMd,
-  },
-});
