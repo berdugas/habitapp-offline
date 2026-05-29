@@ -5,12 +5,34 @@ import { AppLogo } from "@/components/branding/AppLogo";
 import { PrimaryButton } from "@/components/buttons/PrimaryButton";
 import { OnboardingLayout } from "@/components/layouts/OnboardingLayout";
 import { useOnboarding } from "@/features/onboarding/OnboardingProvider";
-import { colors } from "@/theme/colors";
-import { fontFamilies } from "@/theme/fontFamilies";
-import { typography } from "@/theme/typography";
+import { useThemedStyles } from "@/theme/useThemedStyles";
 
 export default function WelcomeScreen() {
   const { update } = useOnboarding();
+  const styles = useThemedStyles((theme) =>
+    StyleSheet.create({
+      logoContainer: {
+        alignItems: "center",
+        paddingTop: 180,
+        marginBottom: 80,
+      },
+      headline: {
+        fontFamily: theme.fontFamilies.displayBold,
+        fontSize: 30,
+        lineHeight: 35.4,
+        color: theme.colors.text,
+        marginBottom: 12,
+      },
+      subhead: {
+        fontFamily: theme.fontFamilies.body,
+        fontSize: theme.typography.bodyLg,
+        lineHeight: 22.4,
+        color: theme.colors.textMuted,
+        letterSpacing: 0.32,
+        marginBottom: 8,
+      },
+    }),
+  );
 
   const handleBegin = () => {
     update({ step: "insight" });
@@ -28,26 +50,3 @@ export default function WelcomeScreen() {
     </OnboardingLayout>
   );
 }
-
-const styles = StyleSheet.create({
-  logoContainer: {
-    alignItems: "center",
-    paddingTop: 180,
-    marginBottom: 80,
-  },
-  headline: {
-    fontFamily: fontFamilies.displayBold,
-    fontSize: 30,
-    lineHeight: 35.4,
-    color: colors.text,
-    marginBottom: 12,
-  },
-  subhead: {
-    fontFamily: fontFamilies.body,
-    fontSize: typography.bodyLg,
-    lineHeight: 22.4,
-    color: colors.textMuted,
-    letterSpacing: 0.32,
-    marginBottom: 8,
-  },
-});

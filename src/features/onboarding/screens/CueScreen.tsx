@@ -8,14 +8,56 @@ import { OnboardingInput } from "@/components/forms/OnboardingInput";
 import { OnboardingLayout } from "@/components/layouts/OnboardingLayout";
 import { OnboardingHeader } from "@/components/navigation/OnboardingHeader";
 import { useOnboarding } from "@/features/onboarding/OnboardingProvider";
-import { colors } from "@/theme/colors";
-import { fontFamilies } from "@/theme/fontFamilies";
-import { radius } from "@/theme/radius";
-import { spacing } from "@/theme/spacing";
-import { typography } from "@/theme/typography";
+import { useThemedStyles } from "@/theme/useThemedStyles";
 
 export default function CueScreen() {
   const { draft, update } = useOnboarding();
+  const styles = useThemedStyles((theme) =>
+    StyleSheet.create({
+      eyebrow: {
+        fontFamily: theme.fontFamilies.bodyMedium,
+        fontSize: theme.typography.bodyMd,
+        lineHeight: 19.5,
+        color: theme.colors.primary,
+        marginBottom: 8,
+      },
+      headline: {
+        fontFamily: theme.fontFamilies.displayBold,
+        fontSize: 28,
+        lineHeight: 33,
+        color: theme.colors.text,
+        marginBottom: 20,
+      },
+      formulaCard: {
+        backgroundColor: theme.colors.surface,
+        borderRadius: theme.radius.lg,
+        paddingVertical: theme.spacing.xl,
+        paddingHorizontal: theme.spacing.lg + 4,
+        marginBottom: 20,
+        gap: 8,
+      },
+      fieldLabel: {
+        fontFamily: theme.fontFamilies.bodyMedium,
+        fontSize: theme.typography.labelMd,
+        color: theme.colors.textMuted,
+        paddingLeft: 4,
+      },
+      fieldLabelSecond: {
+        marginTop: 12,
+      },
+      readonlyField: {
+        backgroundColor: theme.colors.surfaceHigh,
+        borderRadius: theme.radius.md,
+        paddingVertical: 16,
+        paddingHorizontal: 18,
+      },
+      readonlyText: {
+        fontFamily: theme.fontFamilies.bodySemi,
+        fontSize: 15,
+        color: theme.colors.text,
+      },
+    }),
+  );
 
   const canContinue = draft.cueExisting.trim().length >= 2;
 
@@ -81,48 +123,3 @@ export default function CueScreen() {
     </OnboardingLayout>
   );
 }
-
-const styles = StyleSheet.create({
-  eyebrow: {
-    fontFamily: fontFamilies.bodyMedium,
-    fontSize: typography.bodyMd,
-    lineHeight: 19.5,
-    color: colors.primary,
-    marginBottom: 8,
-  },
-  headline: {
-    fontFamily: fontFamilies.displayBold,
-    fontSize: 28,
-    lineHeight: 33,
-    color: colors.text,
-    marginBottom: 20,
-  },
-  formulaCard: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    paddingVertical: spacing.xl,
-    paddingHorizontal: spacing.lg + 4,
-    marginBottom: 20,
-    gap: 8,
-  },
-  fieldLabel: {
-    fontFamily: fontFamilies.bodyMedium,
-    fontSize: typography.labelMd,
-    color: colors.textMuted,
-    paddingLeft: 4,
-  },
-  fieldLabelSecond: {
-    marginTop: 12,
-  },
-  readonlyField: {
-    backgroundColor: colors.surfaceHigh,
-    borderRadius: radius.md,
-    paddingVertical: 16,
-    paddingHorizontal: 18,
-  },
-  readonlyText: {
-    fontFamily: fontFamilies.bodySemi,
-    fontSize: 15,
-    color: colors.text,
-  },
-});

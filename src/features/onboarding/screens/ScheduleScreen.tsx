@@ -18,11 +18,8 @@ import { ActiveDaysPicker } from "@/components/forms/ActiveDaysPicker";
 import { OnboardingLayout } from "@/components/layouts/OnboardingLayout";
 import { OnboardingHeader } from "@/components/navigation/OnboardingHeader";
 import { useOnboarding } from "@/features/onboarding/OnboardingProvider";
-import { colors } from "@/theme/colors";
-import { fontFamilies } from "@/theme/fontFamilies";
-import { radius } from "@/theme/radius";
-import { spacing } from "@/theme/spacing";
-import { typography } from "@/theme/typography";
+import { useTheme } from "@/theme/useTheme";
+import { useThemedStyles } from "@/theme/useThemedStyles";
 
 function hhmmToDate(hhmm: string): Date {
   const [h, m] = hhmm.split(":").map(Number);
@@ -47,6 +44,112 @@ function formatTime(hhmm: string): string {
 export default function ScheduleScreen() {
   const { draft, update } = useOnboarding();
   const [showTimePicker, setShowTimePicker] = useState(false);
+  const theme = useTheme();
+  const styles = useThemedStyles((t) =>
+    StyleSheet.create({
+      headline: {
+        fontFamily: t.fontFamilies.displayBold,
+        fontSize: 24,
+        lineHeight: 30,
+        color: t.colors.text,
+        marginBottom: t.spacing.sm,
+      },
+      subtitle: {
+        fontFamily: t.fontFamilies.body,
+        fontSize: 14.5,
+        lineHeight: 22,
+        color: t.colors.textFaint,
+        marginBottom: t.spacing.xxl,
+      },
+      sectionLabel: {
+        fontFamily: t.fontFamilies.bodyMedium,
+        fontSize: t.typography.labelMd,
+        color: t.colors.textMuted,
+        marginBottom: t.spacing.sm,
+      },
+      guidanceWrap: {
+        marginTop: t.spacing.lg,
+        marginBottom: t.spacing.xxl,
+      },
+      reminderCard: {
+        backgroundColor: t.colors.surfaceCard,
+        borderRadius: t.radius.md,
+        overflow: "hidden",
+      },
+      reminderRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+        paddingVertical: 14,
+        paddingHorizontal: t.spacing.lg,
+      },
+      rowDivider: {
+        height: 1,
+        backgroundColor: t.colors.surface,
+        marginHorizontal: t.spacing.lg,
+      },
+      rowLeft: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 10,
+      },
+      rowLabel: {
+        fontFamily: t.fontFamilies.bodyMedium,
+        fontSize: 15,
+        color: t.colors.text,
+      },
+      rowRight: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: t.spacing.xs,
+      },
+      timeText: {
+        fontFamily: t.fontFamilies.bodyMedium,
+        fontSize: 15,
+        color: t.colors.primary,
+      },
+      modalOverlay: {
+        flex: 1,
+        justifyContent: "flex-end",
+        backgroundColor: "rgba(0,0,0,0.35)",
+      },
+      modalSheet: {
+        backgroundColor: t.colors.bg,
+        borderTopLeftRadius: 24,
+        borderTopRightRadius: 24,
+        paddingTop: t.spacing.md,
+        paddingBottom: 40,
+      },
+      modalHandle: {
+        width: 36,
+        height: 4,
+        borderRadius: 2,
+        backgroundColor: t.colors.surfaceHigh,
+        alignSelf: "center",
+        marginBottom: t.spacing.sm,
+      },
+      modalHeader: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+        paddingHorizontal: t.spacing.xl,
+        paddingVertical: t.spacing.md,
+      },
+      modalTitle: {
+        fontFamily: t.fontFamilies.displaySemi,
+        fontSize: t.typography.bodyLg,
+        color: t.colors.text,
+      },
+      modalDone: {
+        fontFamily: t.fontFamilies.bodySemi,
+        fontSize: t.typography.bodyLg,
+        color: t.colors.primary,
+      },
+      iosPicker: {
+        marginHorizontal: t.spacing.xl,
+      },
+    }),
+  );
 
   const pickerDate = useMemo(() => hhmmToDate(draft.reminderTime), [draft.reminderTime]);
 
@@ -91,14 +194,14 @@ export default function ScheduleScreen() {
       <View style={styles.reminderCard}>
         <View style={styles.reminderRow}>
           <View style={styles.rowLeft}>
-            <Bell color={colors.primary} size={18} strokeWidth={1.8} />
+            <Bell color={theme.colors.primary} size={18} strokeWidth={1.8} />
             <Text style={styles.rowLabel}>Notify me</Text>
           </View>
           <Switch
             value={draft.reminderEnabled}
             onValueChange={(val) => update({ reminderEnabled: val })}
-            trackColor={{ true: colors.primary, false: colors.surfaceHigh }}
-            thumbColor={colors.surfaceCard}
+            trackColor={{ true: theme.colors.primary, false: theme.colors.surfaceHigh }}
+            thumbColor={theme.colors.surfaceCard}
           />
         </View>
 
@@ -110,12 +213,12 @@ export default function ScheduleScreen() {
               onPress={() => setShowTimePicker(true)}
             >
               <View style={styles.rowLeft}>
-                <Clock color={colors.primary} size={18} strokeWidth={1.8} />
+                <Clock color={theme.colors.primary} size={18} strokeWidth={1.8} />
                 <Text style={styles.rowLabel}>Time</Text>
               </View>
               <View style={styles.rowRight}>
                 <Text style={styles.timeText}>{formatTime(draft.reminderTime)}</Text>
-                <ChevronRight color={colors.primary} size={16} strokeWidth={2} />
+                <ChevronRight color={theme.colors.primary} size={16} strokeWidth={2} />
               </View>
             </Pressable>
           </>
@@ -172,107 +275,3 @@ export default function ScheduleScreen() {
     </OnboardingLayout>
   );
 }
-
-const styles = StyleSheet.create({
-  headline: {
-    fontFamily: fontFamilies.displayBold,
-    fontSize: 24,
-    lineHeight: 30,
-    color: colors.text,
-    marginBottom: spacing.sm,
-  },
-  subtitle: {
-    fontFamily: fontFamilies.body,
-    fontSize: 14.5,
-    lineHeight: 22,
-    color: colors.textFaint,
-    marginBottom: spacing.xxl,
-  },
-  sectionLabel: {
-    fontFamily: fontFamilies.bodyMedium,
-    fontSize: typography.labelMd,
-    color: colors.textMuted,
-    marginBottom: spacing.sm,
-  },
-  guidanceWrap: {
-    marginTop: spacing.lg,
-    marginBottom: spacing.xxl,
-  },
-  reminderCard: {
-    backgroundColor: colors.surfaceCard,
-    borderRadius: radius.md,
-    overflow: "hidden",
-  },
-  reminderRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingVertical: 14,
-    paddingHorizontal: spacing.lg,
-  },
-  rowDivider: {
-    height: 1,
-    backgroundColor: colors.surface,
-    marginHorizontal: spacing.lg,
-  },
-  rowLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
-  rowLabel: {
-    fontFamily: fontFamilies.bodyMedium,
-    fontSize: 15,
-    color: colors.text,
-  },
-  rowRight: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.xs,
-  },
-  timeText: {
-    fontFamily: fontFamilies.bodyMedium,
-    fontSize: 15,
-    color: colors.primary,
-  },
-  modalOverlay: {
-    flex: 1,
-    justifyContent: "flex-end",
-    backgroundColor: "rgba(0,0,0,0.35)",
-  },
-  modalSheet: {
-    backgroundColor: colors.bg,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    paddingTop: spacing.md,
-    paddingBottom: 40,
-  },
-  modalHandle: {
-    width: 36,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: colors.surfaceHigh,
-    alignSelf: "center",
-    marginBottom: spacing.sm,
-  },
-  modalHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.md,
-  },
-  modalTitle: {
-    fontFamily: fontFamilies.displaySemi,
-    fontSize: typography.bodyLg,
-    color: colors.text,
-  },
-  modalDone: {
-    fontFamily: fontFamilies.bodySemi,
-    fontSize: typography.bodyLg,
-    color: colors.primary,
-  },
-  iosPicker: {
-    marginHorizontal: spacing.xl,
-  },
-});
