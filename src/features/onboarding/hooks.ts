@@ -89,6 +89,17 @@ export function useOnboardingDraft(): {
   const update = useCallback(
     (patch: Partial<OnboardingDraft>) => {
       const next = { ...draftRef.current, ...patch };
+      // Mirror only when this patch is a dailyAction-only change and the user
+      // hasn't touched the tiny field. The `!("tinyAction" in patch)` guard
+      // prevents a combined patch from clobbering a tiny value the same patch
+      // is trying to set.
+      if (
+        "dailyAction" in patch &&
+        !("tinyAction" in patch) &&
+        !next.tinyActionTouched
+      ) {
+        next.tinyAction = next.dailyAction;
+      }
       draftRef.current = next;
       setDraft(next);
 

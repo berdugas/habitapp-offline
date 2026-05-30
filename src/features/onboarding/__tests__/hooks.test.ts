@@ -261,4 +261,98 @@ describe("useOnboardingDraft", () => {
     expect(mockLoad).toHaveBeenLastCalledWith("user-2");
     expect(result.current.draft).toEqual(EMPTY_DRAFT);
   });
+
+  describe("tinyAction mirror behavior", () => {
+    it("mirrors dailyAction into tinyAction when tinyActionTouched is false", async () => {
+      const { result } = renderHook(() => useOnboardingDraft());
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      act(() => {
+        result.current.update({ dailyAction: "Run for 5 minutes" });
+      });
+
+      expect(result.current.draft.dailyAction).toBe("Run for 5 minutes");
+      expect(result.current.draft.tinyAction).toBe("Run for 5 minutes");
+    });
+
+    it("keeps mirroring on a second dailyAction edit while untouched", async () => {
+      const { result } = renderHook(() => useOnboardingDraft());
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      act(() => {
+        result.current.update({ dailyAction: "Run for 5 minutes" });
+      });
+      act(() => {
+        result.current.update({ dailyAction: "Run for 10 minutes" });
+      });
+
+      expect(result.current.draft.tinyAction).toBe("Run for 10 minutes");
+    });
+
+    it("stops mirroring once the user touches tinyAction", async () => {
+      const { result } = renderHook(() => useOnboardingDraft());
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      act(() => {
+        result.current.update({ dailyAction: "Run for 5 minutes" });
+      });
+      act(() => {
+        result.current.update({
+          tinyAction: "Put on shoes",
+          tinyActionTouched: true,
+        });
+      });
+      act(() => {
+        result.current.update({ dailyAction: "Run for 10 minutes" });
+      });
+
+      expect(result.current.draft.tinyAction).toBe("Put on shoes");
+      expect(result.current.draft.dailyAction).toBe("Run for 10 minutes");
+    });
+
+    it("treats clearing the tinyAction as sticky — mirror does not re-engage", async () => {
+      const { result } = renderHook(() => useOnboardingDraft());
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      act(() => {
+        result.current.update({
+          tinyAction: "Put on shoes",
+          tinyActionTouched: true,
+        });
+      });
+      act(() => {
+        result.current.update({ tinyAction: "", tinyActionTouched: true });
+      });
+      act(() => {
+        result.current.update({ dailyAction: "Run for 5 minutes" });
+      });
+
+      expect(result.current.draft.tinyAction).toBe("");
+    });
+
+    it("does not apply the mirror when the same patch sets both dailyAction and tinyAction (defensive — no current caller does this)", async () => {
+      const { result } = renderHook(() => useOnboardingDraft());
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      act(() => {
+        result.current.update({
+          dailyAction: "Run for 5 minutes",
+          tinyAction: "Put on shoes",
+        });
+      });
+
+      expect(result.current.draft.tinyAction).toBe("Put on shoes");
+      expect(result.current.draft.dailyAction).toBe("Run for 5 minutes");
+    });
+  });
 });
