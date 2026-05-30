@@ -117,6 +117,7 @@ describe("onboarding storage", () => {
 
       const loaded = await loadOnboardingDraft(USER_A);
 
+      expect(loaded.tinyAction).toBe("");
       expect(loaded.tinyActionTouched).toBe(false);
     });
 
@@ -134,6 +135,37 @@ describe("onboarding storage", () => {
       const loaded = await loadOnboardingDraft(USER_A);
 
       expect(loaded.tinyActionTouched).toBe(false);
+    });
+
+    it("migrates an old draft with a whitespace-only tinyAction by setting tinyActionTouched=false", async () => {
+      const oldShape = {
+        step: "shrink",
+        becomingPhrase: "a writer",
+        dailyAction: "Write 500 words",
+        tinyAction: "   ",
+      };
+      await setPreference(onboardingDraftKey(USER_A), JSON.stringify(oldShape));
+
+      const loaded = await loadOnboardingDraft(USER_A);
+
+      expect(loaded.tinyActionTouched).toBe(false);
+    });
+
+    it("preserves tinyActionTouched=true when the persisted draft already has the flag (migration must not re-run and clobber)", async () => {
+      // If migration accidentally re-ran on a persisted draft, the empty tinyAction
+      // would resolve to tinyActionTouched=false and clobber the persisted true.
+      const newShape = {
+        step: "shrink",
+        becomingPhrase: "a writer",
+        dailyAction: "Write 500 words",
+        tinyAction: "",
+        tinyActionTouched: true,
+      };
+      await setPreference(onboardingDraftKey(USER_A), JSON.stringify(newShape));
+
+      const loaded = await loadOnboardingDraft(USER_A);
+
+      expect(loaded.tinyActionTouched).toBe(true);
     });
 
     it("returns EMPTY_DRAFT without throwing when the stored JSON is malformed", async () => {
