@@ -228,6 +228,27 @@ describe("CreateHabitFlow — save-for-later path", () => {
     });
   });
 
+  it("auto-fills the tiny-action field with the daily action on arrival at BuildStep", async () => {
+    mockAssertCanCreateActiveHabit.mockResolvedValue({ ok: true });
+
+    render(<CreateHabitFlow />, { wrapper });
+
+    // ActionStep
+    await act(async () => {
+      fireEvent.changeText(
+        screen.getByPlaceholderText(/Goes for a walk/),
+        "Walk to the mailbox",
+      );
+    });
+    await act(async () => {
+      fireEvent.press(screen.getByText("Continue"));
+    });
+
+    // BuildStep: the tiny input should already hold the daily action.
+    const tinyInput = await screen.findByPlaceholderText(/Make it even smaller/);
+    expect(tinyInput.props.value).toBe("Walk to the mailbox");
+  });
+
   describe("reminder branching at save time", () => {
     it("active save WITH reminderTime calls scheduleReminder (not persistReminderIntent)", async () => {
       mockAssertCanCreateActiveHabit.mockResolvedValue({ ok: true });
