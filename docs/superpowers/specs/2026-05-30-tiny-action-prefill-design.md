@@ -227,6 +227,18 @@ return merged;
 `CreateHabitFlow`'s draft is session-local `useState`, fresh every time you
 start a new habit — no migration needed.
 
+**Migration quirk for pre-rollout users who got the old DailyActionScreen
+prefill.** The old `handleContinue` silently set `tinyAction = dailyAction` when
+the user pressed Continue without touching the tiny field. The migration cannot
+distinguish that case from "user actually typed in the tiny field" — both
+present as a non-empty `tinyAction` with no `tinyActionTouched` flag, so both
+get `tinyActionTouched: true` post-migration. For the auto-prefilled cohort,
+this means subsequent edits to `dailyAction` will not re-mirror into
+`tinyAction`; the user must clear the tiny field manually to re-sync. This is
+the same edge as the "User goes back and changes daily action after touching
+tiny" row in the edge-cases table. Acceptable given the affected population is
+only users who are mid-onboarding at the moment of the rollout.
+
 ---
 
 ## Edge cases
@@ -262,7 +274,9 @@ Extend
   true })`) leaves the flag sticky — a later `update({ dailyAction: "V" })`
   still does not overwrite the empty tiny.
 - A combined patch `update({ dailyAction: "X", tinyAction: "Y" })` does not
-  apply the mirror — tiny is `"Y"`, not `"X"` (guard against clobber).
+  apply the mirror — tiny is `"Y"`, not `"X"` (guard against clobber). No
+  current caller dispatches both fields in the same patch; this is a defensive
+  test against future regressions.
 
 ### CreateHabitFlow screen test — `CreateHabitFlow.test.tsx`
 
