@@ -105,7 +105,15 @@ The whole mirror rule lives in one place per flow: the `update()` function.
 function update(patch: Partial<CreateHabitDraft>) {
   setDraft((prev) => {
     const next = { ...prev, ...patch };
-    if ("dailyAction" in patch && !next.tinyActionTouched) {
+    // Mirror only when this patch is a dailyAction-only change and the user
+    // hasn't touched the tiny field. The `!("tinyAction" in patch)` guard
+    // prevents a combined patch from clobbering a tiny value the same patch
+    // is trying to set.
+    if (
+      "dailyAction" in patch &&
+      !("tinyAction" in patch) &&
+      !next.tinyActionTouched
+    ) {
       next.tinyAction = next.dailyAction;
     }
     return next;
@@ -121,7 +129,11 @@ against `draftRef.current` + `setDraft`:
 const update = useCallback(
   (patch: Partial<OnboardingDraft>) => {
     const next = { ...draftRef.current, ...patch };
-    if ("dailyAction" in patch && !next.tinyActionTouched) {
+    if (
+      "dailyAction" in patch &&
+      !("tinyAction" in patch) &&
+      !next.tinyActionTouched
+    ) {
       next.tinyAction = next.dailyAction;
     }
     draftRef.current = next;
@@ -142,6 +154,46 @@ onChangeText={(text) => update({ tinyAction: text, tinyActionTouched: true })}
 
 Mirroring is therefore triggered only by patches to `dailyAction`. Patches to
 `tinyAction` set `tinyActionTouched: true` and skip the mirror.
+
+### Remove the existing one-shot prefill in DailyActionScreen
+
+[`DailyActionScreen.handleContinue`](../../../src/features/onboarding/screens/DailyActionScreen.tsx)
+already contains a one-shot prefill that runs when the user presses Continue:
+
+```ts
+const handleContinue = () => {
+  const next: Partial<OnboardingDraft> = { step: "shrink-insight" };
+  if (draft.tinyAction.trim().length === 0) {
+    next.tinyAction = draft.dailyAction;        // ← prefill
+  }
+  update(next);
+  router.push("/(onboarding)/shrink-insight");
+};
+```
+
+Two reasons to remove this in the same change:
+
+1. **It becomes dead code.** Once the mirror lives in `useOnboardingDraft.update`,
+   `draft.tinyAction` is already populated by the time Continue is pressed — the
+   `trim().length === 0` branch never fires.
+2. **It bypasses `tinyActionTouched`.** It writes `tinyAction` without setting
+   the flag. Harmless under the new mirror (the mirror will keep updating both),
+   but semantically wrong and a footgun if anyone later tweaks the flow.
+
+Replace `handleContinue` with the simple form:
+
+```ts
+const handleContinue = () => {
+  update({ step: "shrink-insight" });
+  router.push("/(onboarding)/shrink-insight");
+};
+```
+
+Note that the user's reported pain ("don't make me re-type") was observed in the
+**create-habit** flow, which has never had a prefill. The onboarding flow's
+existing one-shot prefill already softened the problem there. The new mirror
+unifies behavior across both flows and additionally fixes the back-and-edit case
+the one-shot prefill never handled.
 
 ### Migration for persisted onboarding drafts
 
@@ -185,37 +237,60 @@ start a new habit — no migration needed.
 | User clears tiny field *after* touching it | Field stays empty. Mirror does **not** re-engage — `tinyActionTouched` is sticky. They must type something themselves. |
 | "Let me make it smaller" return path | By the time this button is reachable, either the user has typed a tiny version (touched=true) or the mirror produced a non-empty value. Returning to BuildStep preserves whatever's there. The existing `focusTinyActionOnBuild` auto-focus still works. |
 | User goes back and changes daily action *after* touching tiny | Mirror is off, so tiny stays as-is. They can manually re-sync by clearing tiny and retyping. If this hits users in real usage, we can revisit. |
-| Whitespace | Mirror copies the raw `dailyAction` string. Existing `stripLeadingIWill(draft.tinyAction)` and `.trim()` calls on save and on Continue gates handle normalization. |
+| Whitespace | Mirror copies the raw `dailyAction` string. Continue gates use `.trim().length >= 2` on the raw value; `stripLeadingIWill` only runs at save time (`CreateHabitFlow.tsx:165`, `EditHabitScreen.tsx:215`, `validators.ts:18`) and in display formatters. The mirror does not need its own normalization step. |
 | Worst-day gate copy | Reads "Could you still do {tinyAction} on your worst day?" — works whether the user shrunk or not. The "Let me make it smaller" escape hatch still catches "this is too big for a bad day." |
+| Auto-focus on a pre-filled tiny field | When the user taps "Let me make it smaller" and returns to BuildStep, the existing `focusTinyActionOnBuild` focuses the tiny input — which may now hold a mirrored or previously-typed value. Cursor lands at end of existing text, which is the React Native default. Not changed in this spec; flagged as a future polish candidate (auto-select-all on return so the user can immediately overtype with a smaller version). |
 
 ---
 
 ## Testing
 
-Three areas to cover.
+Four test files are touched.
 
-### Unit / draft behavior
-
-In a new or extended test for the create flow draft and the onboarding draft:
-
-- Typing in daily action mirrors to tiny action when `tinyActionTouched` is
-  false.
-- Editing daily action a second time still mirrors.
-- Typing in tiny action sets `tinyActionTouched: true` and the next daily-action
-  edit does **not** overwrite tiny.
-- Clearing tiny action after touching does not re-engage the mirror.
-
-### CreateHabitFlow screen test
+### Onboarding `update()` mirror — `hooks.test.ts`
 
 Extend
-[`CreateHabitFlow.test.tsx`](../../../src/features/habits/screens/__tests__/CreateHabitFlow.test.tsx):
+[`src/features/onboarding/__tests__/hooks.test.ts`](../../../src/features/onboarding/__tests__/hooks.test.ts):
+
+- `update({ dailyAction: "X" })` mirrors `tinyAction` to `"X"` when
+  `tinyActionTouched` is `false`.
+- A second `update({ dailyAction: "Y" })` still mirrors (tiny becomes `"Y"`)
+  while untouched.
+- `update({ tinyAction: "Z", tinyActionTouched: true })` sets the flag, and a
+  subsequent `update({ dailyAction: "W" })` does **not** overwrite tiny.
+- Clearing tiny after touching (`update({ tinyAction: "", tinyActionTouched:
+  true })`) leaves the flag sticky — a later `update({ dailyAction: "V" })`
+  still does not overwrite the empty tiny.
+- A combined patch `update({ dailyAction: "X", tinyAction: "Y" })` does not
+  apply the mirror — tiny is `"Y"`, not `"X"` (guard against clobber).
+
+### CreateHabitFlow screen test — `CreateHabitFlow.test.tsx`
+
+Extend
+[`src/features/habits/screens/__tests__/CreateHabitFlow.test.tsx`](../../../src/features/habits/screens/__tests__/CreateHabitFlow.test.tsx):
 
 - After typing the daily action and advancing to BuildStep, the tiny input
-  shows the daily action value.
+  shows the daily action value (mirror via the same `update()` mechanism — no
+  separate per-screen prefill).
 - Continue on BuildStep is enabled on arrival if cue is also filled.
-- "Let me make it smaller" → back to BuildStep preserves the typed tiny version.
+- "Let me make it smaller" → back to BuildStep preserves the typed tiny version
+  (the user touched the field by typing on the first BuildStep visit, so the
+  mirror is off).
 
-### Onboarding migration test
+### ShrinkScreen test — `ShrinkScreen.test.tsx`
+
+Extend
+[`src/features/onboarding/__tests__/screens/ShrinkScreen.test.tsx`](../../../src/features/onboarding/__tests__/screens/ShrinkScreen.test.tsx):
+
+- Typing in the tiny field calls `update` with **both** `tinyAction` and
+  `tinyActionTouched: true` (not just `{ tinyAction: text }`). Use a mock
+  `update` and assert on its argument shape.
+
+Be aware: existing tests in this file mock `useOnboarding` with stub state that
+ignores the touched flag — those tests will keep passing without exercising the
+new payload. The explicit assertion above closes that gap.
+
+### Onboarding storage migration — `storage.test.ts`
 
 Extend
 [`src/features/onboarding/__tests__/storage.test.ts`](../../../src/features/onboarding/__tests__/storage.test.ts):
@@ -231,15 +306,25 @@ Extend
 
 ## Files touched
 
+**Production code**
+
 - [`src/features/habits/screens/CreateHabitFlow.tsx`](../../../src/features/habits/screens/CreateHabitFlow.tsx)
-  — add field to type + EMPTY_DRAFT, update `update()`, update BuildStep's
+  — add field to type + `EMPTY_DRAFT`, update `update()`, update BuildStep's
   `onChangeText`.
 - [`src/features/onboarding/types.ts`](../../../src/features/onboarding/types.ts)
-  — add field to type + EMPTY_DRAFT + KNOWN_DRAFT_KEYS.
+  — add field to `OnboardingDraft` + `EMPTY_DRAFT` + `KNOWN_DRAFT_KEYS`.
 - [`src/features/onboarding/hooks.ts`](../../../src/features/onboarding/hooks.ts)
   — update `update()` in `useOnboardingDraft`.
 - [`src/features/onboarding/screens/ShrinkScreen.tsx`](../../../src/features/onboarding/screens/ShrinkScreen.tsx)
-  — update `onChangeText`.
+  — update `onChangeText` to pass `tinyActionTouched: true`.
+- [`src/features/onboarding/screens/DailyActionScreen.tsx`](../../../src/features/onboarding/screens/DailyActionScreen.tsx)
+  — remove the dead one-shot prefill branch from `handleContinue`.
 - [`src/features/onboarding/storage.ts`](../../../src/features/onboarding/storage.ts)
   — add migration in `loadOnboardingDraft`.
-- Tests as described above.
+
+**Tests**
+
+- [`src/features/habits/screens/__tests__/CreateHabitFlow.test.tsx`](../../../src/features/habits/screens/__tests__/CreateHabitFlow.test.tsx)
+- [`src/features/onboarding/__tests__/hooks.test.ts`](../../../src/features/onboarding/__tests__/hooks.test.ts)
+- [`src/features/onboarding/__tests__/screens/ShrinkScreen.test.tsx`](../../../src/features/onboarding/__tests__/screens/ShrinkScreen.test.tsx)
+- [`src/features/onboarding/__tests__/storage.test.ts`](../../../src/features/onboarding/__tests__/storage.test.ts)
