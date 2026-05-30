@@ -19,12 +19,17 @@ import ArchivedHabitDetailScreen from "@/features/habits/screens/ArchivedHabitDe
 
 const mockReplace = jest.fn();
 const mockDismissAll = jest.fn();
+// Default: a back-stack exists (Settings → Backlog → ArchivedDetail). Tests
+// that exercise the deep-link case set this to false via mockReturnValueOnce.
+const mockCanDismiss = jest.fn(() => true);
 
 jest.mock("expo-router", () => ({
   router: {
     back: jest.fn(),
     replace: (...args: unknown[]) => mockReplace(...args),
     dismissAll: () => mockDismissAll(),
+    // Lazy lookup so per-test mockReturnValueOnce overrides take effect.
+    canDismiss: () => mockCanDismiss(),
   },
   useLocalSearchParams: () => ({ habitId: "h1" }),
 }));
@@ -82,6 +87,7 @@ function makeHabit(overrides: Partial<Record<string, unknown>> = {}) {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  mockCanDismiss.mockReturnValue(true);
   useOwnedHabitQuery.mockReturnValue({
     data: makeHabit(),
     isLoading: false,
@@ -335,7 +341,11 @@ describe("ArchivedHabitDetailScreen", () => {
   });
 
   describe("Delete permanently", () => {
-    it("uses .replace to /habits/backlog on success — direct-open + stale-stack cases are deterministic", async () => {
+    it("on success pops the pushed stack with dismissAll — does NOT replace (would leave a duplicate Backlog/Today behind)", async () => {
+      // Mirrors the restore-success intent (clean exit) but does NOT force-
+      // replace to Today: a deleted habit has no destination view, so we
+      // return to whichever tab launched the archive flow. dismissAll is
+      // gated on canDismiss=true (the default beforeEach value).
       const deleteMutate = jest.fn().mockResolvedValue(undefined);
       useDeleteHabitMutation.mockReturnValue({
         mutate: jest.fn(),
@@ -358,8 +368,46 @@ describe("ArchivedHabitDetailScreen", () => {
         expect(deleteMutate).toHaveBeenCalledWith({ habitId: "h1" });
       });
       await waitFor(() => {
-        expect(mockReplace).toHaveBeenCalledWith("/(app)/habits/backlog");
+        expect(mockDismissAll).toHaveBeenCalledTimes(1);
       });
+      // On the main path the stale-route effect can't fire (isFullyArchived
+      // is true), so replace shouldn't be called at all. Tighter than
+      // "not called with the today route" — catches a wider regression.
+      expect(mockReplace).not.toHaveBeenCalled();
+      alertSpy.mockRestore();
+    });
+
+    it("on success with no back-stack (deep-link cold start) falls back to replace(Today)", async () => {
+      // canDismiss=false means the archived detail screen is the only route
+      // on the stack — happens when the user deep-links straight here.
+      // Without the fallback, dismissAll would no-op and the user would be
+      // stranded on a screen showing a habit that no longer exists.
+      mockCanDismiss.mockReturnValueOnce(false);
+      const deleteMutate = jest.fn().mockResolvedValue(undefined);
+      useDeleteHabitMutation.mockReturnValue({
+        mutate: jest.fn(),
+        mutateAsync: deleteMutate,
+        isPending: false,
+        error: null,
+      });
+      const alertSpy = jest
+        .spyOn(require("react-native").Alert, "alert")
+        .mockImplementation(((_t: string, _m: string, btns: Array<{ text: string; onPress?: () => void }>) => {
+          btns.find((b) => b.text === "Delete")?.onPress?.();
+        }) as never);
+
+      renderWithClient(<ArchivedHabitDetailScreen />);
+      fireEvent.press(
+        screen.getByRole("button", { name: "Delete permanently" }),
+      );
+
+      await waitFor(() => {
+        expect(deleteMutate).toHaveBeenCalledWith({ habitId: "h1" });
+      });
+      await waitFor(() => {
+        expect(mockReplace).toHaveBeenCalledWith("/(app)/(tabs)/today");
+      });
+      expect(mockDismissAll).not.toHaveBeenCalled();
       alertSpy.mockRestore();
     });
 
