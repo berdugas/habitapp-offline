@@ -14,7 +14,15 @@ Two independent local changes to existing React Native screens. Fix 1 swaps `rou
 ## Reference
 
 - **Spec:** `docs/superpowers/specs/2026-05-30-archive-exit-and-reminder-placement-design.md`
-- **Layout assumption (Fix 1):** archive detail routes live under the `(app)/_layout.tsx` `<Stack>`. If anyone has restructured the route group since this plan was written, re-verify `router.canDismiss()` behaves as expected before proceeding.
+- **Layout assumption (Fix 1):** archive detail routes live under the `(app)/_layout.tsx` `<Stack>`. If anyone has restructured the route group since this plan was written, re-verify `router.canDismiss()` behaves as expected before proceeding. Task 1 Step 0 has a one-line grep to confirm.
+
+## Jest invocation notes
+
+All `npx jest ...` commands below use `--testPathIgnorePatterns=""`. The project's `jest.config.js` ignores `<rootDir>/.claude/` so that stale tests in sibling worktrees don't run during normal CI. When working from inside a worktree under `.claude/worktrees/<name>/`, `<rootDir>` resolves to the worktree path AND the ignore pattern can still match — the override forces the tests in this worktree to actually run instead of silently producing "no tests found". **If you are executing this plan from the main checkout (not a worktree), drop the flag** — it's harmless but unnecessary there.
+
+## Mock-reset note (applies to Tasks 1 and 2)
+
+The mock setup uses `jest.clearAllMocks()` + an explicit `mockCanDismiss.mockReturnValue(true)` reset. **Do not "simplify" this to `jest.resetAllMocks()`** — `resetAllMocks` resets the implementation too, undoing the `() => true` default and leaving `canDismiss` as a bare `jest.fn()` that returns `undefined`. That breaks every main-path delete test (the `if (router.canDismiss())` branch evaluates falsy and triggers the deep-link fallback path instead). The explicit reset pattern is correct as written.
 
 ---
 
@@ -23,6 +31,16 @@ Two independent local changes to existing React Native screens. Fix 1 swaps `rou
 **Files:**
 - Modify: `src/features/habits/screens/ArchivedHabitDetailScreen.tsx` — `handleDeleteHabit` (currently around line 234, the post-`await mutateAsync` line)
 - Modify: `src/features/habits/screens/__tests__/ArchivedHabitDetailScreen.test.tsx` — expo-router mock (lines 20-30) + the existing delete-success test (lines 338-364)
+
+- [ ] **Step 0: Pre-flight — confirm layout assumption holds**
+
+The `dismissAll` / `canDismiss` semantics depend on archive detail being mounted inside a `<Stack>` navigator. Verify in one command:
+
+```bash
+grep -n "Stack" app/\(app\)/_layout.tsx
+```
+
+Expected: at least one line shows `import { ... Stack ... } from "expo-router"` and another shows `<Stack>` as the root JSX wrapping the `habits/archived/[habitId]` screen entry. If the layout has been refactored to something else (Drawer, custom navigator, etc.), STOP and re-verify the canDismiss/dismissAll behaviour before proceeding — the plan's navigation assumptions may no longer hold.
 
 - [ ] **Step 1: Add `canDismiss` to the expo-router test mock**
 
