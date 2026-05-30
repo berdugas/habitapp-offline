@@ -18,7 +18,7 @@ Two independent local changes to existing React Native screens. Fix 1 swaps `rou
 
 ## Jest invocation notes
 
-All `npx jest ...` commands below use `--testPathIgnorePatterns=""`. The project's `jest.config.js` ignores `<rootDir>/.claude/` so that stale tests in sibling worktrees don't run during normal CI. When working from inside a worktree under `.claude/worktrees/<name>/`, `<rootDir>` resolves to the worktree path AND the ignore pattern can still match — the override forces the tests in this worktree to actually run instead of silently producing "no tests found". **If you are executing this plan from the main checkout (not a worktree), drop the flag** — it's harmless but unnecessary there.
+All `npx jest ...` commands below run without any `--testPathIgnorePatterns` override. Earlier drafts of this plan added `--testPathIgnorePatterns=""` defensively (to escape the project's `<rootDir>/.claude/` ignore when working from inside a worktree under `.claude/worktrees/`). Empirically this **breaks** test discovery: jest 29 interprets `[""]` as a regex matching every path, silently filtering out all tests. Inside a worktree, `<rootDir>` resolves to the worktree path itself — so the project's `<rootDir>/.claude/` pattern targets a non-existent subdirectory and is harmless. Use plain `npx jest <path> --runInBand`.
 
 ## Mock-reset note (applies to Tasks 1 and 2)
 
@@ -206,7 +206,7 @@ with:
 Run:
 
 ```bash
-npx jest src/features/habits/screens/__tests__/ArchivedHabitDetailScreen.test.tsx --testPathIgnorePatterns="" --runInBand
+npx jest src/features/habits/screens/__tests__/ArchivedHabitDetailScreen.test.tsx --runInBand
 ```
 
 Expected:
@@ -267,7 +267,7 @@ Leave `startExit()` / `cancelExit()` exactly as-is — the submit-lock and `isEx
 Run:
 
 ```bash
-npx jest src/features/habits/screens/__tests__/ArchivedHabitDetailScreen.test.tsx --testPathIgnorePatterns="" --runInBand
+npx jest src/features/habits/screens/__tests__/ArchivedHabitDetailScreen.test.tsx --runInBand
 ```
 
 Expected: all tests pass, including the two new delete tests and every pre-existing test (restore, stale-route, read-only, etc.).
@@ -432,7 +432,7 @@ Replace the existing test (currently lines 521-550, `it("uses .replace (not .bac
 Run:
 
 ```bash
-npx jest src/features/today/__tests__/ArchivedGoalDetailScreen.test.tsx --testPathIgnorePatterns="" --runInBand
+npx jest src/features/today/__tests__/ArchivedGoalDetailScreen.test.tsx --runInBand
 ```
 
 Expected: the two new delete tests fail (current impl still does `router.replace("/(app)/habits/backlog")`). All other tests still pass.
@@ -488,7 +488,7 @@ Leave `startExit()` / `cancelExit()` exactly as-is.
 Run:
 
 ```bash
-npx jest src/features/today/__tests__/ArchivedGoalDetailScreen.test.tsx --testPathIgnorePatterns="" --runInBand
+npx jest src/features/today/__tests__/ArchivedGoalDetailScreen.test.tsx --runInBand
 ```
 
 Expected: all tests pass, including the two new delete tests and the existing restore-success / stale-route / flash-guard tests.
@@ -587,7 +587,7 @@ async function walkToWorstday(options: { withReminder?: boolean } = {}) {
 Run:
 
 ```bash
-npx jest src/features/habits/screens/__tests__/CreateHabitFlow.test.tsx --testPathIgnorePatterns="" --runInBand
+npx jest src/features/habits/screens/__tests__/CreateHabitFlow.test.tsx --runInBand
 ```
 
 Expected: the two tests that call `walkToWorstday({ withReminder: true })` (currently around lines 230 and 253, "active save WITH reminderTime" and "backlog save WITH reminderTime") fail — the helper tries `screen.UNSAFE_getByType(Switch)` in the personalize phase, but the Switch is still in BuildStep. Error message will mention no Switch found / unable to find element of type Switch. The `withReminder: false` tests still pass.
@@ -639,7 +639,7 @@ Do not wrap the picker in any layout container — it has its own internal label
 Run:
 
 ```bash
-npx jest src/features/habits/screens/__tests__/CreateHabitFlow.test.tsx --testPathIgnorePatterns="" --runInBand
+npx jest src/features/habits/screens/__tests__/CreateHabitFlow.test.tsx --runInBand
 ```
 
 Expected: all tests pass — both reminder-branching tests now find the Switch in the personalize phase, and the no-reminder tests still pass because they never touch the Switch.
@@ -653,7 +653,7 @@ npx jest \
   src/features/habits/screens/__tests__/ArchivedHabitDetailScreen.test.tsx \
   src/features/today/__tests__/ArchivedGoalDetailScreen.test.tsx \
   src/features/habits/screens/__tests__/CreateHabitFlow.test.tsx \
-  --testPathIgnorePatterns="" --runInBand
+  --runInBand
 ```
 
 Expected: all three files pass.
@@ -713,7 +713,7 @@ In `src/features/habits/screens/CreateHabitFlow.tsx`, wrap the new ReminderPicke
 `theme` is already in scope in `PersonalizeStep` (line 635 declares it). Re-run the test file to confirm no regressions:
 
 ```bash
-npx jest src/features/habits/screens/__tests__/CreateHabitFlow.test.tsx --testPathIgnorePatterns="" --runInBand
+npx jest src/features/habits/screens/__tests__/CreateHabitFlow.test.tsx --runInBand
 ```
 
 Expected: still passing — the wrapper View doesn't affect any test queries (Switch is still the only one on screen).
