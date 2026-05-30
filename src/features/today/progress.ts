@@ -8,6 +8,7 @@ type SummarizeHabitProgressOptions = {
   activeDays?: number[];
   endDate?: Date;
   logs: HabitLogRecord[];
+  startDate?: string;
   windowDays: number;
 };
 
@@ -69,6 +70,7 @@ export function summarizeHabitProgress({
   activeDays,
   endDate = now(),
   logs,
+  startDate,
   windowDays,
 }: SummarizeHabitProgressOptions): HabitProgressSummary {
   const normalizedEndDate = new Date(endDate);
