@@ -310,6 +310,134 @@ describe("consistencyRate — regression tests (unchanged behavior)", () => {
   });
 });
 
+// ─── Consistency rate — unlogged past active days count as missed ─────────────
+// Reproduces the bug where users who only tap "done" on good days and ignore
+// the rest see an inflated consistency rate (the app never writes "missed"
+// rows, so missedCount stayed at 0 and rate degenerated to done/done = 100%).
+
+describe("consistencyRate — unlogged past active days count as missed", () => {
+  const endDate = new Date("2026-04-23T10:00:00");
+
+  it("5 done + 24 unlogged past days → consistency 5/29, not 1.0 (bug repro; today also unlogged but excluded)", () => {
+    const logs: HabitLogRecord[] = [
+      log(daysAgo(1), "done"),
+      log(daysAgo(2), "done"),
+      log(daysAgo(3), "done"),
+      log(daysAgo(4), "done"),
+      log(daysAgo(5), "done"),
+    ];
+    const result = summarizeHabitProgress({ endDate, logs, windowDays: 30 });
+    // 30-day window; today unlogged is excluded from denominator → 29 past
+    // active days, 5 done, 24 unlogged-treated-as-missed.
+    expect(result.consistencyDenominator).toBe(29);
+    expect(result.consistencyRate).toBeCloseTo(5 / 29);
+  });
+
+  it("today unlogged does not count against consistency", () => {
+    // 3-day window, today unlogged, yesterday and day-before-yesterday done.
+    // Today is excluded → denominator is 2, both done → 1.0.
+    const result = summarizeHabitProgress({
+      endDate,
+      logs: [log(daysAgo(1), "done"), log(daysAgo(2), "done")],
+      windowDays: 3,
+    });
+    expect(result.consistencyDenominator).toBe(2);
+    expect(result.consistencyRate).toBe(1);
+  });
+
+  it("past unlogged active day with no log row counts as missed (matches streak loop)", () => {
+    // 3-day window: today done, yesterday unlogged, day-before done.
+    // Past active unlogged day (yesterday) counts as missed; today is in denom
+    // because it has a log. Denominator = 3 (today done, yesterday missed,
+    // day-before done), numerator = 2 → 2/3.
+    const result = summarizeHabitProgress({
+      endDate,
+      logs: [log(TODAY, "done"), log(daysAgo(2), "done")],
+      windowDays: 3,
+    });
+    expect(result.consistencyDenominator).toBe(3);
+    expect(result.consistencyRate).toBeCloseTo(2 / 3);
+  });
+
+  it("skipped past day stays out of denominator (excluded from consistency)", () => {
+    // 4-day window: today unlogged (excluded), yesterday skipped (excluded),
+    // day-before done, day-before-that unlogged (now counts as missed).
+    // Denominator = 2 (1 done + 1 missed), numerator = 1 → 0.5.
+    const result = summarizeHabitProgress({
+      endDate,
+      logs: [log(daysAgo(1), "skipped"), log(daysAgo(2), "done")],
+      windowDays: 4,
+    });
+    expect(result.consistencyDenominator).toBe(2);
+    expect(result.skipCount).toBe(1);
+    expect(result.consistencyRate).toBe(0.5);
+  });
+
+  it("off-days unlogged stay out of denominator (MWF habit)", () => {
+    // 7-day window ending Thu Apr 23. activeDays = MWF (1,3,5).
+    // Active days in window: Mon Apr 20, Wed Apr 22, Fri Apr 17.
+    // Mon done, Wed done, Fri unlogged-treated-as-missed. Tue/Thu/Sat/Sun
+    // skipped as off-days. Today (Thu) is off, excluded. Denominator = 3,
+    // done = 2 → 2/3.
+    const result = summarizeHabitProgress({
+      activeDays: [1, 3, 5],
+      endDate,
+      logs: [
+        log("2026-04-20", "done"), // Mon
+        log("2026-04-22", "done"), // Wed
+        // Apr 17 (Fri) unlogged → missed
+      ],
+      windowDays: 7,
+    });
+    expect(result.consistencyDenominator).toBe(3);
+    expect(result.consistencyRate).toBeCloseTo(2 / 3);
+  });
+
+  it("startDate gates pre-creation days out of the denominator", () => {
+    // 30-day window but habit started 4 days ago (daysAgo(4)). 5 calendar
+    // days are in scope; today excluded → 4 past active days in denominator.
+    // 4 done → denominator 4, rate 1.0. Without the gate this would inflate
+    // the missed count by 25 pre-creation days.
+    const startDate = daysAgo(4);
+    const result = summarizeHabitProgress({
+      endDate,
+      logs: [
+        log(daysAgo(1), "done"),
+        log(daysAgo(2), "done"),
+        log(daysAgo(3), "done"),
+        log(daysAgo(4), "done"),
+      ],
+      startDate,
+      windowDays: 30,
+    });
+    expect(result.consistencyDenominator).toBe(4);
+    expect(result.consistencyRate).toBe(1);
+  });
+
+  it("startDate combined with skipped + unlogged: 7-day-old habit, mixed history", () => {
+    // Habit started 6 days ago. 7-day window covers exactly the habit's life.
+    // Today unlogged (excluded). Yesterday done (+1). 2 days ago skipped
+    // (excluded from denom). 3 days ago unlogged → missed (+1). 4 days ago
+    // done (+1). 5 days ago done (+1). 6 days ago (startDate itself)
+    // unlogged → missed (+1). 5 active past days in denom, 3 done → 3/5.
+    const startDate = daysAgo(6);
+    const result = summarizeHabitProgress({
+      endDate,
+      logs: [
+        log(daysAgo(1), "done"),
+        log(daysAgo(2), "skipped"),
+        log(daysAgo(4), "done"),
+        log(daysAgo(5), "done"),
+      ],
+      startDate,
+      windowDays: 7,
+    });
+    expect(result.consistencyDenominator).toBe(5);
+    expect(result.skipCount).toBe(1);
+    expect(result.consistencyRate).toBe(0.6);
+  });
+});
+
 // ─── Edge cases ───────────────────────────────────────────────────────────────
 
 describe("streak — edge cases", () => {
