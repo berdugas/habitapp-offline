@@ -12,21 +12,31 @@ jest.mock("react-native-svg", () => ({
   Path: () => null,
 }));
 
+const mockBack = jest.fn();
+
 jest.mock("@/theme/fonts/loader", () => ({ loadFontsFor: jest.fn(() => Promise.resolve()) }));
 jest.mock("@/services/analytics", () => ({ trackEvent: jest.fn() }));
 jest.mock("@/lib/db/repositories/preferences", () => ({ setPreference: jest.fn(() => Promise.resolve()) }));
-jest.mock("@/theme/fonts/cache", () => ({ clearFontCache: jest.fn(() => Promise.resolve()) }));
+jest.mock("@/theme/fonts/cache", () => ({
+  clearFontCache: jest.fn(() => Promise.resolve()),
+  areAllFontsCached: jest.fn(() => Promise.resolve(false)),
+}));
+jest.mock("expo-router", () => ({
+  router: { back: (...args: unknown[]) => mockBack(...args) },
+}));
 
 import { loadFontsFor } from "@/theme/fonts/loader";
 import { trackEvent } from "@/services/analytics";
 import { setPreference } from "@/lib/db/repositories/preferences";
-import { clearFontCache } from "@/theme/fonts/cache";
+import { areAllFontsCached, clearFontCache } from "@/theme/fonts/cache";
 
 const mockedLoad = loadFontsFor as jest.Mock;
+const mockedCached = areAllFontsCached as jest.Mock;
 
 beforeEach(() => {
   jest.clearAllMocks();
   mockedLoad.mockResolvedValue(undefined);
+  mockedCached.mockResolvedValue(false);
 });
 
 describe("AppearanceScreen", () => {
@@ -90,6 +100,20 @@ describe("AppearanceScreen", () => {
       "theme_changed",
       expect.objectContaining({ to_theme_id: "cafe", required_download: true, was_retry: false }),
     );
+    alertSpy.mockRestore();
+  });
+
+  it("skips the modal and applies instantly when fonts are already cached", async () => {
+    mockedCached.mockResolvedValue(true);
+    const alertSpy = jest.spyOn(Alert, "alert");
+    renderWithTheme(<AppearanceScreen />, { themeId: "zen" });
+    await act(async () => {
+      fireEvent.press(screen.getByTestId("theme-card-cafe"));
+    });
+    await waitFor(() => {
+      expect(setPreference).toHaveBeenCalledWith("theme_id", "cafe");
+    });
+    expect(alertSpy).not.toHaveBeenCalled();
     alertSpy.mockRestore();
   });
 

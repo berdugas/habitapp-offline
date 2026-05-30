@@ -10,7 +10,7 @@ export const fantasy: Theme = {
     surface: "#F3F4F6",
     surfaceCard: "#FFFFFF",
     surfaceHigh: "#E5E7EB",
-    surfaceMuted: "#F9FAFB",
+    surfaceMuted: "#E8EBF0",
     text: "#111827",
     textMuted: "#4B5563",
     textFaint: "#9CA3AF",

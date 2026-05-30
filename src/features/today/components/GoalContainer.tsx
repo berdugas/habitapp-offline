@@ -95,13 +95,16 @@ export function GoalContainer({
       },
       pill: {
         alignSelf: "flex-start",
-        backgroundColor: t.colors.surfaceHigh,
+        // Zen's global surfaceHigh/primaryLight read too pale on the goal
+        // container; bump those two pill backgrounds locally without dragging
+        // every other surfaceHigh/primaryLight surface darker with them.
+        backgroundColor: t.id === "zen" ? "#d4cfbf" : t.colors.surfaceHigh,
         borderRadius: 99,
         paddingHorizontal: t.spacing.sm + 2,
         paddingVertical: t.spacing.xs - 1,
       },
       pillComplete: {
-        backgroundColor: t.colors.primaryLight,
+        backgroundColor: t.id === "zen" ? "#a8d8be" : t.colors.primaryLight,
       },
       pillReview: {
         alignItems: "center",

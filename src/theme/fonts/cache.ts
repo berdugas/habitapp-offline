@@ -5,7 +5,7 @@
 import * as FileSystem from "expo-file-system/legacy";
 import * as Crypto from "expo-crypto";
 
-import type { RemoteFontAsset } from "@/theme/contract";
+import type { RemoteFontAsset, Theme } from "@/theme/contract";
 
 const FONTS_DIR = `${FileSystem.cacheDirectory}fonts/`;
 
@@ -78,6 +78,18 @@ export async function ensureCachedFont(
 
 export async function deleteCachedFont(hash: string): Promise<void> {
   await FileSystem.deleteAsync(getCachePath(hash), { idempotent: true });
+}
+
+export async function areAllFontsCached(theme: Theme): Promise<boolean> {
+  if (theme.fontAssets.kind === "bundled") return true;
+  const assets = Object.values(theme.fontAssets.assets);
+  const checks = await Promise.all(
+    assets.map(async (a) => {
+      const info = await FileSystem.getInfoAsync(getCachePath(a.hash));
+      return info.exists;
+    }),
+  );
+  return checks.every(Boolean);
 }
 
 export async function clearFontCache(): Promise<void> {

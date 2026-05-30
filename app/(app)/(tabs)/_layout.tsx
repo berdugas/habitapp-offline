@@ -14,6 +14,9 @@ export default function AppTabsLayout() {
         tabBarActiveTintColor: theme.colors.primary,
         tabBarInactiveTintColor: theme.colors.textMuted,
         tabBarStyle: styles.tabBar,
+        tabBarLabelStyle: {
+          fontFamily: theme.fontFamilies.bodyMedium,
+        },
         tabBarBackground: () => (
           <BlurView intensity={80} style={StyleSheet.absoluteFill} tint="light" />
         ),

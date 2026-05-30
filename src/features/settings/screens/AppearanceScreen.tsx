@@ -9,13 +9,16 @@ import {
   View,
 } from "react-native";
 import { SvgXml } from "react-native-svg";
-import { Check } from "lucide-react-native";
+import { Check, ChevronLeft } from "lucide-react-native";
+import { router } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useThemeContext } from "@/theme/ThemeProvider";
 import { useThemedStyles } from "@/theme/useThemedStyles";
+import { useTheme } from "@/theme/useTheme";
 import { THEMES } from "@/theme/registry";
 import { loadFontsFor } from "@/theme/fonts/loader";
-import { clearFontCache } from "@/theme/fonts/cache";
+import { areAllFontsCached, clearFontCache } from "@/theme/fonts/cache";
 import { trackEvent } from "@/services/analytics";
 import { setPreference } from "@/lib/db/repositories/preferences";
 
@@ -43,13 +46,43 @@ function classifyError(err: unknown): LoadErrorKind {
 
 export default function AppearanceScreen() {
   const { theme: active, setActiveTheme } = useThemeContext();
+  const theme = useTheme();
+  const insets = useSafeAreaInsets();
   const abortRef = useRef<AbortController | null>(null);
   const [isApplying, setIsApplying] = useState(false);
   const [loadError, setLoadError] = useState<LoadError | null>(null);
+  const [cachedThemeIds, setCachedThemeIds] = useState<Set<ThemeId>>(new Set());
 
   useEffect(() => {
     trackEvent("settings_appearance_opened");
   }, []);
+
+  // Register fonts for any non-active theme whose assets are already cached on
+  // disk. Lets each theme card render its name in its own typeface without
+  // forcing a download just to show the picker correctly.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const cached = new Set<ThemeId>();
+      for (const t of Object.values(THEMES) as Theme[]) {
+        const isCached = await areAllFontsCached(t);
+        if (cancelled) return;
+        if (!isCached) continue;
+        cached.add(t.id);
+        if (t.id === active.id) continue;
+        try {
+          await loadFontsFor(t, new AbortController().signal);
+        } catch {
+          // Best-effort preload — labels fall back to system font if this fails.
+        }
+        if (cancelled) return;
+      }
+      if (!cancelled && cached.size > 0) setCachedThemeIds(cached);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [active.id]);
 
   const applyTheme = useCallback(
     async (target: Theme, isRetry: boolean) => {
@@ -99,22 +132,25 @@ export default function AppearanceScreen() {
       if (target.id === active.id) return;
 
       if (target.fontAssets.kind === "remote") {
-        const totalBytes = Object.values(target.fontAssets.assets).reduce(
-          (sum, a) => sum + a.bytes,
-          0,
-        );
-        const proceed = await new Promise<boolean>((resolve) => {
-          Alert.alert(
-            `Apply ${target.name} theme?`,
-            `This will download about ${formatBytes(totalBytes)} of fonts. Connect to Wi-Fi if you're on cellular.`,
-            [
-              { text: "Cancel", style: "cancel", onPress: () => resolve(false) },
-              { text: "Download", onPress: () => resolve(true) },
-            ],
-            { cancelable: true, onDismiss: () => resolve(false) },
+        const alreadyCached = await areAllFontsCached(target);
+        if (!alreadyCached) {
+          const totalBytes = Object.values(target.fontAssets.assets).reduce(
+            (sum, a) => sum + a.bytes,
+            0,
           );
-        });
-        if (!proceed) return;
+          const proceed = await new Promise<boolean>((resolve) => {
+            Alert.alert(
+              `Apply ${target.name} theme?`,
+              `This will download about ${formatBytes(totalBytes)} of fonts. Connect to Wi-Fi if you're on cellular.`,
+              [
+                { text: "Cancel", style: "cancel", onPress: () => resolve(false) },
+                { text: "Download", onPress: () => resolve(true) },
+              ],
+              { cancelable: true, onDismiss: () => resolve(false) },
+            );
+          });
+          if (!proceed) return;
+        }
       }
 
       await applyTheme(target, false);
@@ -126,6 +162,23 @@ export default function AppearanceScreen() {
     StyleSheet.create({
       screen: { flex: 1, backgroundColor: t.colors.bg },
       content: { padding: t.spacing.xl, gap: t.spacing.lg },
+      headerRow: {
+        alignItems: "center",
+        flexDirection: "row",
+        gap: t.spacing.sm,
+        marginBottom: t.spacing.sm,
+      },
+      backButton: {
+        alignItems: "center",
+        height: 36,
+        justifyContent: "center",
+        width: 36,
+      },
+      title: {
+        color: t.colors.text,
+        fontFamily: t.fontFamilies.displayBold,
+        fontSize: t.typography.headlineLg,
+      },
       errorBanner: {
         backgroundColor: t.colors.dangerSoft,
         borderRadius: t.radius.sm,
@@ -173,9 +226,20 @@ export default function AppearanceScreen() {
   return (
     <View style={styles.screen}>
       <ScrollView
-        contentContainerStyle={styles.content}
-        contentInsetAdjustmentBehavior="automatic"
+        contentContainerStyle={[styles.content, { paddingTop: insets.top + theme.spacing.lg }]}
       >
+        <View style={styles.headerRow}>
+          <Pressable
+            accessibilityLabel="Go back"
+            hitSlop={12}
+            onPress={() => router.back()}
+            style={styles.backButton}
+          >
+            <ChevronLeft color={theme.colors.textMuted} size={22} strokeWidth={1.75} />
+          </Pressable>
+          <Text style={styles.title}>Appearance</Text>
+        </View>
+
         {loadError ? (
           <View style={styles.errorBanner}>
             <Text style={styles.errorText}>
@@ -198,6 +262,7 @@ export default function AppearanceScreen() {
             key={t.id}
             theme={t}
             isActive={t.id === active.id}
+            isFontReady={t.fontAssets.kind === "bundled" || t.id === active.id || cachedThemeIds.has(t.id)}
             onPress={() => {
               void onCardPress(t);
             }}
@@ -234,12 +299,18 @@ export default function AppearanceScreen() {
 function ThemeCard({
   theme,
   isActive,
+  isFontReady,
   onPress,
 }: {
   theme: Theme;
   isActive: boolean;
+  isFontReady: boolean;
   onPress: () => void;
 }) {
+  // Each card's label uses its own theme's display font (when available) so
+  // the picker shows the theme's actual typography. Falls back to the active
+  // theme's font for remote themes that haven't been downloaded yet — at that
+  // point we don't know what the font looks like to render it anyway.
   const styles = useThemedStyles((t) =>
     StyleSheet.create({
       card: {
@@ -257,7 +328,7 @@ function ThemeCard({
       label: {
         color: t.colors.text,
         flex: 1,
-        fontFamily: t.fontFamilies.displaySemi,
+        fontFamily: isFontReady ? theme.fontFamilies.displaySemi : t.fontFamilies.displaySemi,
         fontSize: t.typography.titleLg,
       },
     }),
