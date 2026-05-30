@@ -11,9 +11,7 @@ import {
   isValidIdentityPhraseDraft,
   normaliseBecomingPhrase,
 } from "@/utils/normalisePhrase";
-import { colors } from "@/theme/colors";
-import { fontFamilies } from "@/theme/fontFamilies";
-import { typography } from "@/theme/typography";
+import { useThemedStyles } from "@/theme/useThemedStyles";
 
 const CHIP_OPTIONS = [
   "a runner",
@@ -27,6 +25,31 @@ const CHIP_OPTIONS = [
 
 export default function BecomingScreen() {
   const { draft, update } = useOnboarding();
+  const styles = useThemedStyles((theme) =>
+    StyleSheet.create({
+      eyebrow: {
+        fontFamily: theme.fontFamilies.bodyMedium,
+        fontSize: theme.typography.bodyMd,
+        lineHeight: 19.5,
+        color: theme.colors.primary,
+        marginBottom: 8,
+      },
+      headline: {
+        fontFamily: theme.fontFamilies.displayBold,
+        fontSize: 28,
+        lineHeight: 33,
+        color: theme.colors.text,
+        marginBottom: 20,
+      },
+      chipsLabel: {
+        fontFamily: theme.fontFamilies.bodyMedium,
+        fontSize: theme.typography.labelMd,
+        color: theme.colors.textFaint,
+        marginTop: 20,
+        marginBottom: 10,
+      },
+    }),
+  );
 
   const handleContinue = () => {
     const fixed = normaliseBecomingPhrase(draft.becomingPhrase);
@@ -84,27 +107,3 @@ export default function BecomingScreen() {
     </OnboardingLayout>
   );
 }
-
-const styles = StyleSheet.create({
-  eyebrow: {
-    fontFamily: fontFamilies.bodyMedium,
-    fontSize: typography.bodyMd,
-    lineHeight: 19.5,
-    color: colors.primary,
-    marginBottom: 8,
-  },
-  headline: {
-    fontFamily: fontFamilies.displayBold,
-    fontSize: 28,
-    lineHeight: 33,
-    color: colors.text,
-    marginBottom: 20,
-  },
-  chipsLabel: {
-    fontFamily: fontFamilies.bodyMedium,
-    fontSize: typography.labelMd,
-    color: colors.textFaint,
-    marginTop: 20,
-    marginBottom: 10,
-  },
-});

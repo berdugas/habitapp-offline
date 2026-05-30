@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react-native";
+import { render, screen } from "@/tests/setup/render";
 import React from "react";
 
 import { WeekCompleteStep } from "@/features/reviews/components/WeekCompleteStep";

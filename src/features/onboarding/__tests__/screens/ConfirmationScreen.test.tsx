@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react-native";
+import { fireEvent, render, screen } from "@/tests/setup/render";
 
 import ConfirmationScreen from "@/features/onboarding/screens/ConfirmationScreen";
 import { OnboardingFinalizationError } from "@/features/onboarding/completion";

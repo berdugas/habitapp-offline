@@ -1,18 +1,40 @@
 import { StyleSheet, Text, View } from "react-native";
 
 import { PrimaryButton } from "@/components/buttons/PrimaryButton";
-import { colors } from "@/theme/colors";
-import { fontFamilies } from "@/theme/fontFamilies";
-import { radius } from "@/theme/radius";
-import { spacing } from "@/theme/spacing";
-import { typography } from "@/theme/typography";
+import { useThemedStyles } from "@/theme/useThemedStyles";
+
+import type { Theme } from "@/theme/contract";
 
 type ReadOnlyBannerProps = {
   isReconnecting: boolean;
   onReconnect: () => void;
 };
 
+function buildStyles(theme: Theme) {
+  return StyleSheet.create({
+    banner: {
+      backgroundColor: theme.colors.surface,
+      borderRadius: theme.radius.sm,
+      gap: theme.spacing.md,
+      padding: theme.spacing.xl,
+    },
+    body: {
+      color: theme.colors.textMuted,
+      fontFamily: theme.fontFamilies.body,
+      fontSize: theme.typography.bodyMd,
+      lineHeight: 20.4,
+    },
+    heading: {
+      color: theme.colors.text,
+      fontFamily: theme.fontFamilies.bodyBold,
+      fontSize: theme.typography.bodyLg,
+    },
+  });
+}
+
 export function ReadOnlyBanner({ isReconnecting, onReconnect }: ReadOnlyBannerProps) {
+  const styles = useThemedStyles(buildStyles);
+
   return (
     <View style={styles.banner}>
       <Text selectable style={styles.heading}>
@@ -30,23 +52,3 @@ export function ReadOnlyBanner({ isReconnecting, onReconnect }: ReadOnlyBannerPr
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  banner: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.sm,
-    gap: spacing.md,
-    padding: spacing.xl,
-  },
-  body: {
-    color: colors.textMuted,
-    fontFamily: fontFamilies.body,
-    fontSize: typography.bodyMd,
-    lineHeight: 20.4,
-  },
-  heading: {
-    color: colors.text,
-    fontFamily: fontFamilies.bodyBold,
-    fontSize: typography.bodyLg,
-  },
-});

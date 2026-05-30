@@ -1,7 +1,7 @@
-import { render, screen } from "@testing-library/react-native";
+import { render, screen } from "@/tests/setup/render";
 
 import { HabitRow } from "@/features/today/components/HabitRow";
-import { colors } from "@/theme/colors";
+import { colors } from "@/tests/setup/themeValues";
 
 import type { TodayHabitCardData } from "@/features/today/types";
 

@@ -4,10 +4,8 @@ import { Check, ChevronRight } from "lucide-react-native";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { LucideIcon } from "@/components/LucideIconPicker";
-import { colors } from "@/theme/colors";
-import { fontFamilies } from "@/theme/fontFamilies";
-import { spacing } from "@/theme/spacing";
-import { typography } from "@/theme/typography";
+import { useTheme } from "@/theme/useTheme";
+import { useThemedStyles } from "@/theme/useThemedStyles";
 
 import type { TodayHabitCardData } from "@/features/today/types";
 
@@ -22,6 +20,8 @@ type HabitRowProps = {
   offDay?: boolean;
 };
 
+const CIRCLE_SIZE = 38;
+
 export function HabitRow({
   disabled,
   graduated = false,
@@ -32,6 +32,113 @@ export function HabitRow({
   onUndo,
   offDay,
 }: HabitRowProps) {
+  const theme = useTheme();
+  const styles = useThemedStyles((t) =>
+    StyleSheet.create({
+      circleDone: {
+        alignItems: "center",
+        borderRadius: CIRCLE_SIZE / 2,
+        height: CIRCLE_SIZE,
+        justifyContent: "center",
+        width: CIRCLE_SIZE,
+      },
+      circlePending: {
+        alignItems: "center",
+        borderColor: t.colors.primary,
+        borderRadius: CIRCLE_SIZE / 2,
+        borderWidth: 2,
+        height: CIRCLE_SIZE,
+        justifyContent: "center",
+        width: CIRCLE_SIZE,
+      },
+      circleGraduated: {
+        alignItems: "center",
+        borderColor: t.colors.graduatedCircle,
+        borderRadius: CIRCLE_SIZE / 2,
+        borderWidth: 2,
+        height: CIRCLE_SIZE,
+        justifyContent: "center",
+        width: CIRCLE_SIZE,
+      },
+      circleSkipped: {
+        borderColor: t.colors.textFaint,
+        borderRadius: CIRCLE_SIZE / 2,
+        borderWidth: 2,
+        height: CIRCLE_SIZE,
+        opacity: 0.4,
+        width: CIRCLE_SIZE,
+      },
+      circleOffDay: {
+        borderColor: t.colors.textFaint,
+        borderRadius: CIRCLE_SIZE / 2,
+        borderStyle: "dashed",
+        borderWidth: 1.5,
+        height: CIRCLE_SIZE,
+        opacity: 0.5,
+        width: CIRCLE_SIZE,
+      },
+      circleWrap: {
+        flexShrink: 0,
+      },
+      formulaText: {
+        color: t.colors.textFaint,
+        fontFamily: t.fontFamilies.body,
+        fontSize: t.typography.bodyMd - 2,
+        lineHeight: 14.9,
+      },
+      formulaTextSkipped: {
+        color: t.colors.primary,
+        fontStyle: "italic",
+      },
+      formulaTextGraduated: {
+        color: t.colors.graduatedCircle,
+        fontStyle: "italic",
+      },
+      habitName: {
+        color: t.colors.text,
+        fontFamily: t.fontFamilies.bodyMedium,
+        fontSize: 15,
+        fontWeight: "500",
+      },
+      habitNameDone: {
+        color: t.colors.textMuted,
+        textDecorationLine: "line-through",
+      },
+      habitNameOffDay: {
+        opacity: 0.5,
+      },
+      habitNameSkipped: {
+        color: t.colors.textMuted,
+      },
+      iconWrap: {
+        flexShrink: 0,
+        width: 22,
+      },
+      textWrap: {
+        flex: 1,
+        gap: 2,
+      },
+      row: {
+        alignItems: "center",
+        borderBottomColor: t.colors.surface,
+        borderBottomWidth: StyleSheet.hairlineWidth,
+        flexDirection: "row",
+        gap: t.spacing.md,
+        paddingHorizontal: t.spacing.lg,
+        paddingVertical: t.spacing.md + 2,
+      },
+      rowOffDay: {
+        opacity: 0.6,
+      },
+      rowSkipped: {
+        opacity: 0.7,
+      },
+      rowPressed: {
+        backgroundColor: t.colors.surfaceMuted,
+      },
+    }),
+  );
+
   const isDone = habit.todayStatus === "done";
   const isSkipped = habit.todayStatus === "skipped";
   const isLogged = isDone || isSkipped;
@@ -72,7 +179,7 @@ export function HabitRow({
         <View style={styles.iconWrap}>
           <LucideIcon
             name={habit.icon ?? "Sparkles"}
-            color={colors.textFaint}
+            color={theme.colors.textFaint}
             size={22}
             strokeWidth={1.75}
           />
@@ -87,7 +194,7 @@ export function HabitRow({
           </Text>
         </View>
 
-        <ChevronRight color={colors.textFaint} size={16} strokeWidth={1.75} />
+        <ChevronRight color={theme.colors.textFaint} size={16} strokeWidth={1.75} />
       </Pressable>
     );
   }
@@ -112,7 +219,7 @@ export function HabitRow({
       >
         {isDone ? (
           <LinearGradient
-            colors={[colors.primary, colors.primaryGradientEnd]}
+            colors={[theme.colors.primary, theme.colors.primaryGradientEnd]}
             end={{ x: 1, y: 1 }}
             start={{ x: 0, y: 0 }}
             style={styles.circleDone}
@@ -124,7 +231,7 @@ export function HabitRow({
         ) : (
           <View style={graduated ? styles.circleGraduated : styles.circlePending}>
             <Check
-              color={graduated ? colors.graduatedBadge : colors.primaryLight}
+              color={graduated ? theme.colors.graduatedBadge : theme.colors.primaryLight}
               size={16}
               strokeWidth={2.5}
             />
@@ -135,7 +242,7 @@ export function HabitRow({
       <View style={styles.iconWrap}>
         <LucideIcon
           name={habit.icon ?? "Sparkles"}
-          color={isLogged ? colors.textFaint : colors.primary}
+          color={isLogged ? theme.colors.textFaint : theme.colors.primary}
           size={22}
           strokeWidth={1.75}
         />
@@ -169,116 +276,10 @@ export function HabitRow({
       </View>
 
       <ChevronRight
-        color={colors.textFaint}
+        color={theme.colors.textFaint}
         size={16}
         strokeWidth={1.75}
       />
     </Pressable>
   );
 }
-
-const CIRCLE_SIZE = 38;
-
-const styles = StyleSheet.create({
-  circleDone: {
-    alignItems: "center",
-    borderRadius: CIRCLE_SIZE / 2,
-    height: CIRCLE_SIZE,
-    justifyContent: "center",
-    width: CIRCLE_SIZE,
-  },
-  circlePending: {
-    alignItems: "center",
-    borderColor: colors.primary,
-    borderRadius: CIRCLE_SIZE / 2,
-    borderWidth: 2,
-    height: CIRCLE_SIZE,
-    justifyContent: "center",
-    width: CIRCLE_SIZE,
-  },
-  circleGraduated: {
-    alignItems: "center",
-    borderColor: colors.graduatedCircle,
-    borderRadius: CIRCLE_SIZE / 2,
-    borderWidth: 2,
-    height: CIRCLE_SIZE,
-    justifyContent: "center",
-    width: CIRCLE_SIZE,
-  },
-  circleSkipped: {
-    borderColor: colors.textFaint,
-    borderRadius: CIRCLE_SIZE / 2,
-    borderWidth: 2,
-    height: CIRCLE_SIZE,
-    opacity: 0.4,
-    width: CIRCLE_SIZE,
-  },
-  circleOffDay: {
-    borderColor: colors.textFaint,
-    borderRadius: CIRCLE_SIZE / 2,
-    borderStyle: "dashed",
-    borderWidth: 1.5,
-    height: CIRCLE_SIZE,
-    opacity: 0.5,
-    width: CIRCLE_SIZE,
-  },
-  circleWrap: {
-    flexShrink: 0,
-  },
-  formulaText: {
-    color: colors.textFaint,
-    fontFamily: fontFamilies.body,
-    fontSize: typography.bodyMd - 2,
-    lineHeight: 14.9,
-  },
-  formulaTextSkipped: {
-    color: colors.primary,
-    fontStyle: "italic",
-  },
-  formulaTextGraduated: {
-    color: colors.graduatedCircle,
-    fontStyle: "italic",
-  },
-  habitName: {
-    color: colors.text,
-    fontFamily: fontFamilies.bodyMedium,
-    fontSize: 15,
-    fontWeight: "500",
-  },
-  habitNameDone: {
-    color: colors.textMuted,
-    textDecorationLine: "line-through",
-  },
-  habitNameOffDay: {
-    opacity: 0.5,
-  },
-  habitNameSkipped: {
-    color: colors.textMuted,
-  },
-  iconWrap: {
-    flexShrink: 0,
-    width: 22,
-  },
-  textWrap: {
-    flex: 1,
-    gap: 2,
-  },
-  row: {
-    alignItems: "center",
-    borderBottomColor: colors.surface,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    flexDirection: "row",
-    gap: spacing.md,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md + 2,
-  },
-  rowOffDay: {
-    opacity: 0.6,
-  },
-  rowSkipped: {
-    opacity: 0.7,
-  },
-  rowPressed: {
-    backgroundColor: colors.surfaceMuted,
-  },
-});

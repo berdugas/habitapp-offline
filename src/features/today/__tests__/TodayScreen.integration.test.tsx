@@ -12,8 +12,8 @@ jest.mock("@/features/trial/hooks", () => ({
 }));
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 import React from "react";
+import { fireEvent, render, screen, waitFor } from "@/tests/setup/render";
 
 import { AppState } from "react-native";
 

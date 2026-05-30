@@ -11,17 +11,108 @@ import {
   normalizeReturnTo,
 } from "@/features/reviews/reviewRoutes";
 import { trackEvent } from "@/services/analytics";
-import { colors } from "@/theme/colors";
-import { fontFamilies } from "@/theme/fontFamilies";
-import { spacing } from "@/theme/spacing";
-import { typography } from "@/theme/typography";
+import { useThemedStyles } from "@/theme/useThemedStyles";
 import { normalizeParam } from "@/utils/params";
 
 const HEADLINE = "A weekly look back.";
 const BODY =
   "See what's settling in, and what isn't fitting yet — that's information, not failure. Where a habit needs to change, you write the change yourself, in your own words. That's how it stays yours.";
 
+const EMBLEM_SIZE = 120;
+
 export default function WeeklyReviewIntroScreen() {
+  const styles = useThemedStyles((theme) =>
+    StyleSheet.create({
+      body: {
+        color: theme.colors.textMuted,
+        fontFamily: theme.fontFamilies.body,
+        fontSize: theme.typography.bodyLg,
+        letterSpacing: 0.16,
+        lineHeight: 22.8,
+        maxWidth: 330,
+        textAlign: "center",
+      },
+      centeredContent: {
+        alignItems: "center",
+      },
+      emblem: {
+        height: EMBLEM_SIZE,
+        marginBottom: theme.spacing.xl + theme.spacing.sm, // ~34px to match mockup
+        marginTop: theme.spacing.xs,
+        position: "relative",
+        width: EMBLEM_SIZE,
+      },
+      emblemRing: {
+        backgroundColor: theme.colors.primary,
+        position: "absolute",
+      },
+      // Outermost ring: full 120×120, faintest.
+      emblemRing0: {
+        borderRadius: EMBLEM_SIZE / 2,
+        bottom: 0,
+        left: 0,
+        opacity: 0.07,
+        right: 0,
+        top: 0,
+      },
+      // Inset 16px on each side → 88×88.
+      emblemRing1: {
+        borderRadius: (EMBLEM_SIZE - 32) / 2,
+        bottom: 16,
+        left: 16,
+        opacity: 0.13,
+        right: 16,
+        top: 16,
+      },
+      // Inset 32px → 56×56.
+      emblemRing2: {
+        borderRadius: (EMBLEM_SIZE - 64) / 2,
+        bottom: 32,
+        left: 32,
+        opacity: 0.2,
+        right: 32,
+        top: 32,
+      },
+      // Inset 48px → 24×24, solid center dot.
+      emblemRing3: {
+        borderRadius: (EMBLEM_SIZE - 96) / 2,
+        bottom: 48,
+        left: 48,
+        opacity: 1,
+        right: 48,
+        top: 48,
+      },
+      footerStack: {
+        alignItems: "stretch",
+        gap: theme.spacing.lg,
+      },
+      header: {
+        alignItems: "center",
+        flexDirection: "row",
+        justifyContent: "space-between",
+        marginBottom: theme.spacing.xxl,
+      },
+      headline: {
+        color: theme.colors.text,
+        fontFamily: theme.fontFamilies.displayBold,
+        fontSize: theme.typography.headlineLg,
+        letterSpacing: -0.2,
+        lineHeight: 29.1,
+        marginBottom: theme.spacing.lg,
+        textAlign: "center",
+      },
+      skipButton: {
+        paddingHorizontal: theme.spacing.sm,
+        paddingVertical: theme.spacing.xs,
+      },
+      skipLabel: {
+        color: theme.colors.textMuted,
+        fontFamily: theme.fontFamilies.bodySemi,
+        fontSize: theme.typography.bodyMd,
+      },
+    }),
+  );
+
   const params = useLocalSearchParams<{
     identityPhrase?: string;
     returnTo?: string | string[];
@@ -114,94 +205,3 @@ export default function WeeklyReviewIntroScreen() {
   );
 }
 
-const EMBLEM_SIZE = 120;
-
-const styles = StyleSheet.create({
-  body: {
-    color: colors.textMuted,
-    fontFamily: fontFamilies.body,
-    fontSize: typography.bodyLg,
-    letterSpacing: 0.16,
-    lineHeight: 22.8,
-    maxWidth: 330,
-    textAlign: "center",
-  },
-  centeredContent: {
-    alignItems: "center",
-  },
-  emblem: {
-    height: EMBLEM_SIZE,
-    marginBottom: spacing.xl + spacing.sm, // ~34px to match mockup
-    marginTop: spacing.xs,
-    position: "relative",
-    width: EMBLEM_SIZE,
-  },
-  emblemRing: {
-    backgroundColor: colors.primary,
-    position: "absolute",
-  },
-  // Outermost ring: full 120×120, faintest.
-  emblemRing0: {
-    borderRadius: EMBLEM_SIZE / 2,
-    bottom: 0,
-    left: 0,
-    opacity: 0.07,
-    right: 0,
-    top: 0,
-  },
-  // Inset 16px on each side → 88×88.
-  emblemRing1: {
-    borderRadius: (EMBLEM_SIZE - 32) / 2,
-    bottom: 16,
-    left: 16,
-    opacity: 0.13,
-    right: 16,
-    top: 16,
-  },
-  // Inset 32px → 56×56.
-  emblemRing2: {
-    borderRadius: (EMBLEM_SIZE - 64) / 2,
-    bottom: 32,
-    left: 32,
-    opacity: 0.2,
-    right: 32,
-    top: 32,
-  },
-  // Inset 48px → 24×24, solid center dot.
-  emblemRing3: {
-    borderRadius: (EMBLEM_SIZE - 96) / 2,
-    bottom: 48,
-    left: 48,
-    opacity: 1,
-    right: 48,
-    top: 48,
-  },
-  footerStack: {
-    alignItems: "stretch",
-    gap: spacing.lg,
-  },
-  header: {
-    alignItems: "center",
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: spacing.xxl,
-  },
-  headline: {
-    color: colors.text,
-    fontFamily: fontFamilies.displayBold,
-    fontSize: typography.headlineLg,
-    letterSpacing: -0.2,
-    lineHeight: 29.1,
-    marginBottom: spacing.lg,
-    textAlign: "center",
-  },
-  skipButton: {
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-  },
-  skipLabel: {
-    color: colors.textMuted,
-    fontFamily: fontFamilies.bodySemi,
-    fontSize: typography.bodyMd,
-  },
-});

@@ -1,11 +1,8 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { X } from "lucide-react-native";
 
-import { colors } from "@/theme/colors";
-import { fontFamilies } from "@/theme/fontFamilies";
-import { radius } from "@/theme/radius";
-import { spacing } from "@/theme/spacing";
-import { typography } from "@/theme/typography";
+import { useThemedStyles } from "@/theme/useThemedStyles";
+import { useTheme } from "@/theme/useTheme";
 
 type FirstRunTipBannerProps = {
   message: string;
@@ -18,6 +15,35 @@ export function FirstRunTipBanner({
   onDismiss,
   testID,
 }: FirstRunTipBannerProps) {
+  const theme = useTheme();
+  const styles = useThemedStyles((t) =>
+    StyleSheet.create({
+      container: {
+        backgroundColor: t.colors.primarySoft,
+        borderLeftColor: t.colors.primary,
+        borderLeftWidth: 3,
+        borderRadius: t.radius.sm,
+        flexDirection: "row",
+        gap: t.spacing.sm,
+        padding: t.spacing.md,
+        paddingRight: t.spacing.lg,
+      },
+      dismiss: {
+        alignItems: "center",
+        height: 24,
+        justifyContent: "center",
+        width: 24,
+      },
+      message: {
+        color: t.colors.text,
+        flex: 1,
+        fontFamily: t.fontFamilies.body,
+        fontSize: t.typography.bodyMd,
+        lineHeight: 18.6,
+      },
+    }),
+  );
+
   return (
     <View style={styles.container} testID={testID}>
       <Text style={styles.message}>{message}</Text>
@@ -28,34 +54,8 @@ export function FirstRunTipBanner({
         onPress={onDismiss}
         style={styles.dismiss}
       >
-        <X color={colors.textMuted} size={16} strokeWidth={2} />
+        <X color={theme.colors.textMuted} size={16} strokeWidth={2} />
       </Pressable>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    backgroundColor: colors.primarySoft,
-    borderLeftColor: colors.primary,
-    borderLeftWidth: 3,
-    borderRadius: radius.sm,
-    flexDirection: "row",
-    gap: spacing.sm,
-    padding: spacing.md,
-    paddingRight: spacing.lg,
-  },
-  dismiss: {
-    alignItems: "center",
-    height: 24,
-    justifyContent: "center",
-    width: 24,
-  },
-  message: {
-    color: colors.text,
-    flex: 1,
-    fontFamily: fontFamilies.body,
-    fontSize: typography.bodyMd,
-    lineHeight: 18.6,
-  },
-});

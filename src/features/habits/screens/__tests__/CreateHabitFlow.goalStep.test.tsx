@@ -54,10 +54,20 @@ jest.mock("@/components/LucideIconPicker", () => ({
 import CreateHabitFlow from "@/features/habits/screens/CreateHabitFlow";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
+import { ThemeProvider } from "@/theme/ThemeProvider";
+
 let queryClient: QueryClient;
 
 function wrapper({ children }: { children: React.ReactNode }) {
-  return React.createElement(QueryClientProvider, { client: queryClient }, children);
+  return React.createElement(
+    QueryClientProvider,
+    { client: queryClient },
+    React.createElement(
+      ThemeProvider,
+      { initialThemeId: "zen", intendedThemeId: "zen" },
+      children,
+    ),
+  );
 }
 
 describe("CreateHabitFlow — goal step gating", () => {

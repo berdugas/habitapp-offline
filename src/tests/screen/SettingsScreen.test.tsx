@@ -11,7 +11,7 @@ jest.mock("@/features/trial/hooks", () => ({
   })),
 }));
 
-import { fireEvent, render, screen } from "@testing-library/react-native";
+import { fireEvent, render, screen } from "@/tests/setup/render";
 
 import SettingsScreen from "@/features/settings/screens/SettingsScreen";
 

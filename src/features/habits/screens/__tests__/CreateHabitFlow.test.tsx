@@ -1,4 +1,5 @@
-import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
+import { cleanup } from "@testing-library/react-native";
+import { act, fireEvent, render, screen, waitFor } from "@/tests/setup/render";
 import React from "react";
 
 const mockMutateAsync = jest.fn();
@@ -62,9 +63,6 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 let queryClient: QueryClient;
 
-function wrapper({ children }: { children: React.ReactNode }) {
-  return React.createElement(QueryClientProvider, { client: queryClient }, children);
-}
 
 async function walkToWorstday(options: { withReminder?: boolean } = {}) {
   // Starts at "action" step because goalIdentityPhrase was injected.
@@ -153,7 +151,7 @@ describe("CreateHabitFlow — save-for-later path", () => {
       count: 3,
     });
 
-    render(<CreateHabitFlow />, { wrapper });
+    render(<QueryClientProvider client={queryClient}><CreateHabitFlow /></QueryClientProvider>);
     await walkToWorstday();
 
     expect(await screen.findByText("Add to Today")).toBeTruthy();
@@ -165,7 +163,7 @@ describe("CreateHabitFlow — save-for-later path", () => {
   it("shows the original two-action footer when cap is clear (regression guard)", async () => {
     mockAssertCanCreateActiveHabit.mockResolvedValue({ ok: true });
 
-    render(<CreateHabitFlow />, { wrapper });
+    render(<QueryClientProvider client={queryClient}><CreateHabitFlow /></QueryClientProvider>);
     await walkToWorstday();
 
     expect(await screen.findByText("Yes, I could")).toBeTruthy();
@@ -181,7 +179,7 @@ describe("CreateHabitFlow — save-for-later path", () => {
       count: 3,
     });
 
-    render(<CreateHabitFlow />, { wrapper });
+    render(<QueryClientProvider client={queryClient}><CreateHabitFlow /></QueryClientProvider>);
     await walkToWorstday();
     await screen.findByText("Save for later");
 
@@ -208,7 +206,7 @@ describe("CreateHabitFlow — save-for-later path", () => {
       count: 3,
     });
 
-    render(<CreateHabitFlow />, { wrapper });
+    render(<QueryClientProvider client={queryClient}><CreateHabitFlow /></QueryClientProvider>);
     await walkToWorstday();
     await screen.findByText("Add to Today");
 
@@ -232,7 +230,7 @@ describe("CreateHabitFlow — save-for-later path", () => {
     it("active save WITH reminderTime calls scheduleReminder (not persistReminderIntent)", async () => {
       mockAssertCanCreateActiveHabit.mockResolvedValue({ ok: true });
 
-      render(<CreateHabitFlow />, { wrapper });
+      render(<QueryClientProvider client={queryClient}><CreateHabitFlow /></QueryClientProvider>);
       await walkToWorstday({ withReminder: true });
 
       await act(async () => {
@@ -259,7 +257,7 @@ describe("CreateHabitFlow — save-for-later path", () => {
         count: 3,
       });
 
-      render(<CreateHabitFlow />, { wrapper });
+      render(<QueryClientProvider client={queryClient}><CreateHabitFlow /></QueryClientProvider>);
       await walkToWorstday({ withReminder: true });
 
       await act(async () => {
@@ -276,7 +274,7 @@ describe("CreateHabitFlow — save-for-later path", () => {
     it("active save WITHOUT reminderTime invokes neither helper (regression guard)", async () => {
       mockAssertCanCreateActiveHabit.mockResolvedValue({ ok: true });
 
-      render(<CreateHabitFlow />, { wrapper });
+      render(<QueryClientProvider client={queryClient}><CreateHabitFlow /></QueryClientProvider>);
       await walkToWorstday();
 
       await act(async () => {
@@ -297,7 +295,7 @@ describe("CreateHabitFlow — save-for-later path", () => {
         count: 3,
       });
 
-      render(<CreateHabitFlow />, { wrapper });
+      render(<QueryClientProvider client={queryClient}><CreateHabitFlow /></QueryClientProvider>);
       await walkToWorstday();
 
       await act(async () => {

@@ -14,10 +14,8 @@ import { useAuthSession } from "@/features/auth/hooks";
 import { signOut } from "@/features/auth/api";
 import { useTrialValidation } from "@/features/trial/hooks";
 import { trackEvent } from "@/services/analytics";
-import { colors } from "@/theme/colors";
-import { fontFamilies } from "@/theme/fontFamilies";
-import { spacing } from "@/theme/spacing";
-import { typography } from "@/theme/typography";
+import { useTheme } from "@/theme/useTheme";
+import { useThemedStyles } from "@/theme/useThemedStyles";
 
 import type { TrialEntitlementStatus } from "@/features/trial/types";
 
@@ -36,6 +34,56 @@ export default function SettingsScreen() {
   const { user } = useAuthSession();
   const { entitlementStatus } = useTrialValidation();
   const [isSigningOut, setIsSigningOut] = useState(false);
+  const theme = useTheme();
+  const styles = useThemedStyles((t) =>
+    StyleSheet.create({
+      content: {
+        gap: t.spacing.xl,
+        padding: t.spacing.xl,
+      },
+      email: {
+        color: t.colors.text,
+        fontFamily: t.fontFamilies.body,
+        fontSize: t.typography.bodyLg,
+      },
+      row: {
+        alignItems: "center",
+        flexDirection: "row",
+        justifyContent: "space-between",
+        paddingVertical: t.spacing.sm,
+      },
+      rowLabel: {
+        color: t.colors.text,
+        fontFamily: t.fontFamilies.body,
+        fontSize: t.typography.bodyLg,
+      },
+      screen: {
+        backgroundColor: t.colors.bg,
+        flex: 1,
+      },
+      statusLabel: {
+        color: t.colors.textMuted,
+        fontFamily: t.fontFamilies.body,
+        fontSize: t.typography.bodyMd,
+        fontStyle: "italic",
+      },
+      dot: {
+        width: 8,
+        height: 8,
+        borderRadius: 4,
+      },
+      themeName: {
+        color: t.colors.textMuted,
+        fontFamily: t.fontFamilies.body,
+        fontSize: t.typography.bodyMd,
+      },
+      appearanceValue: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: t.spacing.sm,
+      },
+    }),
+  );
 
   const statusLabel = formatEntitlementStatus(entitlementStatus);
   const appVersion = Constants.expoConfig?.version ?? "—";
@@ -83,11 +131,26 @@ export default function SettingsScreen() {
           style={styles.row}
         >
           <Text style={styles.rowLabel}>Archive</Text>
-          <ChevronRight color={colors.textFaint} size={18} strokeWidth={1.75} />
+          <ChevronRight color={theme.colors.textFaint} size={18} strokeWidth={1.75} />
         </Pressable>
       </ZenCard>
 
-      <ZenCard gap={spacing.md}>
+      <ZenCard gap={0}>
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => router.push("/(app)/settings/appearance")}
+          style={styles.row}
+        >
+          <Text style={styles.rowLabel}>Appearance</Text>
+          <View style={styles.appearanceValue}>
+            <View style={[styles.dot, { backgroundColor: theme.colors.primary }]} />
+            <Text style={styles.themeName}>{theme.name}</Text>
+            <ChevronRight color={theme.colors.textFaint} size={18} strokeWidth={1.75} />
+          </View>
+        </Pressable>
+      </ZenCard>
+
+      <ZenCard gap={theme.spacing.md}>
         <Eyebrow label="Privacy & Data" />
         <Pressable
           accessibilityRole="button"
@@ -95,7 +158,7 @@ export default function SettingsScreen() {
           style={styles.row}
         >
           <Text style={styles.rowLabel}>Export your data</Text>
-          <ChevronRight color={colors.textFaint} size={18} strokeWidth={1.75} />
+          <ChevronRight color={theme.colors.textFaint} size={18} strokeWidth={1.75} />
         </Pressable>
       </ZenCard>
 
@@ -108,7 +171,7 @@ export default function SettingsScreen() {
           style={styles.row}
         >
           <Text style={styles.rowLabel}>Privacy Policy</Text>
-          <ExternalLink color={colors.textFaint} size={18} strokeWidth={1.75} />
+          <ExternalLink color={theme.colors.textFaint} size={18} strokeWidth={1.75} />
         </Pressable>
         <RowLV label="Terms of Service" value="Coming soon" />
       </ZenCard>
@@ -120,36 +183,3 @@ export default function SettingsScreen() {
     </ScrollView>
   );
 }
-
-const styles = StyleSheet.create({
-  content: {
-    gap: spacing.xl,
-    padding: spacing.xl,
-  },
-  email: {
-    color: colors.text,
-    fontFamily: fontFamilies.body,
-    fontSize: typography.bodyLg,
-  },
-  row: {
-    alignItems: "center",
-    flexDirection: "row",
-    justifyContent: "space-between",
-    paddingVertical: spacing.sm,
-  },
-  rowLabel: {
-    color: colors.text,
-    fontFamily: fontFamilies.body,
-    fontSize: typography.bodyLg,
-  },
-  screen: {
-    backgroundColor: colors.bg,
-    flex: 1,
-  },
-  statusLabel: {
-    color: colors.textMuted,
-    fontFamily: fontFamilies.body,
-    fontSize: typography.bodyMd,
-    fontStyle: "italic",
-  },
-});

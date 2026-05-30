@@ -1,4 +1,6 @@
-import { fireEvent, render, screen } from "@testing-library/react-native";
+import { fireEvent, screen } from "@testing-library/react-native";
+
+import { renderWithTheme } from "@/tests/setup/renderWithTheme";
 
 import BecomingScreen from "@/features/onboarding/screens/BecomingScreen";
 
@@ -47,7 +49,7 @@ describe("BecomingScreen — identity gate", () => {
       update: mockUpdate,
     });
 
-    render(<BecomingScreen />);
+    renderWithTheme(<BecomingScreen />);
 
     fireEvent.press(screen.getByText("Continue"));
 
@@ -62,7 +64,7 @@ describe("BecomingScreen — identity gate", () => {
       update: mockUpdate,
     });
 
-    render(<BecomingScreen />);
+    renderWithTheme(<BecomingScreen />);
 
     fireEvent.press(screen.getByText("Continue"));
 

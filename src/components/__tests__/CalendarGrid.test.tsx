@@ -1,7 +1,7 @@
-import { render, screen } from "@testing-library/react-native";
+import { render, screen } from "@/tests/setup/render";
 
 import { buildGrid, CalendarGrid } from "@/components/CalendarGrid";
-import { colors } from "@/theme/colors";
+import { colors } from "@/tests/setup/themeValues";
 import { resetClockForTesting, setNowForTesting } from "@/utils/clock";
 
 // Today is Tuesday 2026-05-05 in UTC test env

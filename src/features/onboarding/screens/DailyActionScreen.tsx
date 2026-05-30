@@ -9,13 +9,63 @@ import { OnboardingLayout } from "@/components/layouts/OnboardingLayout";
 import { OnboardingHeader } from "@/components/navigation/OnboardingHeader";
 import { useOnboarding } from "@/features/onboarding/OnboardingProvider";
 import type { OnboardingDraft } from "@/features/onboarding/types";
-import { colors } from "@/theme/colors";
-import { fontFamilies } from "@/theme/fontFamilies";
-import { spacing } from "@/theme/spacing";
-import { typography } from "@/theme/typography";
+import { useThemedStyles } from "@/theme/useThemedStyles";
 
 export default function DailyActionScreen() {
   const { draft, update } = useOnboarding();
+  const styles = useThemedStyles((theme) =>
+    StyleSheet.create({
+      headline: {
+        fontFamily: theme.fontFamilies.displayBold,
+        fontSize: 24,
+        lineHeight: 30,
+        color: theme.colors.text,
+        marginBottom: theme.spacing.sm,
+      },
+      body: {
+        fontFamily: theme.fontFamilies.body,
+        fontSize: 14.5,
+        lineHeight: 22,
+        color: theme.colors.textFaint,
+        marginBottom: theme.spacing.xl,
+      },
+      goalSection: {
+        marginBottom: theme.spacing.sm,
+      },
+      sectionLabel: {
+        fontFamily: theme.fontFamilies.bodyMedium,
+        fontSize: theme.typography.labelMd,
+        color: theme.colors.textMuted,
+        marginBottom: theme.spacing.sm,
+      },
+      goalCard: {
+        backgroundColor: theme.colors.surface,
+        borderRadius: 12,
+        paddingVertical: 14,
+        paddingHorizontal: theme.spacing.lg,
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 10,
+      },
+      goalDot: {
+        width: 8,
+        height: 8,
+        borderRadius: 4,
+        backgroundColor: theme.colors.primary,
+        flexShrink: 0,
+      },
+      goalText: {
+        fontFamily: theme.fontFamilies.bodyMedium,
+        fontSize: 15,
+        color: theme.colors.primary,
+        flex: 1,
+      },
+      actionSection: {
+        marginTop: theme.spacing.lg,
+        marginBottom: theme.spacing.sm,
+      },
+    }),
+  );
 
   const handleContinue = () => {
     const next: Partial<OnboardingDraft> = { step: "shrink-insight" };
@@ -89,55 +139,3 @@ export default function DailyActionScreen() {
     </OnboardingLayout>
   );
 }
-
-const styles = StyleSheet.create({
-  headline: {
-    fontFamily: fontFamilies.displayBold,
-    fontSize: 24,
-    lineHeight: 30,
-    color: colors.text,
-    marginBottom: spacing.sm,
-  },
-  body: {
-    fontFamily: fontFamilies.body,
-    fontSize: 14.5,
-    lineHeight: 22,
-    color: colors.textFaint,
-    marginBottom: spacing.xl,
-  },
-  goalSection: {
-    marginBottom: spacing.sm,
-  },
-  sectionLabel: {
-    fontFamily: fontFamilies.bodyMedium,
-    fontSize: typography.labelMd,
-    color: colors.textMuted,
-    marginBottom: spacing.sm,
-  },
-  goalCard: {
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    paddingVertical: 14,
-    paddingHorizontal: spacing.lg,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
-  goalDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: colors.primary,
-    flexShrink: 0,
-  },
-  goalText: {
-    fontFamily: fontFamilies.bodyMedium,
-    fontSize: 15,
-    color: colors.primary,
-    flex: 1,
-  },
-  actionSection: {
-    marginTop: spacing.lg,
-    marginBottom: spacing.sm,
-  },
-});

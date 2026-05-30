@@ -1,10 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
-import { colors } from "@/theme/colors";
-import { fontFamilies } from "@/theme/fontFamilies";
-import { radius } from "@/theme/radius";
-import { spacing } from "@/theme/spacing";
-import { typography } from "@/theme/typography";
+import { useThemedStyles } from "@/theme/useThemedStyles";
 
 type MissBannerProps = {
   body?: string;
@@ -17,6 +13,42 @@ export function MissBanner({
   headline = "Yesterday was a miss.",
   onDismiss,
 }: MissBannerProps) {
+  const styles = useThemedStyles((theme) =>
+    StyleSheet.create({
+      body: {
+        color: theme.colors.textMuted,
+        fontFamily: theme.fontFamilies.body,
+        fontSize: theme.typography.bodyMd,
+        lineHeight: 18.6,
+      },
+      container: {
+        backgroundColor: theme.colors.surface,
+        borderRadius: theme.radius.sm,
+        gap: theme.spacing.xs,
+        padding: theme.spacing.lg,
+      },
+      dismissBtn: {
+        paddingHorizontal: theme.spacing.xs,
+      },
+      dismissText: {
+        color: theme.colors.textMuted,
+        fontSize: theme.typography.titleLg,
+        fontWeight: "300",
+        lineHeight: 19.8,
+      },
+      headline: {
+        color: theme.colors.text,
+        flex: 1,
+        fontFamily: theme.fontFamilies.bodyMedium,
+        fontSize: theme.typography.bodyLg,
+      },
+      row: {
+        alignItems: "center",
+        flexDirection: "row",
+      },
+    }),
+  );
+
   return (
     <View style={styles.container}>
       <View style={styles.row}>
@@ -36,37 +68,3 @@ export function MissBanner({
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  body: {
-    color: colors.textMuted,
-    fontFamily: fontFamilies.body,
-    fontSize: typography.bodyMd,
-    lineHeight: 18.6,
-  },
-  container: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.sm,
-    gap: spacing.xs,
-    padding: spacing.lg,
-  },
-  dismissBtn: {
-    paddingHorizontal: spacing.xs,
-  },
-  dismissText: {
-    color: colors.textMuted,
-    fontSize: typography.titleLg,
-    fontWeight: "300",
-    lineHeight: 19.8,
-  },
-  headline: {
-    color: colors.text,
-    flex: 1,
-    fontFamily: fontFamilies.bodyMedium,
-    fontSize: typography.bodyLg,
-  },
-  row: {
-    alignItems: "center",
-    flexDirection: "row",
-  },
-});

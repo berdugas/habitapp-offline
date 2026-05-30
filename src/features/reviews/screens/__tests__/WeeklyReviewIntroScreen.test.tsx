@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from "@testing-library/react-native";
+import { act, fireEvent, render, screen } from "@/tests/setup/render";
 import React from "react";
 
 const mockRouterReplace = jest.fn();

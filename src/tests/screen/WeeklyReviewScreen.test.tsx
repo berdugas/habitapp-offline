@@ -13,7 +13,7 @@ import {
   render,
   screen,
   waitFor,
-} from "@testing-library/react-native";
+} from "@/tests/setup/render";
 
 import WeeklyReviewScreen from "@/features/reviews/screens/WeeklyReviewScreen";
 

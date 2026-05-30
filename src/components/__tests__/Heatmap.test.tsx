@@ -1,7 +1,7 @@
-import { fireEvent, render, screen } from "@testing-library/react-native";
+import { fireEvent, render, screen } from "@/tests/setup/render";
 
 import { Heatmap } from "@/components/Heatmap";
-import { colors } from "@/theme/colors";
+import { colors } from "@/tests/setup/themeValues";
 import { resetClockForTesting, setNowForTesting } from "@/utils/clock";
 
 describe("Heatmap", () => {

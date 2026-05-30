@@ -5,10 +5,7 @@ import { PrimaryButton } from "@/components/buttons/PrimaryButton";
 import { SecondaryButton } from "@/components/buttons/SecondaryButton";
 import { ErrorState } from "@/components/feedback/ErrorState";
 import { RetroLogError } from "@/features/habits/api";
-import { colors } from "@/theme/colors";
-import { radius } from "@/theme/radius";
-import { spacing } from "@/theme/spacing";
-import { typography } from "@/theme/typography";
+import { useThemedStyles } from "@/theme/useThemedStyles";
 import { getRetroLogErrorMessage } from "@/utils/userFacingErrors";
 
 import type { HabitLogStatus } from "@/features/habits/types";
@@ -34,6 +31,44 @@ export function RetroLogSelector({
   onSubmit,
   readOnlyReason,
 }: RetroLogSelectorProps) {
+  const styles = useThemedStyles((theme) =>
+    StyleSheet.create({
+      actionsRow: {
+        flexDirection: "row",
+        gap: theme.spacing.md,
+      },
+      backdrop: {
+        alignItems: "center",
+        backgroundColor: "rgba(0, 0, 0, 0.4)",
+        flex: 1,
+        justifyContent: "center",
+        padding: theme.spacing.xl,
+      },
+      card: {
+        backgroundColor: theme.colors.surface,
+        borderRadius: theme.radius.lg,
+        gap: theme.spacing.lg,
+        padding: theme.spacing.xl,
+        width: "100%",
+      },
+      dateLabel: {
+        color: theme.colors.text,
+        fontSize: theme.typography.headlineLg,
+        fontWeight: "700",
+      },
+      lockedText: {
+        color: theme.colors.textMuted,
+        fontSize: theme.typography.bodyLg,
+        lineHeight: 19.3,
+      },
+      statusLabel: {
+        color: theme.colors.textMuted,
+        fontSize: theme.typography.bodyLg,
+        fontStyle: "italic",
+      },
+    }),
+  );
+
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   async function handlePress(status: HabitLogStatus) {
@@ -108,39 +143,3 @@ function formatDateLabel(date: string) {
     year: "numeric",
   });
 }
-
-const styles = StyleSheet.create({
-  actionsRow: {
-    flexDirection: "row",
-    gap: spacing.md,
-  },
-  backdrop: {
-    alignItems: "center",
-    backgroundColor: "rgba(0, 0, 0, 0.4)",
-    flex: 1,
-    justifyContent: "center",
-    padding: spacing.xl,
-  },
-  card: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    gap: spacing.lg,
-    padding: spacing.xl,
-    width: "100%",
-  },
-  dateLabel: {
-    color: colors.text,
-    fontSize: typography.headlineLg,
-    fontWeight: "700",
-  },
-  lockedText: {
-    color: colors.textMuted,
-    fontSize: typography.bodyLg,
-    lineHeight: 19.3,
-  },
-  statusLabel: {
-    color: colors.textMuted,
-    fontSize: typography.bodyLg,
-    fontStyle: "italic",
-  },
-});

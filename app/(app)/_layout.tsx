@@ -60,6 +60,10 @@ export default function ProtectedLayout() {
         name="settings/export"
         options={{ headerShown: false }}
       />
+      <Stack.Screen
+        name="settings/appearance"
+        options={{ headerShown: false }}
+      />
     </Stack>
   );
 }

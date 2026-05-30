@@ -38,11 +38,8 @@ import {
 } from "@/features/habits/validators";
 import { getHabitSuggestionEditGuidance } from "@/features/recommendations/editGuidance";
 import { useTrialValidation } from "@/features/trial/hooks";
-import { colors } from "@/theme/colors";
-import { fontFamilies } from "@/theme/fontFamilies";
-import { radius } from "@/theme/radius";
-import { SCREEN_TOP_PADDING, spacing } from "@/theme/spacing";
-import { typography } from "@/theme/typography";
+import { useTheme } from "@/theme/useTheme";
+import { useThemedStyles } from "@/theme/useThemedStyles";
 import {
   getLoadHabitDetailErrorMessage,
   getUpdateHabitErrorMessage,
@@ -58,6 +55,219 @@ export default function EditHabitScreen() {
   const fromRecovery = (Array.isArray(from) ? from[0] : from) === "recovery";
   const insets = useSafeAreaInsets();
   const resolvedHabitId = Array.isArray(habitId) ? habitId[0] : habitId;
+
+  const theme = useTheme();
+  const styles = useThemedStyles((theme) =>
+    StyleSheet.create({
+      screen: {
+        backgroundColor: theme.colors.bg,
+        flex: 1,
+      },
+      content: {
+        paddingHorizontal: theme.spacing.xl,
+        paddingBottom: theme.spacing.xxxl,
+        gap: theme.spacing.lg,
+      },
+      backButton: {
+        width: 32,
+        height: 32,
+        alignItems: "center",
+        justifyContent: "center",
+        marginBottom: theme.spacing.sm,
+      },
+      headerTitle: {
+        fontFamily: theme.fontFamilies.displayBold,
+        fontSize: 26,
+        lineHeight: 32,
+        color: theme.colors.text,
+        marginBottom: theme.spacing.sm,
+      },
+      // Suggestion card
+      suggestionCard: {
+        backgroundColor: theme.colors.surface,
+        borderRadius: theme.radius.md,
+        padding: theme.spacing.lg,
+        gap: theme.spacing.sm,
+      },
+      suggestionEyebrow: {
+        fontFamily: theme.fontFamilies.bodyMedium,
+        fontSize: theme.typography.micro,
+        color: theme.colors.textFaint,
+        letterSpacing: 0.5,
+      },
+      suggestionTitle: {
+        fontFamily: theme.fontFamilies.displaySemi,
+        fontSize: theme.typography.headlineMd,
+        color: theme.colors.text,
+      },
+      suggestionBody: {
+        fontFamily: theme.fontFamilies.body,
+        fontSize: theme.typography.bodyMd,
+        lineHeight: 18.6,
+        color: theme.colors.textMuted,
+      },
+      suggestionDraftLabel: {
+        fontFamily: theme.fontFamilies.bodySemi,
+        fontSize: theme.typography.labelMd,
+        lineHeight: 20,
+        color: theme.colors.text,
+      },
+      suggestionDraftBody: {
+        fontFamily: theme.fontFamilies.body,
+        fontSize: theme.typography.bodyMd,
+        lineHeight: 18.6,
+        color: theme.colors.textMuted,
+      },
+      suggestionReasonLabel: {
+        fontFamily: theme.fontFamilies.bodySemi,
+        fontSize: theme.typography.labelMd,
+        lineHeight: 22,
+        color: theme.colors.text,
+      },
+      suggestionReason: {
+        fontFamily: theme.fontFamilies.body,
+        fontSize: theme.typography.bodyMd,
+        lineHeight: 22.3,
+        color: theme.colors.textMuted,
+      },
+      // Identity card
+      identityCard: {
+        backgroundColor: theme.colors.primarySoft,
+        borderRadius: theme.radius.md,
+        padding: theme.spacing.lg,
+        gap: 2,
+      },
+      identityEyebrow: {
+        fontFamily: theme.fontFamilies.bodyMedium,
+        fontSize: theme.typography.micro,
+        color: theme.colors.primary,
+        letterSpacing: 0.5,
+        marginBottom: 2,
+      },
+      identityPhrase: {
+        fontFamily: theme.fontFamilies.bodySemi,
+        fontSize: 15,
+        color: theme.colors.text,
+      },
+      identityHint: {
+        fontFamily: theme.fontFamilies.body,
+        fontSize: 12,
+        color: theme.colors.primary,
+        opacity: 0.8,
+        marginTop: 2,
+      },
+      // Fields
+      section: {
+        gap: theme.spacing.sm,
+      },
+      fieldLabel: {
+        fontFamily: theme.fontFamilies.bodyMedium,
+        fontSize: theme.typography.labelMd,
+        color: theme.colors.textMuted,
+      },
+      fieldHint: {
+        fontFamily: theme.fontFamilies.body,
+        fontSize: theme.typography.labelMd,
+        color: theme.colors.textFaint,
+      },
+      fieldRow: {
+        backgroundColor: theme.colors.surface,
+        borderRadius: theme.radius.md,
+        paddingVertical: 12,
+        paddingHorizontal: 14,
+        flexDirection: "row",
+        alignItems: "center",
+        gap: theme.spacing.sm,
+      },
+      fieldError: {
+        borderWidth: 1,
+        borderColor: theme.colors.danger,
+      },
+      fieldInput: {
+        flex: 1,
+        fontFamily: theme.fontFamilies.body,
+        fontSize: 15,
+        color: theme.colors.text,
+      },
+      iconButton: {
+        width: 36,
+        height: 36,
+        borderRadius: 8,
+        backgroundColor: theme.colors.surfaceCard,
+        borderWidth: 0.5,
+        borderColor: theme.colors.offDayBorder,
+        alignItems: "center",
+        justifyContent: "center",
+      },
+      errorText: {
+        fontFamily: theme.fontFamilies.body,
+        fontSize: 12,
+        color: theme.colors.danger,
+        marginTop: -theme.spacing.xs,
+      },
+      // Formula card
+      formulaCard: {
+        backgroundColor: theme.colors.surfaceCard,
+        borderRadius: theme.radius.md,
+        borderWidth: 1,
+        borderColor: theme.colors.offDayBorder,
+        padding: theme.spacing.lg,
+        gap: theme.spacing.sm,
+      },
+      formulaEyebrow: {
+        fontFamily: theme.fontFamilies.bodyMedium,
+        fontSize: theme.typography.micro,
+        color: theme.colors.textFaint,
+        letterSpacing: 0.5,
+      },
+      formulaText: {
+        fontFamily: theme.fontFamilies.body,
+        fontSize: 15,
+        color: theme.colors.text,
+        fontStyle: "italic",
+        lineHeight: 22,
+      },
+      formulaHighlight: {
+        fontFamily: theme.fontFamilies.bodySemi,
+        color: theme.colors.primary,
+        fontStyle: "italic",
+      },
+      formErrorWrap: {
+        marginTop: -theme.spacing.sm,
+      },
+      // Divider
+      divider: {
+        height: 1,
+        backgroundColor: theme.colors.offDayBorder,
+        marginVertical: theme.spacing.sm,
+      },
+      // Save button
+      saveButton: {
+        backgroundColor: theme.colors.primary,
+        borderRadius: 24,
+        paddingVertical: 14,
+        alignItems: "center",
+        marginTop: theme.spacing.sm,
+      },
+      saveButtonDisabled: {
+        opacity: 0.5,
+      },
+      saveButtonPressed: {
+        opacity: 0.85,
+      },
+      saveButtonText: {
+        fontFamily: theme.fontFamilies.bodySemi,
+        fontSize: 15,
+        color: theme.colors.primaryText,
+      },
+      readOnlyHelper: {
+        color: theme.colors.textMuted,
+        fontFamily: theme.fontFamilies.body,
+        fontSize: theme.typography.bodyMd,
+        textAlign: "center",
+      },
+    }),
+  );
 
   function handleBack() {
     if (router.canGoBack()) {
@@ -238,9 +448,9 @@ export default function EditHabitScreen() {
       ) : null}
 
       {/* Header */}
-      <View style={{ paddingTop: insets.top + SCREEN_TOP_PADDING }}>
+      <View style={{ paddingTop: insets.top + theme.spacing.lg }}>
         <Pressable hitSlop={12} onPress={handleBack} style={styles.backButton}>
-          <ChevronLeft size={22} color={colors.textMuted} strokeWidth={1.75} />
+          <ChevronLeft size={22} color={theme.colors.textMuted} strokeWidth={1.75} />
         </Pressable>
         <Text style={styles.headerTitle}>Edit habit</Text>
       </View>
@@ -282,20 +492,20 @@ export default function EditHabitScreen() {
       <View style={styles.section}>
         <Text style={styles.fieldLabel}>Habit name</Text>
         <View style={[styles.fieldRow, validationErrors.title ? styles.fieldError : null]}>
-          <PenLine size={16} color={colors.primary} strokeWidth={1.5} />
+          <PenLine size={16} color={theme.colors.primary} strokeWidth={1.5} />
           <TextInput
             style={styles.fieldInput}
             value={title}
             onChangeText={setTitle}
             placeholder="Reading"
-            placeholderTextColor={colors.textFaint}
+            placeholderTextColor={theme.colors.textFaint}
             editable={!isReadOnly}
           />
           <Pressable onPress={() => setShowIconPicker((v) => !v)} style={styles.iconButton}>
             <LucideIcon
               name={icon || "Sparkles"}
               size={18}
-              color={icon ? colors.primary : colors.textFaint}
+              color={icon ? theme.colors.primary : theme.colors.textFaint}
               strokeWidth={1.8}
             />
           </Pressable>
@@ -317,13 +527,13 @@ export default function EditHabitScreen() {
           Cue <Text style={styles.fieldHint}>— what triggers this habit?</Text>
         </Text>
         <View style={[styles.fieldRow, validationErrors.cue ? styles.fieldError : null]}>
-          <PenLine size={16} color={colors.primary} strokeWidth={1.5} />
+          <PenLine size={16} color={theme.colors.primary} strokeWidth={1.5} />
           <TextInput
             style={styles.fieldInput}
             value={cue}
             onChangeText={setCue}
             placeholder="After I brush my teeth"
-            placeholderTextColor={colors.textFaint}
+            placeholderTextColor={theme.colors.textFaint}
             editable={!isReadOnly}
           />
         </View>
@@ -338,14 +548,14 @@ export default function EditHabitScreen() {
           Tiny action <Text style={styles.fieldHint}>— the smallest version</Text>
         </Text>
         <View style={[styles.fieldRow, validationErrors.tinyAction ? styles.fieldError : null]}>
-          <PenLine size={16} color={colors.primary} strokeWidth={1.5} />
+          <PenLine size={16} color={theme.colors.primary} strokeWidth={1.5} />
           <TextInput
             ref={tinyActionRef}
             style={styles.fieldInput}
             value={tinyAction}
             onChangeText={setTinyAction}
             placeholder="Read 1 page"
-            placeholderTextColor={colors.textFaint}
+            placeholderTextColor={theme.colors.textFaint}
             editable={!isReadOnly}
           />
         </View>
@@ -404,213 +614,3 @@ export default function EditHabitScreen() {
     </ScrollView>
   );
 }
-
-const styles = StyleSheet.create({
-  screen: {
-    backgroundColor: colors.bg,
-    flex: 1,
-  },
-  content: {
-    paddingHorizontal: spacing.xl,
-    paddingBottom: spacing.xxxl,
-    gap: spacing.lg,
-  },
-  backButton: {
-    width: 32,
-    height: 32,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: spacing.sm,
-  },
-  headerTitle: {
-    fontFamily: fontFamilies.displayBold,
-    fontSize: 26,
-    lineHeight: 32,
-    color: colors.text,
-    marginBottom: spacing.sm,
-  },
-  // Suggestion card
-  suggestionCard: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.md,
-    padding: spacing.lg,
-    gap: spacing.sm,
-  },
-  suggestionEyebrow: {
-    fontFamily: fontFamilies.bodyMedium,
-    fontSize: typography.micro,
-    color: colors.textFaint,
-    letterSpacing: 0.5,
-  },
-  suggestionTitle: {
-    fontFamily: fontFamilies.displaySemi,
-    fontSize: typography.headlineMd,
-    color: colors.text,
-  },
-  suggestionBody: {
-    fontFamily: fontFamilies.body,
-    fontSize: typography.bodyMd,
-    lineHeight: 18.6,
-    color: colors.textMuted,
-  },
-  suggestionDraftLabel: {
-    fontFamily: fontFamilies.bodySemi,
-    fontSize: typography.labelMd,
-    lineHeight: 20,
-    color: colors.text,
-  },
-  suggestionDraftBody: {
-    fontFamily: fontFamilies.body,
-    fontSize: typography.bodyMd,
-    lineHeight: 18.6,
-    color: colors.textMuted,
-  },
-  suggestionReasonLabel: {
-    fontFamily: fontFamilies.bodySemi,
-    fontSize: typography.labelMd,
-    lineHeight: 22,
-    color: colors.text,
-  },
-  suggestionReason: {
-    fontFamily: fontFamilies.body,
-    fontSize: typography.bodyMd,
-    lineHeight: 22.3,
-    color: colors.textMuted,
-  },
-  // Identity card
-  identityCard: {
-    backgroundColor: colors.primarySoft,
-    borderRadius: radius.md,
-    padding: spacing.lg,
-    gap: 2,
-  },
-  identityEyebrow: {
-    fontFamily: fontFamilies.bodyMedium,
-    fontSize: typography.micro,
-    color: colors.primary,
-    letterSpacing: 0.5,
-    marginBottom: 2,
-  },
-  identityPhrase: {
-    fontFamily: fontFamilies.bodySemi,
-    fontSize: 15,
-    color: colors.text,
-  },
-  identityHint: {
-    fontFamily: fontFamilies.body,
-    fontSize: 12,
-    color: colors.primary,
-    opacity: 0.8,
-    marginTop: 2,
-  },
-  // Fields
-  section: {
-    gap: spacing.sm,
-  },
-  fieldLabel: {
-    fontFamily: fontFamilies.bodyMedium,
-    fontSize: typography.labelMd,
-    color: colors.textMuted,
-  },
-  fieldHint: {
-    fontFamily: fontFamilies.body,
-    fontSize: typography.labelMd,
-    color: colors.textFaint,
-  },
-  fieldRow: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.md,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.sm,
-  },
-  fieldError: {
-    borderWidth: 1,
-    borderColor: colors.danger,
-  },
-  fieldInput: {
-    flex: 1,
-    fontFamily: fontFamilies.body,
-    fontSize: 15,
-    color: colors.text,
-  },
-  iconButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 8,
-    backgroundColor: colors.surfaceCard,
-    borderWidth: 0.5,
-    borderColor: colors.offDayBorder,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  errorText: {
-    fontFamily: fontFamilies.body,
-    fontSize: 12,
-    color: colors.danger,
-    marginTop: -spacing.xs,
-  },
-  // Formula card
-  formulaCard: {
-    backgroundColor: colors.surfaceCard,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.offDayBorder,
-    padding: spacing.lg,
-    gap: spacing.sm,
-  },
-  formulaEyebrow: {
-    fontFamily: fontFamilies.bodyMedium,
-    fontSize: typography.micro,
-    color: colors.textFaint,
-    letterSpacing: 0.5,
-  },
-  formulaText: {
-    fontFamily: fontFamilies.body,
-    fontSize: 15,
-    color: colors.text,
-    fontStyle: "italic",
-    lineHeight: 22,
-  },
-  formulaHighlight: {
-    fontFamily: fontFamilies.bodySemi,
-    color: colors.primary,
-    fontStyle: "italic",
-  },
-  formErrorWrap: {
-    marginTop: -spacing.sm,
-  },
-  // Divider
-  divider: {
-    height: 1,
-    backgroundColor: colors.offDayBorder,
-    marginVertical: spacing.sm,
-  },
-  // Save button
-  saveButton: {
-    backgroundColor: colors.primary,
-    borderRadius: 24,
-    paddingVertical: 14,
-    alignItems: "center",
-    marginTop: spacing.sm,
-  },
-  saveButtonDisabled: {
-    opacity: 0.5,
-  },
-  saveButtonPressed: {
-    opacity: 0.85,
-  },
-  saveButtonText: {
-    fontFamily: fontFamilies.bodySemi,
-    fontSize: 15,
-    color: colors.primaryText,
-  },
-  readOnlyHelper: {
-    color: colors.textMuted,
-    fontFamily: fontFamilies.body,
-    fontSize: typography.bodyMd,
-    textAlign: "center",
-  },
-});

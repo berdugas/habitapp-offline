@@ -4,10 +4,8 @@ import { PrimaryButton } from "@/components/buttons/PrimaryButton";
 import { SecondaryButton } from "@/components/buttons/SecondaryButton";
 import { ErrorState } from "@/components/feedback/ErrorState";
 import { Eyebrow } from "@/components/text/Eyebrow";
-import { colors } from "@/theme/colors";
-import { fontFamilies } from "@/theme/fontFamilies";
-import { spacing } from "@/theme/spacing";
-import { typography } from "@/theme/typography";
+import { useThemedStyles } from "@/theme/useThemedStyles";
+import { useTheme } from "@/theme/useTheme";
 
 export type CatchUpState = "idle" | "pending" | "error" | "done";
 
@@ -49,6 +47,110 @@ export function WeekCompleteStep({
   onDone,
   onRetryCatchUp,
 }: WeekCompleteStepProps) {
+  const theme = useTheme();
+  const styles = useThemedStyles((t) =>
+    StyleSheet.create({
+      breath: { height: t.spacing.md },
+      consist: {
+        color: t.colors.text,
+        fontFamily: t.fontFamilies.bodySemi,
+        fontSize: t.typography.titleLg,
+        lineHeight: 27,
+        textAlign: "center",
+      },
+      consistPct: {
+        color: t.colors.primary,
+        fontFamily: t.fontFamilies.displayBold,
+        fontSize: t.typography.headlineLg,
+      },
+      container: { gap: t.spacing.xl },
+      content: {
+        alignItems: "center",
+        paddingTop: t.spacing.md,
+      },
+      dayLine: {
+        color: t.colors.text,
+        fontFamily: t.fontFamilies.displayBold,
+        fontSize: t.typography.displayLg,
+        letterSpacing: -0.72,
+        lineHeight: 40,
+        marginTop: t.spacing.xs,
+        textAlign: "center",
+      },
+      emblem: {
+        height: EMBLEM_SIZE,
+        marginBottom: t.spacing.xl,
+        position: "relative",
+        width: EMBLEM_SIZE,
+      },
+      emblemRing: {
+        backgroundColor: t.colors.primary,
+        position: "absolute",
+      },
+      emblemRing0: {
+        borderRadius: EMBLEM_SIZE / 2,
+        bottom: 0,
+        left: 0,
+        opacity: 0.07,
+        right: 0,
+        top: 0,
+      },
+      emblemRing1: {
+        borderRadius: (EMBLEM_SIZE - 28) / 2,
+        bottom: 14,
+        left: 14,
+        opacity: 0.13,
+        right: 14,
+        top: 14,
+      },
+      emblemRing2: {
+        borderRadius: (EMBLEM_SIZE - 56) / 2,
+        bottom: 28,
+        left: 28,
+        opacity: 0.2,
+        right: 28,
+        top: 28,
+      },
+      emblemRing3: {
+        borderRadius: (EMBLEM_SIZE - 84) / 2,
+        bottom: 42,
+        left: 42,
+        opacity: 1,
+        right: 42,
+        top: 42,
+      },
+      errorBlock: { gap: t.spacing.md },
+      footnote: {
+        color: t.colors.textMuted,
+        fontFamily: t.fontFamilies.body,
+        fontSize: t.typography.bodyMd,
+        lineHeight: 18.6,
+        marginTop: t.spacing.md,
+        textAlign: "center",
+      },
+      hero: {
+        alignSelf: "stretch",
+        color: t.colors.primaryGradientEnd,
+        fontFamily: t.fontFamilies.displaySemiItalic,
+        fontSize: t.typography.headlineMd,
+        lineHeight: 32.7,
+        marginTop: t.spacing.md,
+        paddingHorizontal: t.spacing.lg,
+        textAlign: "center",
+      },
+      savingBlock: {
+        alignItems: "center",
+        gap: t.spacing.sm,
+        paddingVertical: t.spacing.md,
+      },
+      savingText: {
+        color: t.colors.textMuted,
+        fontFamily: t.fontFamilies.body,
+        fontSize: t.typography.bodyMd,
+      },
+    }),
+  );
+
   const isPending = catchUpState === "pending" || catchUpState === "idle";
   const hasError = catchUpState === "error";
   const isDone = catchUpState === "done";
@@ -104,7 +206,7 @@ export function WeekCompleteStep({
 
       {isPending ? (
         <View style={styles.savingBlock}>
-          <ActivityIndicator color={colors.primary} size="small" />
+          <ActivityIndicator color={theme.colors.primary} size="small" />
           <Text style={styles.savingText}>Saving your review…</Text>
         </View>
       ) : null}
@@ -121,103 +223,3 @@ export function WeekCompleteStep({
   );
 }
 
-const styles = StyleSheet.create({
-  breath: { height: spacing.md },
-  consist: {
-    color: colors.text,
-    fontFamily: fontFamilies.bodySemi,
-    fontSize: typography.titleLg,
-    lineHeight: 27,
-    textAlign: "center",
-  },
-  consistPct: {
-    color: colors.primary,
-    fontFamily: fontFamilies.displayBold,
-    fontSize: typography.headlineLg,
-  },
-  container: { gap: spacing.xl },
-  content: {
-    alignItems: "center",
-    paddingTop: spacing.md,
-  },
-  dayLine: {
-    color: colors.text,
-    fontFamily: fontFamilies.displayBold,
-    fontSize: typography.displayLg,
-    letterSpacing: -0.72,
-    lineHeight: 40,
-    marginTop: spacing.xs,
-    textAlign: "center",
-  },
-  emblem: {
-    height: EMBLEM_SIZE,
-    marginBottom: spacing.xl,
-    position: "relative",
-    width: EMBLEM_SIZE,
-  },
-  emblemRing: {
-    backgroundColor: colors.primary,
-    position: "absolute",
-  },
-  emblemRing0: {
-    borderRadius: EMBLEM_SIZE / 2,
-    bottom: 0,
-    left: 0,
-    opacity: 0.07,
-    right: 0,
-    top: 0,
-  },
-  emblemRing1: {
-    borderRadius: (EMBLEM_SIZE - 28) / 2,
-    bottom: 14,
-    left: 14,
-    opacity: 0.13,
-    right: 14,
-    top: 14,
-  },
-  emblemRing2: {
-    borderRadius: (EMBLEM_SIZE - 56) / 2,
-    bottom: 28,
-    left: 28,
-    opacity: 0.2,
-    right: 28,
-    top: 28,
-  },
-  emblemRing3: {
-    borderRadius: (EMBLEM_SIZE - 84) / 2,
-    bottom: 42,
-    left: 42,
-    opacity: 1,
-    right: 42,
-    top: 42,
-  },
-  errorBlock: { gap: spacing.md },
-  footnote: {
-    color: colors.textMuted,
-    fontFamily: fontFamilies.body,
-    fontSize: typography.bodyMd,
-    lineHeight: 18.6,
-    marginTop: spacing.md,
-    textAlign: "center",
-  },
-  hero: {
-    alignSelf: "stretch",
-    color: colors.primaryGradientEnd,
-    fontFamily: fontFamilies.displaySemiItalic,
-    fontSize: typography.headlineMd,
-    lineHeight: 32.7,
-    marginTop: spacing.md,
-    paddingHorizontal: spacing.lg,
-    textAlign: "center",
-  },
-  savingBlock: {
-    alignItems: "center",
-    gap: spacing.sm,
-    paddingVertical: spacing.md,
-  },
-  savingText: {
-    color: colors.textMuted,
-    fontFamily: fontFamilies.body,
-    fontSize: typography.bodyMd,
-  },
-});

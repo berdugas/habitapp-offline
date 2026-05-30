@@ -35,10 +35,8 @@ import { normalizeReturnTo } from "@/features/reviews/reviewRoutes";
 import { useGoalWeekSummary } from "@/features/reviews/useGoalWeekSummary";
 import { trackEvent } from "@/services/analytics";
 import { logger } from "@/services/logger";
-import { colors } from "@/theme/colors";
-import { fontFamilies } from "@/theme/fontFamilies";
-import { SCREEN_TOP_PADDING, spacing } from "@/theme/spacing";
-import { typography } from "@/theme/typography";
+import { useThemedStyles } from "@/theme/useThemedStyles";
+import { useTheme } from "@/theme/useTheme";
 import { getWeekStartDateString } from "@/utils/dates";
 
 import type { ApplyTuneUpForHabitPayload } from "@/features/reviews/api";
@@ -675,6 +673,51 @@ export default function GoalReviewScreen() {
     }
   }
 
+  const theme = useTheme();
+  const styles = useThemedStyles((t) =>
+    StyleSheet.create({
+      body: {
+        color: t.colors.textMuted,
+        fontFamily: t.fontFamilies.body,
+        fontSize: t.typography.bodyLg,
+        lineHeight: 21,
+      },
+      closeButton: {
+        height: 36,
+        width: 36,
+        alignItems: "center",
+        justifyContent: "center",
+      },
+      content: {
+        gap: t.spacing.xl,
+        padding: t.spacing.xl,
+      },
+      footer: {
+        backgroundColor: t.colors.bg,
+        paddingHorizontal: t.spacing.xl,
+        paddingTop: t.spacing.md,
+      },
+      header: {
+        alignItems: "center",
+        flexDirection: "row",
+        justifyContent: "space-between",
+        paddingHorizontal: t.spacing.lg,
+        paddingVertical: t.spacing.sm,
+      },
+      scroll: {
+        flex: 1,
+      },
+      scrollContent: {
+        gap: t.spacing.xl,
+        padding: t.spacing.xl,
+      },
+      screen: {
+        backgroundColor: t.colors.bg,
+        flex: 1,
+      },
+    }),
+  );
+
   if (!identityPhrase) {
     return <ErrorState message="No goal selected for review." />;
   }
@@ -731,7 +774,7 @@ export default function GoalReviewScreen() {
       : -1;
 
   return (
-    <View style={[styles.screen, { paddingTop: insets.top + SCREEN_TOP_PADDING }]}>
+    <View style={[styles.screen, { paddingTop: insets.top + theme.spacing.lg }]}>
       <View style={styles.header}>
         <Pressable
           accessibilityLabel={
@@ -742,7 +785,7 @@ export default function GoalReviewScreen() {
           onPress={handleBack}
           style={styles.closeButton}
         >
-          <ChevronLeft color={colors.textMuted} size={24} strokeWidth={1.75} />
+          <ChevronLeft color={theme.colors.textMuted} size={24} strokeWidth={1.75} />
         </Pressable>
         <ReviewStepIndicator
           currentIndex={currentStepIndex}
@@ -832,7 +875,7 @@ export default function GoalReviewScreen() {
       </ScrollView>
 
       {showFooterContinue ? (
-        <View style={[styles.footer, { paddingBottom: insets.bottom || spacing.lg }]}>
+        <View style={[styles.footer, { paddingBottom: insets.bottom || theme.spacing.lg }]}>
           <PrimaryButton label="Continue" onPress={handleContinuePress} />
         </View>
       ) : null}
@@ -840,44 +883,3 @@ export default function GoalReviewScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  body: {
-    color: colors.textMuted,
-    fontFamily: fontFamilies.body,
-    fontSize: typography.bodyLg,
-    lineHeight: 21,
-  },
-  closeButton: {
-    height: 36,
-    width: 36,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  content: {
-    gap: spacing.xl,
-    padding: spacing.xl,
-  },
-  footer: {
-    backgroundColor: colors.bg,
-    paddingHorizontal: spacing.xl,
-    paddingTop: spacing.md,
-  },
-  header: {
-    alignItems: "center",
-    flexDirection: "row",
-    justifyContent: "space-between",
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-  },
-  scroll: {
-    flex: 1,
-  },
-  scrollContent: {
-    gap: spacing.xl,
-    padding: spacing.xl,
-  },
-  screen: {
-    backgroundColor: colors.bg,
-    flex: 1,
-  },
-});

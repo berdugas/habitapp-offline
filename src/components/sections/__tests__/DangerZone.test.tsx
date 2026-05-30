@@ -1,7 +1,7 @@
-import { fireEvent, render, screen } from "@testing-library/react-native";
+import { fireEvent, render, screen } from "@/tests/setup/render";
 
 import { DangerZone } from "@/components/sections/DangerZone";
-import { colors } from "@/theme/colors";
+import { colors } from "@/tests/setup/themeValues";
 
 function flattenStyle(style: unknown) {
   if (Array.isArray(style)) {

@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react-native";
+import { render, screen } from "@/tests/setup/render";
 
 import { WeeklyConsistencyChart } from "@/features/today/components/WeeklyConsistencyChart";
 

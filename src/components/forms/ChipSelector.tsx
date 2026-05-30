@@ -1,9 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { colors } from '@/theme/colors';
-import { fontFamilies } from '@/theme/fontFamilies';
-import { radius } from '@/theme/radius';
-import { typography } from '@/theme/typography';
+import { useThemedStyles } from '@/theme/useThemedStyles';
 
 type ChipSelectorProps = {
   options: string[];
@@ -12,6 +9,40 @@ type ChipSelectorProps = {
 };
 
 export function ChipSelector({ options, selectedValue, onSelect }: ChipSelectorProps) {
+  const styles = useThemedStyles((theme) =>
+    StyleSheet.create({
+      container: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 8,
+      },
+      chip: {
+        borderRadius: theme.radius.pill,
+        paddingVertical: 10,
+        paddingHorizontal: 18,
+      },
+      chipDefault: {
+        backgroundColor: theme.colors.surface,
+      },
+      chipSelected: {
+        backgroundColor: theme.colors.primary,
+      },
+      chipPressed: {
+        opacity: 0.8,
+      },
+      chipText: {
+        fontSize: theme.typography.bodyMd,
+        fontFamily: theme.fontFamilies.body,
+      },
+      chipTextDefault: {
+        color: theme.colors.text,
+      },
+      chipTextSelected: {
+        color: theme.colors.primaryText,
+      },
+    }),
+  );
+
   return (
     <View style={styles.container}>
       {options.map((option) => {
@@ -36,35 +67,3 @@ export function ChipSelector({ options, selectedValue, onSelect }: ChipSelectorP
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  chip: {
-    borderRadius: radius.pill,
-    paddingVertical: 10,
-    paddingHorizontal: 18,
-  },
-  chipDefault: {
-    backgroundColor: colors.surface,
-  },
-  chipSelected: {
-    backgroundColor: colors.primary,
-  },
-  chipPressed: {
-    opacity: 0.8,
-  },
-  chipText: {
-    fontSize: typography.bodyMd,
-    fontFamily: fontFamilies.body,
-  },
-  chipTextDefault: {
-    color: colors.text,
-  },
-  chipTextSelected: {
-    color: colors.primaryText,
-  },
-});

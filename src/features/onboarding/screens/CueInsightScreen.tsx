@@ -6,9 +6,7 @@ import { PrimaryButton } from "@/components/buttons/PrimaryButton";
 import { BackButton } from "@/components/navigation/BackButton";
 import { OnboardingLayout } from "@/components/layouts/OnboardingLayout";
 import { useOnboarding } from "@/features/onboarding/OnboardingProvider";
-import { colors } from "@/theme/colors";
-import { fontFamilies } from "@/theme/fontFamilies";
-import { spacing } from "@/theme/spacing";
+import { useThemedStyles } from "@/theme/useThemedStyles";
 
 function CueIllustration() {
   return (
@@ -39,6 +37,49 @@ function CueIllustration() {
 
 export default function CueInsightScreen() {
   const { update } = useOnboarding();
+  const styles = useThemedStyles((theme) =>
+    StyleSheet.create({
+      header: {
+        marginBottom: theme.spacing.xl,
+      },
+      illustration: {
+        alignSelf: "center",
+        marginBottom: theme.spacing.xxl,
+      },
+      headline: {
+        fontFamily: theme.fontFamilies.displaySemi,
+        fontSize: 23,
+        lineHeight: 30,
+        color: theme.colors.text,
+        marginBottom: theme.spacing.xl,
+      },
+      bodyContainer: {
+        gap: theme.spacing.lg,
+        marginBottom: theme.spacing.xxl,
+      },
+      body: {
+        fontFamily: theme.fontFamilies.body,
+        fontSize: 15,
+        lineHeight: 24,
+        color: theme.colors.textMuted,
+      },
+      bodyPrimary: {
+        fontFamily: theme.fontFamilies.bodySemi,
+        color: theme.colors.primary,
+      },
+      callout: {
+        backgroundColor: theme.colors.surface,
+        borderRadius: 12,
+        padding: theme.spacing.lg,
+      },
+      calloutText: {
+        fontFamily: theme.fontFamilies.body,
+        fontSize: 13.5,
+        lineHeight: 21,
+        color: theme.colors.textMuted,
+      },
+    }),
+  );
 
   const handleContinue = () => {
     update({ step: "cue" });
@@ -91,45 +132,3 @@ export default function CueInsightScreen() {
     </OnboardingLayout>
   );
 }
-
-const styles = StyleSheet.create({
-  header: {
-    marginBottom: spacing.xl,
-  },
-  illustration: {
-    alignSelf: "center",
-    marginBottom: spacing.xxl,
-  },
-  headline: {
-    fontFamily: fontFamilies.displaySemi,
-    fontSize: 23,
-    lineHeight: 30,
-    color: colors.text,
-    marginBottom: spacing.xl,
-  },
-  bodyContainer: {
-    gap: spacing.lg,
-    marginBottom: spacing.xxl,
-  },
-  body: {
-    fontFamily: fontFamilies.body,
-    fontSize: 15,
-    lineHeight: 24,
-    color: colors.textMuted,
-  },
-  bodyPrimary: {
-    fontFamily: fontFamilies.bodySemi,
-    color: colors.primary,
-  },
-  callout: {
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    padding: spacing.lg,
-  },
-  calloutText: {
-    fontFamily: fontFamilies.body,
-    fontSize: 13.5,
-    lineHeight: 21,
-    color: colors.textMuted,
-  },
-});

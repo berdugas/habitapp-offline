@@ -12,12 +12,8 @@ import {
   LucideIcon,
   LucideIconPicker,
 } from "@/components/LucideIconPicker";
-import { colors } from "@/theme/colors";
-import { fontFamilies } from "@/theme/fontFamilies";
-import { radius } from "@/theme/radius";
-import { shadows } from "@/theme/shadows";
-import { spacing } from "@/theme/spacing";
-import { typography } from "@/theme/typography";
+import { useTheme } from "@/theme/useTheme";
+import { useThemedStyles } from "@/theme/useThemedStyles";
 
 type Phase = "personalize" | "worstday";
 
@@ -26,6 +22,135 @@ export default function PersonalizeScreen() {
   const [phase, setPhase] = useState<Phase>("personalize");
   const [showPicker, setShowPicker] = useState(false);
   const [iconTapped, setIconTapped] = useState(false);
+  const theme = useTheme();
+  const styles = useThemedStyles((t) =>
+    StyleSheet.create({
+      headline: {
+        fontFamily: t.fontFamilies.displayBold,
+        fontSize: 28,
+        lineHeight: 33,
+        color: t.colors.text,
+        marginBottom: 8,
+      },
+      body: {
+        fontFamily: t.fontFamilies.body,
+        fontSize: 15,
+        lineHeight: 23,
+        color: t.colors.textMuted,
+        marginBottom: 20,
+      },
+      previewCard: {
+        backgroundColor: t.colors.surfaceCard,
+        borderRadius: t.radius.lg,
+        padding: t.spacing.xl,
+        boxShadow: t.shadows.cardFloat,
+        gap: 16,
+        marginBottom: t.spacing.md,
+      },
+      previewCardLocked: {
+        opacity: 0.9,
+      },
+      cardHeader: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 14,
+      },
+      iconButton: {
+        width: 44,
+        height: 44,
+        borderRadius: 22,
+        backgroundColor: t.colors.primarySoft,
+        alignItems: "center",
+        justifyContent: "center",
+      },
+      nameContainer: {
+        flex: 1,
+      },
+      nameHint: {
+        fontFamily: t.fontFamilies.body,
+        fontSize: t.typography.micro,
+        color: t.colors.textFaint,
+        marginBottom: 2,
+      },
+      nameInput: {
+        fontFamily: t.fontFamilies.displaySemi,
+        fontSize: t.typography.titleSm,
+        color: t.colors.text,
+        padding: 0,
+      },
+      nameLocked: {
+        fontFamily: t.fontFamilies.displaySemi,
+        fontSize: t.typography.titleSm,
+        color: t.colors.text,
+      },
+      pickerContainer: {
+        marginTop: 4,
+      },
+      formula: {
+        fontFamily: t.fontFamilies.body,
+        fontSize: t.typography.bodyMd,
+        lineHeight: 19.5,
+        color: t.colors.textMuted,
+      },
+      formulaBold: {
+        fontFamily: t.fontFamilies.bodySemi,
+        color: t.colors.text,
+      },
+      micro: {
+        fontFamily: t.fontFamilies.body,
+        fontSize: t.typography.labelMd,
+        color: t.colors.textFaint,
+        marginTop: 4,
+      },
+      phase2Container: {
+        marginTop: t.spacing.xl,
+        gap: t.spacing.md,
+      },
+      phase2Headline: {
+        fontFamily: t.fontFamilies.displayBold,
+        fontSize: 26,
+        lineHeight: 31,
+        color: t.colors.text,
+      },
+      phase2Eyebrow: {
+        fontFamily: t.fontFamilies.bodyMedium,
+        fontSize: t.typography.bodyMd,
+        lineHeight: 19.5,
+        color: t.colors.primary,
+      },
+      phase2Question: {
+        fontFamily: t.fontFamilies.displaySemi,
+        fontSize: t.typography.titleLg,
+        lineHeight: 23.4,
+        color: t.colors.text,
+        marginTop: t.spacing.sm,
+      },
+      phase2Body: {
+        fontFamily: t.fontFamilies.body,
+        fontSize: 15,
+        lineHeight: 23,
+        color: t.colors.textMuted,
+      },
+      phase2Footer: {
+        gap: t.spacing.md,
+      },
+      goalBadge: {
+        flexDirection: "row",
+        alignItems: "center",
+        alignSelf: "flex-start",
+        gap: 6,
+        backgroundColor: t.colors.primarySoft,
+        borderRadius: t.radius.pill,
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+      },
+      goalText: {
+        fontFamily: t.fontFamilies.bodySemi,
+        fontSize: t.typography.labelMd,
+        color: t.colors.primary,
+      },
+    }),
+  );
 
   const phase2Opacity = useRef(new Animated.Value(0)).current;
   const phase2Translate = useRef(new Animated.Value(16)).current;
@@ -133,9 +258,9 @@ export default function PersonalizeScreen() {
               style={styles.iconButton}
             >
               {draft.habitIcon ? (
-                <LucideIcon name={draft.habitIcon} size={22} color={colors.primary} strokeWidth={1.8} />
+                <LucideIcon name={draft.habitIcon} size={22} color={theme.colors.primary} strokeWidth={1.8} />
               ) : (
-                <LucideIcon name="Sparkles" size={22} color={colors.textFaint} strokeWidth={1.8} />
+                <LucideIcon name="Sparkles" size={22} color={theme.colors.textFaint} strokeWidth={1.8} />
               )}
             </Pressable>
           </Animated.View>
@@ -146,7 +271,7 @@ export default function PersonalizeScreen() {
               <TextInput
                 autoCorrect
                 placeholder="Tap to name"
-                placeholderTextColor={colors.textFaint}
+                placeholderTextColor={theme.colors.textFaint}
                 style={styles.nameInput}
                 value={draft.habitName}
                 onChangeText={(text) => update({ habitName: text })}
@@ -178,7 +303,7 @@ export default function PersonalizeScreen() {
 
         {draft.becomingPhrase ? (
           <View style={styles.goalBadge}>
-            <LucideIcon name="Target" size={13} color={colors.primary} strokeWidth={2} />
+            <LucideIcon name="Target" size={13} color={theme.colors.primary} strokeWidth={2} />
             <Text style={styles.goalText}>Becoming {draft.becomingPhrase}</Text>
           </View>
         ) : null}
@@ -214,130 +339,3 @@ export default function PersonalizeScreen() {
     </OnboardingLayout>
   );
 }
-
-const styles = StyleSheet.create({
-  headline: {
-    fontFamily: fontFamilies.displayBold,
-    fontSize: 28,
-    lineHeight: 33,
-    color: colors.text,
-    marginBottom: 8,
-  },
-  body: {
-    fontFamily: fontFamilies.body,
-    fontSize: 15,
-    lineHeight: 23,
-    color: colors.textMuted,
-    marginBottom: 20,
-  },
-  previewCard: {
-    backgroundColor: colors.surfaceCard,
-    borderRadius: radius.lg,
-    padding: spacing.xl,
-    boxShadow: shadows.cardFloat,
-    gap: 16,
-    marginBottom: spacing.md,
-  },
-  previewCardLocked: {
-    opacity: 0.9,
-  },
-  cardHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 14,
-  },
-  iconButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: colors.primarySoft,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  nameContainer: {
-    flex: 1,
-  },
-  nameHint: {
-    fontFamily: fontFamilies.body,
-    fontSize: typography.micro,
-    color: colors.textFaint,
-    marginBottom: 2,
-  },
-  nameInput: {
-    fontFamily: fontFamilies.displaySemi,
-    fontSize: typography.titleSm,
-    color: colors.text,
-    padding: 0,
-  },
-  nameLocked: {
-    fontFamily: fontFamilies.displaySemi,
-    fontSize: typography.titleSm,
-    color: colors.text,
-  },
-  pickerContainer: {
-    marginTop: 4,
-  },
-  formula: {
-    fontFamily: fontFamilies.body,
-    fontSize: typography.bodyMd,
-    lineHeight: 19.5,
-    color: colors.textMuted,
-  },
-  formulaBold: {
-    fontFamily: fontFamilies.bodySemi,
-    color: colors.text,
-  },
-  micro: {
-    fontFamily: fontFamilies.body,
-    fontSize: typography.labelMd,
-    color: colors.textFaint,
-    marginTop: 4,
-  },
-  phase2Container: {
-    marginTop: spacing.xl,
-    gap: spacing.md,
-  },
-  phase2Headline: {
-    fontFamily: fontFamilies.displayBold,
-    fontSize: 26,
-    lineHeight: 31,
-    color: colors.text,
-  },
-  phase2Eyebrow: {
-    fontFamily: fontFamilies.bodyMedium,
-    fontSize: typography.bodyMd,
-    lineHeight: 19.5,
-    color: colors.primary,
-  },
-  phase2Question: {
-    fontFamily: fontFamilies.displaySemi,
-    fontSize: typography.titleLg,
-    lineHeight: 23.4,
-    color: colors.text,
-    marginTop: spacing.sm,
-  },
-  phase2Body: {
-    fontFamily: fontFamilies.body,
-    fontSize: 15,
-    lineHeight: 23,
-    color: colors.textMuted,
-  },
-  phase2Footer: {
-    gap: spacing.md,
-  },
-  goalBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    alignSelf: "flex-start",
-    gap: 6,
-    backgroundColor: colors.primarySoft,
-    borderRadius: radius.pill,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-  goalText: {
-    fontFamily: fontFamilies.bodySemi,
-    fontSize: typography.labelMd,
-    color: colors.primary,
-  },
-});

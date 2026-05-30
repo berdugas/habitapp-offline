@@ -3,7 +3,7 @@ import { StyleSheet, View } from "react-native";
 import { SecondaryButton } from "@/components/buttons/SecondaryButton";
 import { ErrorState } from "@/components/feedback/ErrorState";
 import { getUpdateHabitActiveStateErrorMessage } from "@/utils/userFacingErrors";
-import { spacing } from "@/theme/spacing";
+import { useThemedStyles } from "@/theme/useThemedStyles";
 
 import type { HabitRecord } from "@/features/habits/types";
 
@@ -29,6 +29,14 @@ export function HabitDetailActions({
   onArchivePress,
   onBackPress,
 }: Props) {
+  const styles = useThemedStyles((theme) =>
+    StyleSheet.create({
+      actions: {
+        gap: theme.spacing.md,
+      },
+    }),
+  );
+
   return (
     <View style={styles.actions}>
       {archiveError ? (
@@ -52,9 +60,3 @@ export function HabitDetailActions({
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  actions: {
-    gap: spacing.md,
-  },
-});

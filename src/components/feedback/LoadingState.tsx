@@ -1,8 +1,7 @@
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 
-import { colors } from "@/theme/colors";
-import { spacing } from "@/theme/spacing";
-import { typography } from "@/theme/typography";
+import { useTheme } from "@/theme/useTheme";
+import { useThemedStyles } from "@/theme/useThemedStyles";
 
 type LoadingStateProps = {
   message?: string;
@@ -11,27 +10,30 @@ type LoadingStateProps = {
 export function LoadingState({
   message = "Getting things ready...",
 }: LoadingStateProps) {
+  const theme = useTheme();
+  const styles = useThemedStyles((t) =>
+    StyleSheet.create({
+      container: {
+        alignItems: "center",
+        flex: 1,
+        gap: t.spacing.md,
+        justifyContent: "center",
+        padding: t.spacing.xl,
+      },
+      message: {
+        color: t.colors.textMuted,
+        fontSize: t.typography.bodyLg,
+        textAlign: "center",
+      },
+    }),
+  );
+
   return (
     <View style={styles.container}>
-      <ActivityIndicator color={colors.primary} size="large" />
+      <ActivityIndicator color={theme.colors.primary} size="large" />
       <Text selectable style={styles.message}>
         {message}
       </Text>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    alignItems: "center",
-    flex: 1,
-    gap: spacing.md,
-    justifyContent: "center",
-    padding: spacing.xl,
-  },
-  message: {
-    color: colors.textMuted,
-    fontSize: typography.bodyLg,
-    textAlign: "center",
-  },
-});

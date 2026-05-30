@@ -1,6 +1,6 @@
 import { StyleSheet, View, ViewStyle } from "react-native";
 
-import { colors } from "@/theme/colors";
+import { useTheme } from "@/theme/useTheme";
 
 type ConcentricRingsProps = {
   /** Outer ring diameter in dp. Inner rings scale proportionally. */
@@ -20,9 +20,12 @@ const RING_OPACITIES = [0.07, 0.13, 0.2, 1] as const;
 
 export function ConcentricRings({
   size = 120,
-  color = colors.primary,
+  color,
   style,
 }: ConcentricRingsProps) {
+  const { colors } = useTheme();
+  const resolvedColor = color ?? colors.primary;
+
   return (
     <View style={[{ width: size, height: size }, style]}>
       {RING_INSETS.map((insetRatio, i) => {
@@ -37,7 +40,7 @@ export function ConcentricRings({
                 left: offset,
                 right: offset,
                 bottom: offset,
-                backgroundColor: color,
+                backgroundColor: resolvedColor,
                 opacity: RING_OPACITIES[i],
               },
             ]}

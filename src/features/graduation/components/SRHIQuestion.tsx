@@ -1,10 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
-import { colors } from "@/theme/colors";
-import { fontFamilies } from "@/theme/fontFamilies";
-import { radius } from "@/theme/radius";
-import { spacing } from "@/theme/spacing";
-import { typography } from "@/theme/typography";
+import { useThemedStyles } from "@/theme/useThemedStyles";
 
 export type SRHIQuestionProps = {
   disabled?: boolean;
@@ -15,6 +11,7 @@ export type SRHIQuestionProps = {
 };
 
 const SCALE = [1, 2, 3, 4, 5];
+const CHIP_SIZE = 44;
 
 export function SRHIQuestion({
   disabled = false,
@@ -23,6 +20,57 @@ export function SRHIQuestion({
   questionText,
   selectedScore,
 }: SRHIQuestionProps) {
+  const styles = useThemedStyles((t) =>
+    StyleSheet.create({
+      chip: {
+        alignItems: "center",
+        backgroundColor: t.colors.surface,
+        borderColor: "transparent",
+        borderRadius: t.radius.pill,
+        borderWidth: 1,
+        height: CHIP_SIZE,
+        justifyContent: "center",
+        width: CHIP_SIZE,
+      },
+      chipSelected: {
+        backgroundColor: t.colors.primarySoft,
+        borderColor: t.colors.primary,
+      },
+      chipText: {
+        color: t.colors.text,
+        fontFamily: t.fontFamilies.body,
+        fontSize: t.typography.bodyMd,
+      },
+      chipTextSelected: {
+        color: t.colors.primary,
+        fontFamily: t.fontFamilies.bodySemi,
+      },
+      chipsRow: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        width: "100%",
+      },
+      container: {
+        gap: t.spacing.sm,
+      },
+      questionText: {
+        color: t.colors.text,
+        fontFamily: t.fontFamilies.body,
+        fontSize: t.typography.bodyLg,
+        lineHeight: 19.3,
+      },
+      scaleLabels: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+      },
+      scaleLabelText: {
+        color: t.colors.textFaint,
+        fontFamily: t.fontFamilies.body,
+        fontSize: t.typography.micro,
+      },
+    }),
+  );
+
   return (
     <View style={styles.container}>
       <Text style={styles.questionText}>{questionText}</Text>
@@ -62,54 +110,3 @@ export function SRHIQuestion({
     </View>
   );
 }
-
-const CHIP_SIZE = 44;
-
-const styles = StyleSheet.create({
-  chip: {
-    alignItems: "center",
-    backgroundColor: colors.surface,
-    borderColor: "transparent",
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    height: CHIP_SIZE,
-    justifyContent: "center",
-    width: CHIP_SIZE,
-  },
-  chipSelected: {
-    backgroundColor: colors.primarySoft,
-    borderColor: colors.primary,
-  },
-  chipText: {
-    color: colors.text,
-    fontFamily: fontFamilies.body,
-    fontSize: typography.bodyMd,
-  },
-  chipTextSelected: {
-    color: colors.primary,
-    fontFamily: fontFamilies.bodySemi,
-  },
-  chipsRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    width: "100%",
-  },
-  container: {
-    gap: spacing.sm,
-  },
-  questionText: {
-    color: colors.text,
-    fontFamily: fontFamilies.body,
-    fontSize: typography.bodyLg,
-    lineHeight: 19.3,
-  },
-  scaleLabels: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  scaleLabelText: {
-    color: colors.textFaint,
-    fontFamily: fontFamilies.body,
-    fontSize: typography.micro,
-  },
-});

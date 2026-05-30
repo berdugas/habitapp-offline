@@ -18,7 +18,7 @@ jest.mock("expo-constants", () => ({
   },
 }));
 
-import { fireEvent, render, screen } from "@testing-library/react-native";
+import { fireEvent, render, screen } from "@/tests/setup/render";
 import React from "react";
 import { Linking } from "react-native";
 

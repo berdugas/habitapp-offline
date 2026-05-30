@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react-native";
+import { fireEvent, render, screen } from "@/tests/setup/render";
 import { Text } from "react-native";
 
 import { GoalContainer } from "@/features/today/components/GoalContainer";

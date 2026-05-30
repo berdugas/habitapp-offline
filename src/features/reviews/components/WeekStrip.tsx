@@ -1,11 +1,10 @@
 import { StyleSheet, Text, View } from "react-native";
 
 import { LucideIcon } from "@/components/LucideIconPicker";
-import { colors } from "@/theme/colors";
-import { fontFamilies } from "@/theme/fontFamilies";
-import { spacing } from "@/theme/spacing";
-import { typography } from "@/theme/typography";
+import { useThemedStyles } from "@/theme/useThemedStyles";
+import { useTheme } from "@/theme/useTheme";
 
+import type { Colors } from "@/theme/contract";
 import type { DayEntry } from "@/features/reviews/buildGoalWeekSummary";
 
 type WeekStripProps = {
@@ -17,7 +16,10 @@ type WeekStripProps = {
   compact?: boolean;
 };
 
-function getDayColor(day: DayEntry): {
+function getDayColor(
+  day: DayEntry,
+  colors: Colors,
+): {
   bg: string;
   border: string;
   borderStyle?: "dashed" | "solid";
@@ -49,18 +51,55 @@ export function WeekStrip({
   activeDayCount,
   compact = false,
 }: WeekStripProps) {
+  const theme = useTheme();
+  const styles = useThemedStyles((t) =>
+    StyleSheet.create({
+      cells: {
+        flexDirection: "row",
+        gap: t.spacing.xs,
+      },
+      count: {
+        color: t.colors.textFaint,
+        fontFamily: t.fontFamilies.body,
+        fontSize: t.typography.bodyMd,
+        minWidth: 32,
+        textAlign: "right",
+      },
+      row: {
+        alignItems: "center",
+        flexDirection: "row",
+        gap: t.spacing.md,
+      },
+      rowCompact: {
+        gap: t.spacing.sm,
+      },
+      title: {
+        color: t.colors.text,
+        fontFamily: t.fontFamilies.bodySemi,
+        fontSize: t.typography.bodyMd,
+        flexShrink: 1,
+      },
+      titleColumn: {
+        alignItems: "center",
+        flexDirection: "row",
+        flex: 1,
+        gap: t.spacing.xs,
+      },
+    }),
+  );
+
   const cellSize = compact ? 16 : 20;
   return (
     <View style={[styles.row, compact && styles.rowCompact]}>
       <View style={styles.titleColumn}>
-        {icon ? <LucideIcon color={colors.text} name={icon} size={16} /> : null}
+        {icon ? <LucideIcon color={theme.colors.text} name={icon} size={16} /> : null}
         <Text numberOfLines={1} style={styles.title}>
           {habitTitle}
         </Text>
       </View>
       <View style={styles.cells}>
         {days.map((day) => {
-          const tone = getDayColor(day);
+          const tone = getDayColor(day, theme.colors);
           return (
             <View
               key={day.date}
@@ -84,36 +123,3 @@ export function WeekStrip({
   );
 }
 
-const styles = StyleSheet.create({
-  cells: {
-    flexDirection: "row",
-    gap: spacing.xs,
-  },
-  count: {
-    color: colors.textFaint,
-    fontFamily: fontFamilies.body,
-    fontSize: typography.bodyMd,
-    minWidth: 32,
-    textAlign: "right",
-  },
-  row: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: spacing.md,
-  },
-  rowCompact: {
-    gap: spacing.sm,
-  },
-  title: {
-    color: colors.text,
-    fontFamily: fontFamilies.bodySemi,
-    fontSize: typography.bodyMd,
-    flexShrink: 1,
-  },
-  titleColumn: {
-    alignItems: "center",
-    flexDirection: "row",
-    flex: 1,
-    gap: spacing.xs,
-  },
-});

@@ -7,12 +7,8 @@ import {
   View,
 } from "react-native";
 
-import { colors } from "@/theme/colors";
-import { fontFamilies } from "@/theme/fontFamilies";
-import { radius } from "@/theme/radius";
-import { shadows } from "@/theme/shadows";
-import { spacing } from "@/theme/spacing";
-import { typography } from "@/theme/typography";
+import { useTheme } from "@/theme/useTheme";
+import { useThemedStyles } from "@/theme/useThemedStyles";
 
 const DURATION = 180;
 
@@ -45,6 +41,68 @@ export const TextField = forwardRef<TextInput, TextFieldProps>(
     },
     ref,
   ) {
+    const theme = useTheme();
+    const styles = useThemedStyles((t) =>
+      StyleSheet.create({
+        error: {
+          color: t.colors.danger,
+          fontFamily: t.fontFamilies.body,
+          fontSize: t.typography.labelMd,
+        },
+        input: {
+          color: t.colors.text,
+          fontFamily: t.fontFamilies.body,
+          fontSize: t.typography.bodyLg,
+          paddingHorizontal: t.spacing.lg,
+          paddingVertical: t.spacing.md,
+        },
+        inputContainer: {
+          borderRadius: t.radius.sm,
+          borderWidth: 1.5,
+          boxShadow: t.shadows.lift,
+          overflow: "hidden",
+        },
+        inputContainerDisabled: {
+          backgroundColor: t.colors.surfaceHigh,
+          borderColor: "transparent",
+        },
+        inputContainerOnboarding: {
+          backgroundColor: t.colors.surfaceHigh,
+          borderRadius: t.radius.md,
+          overflow: "hidden",
+        },
+        inputDisabled: {
+          color: t.colors.textMuted,
+        },
+        inputOnboarding: {
+          color: t.colors.text,
+          fontFamily: t.fontFamilies.body,
+          fontSize: t.typography.bodyLg,
+          paddingHorizontal: 18,
+          paddingVertical: 14,
+        },
+        inputMultiline: {
+          minHeight: 100,
+          textAlignVertical: "top",
+        },
+        label: {
+          fontFamily: t.fontFamilies.bodySemi,
+          fontSize: t.typography.bodyMd,
+        },
+        labelDisabled: {
+          color: t.colors.textMuted,
+        },
+        labelOnboarding: {
+          fontFamily: t.fontFamilies.bodyMedium,
+          fontSize: t.typography.labelMd,
+          color: t.colors.textMuted,
+        },
+        wrapper: {
+          gap: t.spacing.sm,
+        },
+      }),
+    );
+
     const focusAnim = useRef(new Animated.Value(0)).current;
 
     const handleFocus = () => {
@@ -65,17 +123,17 @@ export const TextField = forwardRef<TextInput, TextFieldProps>(
 
     const animatedBg = focusAnim.interpolate({
       inputRange: [0, 1],
-      outputRange: [colors.surface, colors.surfaceCard],
+      outputRange: [theme.colors.surface, theme.colors.surfaceCard],
     });
 
     const animatedBorder = focusAnim.interpolate({
       inputRange: [0, 1],
-      outputRange: ["transparent", colors.primary],
+      outputRange: ["transparent", theme.colors.primary],
     });
 
     const animatedLabelColor = focusAnim.interpolate({
       inputRange: [0, 1],
-      outputRange: [colors.textMuted, colors.primary],
+      outputRange: [theme.colors.textMuted, theme.colors.primary],
     });
 
     if (variant === "onboarding") {
@@ -97,7 +155,7 @@ export const TextField = forwardRef<TextInput, TextFieldProps>(
               multiline={multiline}
               onChangeText={onChangeText}
               placeholder={placeholder}
-              placeholderTextColor={colors.textFaint}
+              placeholderTextColor={theme.colors.textFaint}
               secureTextEntry={secureTextEntry}
               style={[
                 styles.inputOnboarding,
@@ -131,7 +189,7 @@ export const TextField = forwardRef<TextInput, TextFieldProps>(
               multiline={multiline}
               onChangeText={onChangeText}
               placeholder={placeholder}
-              placeholderTextColor={colors.textFaint}
+              placeholderTextColor={theme.colors.textFaint}
               secureTextEntry={secureTextEntry}
               style={[
                 styles.input,
@@ -172,7 +230,7 @@ export const TextField = forwardRef<TextInput, TextFieldProps>(
             onChangeText={onChangeText}
             onFocus={handleFocus}
             placeholder={placeholder}
-            placeholderTextColor={colors.textFaint}
+            placeholderTextColor={theme.colors.textFaint}
             secureTextEntry={secureTextEntry}
             style={[styles.input, multiline && styles.inputMultiline]}
             value={value}
@@ -187,62 +245,3 @@ export const TextField = forwardRef<TextInput, TextFieldProps>(
     );
   },
 );
-
-const styles = StyleSheet.create({
-  error: {
-    color: colors.danger,
-    fontFamily: fontFamilies.body,
-    fontSize: typography.labelMd,
-  },
-  input: {
-    color: colors.text,
-    fontFamily: fontFamilies.body,
-    fontSize: typography.bodyLg,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-  },
-  inputContainer: {
-    borderRadius: radius.sm,
-    borderWidth: 1.5,
-    boxShadow: shadows.lift,
-    overflow: "hidden",
-  },
-  inputContainerDisabled: {
-    backgroundColor: colors.surfaceHigh,
-    borderColor: "transparent",
-  },
-  inputContainerOnboarding: {
-    backgroundColor: colors.surfaceHigh,
-    borderRadius: radius.md,
-    overflow: "hidden",
-  },
-  inputDisabled: {
-    color: colors.textMuted,
-  },
-  inputOnboarding: {
-    color: colors.text,
-    fontFamily: fontFamilies.body,
-    fontSize: typography.bodyLg,
-    paddingHorizontal: 18,
-    paddingVertical: 14,
-  },
-  inputMultiline: {
-    minHeight: 100,
-    textAlignVertical: "top",
-  },
-  label: {
-    fontFamily: fontFamilies.bodySemi,
-    fontSize: typography.bodyMd,
-  },
-  labelDisabled: {
-    color: colors.textMuted,
-  },
-  labelOnboarding: {
-    fontFamily: fontFamilies.bodyMedium,
-    fontSize: typography.labelMd,
-    color: colors.textMuted,
-  },
-  wrapper: {
-    gap: spacing.sm,
-  },
-});

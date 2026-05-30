@@ -1,8 +1,6 @@
 import { StyleSheet, Switch, Text, View } from "react-native";
 
-import { colors } from "@/theme/colors";
-import { spacing } from "@/theme/spacing";
-import { typography } from "@/theme/typography";
+import { useThemedStyles } from "@/theme/useThemedStyles";
 
 type ToggleRowProps = {
   description?: string;
@@ -17,6 +15,30 @@ export function ToggleRow({
   onValueChange,
   value,
 }: ToggleRowProps) {
+  const styles = useThemedStyles((theme) =>
+    StyleSheet.create({
+      copy: {
+        flex: 1,
+        gap: theme.spacing.xs,
+      },
+      description: {
+        color: theme.colors.textMuted,
+        fontSize: theme.typography.labelMd,
+      },
+      label: {
+        color: theme.colors.text,
+        fontSize: theme.typography.bodyLg,
+        fontWeight: "600",
+      },
+      row: {
+        alignItems: "center",
+        flexDirection: "row",
+        gap: theme.spacing.md,
+        justifyContent: "space-between",
+      },
+    }),
+  );
+
   return (
     <View style={styles.row}>
       <View style={styles.copy}>
@@ -33,25 +55,3 @@ export function ToggleRow({
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  copy: {
-    flex: 1,
-    gap: spacing.xs,
-  },
-  description: {
-    color: colors.textMuted,
-    fontSize: typography.labelMd,
-  },
-  label: {
-    color: colors.text,
-    fontSize: typography.bodyLg,
-    fontWeight: "600",
-  },
-  row: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: spacing.md,
-    justifyContent: "space-between",
-  },
-});

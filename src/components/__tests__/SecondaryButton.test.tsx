@@ -1,7 +1,7 @@
-import { render, screen } from "@testing-library/react-native";
+import { render, screen } from "@/tests/setup/render";
 
 import { SecondaryButton } from "@/components/buttons/SecondaryButton";
-import { colors } from "@/theme/colors";
+import { colors } from "@/tests/setup/themeValues";
 
 function flattenStyle(style: unknown) {
   if (Array.isArray(style)) {

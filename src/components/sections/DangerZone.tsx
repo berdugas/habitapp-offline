@@ -2,11 +2,7 @@ import { StyleSheet, Text, View } from "react-native";
 
 import { SecondaryButton } from "@/components/buttons/SecondaryButton";
 import { Eyebrow } from "@/components/text/Eyebrow";
-import { colors } from "@/theme/colors";
-import { fontFamilies } from "@/theme/fontFamilies";
-import { radius } from "@/theme/radius";
-import { spacing } from "@/theme/spacing";
-import { typography } from "@/theme/typography";
+import { useThemedStyles } from "@/theme/useThemedStyles";
 
 type DangerZoneProps = {
   title: string;
@@ -25,6 +21,25 @@ export function DangerZone({
   isPending,
   onPress,
 }: DangerZoneProps) {
+  const styles = useThemedStyles((theme) =>
+    StyleSheet.create({
+      container: {
+        backgroundColor: theme.colors.dangerSoft,
+        borderColor: theme.colors.dangerSubtle,
+        borderRadius: theme.radius.md,
+        borderWidth: 1,
+        gap: theme.spacing.sm,
+        padding: theme.spacing.lg,
+      },
+      body: {
+        color: theme.colors.textMuted,
+        fontFamily: theme.fontFamilies.body,
+        fontSize: theme.typography.bodyMd,
+        lineHeight: 18.6,
+      },
+    }),
+  );
+
   return (
     <View style={styles.container}>
       <Eyebrow label={title} tone="danger" />
@@ -38,20 +53,3 @@ export function DangerZone({
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    backgroundColor: colors.dangerSoft,
-    borderColor: colors.dangerSubtle,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    gap: spacing.sm,
-    padding: spacing.lg,
-  },
-  body: {
-    color: colors.textMuted,
-    fontFamily: fontFamilies.body,
-    fontSize: typography.bodyMd,
-    lineHeight: 18.6,
-  },
-});

@@ -2,6 +2,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 import React from "react";
 
+import { ThemeProvider } from "@/theme/ThemeProvider";
+
 import LibraryScreen from "@/features/library/screens/LibraryScreen";
 
 const mockUseLibraryHabits = jest.fn();
@@ -37,7 +39,11 @@ function wrapper({ children }: { children: React.ReactNode }) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
-  return React.createElement(QueryClientProvider, { client }, children);
+  return (
+    <ThemeProvider initialThemeId="zen" intendedThemeId="zen">
+      <QueryClientProvider client={client}>{children}</QueryClientProvider>
+    </ThemeProvider>
+  );
 }
 
 function makeLibraryHabit(overrides: Partial<{

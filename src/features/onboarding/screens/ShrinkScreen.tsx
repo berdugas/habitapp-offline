@@ -9,14 +9,49 @@ import { OnboardingInput } from "@/components/forms/OnboardingInput";
 import { OnboardingLayout } from "@/components/layouts/OnboardingLayout";
 import { OnboardingHeader } from "@/components/navigation/OnboardingHeader";
 import { useOnboarding } from "@/features/onboarding/OnboardingProvider";
-import { colors } from "@/theme/colors";
-import { fontFamilies } from "@/theme/fontFamilies";
-import { radius } from "@/theme/radius";
-import { spacing } from "@/theme/spacing";
-import { typography } from "@/theme/typography";
+import { useTheme } from "@/theme/useTheme";
+import { useThemedStyles } from "@/theme/useThemedStyles";
 
 export default function ShrinkScreen() {
   const { draft, update } = useOnboarding();
+  const theme = useTheme();
+  const styles = useThemedStyles((t) =>
+    StyleSheet.create({
+      headline: {
+        fontFamily: t.fontFamilies.displayBold,
+        fontSize: 28,
+        lineHeight: 33,
+        color: t.colors.text,
+        marginBottom: 12,
+      },
+      body: {
+        fontFamily: t.fontFamilies.body,
+        fontSize: 15,
+        lineHeight: 23,
+        color: t.colors.textMuted,
+        marginBottom: 16,
+      },
+      contextChip: {
+        backgroundColor: t.colors.surface,
+        borderRadius: 16,
+        paddingVertical: t.spacing.md,
+        paddingHorizontal: t.spacing.lg,
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 10,
+        marginBottom: 16,
+      },
+      contextText: {
+        fontFamily: t.fontFamilies.body,
+        fontSize: t.typography.bodyMd,
+        color: t.colors.text,
+        flex: 1,
+      },
+      contextBold: {
+        fontFamily: t.fontFamilies.bodySemi,
+      },
+    }),
+  );
 
   const handleContinue = () => {
     update({ step: "cue-insight" });
@@ -51,7 +86,7 @@ export default function ShrinkScreen() {
 
       {draft.dailyAction.trim().length > 0 && (
         <View style={styles.contextChip}>
-          <CheckCircle color={colors.primary} size={16} strokeWidth={1.8} />
+          <CheckCircle color={theme.colors.primary} size={16} strokeWidth={1.8} />
           <Text style={styles.contextText}>
             Your action:{" "}
             <Text style={styles.contextBold}>{draft.dailyAction}</Text>
@@ -86,39 +121,3 @@ export default function ShrinkScreen() {
     </OnboardingLayout>
   );
 }
-
-const styles = StyleSheet.create({
-  headline: {
-    fontFamily: fontFamilies.displayBold,
-    fontSize: 28,
-    lineHeight: 33,
-    color: colors.text,
-    marginBottom: 12,
-  },
-  body: {
-    fontFamily: fontFamilies.body,
-    fontSize: 15,
-    lineHeight: 23,
-    color: colors.textMuted,
-    marginBottom: 16,
-  },
-  contextChip: {
-    backgroundColor: colors.surface,
-    borderRadius: 16,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    marginBottom: 16,
-  },
-  contextText: {
-    fontFamily: fontFamilies.body,
-    fontSize: typography.bodyMd,
-    color: colors.text,
-    flex: 1,
-  },
-  contextBold: {
-    fontFamily: fontFamilies.bodySemi,
-  },
-});

@@ -2,7 +2,8 @@ import { useRouter } from 'expo-router';
 import { ChevronLeft } from 'lucide-react-native';
 import { Pressable, StyleSheet } from 'react-native';
 
-import { colors } from '@/theme/colors';
+import { useTheme } from '@/theme/useTheme';
+import { useThemedStyles } from '@/theme/useThemedStyles';
 
 type BackButtonProps = {
   onPress?: () => void;
@@ -10,6 +11,23 @@ type BackButtonProps = {
 
 export function BackButton({ onPress }: BackButtonProps) {
   const router = useRouter();
+  const theme = useTheme();
+  const styles = useThemedStyles((t) =>
+    StyleSheet.create({
+      circle: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        backgroundColor: t.colors.surface,
+        alignItems: 'center',
+        justifyContent: 'center',
+      },
+      pressed: {
+        opacity: 0.7,
+      },
+    }),
+  );
+
   return (
     <Pressable
       accessibilityLabel="Go back"
@@ -17,21 +35,7 @@ export function BackButton({ onPress }: BackButtonProps) {
       onPress={onPress ?? (() => router.back())}
       style={({ pressed }) => [styles.circle, pressed && styles.pressed]}
     >
-      <ChevronLeft color={colors.text} size={18} strokeWidth={1.8} />
+      <ChevronLeft color={theme.colors.text} size={18} strokeWidth={1.8} />
     </Pressable>
   );
 }
-
-const styles = StyleSheet.create({
-  circle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  pressed: {
-    opacity: 0.7,
-  },
-});

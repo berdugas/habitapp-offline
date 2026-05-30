@@ -8,11 +8,7 @@ import { OnboardingLayout } from "@/components/layouts/OnboardingLayout";
 import { BackButton } from "@/components/navigation/BackButton";
 import { signUpWithPassword } from "@/features/auth/api";
 import { logger } from "@/services/logger";
-import { colors } from "@/theme/colors";
-import { fontFamilies } from "@/theme/fontFamilies";
-import { radius } from "@/theme/radius";
-import { spacing } from "@/theme/spacing";
-import { typography } from "@/theme/typography";
+import { useThemedStyles } from "@/theme/useThemedStyles";
 import { isBlank, isLikelyEmail } from "@/utils/validation";
 import {
   getSignUpErrorMessage,
@@ -25,6 +21,49 @@ export default function SignUpScreen() {
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const submitLockRef = useRef(false);
+  const styles = useThemedStyles((t) =>
+    StyleSheet.create({
+      backRow: {
+        marginBottom: 44,
+      },
+      headline: {
+        fontFamily: t.fontFamilies.displayBold,
+        fontSize: 30,
+        lineHeight: 35.4,
+        color: t.colors.text,
+        marginBottom: 8,
+      },
+      subhead: {
+        fontFamily: t.fontFamilies.body,
+        fontSize: 15,
+        lineHeight: 23.25,
+        color: t.colors.textMuted,
+        marginBottom: 24,
+      },
+      formCard: {
+        backgroundColor: t.colors.surface,
+        borderRadius: t.radius.lg,
+        paddingTop: 28,
+        paddingHorizontal: t.spacing.xl,
+        paddingBottom: 32,
+        gap: t.spacing.lg,
+      },
+      error: {
+        fontFamily: t.fontFamilies.body,
+        fontSize: t.typography.bodyMd,
+        color: t.colors.danger,
+      },
+      signInLink: {
+        alignItems: "center",
+        paddingVertical: t.spacing.md,
+      },
+      signInText: {
+        fontFamily: t.fontFamilies.bodySemi,
+        fontSize: t.typography.bodyMd,
+        color: t.colors.primary,
+      },
+    }),
+  );
 
   async function handleSubmit() {
     if (submitLockRef.current) {
@@ -143,45 +182,3 @@ export default function SignUpScreen() {
     </OnboardingLayout>
   );
 }
-
-const styles = StyleSheet.create({
-  backRow: {
-    marginBottom: 44,
-  },
-  headline: {
-    fontFamily: fontFamilies.displayBold,
-    fontSize: 30,
-    lineHeight: 35.4,
-    color: colors.text,
-    marginBottom: 8,
-  },
-  subhead: {
-    fontFamily: fontFamilies.body,
-    fontSize: 15,
-    lineHeight: 23.25,
-    color: colors.textMuted,
-    marginBottom: 24,
-  },
-  formCard: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    paddingTop: 28,
-    paddingHorizontal: spacing.xl,
-    paddingBottom: 32,
-    gap: spacing.lg,
-  },
-  error: {
-    fontFamily: fontFamilies.body,
-    fontSize: typography.bodyMd,
-    color: colors.danger,
-  },
-  signInLink: {
-    alignItems: "center",
-    paddingVertical: spacing.md,
-  },
-  signInText: {
-    fontFamily: fontFamilies.bodySemi,
-    fontSize: typography.bodyMd,
-    color: colors.primary,
-  },
-});

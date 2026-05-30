@@ -1,12 +1,12 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { isoWeekday } from "@/features/habits/activeDays";
-import { colors } from "@/theme/colors";
-import { fontFamilies } from "@/theme/fontFamilies";
-import { typography } from "@/theme/typography";
+import { useTheme } from "@/theme/useTheme";
+import { useThemedStyles } from "@/theme/useThemedStyles";
 import { addDeviceDays, toDeviceDateString } from "@/utils/dates";
 import { useTodayDateString } from "@/utils/dayBoundary";
 
+import type { Colors, Theme } from "@/theme/contract";
 import type { HabitLogStatus } from "@/features/habits/types";
 
 export type HeatmapLog = {
@@ -106,10 +106,111 @@ export function buildGrid(
   return cells;
 }
 
+function cellStyle(state: CellState, colors: Colors): object {
+  switch (state) {
+    case "done":
+      return { backgroundColor: colors.heatDone };
+    case "skipped":
+      return { backgroundColor: colors.heatSkipped };
+    case "missed":
+      return { backgroundColor: colors.heatMissed };
+    case "off-day":
+      return {
+        backgroundColor: "transparent",
+        borderColor: colors.offDayBorder,
+        borderWidth: 1,
+      };
+    case "today-pending":
+      return {
+        backgroundColor: colors.primarySoft,
+        borderColor: colors.primary,
+        borderWidth: 2,
+      };
+    case "future":
+      return { backgroundColor: "transparent" };
+  }
+}
+
+const CELL_SIZE = 36;
+const CELL_GAP = 4;
+
+function buildGridStyles(theme: Theme) {
+  return StyleSheet.create({
+    cell: {
+      borderRadius: 6,
+      height: CELL_SIZE,
+      width: CELL_SIZE,
+    },
+    cellPressed: {
+      opacity: 0.7,
+    },
+    cellTodayRing: {
+      borderColor: theme.colors.primary,
+      borderWidth: 2,
+    },
+    container: {
+      gap: CELL_GAP,
+    },
+    gridRow: {
+      flexDirection: "row" as const,
+      gap: CELL_GAP,
+    },
+    headerCell: {
+      alignItems: "center" as const,
+      width: CELL_SIZE,
+    },
+    headerRow: {
+      flexDirection: "row" as const,
+      gap: CELL_GAP,
+      marginBottom: 2,
+    },
+    headerText: {
+      color: theme.colors.textFaint,
+      fontFamily: theme.fontFamilies.body,
+      fontSize: theme.typography.micro,
+    },
+    legend: {
+      flexDirection: "row" as const,
+      flexWrap: "wrap" as const,
+      gap: 12,
+      marginTop: 8,
+    },
+    legendItem: {
+      alignItems: "center" as const,
+      flexDirection: "row" as const,
+      gap: 4,
+    },
+    legendLabel: {
+      color: theme.colors.textFaint,
+      fontFamily: theme.fontFamilies.body,
+      fontSize: theme.typography.micro,
+    },
+    legendSwatch: {
+      borderRadius: 3,
+      height: 12,
+      width: 12,
+    },
+    legendSwatchBorder: {
+      backgroundColor: theme.colors.heatMissed,
+      borderColor: theme.colors.surfaceHigh,
+      borderWidth: 1,
+    },
+    legendSwatchOutlined: {
+      backgroundColor: "transparent",
+      borderColor: theme.colors.offDayBorder,
+      borderWidth: 1,
+    },
+  });
+}
+
+type GridStyles = ReturnType<typeof buildGridStyles>;
+
 export function CalendarGrid({ activeDays, logs, onCellPress, startDate }: CalendarGridProps) {
   const today = useTodayDateString();
   const cells = buildGrid(logs, activeDays, startDate, today);
   const rows = cells.length / 7;
+  const { colors } = useTheme();
+  const styles = useThemedStyles(buildGridStyles);
 
   function handlePress(cell: CalendarCell) {
     if (!onCellPress) return;
@@ -145,7 +246,7 @@ export function CalendarGrid({ activeDays, logs, onCellPress, startDate }: Calen
                 onPress={() => handlePress(cell)}
                 style={({ pressed }) => [
                   styles.cell,
-                  cellStyle(cell.state),
+                  cellStyle(cell.state, colors),
                   isToday && cell.state === "today-pending" && styles.cellTodayRing,
                   pressed && tappable && styles.cellPressed,
                 ]}
@@ -157,10 +258,10 @@ export function CalendarGrid({ activeDays, logs, onCellPress, startDate }: Calen
 
       {/* Legend */}
       <View style={styles.legend}>
-        <LegendItem color={colors.heatDone} label="Done" />
-        <LegendItem color={colors.heatSkipped} label="Skipped" />
-        <LegendItem color={colors.heatMissed} label="Missed" border />
-        <LegendItem outlined label="Off day" />
+        <LegendItem color={colors.heatDone} label="Done" styles={styles} />
+        <LegendItem color={colors.heatSkipped} label="Skipped" styles={styles} />
+        <LegendItem color={colors.heatMissed} label="Missed" border styles={styles} />
+        <LegendItem outlined label="Off day" styles={styles} />
       </View>
     </View>
   );
@@ -171,11 +272,13 @@ function LegendItem({
   color,
   label,
   outlined,
+  styles,
 }: {
   border?: boolean;
   color?: string;
   label: string;
   outlined?: boolean;
+  styles: GridStyles;
 }) {
   return (
     <View style={styles.legendItem}>
@@ -191,98 +294,3 @@ function LegendItem({
     </View>
   );
 }
-
-function cellStyle(state: CellState): object {
-  switch (state) {
-    case "done":
-      return { backgroundColor: colors.heatDone };
-    case "skipped":
-      return { backgroundColor: colors.heatSkipped };
-    case "missed":
-      return { backgroundColor: colors.heatMissed };
-    case "off-day":
-      return {
-        backgroundColor: "transparent",
-        borderColor: colors.offDayBorder,
-        borderWidth: 1,
-      };
-    case "today-pending":
-      return {
-        backgroundColor: colors.primarySoft,
-        borderColor: colors.primary,
-        borderWidth: 2,
-      };
-    case "future":
-      return { backgroundColor: "transparent" };
-  }
-}
-
-const CELL_SIZE = 36;
-const CELL_GAP = 4;
-
-const styles = StyleSheet.create({
-  cell: {
-    borderRadius: 6,
-    height: CELL_SIZE,
-    width: CELL_SIZE,
-  },
-  cellPressed: {
-    opacity: 0.7,
-  },
-  cellTodayRing: {
-    borderColor: colors.primary,
-    borderWidth: 2,
-  },
-  container: {
-    gap: CELL_GAP,
-  },
-  gridRow: {
-    flexDirection: "row",
-    gap: CELL_GAP,
-  },
-  headerCell: {
-    alignItems: "center",
-    width: CELL_SIZE,
-  },
-  headerRow: {
-    flexDirection: "row",
-    gap: CELL_GAP,
-    marginBottom: 2,
-  },
-  headerText: {
-    color: colors.textFaint,
-    fontFamily: fontFamilies.body,
-    fontSize: typography.micro,
-  },
-  legend: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 12,
-    marginTop: 8,
-  },
-  legendItem: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: 4,
-  },
-  legendLabel: {
-    color: colors.textFaint,
-    fontFamily: fontFamilies.body,
-    fontSize: typography.micro,
-  },
-  legendSwatch: {
-    borderRadius: 3,
-    height: 12,
-    width: 12,
-  },
-  legendSwatchBorder: {
-    backgroundColor: colors.heatMissed,
-    borderColor: colors.surfaceHigh,
-    borderWidth: 1,
-  },
-  legendSwatchOutlined: {
-    backgroundColor: "transparent",
-    borderColor: colors.offDayBorder,
-    borderWidth: 1,
-  },
-});

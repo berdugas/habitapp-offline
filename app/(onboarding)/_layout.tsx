@@ -3,7 +3,7 @@ import { Stack, usePathname } from "expo-router";
 
 import { OnboardingProvider } from "@/features/onboarding/OnboardingProvider";
 import { trackEvent } from "@/services/analytics";
-import { colors } from "@/theme/colors";
+import { useTheme } from "@/theme/useTheme";
 
 // Pathname-driven onboarding step view tracking. We mount this once at the
 // onboarding layout level rather than wiring 12 useEffects across each screen
@@ -24,12 +24,13 @@ function OnboardingStepTracker() {
 }
 
 export default function OnboardingLayout() {
+  const theme = useTheme();
   return (
     <OnboardingProvider>
       <OnboardingStepTracker />
       <Stack
         screenOptions={{
-          contentStyle: { backgroundColor: colors.bg },
+          contentStyle: { backgroundColor: theme.colors.bg },
           gestureEnabled: false,
           headerShown: false,
         }}

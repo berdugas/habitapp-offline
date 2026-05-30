@@ -1,9 +1,6 @@
 import { StyleSheet, Text, View } from "react-native";
 
-import { colors } from "@/theme/colors";
-import { radius } from "@/theme/radius";
-import { spacing } from "@/theme/spacing";
-import { typography } from "@/theme/typography";
+import { useThemedStyles } from "@/theme/useThemedStyles";
 
 type EmptyStateProps = {
   body: string;
@@ -11,6 +8,31 @@ type EmptyStateProps = {
 };
 
 export function EmptyState({ body, title }: EmptyStateProps) {
+  const styles = useThemedStyles((theme) =>
+    StyleSheet.create({
+      body: {
+        color: theme.colors.textMuted,
+        fontSize: 15,
+        lineHeight: 22,
+        textAlign: "center",
+      },
+      container: {
+        backgroundColor: theme.colors.surface,
+        borderColor: 'transparent',
+        borderRadius: theme.radius.lg,
+        borderWidth: 1,
+        gap: theme.spacing.sm,
+        padding: theme.spacing.xl,
+      },
+      title: {
+        color: theme.colors.text,
+        fontSize: theme.typography.titleMd,
+        fontWeight: "700",
+        textAlign: "center",
+      },
+    }),
+  );
+
   return (
     <View style={styles.container}>
       <Text selectable style={styles.title}>
@@ -22,26 +44,3 @@ export function EmptyState({ body, title }: EmptyStateProps) {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  body: {
-    color: colors.textMuted,
-    fontSize: 15,
-    lineHeight: 22,
-    textAlign: "center",
-  },
-  container: {
-    backgroundColor: colors.surface,
-    borderColor: 'transparent',
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    gap: spacing.sm,
-    padding: spacing.xl,
-  },
-  title: {
-    color: colors.text,
-    fontSize: typography.titleMd,
-    fontWeight: "700",
-    textAlign: "center",
-  },
-});
