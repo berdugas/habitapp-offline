@@ -60,7 +60,20 @@ export async function loadOnboardingDraft(
   }
   try {
     const parsed = JSON.parse(raw);
-    return { ...EMPTY_DRAFT, ...pickKnownDraftKeys(parsed) };
+    const merged = { ...EMPTY_DRAFT, ...pickKnownDraftKeys(parsed) };
+
+    // Migration: drafts saved before tinyActionTouched existed had no flag.
+    // Treat any non-empty tinyAction as user-authored so the mirror does not
+    // overwrite it on the next dailyAction edit.
+    if (
+      typeof parsed === "object" &&
+      parsed !== null &&
+      !("tinyActionTouched" in parsed)
+    ) {
+      merged.tinyActionTouched = merged.tinyAction.trim().length > 0;
+    }
+
+    return merged;
   } catch (error) {
     logger.warn("Failed to parse onboarding draft — resetting to empty", {
       error,
