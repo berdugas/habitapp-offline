@@ -612,11 +612,6 @@ function BuildStep({
           onChange={(days) => update({ activeDays: days })}
         />
       </View>
-
-      <ReminderPicker
-        value={draft.reminderTime}
-        onChange={(t) => update({ reminderTime: t })}
-      />
     </OnboardingLayout>
   );
 }
@@ -968,6 +963,13 @@ function PersonalizeStep({
 
         {phase === "personalize" ? (
           <Text style={styles.micro}>You can rename or change the icon anytime.</Text>
+        ) : null}
+
+        {phase === "personalize" ? (
+          <ReminderPicker
+            value={draft.reminderTime}
+            onChange={(t) => update({ reminderTime: t })}
+          />
         ) : null}
 
 
