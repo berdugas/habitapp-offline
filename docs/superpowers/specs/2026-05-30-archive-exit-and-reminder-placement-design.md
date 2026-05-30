@@ -47,6 +47,8 @@ if (router.canDismiss()) {
 
 `dismissAll()` pops every route pushed on top of the current tab. The fallback handles deep-link cases where the detail screen is the only route on the stack — without it, the user would be stranded on a screen showing a habit that no longer exists.
 
+This assumes archive detail is mounted inside a `Stack` navigator — which it is today via the `(app)/_layout.tsx` `<Stack>` wrapping `habits/archived/[habitId]`. If the route layout has been restructured recently (e.g. moved under a non-`Stack` parent), `canDismiss()` semantics change and this pattern needs re-verification before implementing.
+
 ### Files
 
 - `src/features/habits/screens/ArchivedHabitDetailScreen.tsx` — `handleDeleteHabit` (currently line 234).
@@ -88,7 +90,7 @@ jest.mock("expo-router", () => ({
 **Test changes:**
 
 - `src/features/habits/screens/__tests__/ArchivedHabitDetailScreen.test.tsx`:
-  - Existing delete-success test (currently asserts `mockReplace` called with `"/(app)/habits/backlog"`) must instead assert `mockDismissAll` was called and `mockReplace` was NOT called with the today route.
+  - Existing delete-success test (currently asserts `mockReplace` called with `"/(app)/habits/backlog"`) must instead assert `mockDismissAll` was called and `expect(mockReplace).not.toHaveBeenCalled()`. The stale-route redirect is gated on `!isFullyArchived` being false, so on the main path with the default archived-habit mock, `replace` shouldn't fire at all — the tighter assertion catches a wider class of regression.
   - New deep-link variant: set `mockCanDismiss.mockReturnValue(false)` for one test, assert `mockReplace` called with `"/(app)/(tabs)/today"` and `mockDismissAll` NOT called.
 - `src/features/today/__tests__/ArchivedGoalDetailScreen.test.tsx` — identical updates for `handleDeleteGoal`.
 - Stale-route redirect tests stay unchanged.
