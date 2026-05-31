@@ -8,6 +8,7 @@ import {
   useState,
 } from "react";
 import { AppState, type AppStateStatus } from "react-native";
+import * as Network from "expo-network";
 
 import {
   fetchTrialEntitlement,
@@ -183,6 +184,32 @@ export function useTrialValidationLifecycle(
         }
       },
     );
+
+    return () => subscription.remove();
+  }, [fetchAndCache]);
+
+  // Revalidate when connectivity transitions offline→online.
+  // Mirrors the AppState handler so users who keep the app foregrounded
+  // through a network drop recover without tapping Reconnect.
+  useEffect(() => {
+    // Assume online at subscribe time so that a "true" replay (if the platform
+    // sends one) does not look like a transition. Only false→true triggers.
+    let prevConnected = true;
+
+    const subscription = Network.addNetworkStateListener((event) => {
+      const isConnected = event.isConnected === true;
+      const wasOffline = prevConnected === false;
+      prevConnected = isConnected;
+
+      if (!wasOffline || !isConnected) return;
+
+      const uid = userIdRef.current;
+      if (!uid) return;
+
+      if (shouldRevalidate(cachedRef.current, now())) {
+        void fetchAndCache(uid);
+      }
+    });
 
     return () => subscription.remove();
   }, [fetchAndCache]);

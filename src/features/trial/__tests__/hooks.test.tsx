@@ -432,4 +432,194 @@ describe("useTrialValidation", () => {
     await new Promise((resolve) => setImmediate(resolve));
     expect(mockFetchTrialEntitlement).not.toHaveBeenCalled();
   });
+
+  // ─── Case 14: Network offline→online with no cache (the second half of the trap) ──
+
+  it("fetches when connectivity transitions offline→online and there is no cached entitlement", async () => {
+    mockReadCachedEntitlement.mockResolvedValue(null);
+    const { TrialEntitlementFetchError } = jest.requireMock(
+      "@/features/trial/api",
+    ) as {
+      TrialEntitlementFetchError: new (
+        msg: string,
+        reason: string,
+      ) => Error & { reason: string };
+    };
+    mockFetchTrialEntitlement.mockRejectedValueOnce(
+      new TrialEntitlementFetchError("network error", "network"),
+    );
+
+    const wrapper = makeAuthWrapper({
+      isBootstrapping: false,
+      userId: "user-1",
+    });
+    const { result } = renderHook(() => useTrialValidation(), { wrapper });
+
+    await waitFor(() => expect(result.current.isBootstrapping).toBe(false));
+    expect(result.current.accessMode).toBe("read_only");
+    mockFetchTrialEntitlement.mockClear();
+
+    mockFetchTrialEntitlement.mockResolvedValueOnce(freshEntitlement());
+
+    expect(capturedNetworkListener).not.toBeNull();
+    // Simulate the OS reporting offline first, then online.
+    await act(async () => {
+      capturedNetworkListener!({ isConnected: false });
+    });
+    await act(async () => {
+      capturedNetworkListener!({ isConnected: true });
+    });
+
+    await waitFor(() => {
+      expect(mockFetchTrialEntitlement).toHaveBeenCalledWith("user-1");
+    });
+    await waitFor(() => expect(result.current.accessMode).toBe("full"));
+  });
+
+  // ─── Case 15: Network offline→online with stale cache ────────────────────────
+
+  it("fetches when connectivity transitions offline→online and the cached entitlement is stale", async () => {
+    mockReadCachedEntitlement.mockResolvedValue(staleEntitlement());
+    const { TrialEntitlementFetchError } = jest.requireMock(
+      "@/features/trial/api",
+    ) as {
+      TrialEntitlementFetchError: new (
+        msg: string,
+        reason: string,
+      ) => Error & { reason: string };
+    };
+    // Bootstrap revalidation fails → cache stays stale.
+    mockFetchTrialEntitlement.mockRejectedValueOnce(
+      new TrialEntitlementFetchError("network error", "network"),
+    );
+
+    const wrapper = makeAuthWrapper({
+      isBootstrapping: false,
+      userId: "user-1",
+    });
+    const { result } = renderHook(() => useTrialValidation(), { wrapper });
+
+    await waitFor(() => {
+      expect(result.current.isBootstrapping).toBe(false);
+      expect(result.current.isValidating).toBe(false);
+    });
+    expect(result.current.lastValidatedAt).toBe(
+      staleEntitlement().last_validated_at,
+    );
+    mockFetchTrialEntitlement.mockClear();
+
+    // Network recovers; the connectivity-triggered fetch succeeds.
+    mockFetchTrialEntitlement.mockResolvedValueOnce(freshEntitlement());
+
+    await act(async () => {
+      capturedNetworkListener!({ isConnected: false });
+    });
+    await act(async () => {
+      capturedNetworkListener!({ isConnected: true });
+    });
+
+    await waitFor(() => {
+      expect(mockFetchTrialEntitlement).toHaveBeenCalledWith("user-1");
+    });
+    await waitFor(() =>
+      expect(result.current.lastValidatedAt).toBe(
+        freshEntitlement().last_validated_at,
+      ),
+    );
+  });
+
+  // ─── Case 16: Network offline→online with fresh cache should not fetch ──────
+
+  it("does not fetch when connectivity transitions offline→online and the cached entitlement is fresh", async () => {
+    mockReadCachedEntitlement.mockResolvedValue(freshEntitlement());
+
+    const wrapper = makeAuthWrapper({
+      isBootstrapping: false,
+      userId: "user-1",
+    });
+    const { result } = renderHook(() => useTrialValidation(), { wrapper });
+
+    await waitFor(() => expect(result.current.isBootstrapping).toBe(false));
+    expect(mockFetchTrialEntitlement).not.toHaveBeenCalled();
+
+    await act(async () => {
+      capturedNetworkListener!({ isConnected: false });
+    });
+    await act(async () => {
+      capturedNetworkListener!({ isConnected: true });
+    });
+
+    await new Promise((resolve) => setImmediate(resolve));
+    expect(mockFetchTrialEntitlement).not.toHaveBeenCalled();
+  });
+
+  // ─── Case 17: Network online→online (no transition) should not fetch ────────
+
+  it("does not fetch when connectivity reports online without an offline→online transition", async () => {
+    mockReadCachedEntitlement.mockResolvedValue(freshEntitlement());
+
+    const wrapper = makeAuthWrapper({
+      isBootstrapping: false,
+      userId: "user-1",
+    });
+    const { result } = renderHook(() => useTrialValidation(), { wrapper });
+
+    await waitFor(() => expect(result.current.isBootstrapping).toBe(false));
+    expect(mockFetchTrialEntitlement).not.toHaveBeenCalled();
+
+    // Two "online" events back-to-back — no transition.
+    await act(async () => {
+      capturedNetworkListener!({ isConnected: true });
+    });
+    await act(async () => {
+      capturedNetworkListener!({ isConnected: true });
+    });
+
+    await new Promise((resolve) => setImmediate(resolve));
+    expect(mockFetchTrialEntitlement).not.toHaveBeenCalled();
+  });
+
+  // ─── Case 18: Network offline→online while signed out should not fetch ──────
+
+  it("does not fetch when connectivity transitions offline→online and the user is signed out", async () => {
+    mockReadCachedEntitlement.mockResolvedValue(null);
+
+    const wrapper = makeAuthWrapper({ isBootstrapping: false, userId: null });
+    const { result } = renderHook(() => useTrialValidation(), { wrapper });
+
+    await waitFor(() => expect(result.current.isBootstrapping).toBe(false));
+    expect(mockFetchTrialEntitlement).not.toHaveBeenCalled();
+
+    await act(async () => {
+      capturedNetworkListener!({ isConnected: false });
+    });
+    await act(async () => {
+      capturedNetworkListener!({ isConnected: true });
+    });
+
+    await new Promise((resolve) => setImmediate(resolve));
+    expect(mockFetchTrialEntitlement).not.toHaveBeenCalled();
+  });
+
+  // ─── Case 19: Network listener subscription is removed on unmount ──────────
+
+  it("removes the network listener subscription when the hook unmounts", async () => {
+    mockReadCachedEntitlement.mockResolvedValue(freshEntitlement());
+    const remove = jest.fn();
+    mockAddNetworkStateListener.mockImplementation((listener) => {
+      capturedNetworkListener = listener;
+      return { remove };
+    });
+
+    const wrapper = makeAuthWrapper({
+      isBootstrapping: false,
+      userId: "user-1",
+    });
+    const { unmount } = renderHook(() => useTrialValidation(), { wrapper });
+
+    await waitFor(() => expect(mockAddNetworkStateListener).toHaveBeenCalled());
+
+    unmount();
+    expect(remove).toHaveBeenCalled();
+  });
 });
