@@ -1,8 +1,21 @@
+jest.mock("@/utils/dates", () => {
+  const actual = jest.requireActual("@/utils/dates");
+  return {
+    __esModule: true,
+    ...actual,
+    toDeviceDateString: jest.fn(actual.toDeviceDateString),
+  };
+});
+
 import {
   checkGraduationEligibility,
   type EligibilityInput,
 } from "@/features/graduation/eligibility";
 import type { SRHIResponse } from "@/lib/db/repositories/srhi_responses";
+import { toDeviceDateString } from "@/utils/dates";
+
+const toDeviceDateStringMock =
+  toDeviceDateString as jest.MockedFunction<typeof toDeviceDateString>;
 
 function makeInput(overrides: Partial<EligibilityInput> = {}): EligibilityInput {
   return {
@@ -134,6 +147,39 @@ describe("checkGraduationEligibility", () => {
           latestSRHI: makeSRHI({
             graduated: false,
             created_at: "2026-05-01T10:00:00.000Z",
+          }),
+        }),
+      ),
+    ).toEqual({ eligible: true, reason: "eligible" });
+  });
+
+  it("cooldown — UTC created_at is converted to device-local date so the 14-day window counts local days (R6 regression)", () => {
+    // R6: previously, daysBetweenDates(latestSRHI.created_at, todayDate)
+    // compared a UTC date prefix against a local date string, causing an
+    // off-by-one near the UTC boundary. Example: a user in Pacific Time who
+    // fails SRHI at 9 PM PT on May 1 stores created_at "2026-05-02T04:00Z"
+    // (UTC date May 2). The cooldown should still count May 1 locally so that
+    // May 15 PT — 14 local days later — is eligible. Without the fix,
+    // daysBetweenDates("2026-05-02", "2026-05-15") = 13 and the cooldown
+    // wrongly lingers an extra day.
+    //
+    // To make this test deterministic across CI/dev timezones, we mock
+    // toDeviceDateString to simulate PT (UTC-8) for the converted moment.
+    toDeviceDateStringMock.mockImplementationOnce((date = new Date()) => {
+      const shifted = new Date(date.getTime() - 8 * 60 * 60 * 1000);
+      const y = shifted.getUTCFullYear();
+      const m = String(shifted.getUTCMonth() + 1).padStart(2, "0");
+      const d = String(shifted.getUTCDate()).padStart(2, "0");
+      return `${y}-${m}-${d}`;
+    });
+
+    expect(
+      checkGraduationEligibility(
+        makeInput({
+          todayDate: "2026-05-15",
+          latestSRHI: makeSRHI({
+            graduated: false,
+            created_at: "2026-05-02T04:00:00.000Z",
           }),
         }),
       ),
