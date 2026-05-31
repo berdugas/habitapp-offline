@@ -298,4 +298,138 @@ describe("useTrialValidation", () => {
 
     expect(mockFetchTrialEntitlement).toHaveBeenCalledWith("user-1");
   });
+
+  // ─── Case 10: AppState foreground with no cache (offline cold-start recovery) ──
+
+  it("fetches when app becomes active and there is no cached entitlement", async () => {
+    mockReadCachedEntitlement.mockResolvedValue(null);
+    const { TrialEntitlementFetchError } = jest.requireMock(
+      "@/features/trial/api",
+    ) as {
+      TrialEntitlementFetchError: new (
+        msg: string,
+        reason: string,
+      ) => Error & { reason: string };
+    };
+    // Initial bootstrap fetch fails (offline cold start).
+    mockFetchTrialEntitlement.mockRejectedValueOnce(
+      new TrialEntitlementFetchError("network error", "network"),
+    );
+
+    const wrapper = makeAuthWrapper({
+      isBootstrapping: false,
+      userId: "user-1",
+    });
+    const { result } = renderHook(() => useTrialValidation(), { wrapper });
+
+    await waitFor(() => expect(result.current.isBootstrapping).toBe(false));
+    expect(result.current.accessMode).toBe("read_only");
+    mockFetchTrialEntitlement.mockClear();
+
+    // Network comes back; the next fetch succeeds.
+    mockFetchTrialEntitlement.mockResolvedValueOnce(freshEntitlement());
+
+    expect(capturedAppStateListener).not.toBeNull();
+    await act(async () => {
+      capturedAppStateListener!("active");
+    });
+
+    await waitFor(() => {
+      expect(mockFetchTrialEntitlement).toHaveBeenCalledWith("user-1");
+    });
+    await waitFor(() => expect(result.current.accessMode).toBe("full"));
+  });
+
+  // ─── Case 11: AppState foreground with stale cache (existing behavior, regression guard) ──
+
+  it("fetches when app becomes active and the cached entitlement is stale", async () => {
+    mockReadCachedEntitlement.mockResolvedValue(staleEntitlement());
+    const { TrialEntitlementFetchError } = jest.requireMock(
+      "@/features/trial/api",
+    ) as {
+      TrialEntitlementFetchError: new (
+        msg: string,
+        reason: string,
+      ) => Error & { reason: string };
+    };
+    // Bootstrap revalidation fails → cache stays stale.
+    mockFetchTrialEntitlement.mockRejectedValueOnce(
+      new TrialEntitlementFetchError("network error", "network"),
+    );
+
+    const wrapper = makeAuthWrapper({
+      isBootstrapping: false,
+      userId: "user-1",
+    });
+    const { result } = renderHook(() => useTrialValidation(), { wrapper });
+
+    await waitFor(() => {
+      expect(result.current.isBootstrapping).toBe(false);
+      expect(result.current.isValidating).toBe(false);
+    });
+    // Cache is still stale because the bootstrap fetch rejected.
+    expect(result.current.lastValidatedAt).toBe(
+      staleEntitlement().last_validated_at,
+    );
+    mockFetchTrialEntitlement.mockClear();
+
+    // Network recovers; the AppState-triggered fetch succeeds.
+    mockFetchTrialEntitlement.mockResolvedValueOnce(freshEntitlement());
+
+    await act(async () => {
+      capturedAppStateListener!("active");
+    });
+
+    await waitFor(() => {
+      expect(mockFetchTrialEntitlement).toHaveBeenCalledWith("user-1");
+    });
+    await waitFor(() =>
+      expect(result.current.lastValidatedAt).toBe(
+        freshEntitlement().last_validated_at,
+      ),
+    );
+  });
+
+  // ─── Case 12: AppState foreground with fresh cache should not fetch ──────────
+
+  it("does not fetch when app becomes active and the cached entitlement is fresh", async () => {
+    mockReadCachedEntitlement.mockResolvedValue(freshEntitlement());
+
+    const wrapper = makeAuthWrapper({
+      isBootstrapping: false,
+      userId: "user-1",
+    });
+    const { result } = renderHook(() => useTrialValidation(), { wrapper });
+
+    // Settle on the hook's bootstrap completion so cachedRef is populated.
+    await waitFor(() => expect(result.current.isBootstrapping).toBe(false));
+    expect(mockFetchTrialEntitlement).not.toHaveBeenCalled();
+
+    await act(async () => {
+      capturedAppStateListener!("active");
+    });
+
+    // Give microtasks a chance to flush.
+    await new Promise((resolve) => setImmediate(resolve));
+    expect(mockFetchTrialEntitlement).not.toHaveBeenCalled();
+  });
+
+  // ─── Case 13: AppState foreground while signed out should not fetch ─────────
+
+  it("does not fetch when app becomes active and the user is signed out", async () => {
+    mockReadCachedEntitlement.mockResolvedValue(null);
+
+    const wrapper = makeAuthWrapper({ isBootstrapping: false, userId: null });
+    const { result } = renderHook(() => useTrialValidation(), { wrapper });
+
+    await waitFor(() => expect(result.current.isBootstrapping).toBe(false));
+    expect(mockFetchTrialEntitlement).not.toHaveBeenCalled();
+
+    await act(async () => {
+      capturedAppStateListener!("active");
+    });
+
+    await new Promise((resolve) => setImmediate(resolve));
+    expect(mockFetchTrialEntitlement).not.toHaveBeenCalled();
+  });
 });

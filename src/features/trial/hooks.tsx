@@ -28,6 +28,17 @@ import {
 import { logger } from "@/services/logger";
 import { now } from "@/utils/clock";
 
+function shouldRevalidate(
+  cached: CachedTrialEntitlement | null,
+  currentTime: Date,
+): boolean {
+  if (!cached) return true;
+  const stalenessMs = TRIAL_REVALIDATION_STALENESS_MINUTES * 60 * 1000;
+  const ageMs =
+    currentTime.getTime() - new Date(cached.last_validated_at).getTime();
+  return ageMs > stalenessMs;
+}
+
 export type TrialValidationContextValue = {
   isBootstrapping: boolean;
   isValidating: boolean;
@@ -138,10 +149,7 @@ export function useTrialValidationLifecycle(
       if (cached) {
         // Surface cache immediately, then decide whether to re-fetch.
         setState({ cached, isBootstrapping: false, isValidating: false });
-        const stalenessMs = TRIAL_REVALIDATION_STALENESS_MINUTES * 60 * 1000;
-        const ageMs =
-          now().getTime() - new Date(cached.last_validated_at).getTime();
-        if (!cancelled && ageMs > stalenessMs) {
+        if (!cancelled && shouldRevalidate(cached, now())) {
           await fetchAndCache(userId);
         }
         return;
@@ -160,7 +168,7 @@ export function useTrialValidationLifecycle(
     };
   }, [userId, isAuthBootstrapping, fetchAndCache]);
 
-  // Revalidate when the app returns to the foreground and cache is stale.
+  // Revalidate when the app returns to the foreground and cache is missing or stale.
   useEffect(() => {
     const subscription = AppState.addEventListener(
       "change",
@@ -168,13 +176,9 @@ export function useTrialValidationLifecycle(
         if (nextState !== "active") return;
 
         const uid = userIdRef.current;
-        const cached = cachedRef.current;
-        if (!uid || !cached) return;
+        if (!uid) return;
 
-        const stalenessMs = TRIAL_REVALIDATION_STALENESS_MINUTES * 60 * 1000;
-        const ageMs =
-          now().getTime() - new Date(cached.last_validated_at).getTime();
-        if (ageMs > stalenessMs) {
+        if (shouldRevalidate(cachedRef.current, now())) {
           void fetchAndCache(uid);
         }
       },
