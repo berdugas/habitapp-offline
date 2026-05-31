@@ -8,6 +8,7 @@ import {
   useState,
 } from "react";
 import { AppState, type AppStateStatus } from "react-native";
+import * as Network from "expo-network";
 
 import {
   fetchTrialEntitlement,
@@ -27,6 +28,17 @@ import {
 } from "@/features/trial/types";
 import { logger } from "@/services/logger";
 import { now } from "@/utils/clock";
+
+function shouldRevalidate(
+  cached: CachedTrialEntitlement | null,
+  currentTime: Date,
+): boolean {
+  if (!cached) return true;
+  const stalenessMs = TRIAL_REVALIDATION_STALENESS_MINUTES * 60 * 1000;
+  const ageMs =
+    currentTime.getTime() - new Date(cached.last_validated_at).getTime();
+  return ageMs > stalenessMs;
+}
 
 export type TrialValidationContextValue = {
   isBootstrapping: boolean;
@@ -138,10 +150,7 @@ export function useTrialValidationLifecycle(
       if (cached) {
         // Surface cache immediately, then decide whether to re-fetch.
         setState({ cached, isBootstrapping: false, isValidating: false });
-        const stalenessMs = TRIAL_REVALIDATION_STALENESS_MINUTES * 60 * 1000;
-        const ageMs =
-          now().getTime() - new Date(cached.last_validated_at).getTime();
-        if (!cancelled && ageMs > stalenessMs) {
+        if (!cancelled && shouldRevalidate(cached, now())) {
           await fetchAndCache(userId);
         }
         return;
@@ -160,7 +169,7 @@ export function useTrialValidationLifecycle(
     };
   }, [userId, isAuthBootstrapping, fetchAndCache]);
 
-  // Revalidate when the app returns to the foreground and cache is stale.
+  // Revalidate when the app returns to the foreground and cache is missing or stale.
   useEffect(() => {
     const subscription = AppState.addEventListener(
       "change",
@@ -168,17 +177,39 @@ export function useTrialValidationLifecycle(
         if (nextState !== "active") return;
 
         const uid = userIdRef.current;
-        const cached = cachedRef.current;
-        if (!uid || !cached) return;
+        if (!uid) return;
 
-        const stalenessMs = TRIAL_REVALIDATION_STALENESS_MINUTES * 60 * 1000;
-        const ageMs =
-          now().getTime() - new Date(cached.last_validated_at).getTime();
-        if (ageMs > stalenessMs) {
+        if (shouldRevalidate(cachedRef.current, now())) {
           void fetchAndCache(uid);
         }
       },
     );
+
+    return () => subscription.remove();
+  }, [fetchAndCache]);
+
+  // Revalidate when connectivity transitions offline→online.
+  // Mirrors the AppState handler so users who keep the app foregrounded
+  // through a network drop recover without tapping Reconnect.
+  useEffect(() => {
+    // Assume online at subscribe time so that a "true" replay (if the platform
+    // sends one) does not look like a transition. Only false→true triggers.
+    let prevConnected = true;
+
+    const subscription = Network.addNetworkStateListener((event) => {
+      const isConnected = event.isConnected === true;
+      const wasOffline = prevConnected === false;
+      prevConnected = isConnected;
+
+      if (!wasOffline || !isConnected) return;
+
+      const uid = userIdRef.current;
+      if (!uid) return;
+
+      if (shouldRevalidate(cachedRef.current, now())) {
+        void fetchAndCache(uid);
+      }
+    });
 
     return () => subscription.remove();
   }, [fetchAndCache]);
