@@ -54,6 +54,7 @@ export type CreateHabitDraft = {
   identityPhrase: string;
   dailyAction: string;
   tinyAction: string;
+  tinyActionTouched: boolean;
   cue: string;
   habitName: string;
   icon: string;
@@ -65,6 +66,7 @@ const EMPTY_DRAFT: CreateHabitDraft = {
   identityPhrase: "",
   dailyAction: "",
   tinyAction: "",
+  tinyActionTouched: false,
   cue: "",
   habitName: "",
   icon: "",
@@ -129,7 +131,21 @@ export default function CreateHabitFlow() {
   const entryTranslate = useRef(new Animated.Value(0)).current;
 
   function update(patch: Partial<CreateHabitDraft>) {
-    setDraft((prev) => ({ ...prev, ...patch }));
+    setDraft((prev) => {
+      const next = { ...prev, ...patch };
+      // Mirror only when this patch is a dailyAction-only change and the user
+      // hasn't touched the tiny field. The `!("tinyAction" in patch)` guard
+      // prevents a combined patch from clobbering a tiny value the same patch
+      // is trying to set.
+      if (
+        "dailyAction" in patch &&
+        !("tinyAction" in patch) &&
+        !next.tinyActionTouched
+      ) {
+        next.tinyAction = next.dailyAction;
+      }
+      return next;
+    });
   }
 
   function advanceTo(nextStep: Step) {
@@ -571,7 +587,7 @@ function BuildStep({
           label="Your tiny version"
           placeholder="Make it even smaller..."
           value={draft.tinyAction}
-          onChangeText={(text) => update({ tinyAction: text })}
+          onChangeText={(text) => update({ tinyAction: text, tinyActionTouched: true })}
         />
       </View>
 

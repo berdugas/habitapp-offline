@@ -17,6 +17,7 @@ export type OnboardingDraft = {
   becomingPhrase: string;
   dailyAction: string;
   tinyAction: string;
+  tinyActionTouched: boolean;
   cueExisting: string;
   worstDayPassed: boolean | null;
   habitName: string;
@@ -31,6 +32,7 @@ export const EMPTY_DRAFT: OnboardingDraft = {
   becomingPhrase: "",
   dailyAction: "",
   tinyAction: "",
+  tinyActionTouched: false,
   cueExisting: "",
   worstDayPassed: null,
   habitName: "",
@@ -45,6 +47,7 @@ export const KNOWN_DRAFT_KEYS = [
   "becomingPhrase",
   "dailyAction",
   "tinyAction",
+  "tinyActionTouched",
   "cueExisting",
   "worstDayPassed",
   "habitName",

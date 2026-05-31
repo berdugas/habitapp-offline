@@ -25,6 +25,7 @@ function makeDraft(overrides: object = {}) {
     becomingPhrase: "a runner",
     dailyAction: "Run for 30 minutes",
     tinyAction: "",
+    tinyActionTouched: false,
     cueExisting: "",
     worstDayPassed: null,
     habitName: "",
@@ -86,5 +87,22 @@ describe("ShrinkScreen", () => {
 
     expect(mockUpdate).toHaveBeenCalledWith({ step: "cue-insight" });
     expect(router.push).toHaveBeenCalledWith("/(onboarding)/cue-insight");
+  });
+
+  it("typing in the tiny field flips tinyActionTouched", () => {
+    const mockUpdate = jest.fn();
+    useOnboarding.mockReturnValue({ draft: makeDraft(), update: mockUpdate });
+
+    render(<ShrinkScreen />);
+
+    fireEvent.changeText(
+      screen.getByPlaceholderText("Make it even smaller..."),
+      "Open my shoes",
+    );
+
+    expect(mockUpdate).toHaveBeenCalledWith({
+      tinyAction: "Open my shoes",
+      tinyActionTouched: true,
+    });
   });
 });

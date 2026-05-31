@@ -226,6 +226,77 @@ describe("CreateHabitFlow — save-for-later path", () => {
     });
   });
 
+  it("auto-fills the tiny-action field with the daily action on arrival at BuildStep", async () => {
+    mockAssertCanCreateActiveHabit.mockResolvedValue({ ok: true });
+
+    render(<CreateHabitFlow />, { wrapper });
+
+    // ActionStep
+    await act(async () => {
+      fireEvent.changeText(
+        screen.getByPlaceholderText(/Goes for a walk/),
+        "Walk to the mailbox",
+      );
+    });
+    await act(async () => {
+      fireEvent.press(screen.getByText("Continue"));
+    });
+
+    // BuildStep: the tiny input should already hold the daily action.
+    const tinyInput = await screen.findByPlaceholderText(/Make it even smaller/);
+    expect(tinyInput.props.value).toBe("Walk to the mailbox");
+  });
+
+  it("does not clobber a typed tiny version when the user goes back and edits the daily action", async () => {
+    mockAssertCanCreateActiveHabit.mockResolvedValue({ ok: true });
+
+    render(<CreateHabitFlow />, { wrapper });
+
+    // ActionStep — type the daily action.
+    await act(async () => {
+      fireEvent.changeText(
+        screen.getByPlaceholderText(/Goes for a walk/),
+        "Walk to the mailbox",
+      );
+    });
+    await act(async () => {
+      fireEvent.press(screen.getByText("Continue"));
+    });
+
+    // BuildStep — user shrinks the tiny version themselves.
+    await act(async () => {
+      fireEvent.changeText(
+        await screen.findByPlaceholderText(/Make it even smaller/),
+        "Stand at the door",
+      );
+    });
+
+    // Press back (BackRow has accessibilityLabel="Go back") → ActionStep.
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText("Go back"));
+    });
+
+    // Edit the daily action.
+    await act(async () => {
+      fireEvent.changeText(
+        await screen.findByPlaceholderText(/Goes for a walk/),
+        "Run a mile",
+      );
+    });
+
+    // Advance back to BuildStep.
+    await act(async () => {
+      fireEvent.press(screen.getByText("Continue"));
+    });
+
+    // Tiny field must still hold the user-typed value — the mirror should have
+    // been disabled by the earlier tinyAction edit.
+    const tinyInputAgain = await screen.findByPlaceholderText(
+      /Make it even smaller/,
+    );
+    expect(tinyInputAgain.props.value).toBe("Stand at the door");
+  });
+
   describe("reminder branching at save time", () => {
     it("active save WITH reminderTime calls scheduleReminder (not persistReminderIntent)", async () => {
       mockAssertCanCreateActiveHabit.mockResolvedValue({ ok: true });

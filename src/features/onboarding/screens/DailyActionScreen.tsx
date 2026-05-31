@@ -8,7 +8,6 @@ import { OnboardingInput } from "@/components/forms/OnboardingInput";
 import { OnboardingLayout } from "@/components/layouts/OnboardingLayout";
 import { OnboardingHeader } from "@/components/navigation/OnboardingHeader";
 import { useOnboarding } from "@/features/onboarding/OnboardingProvider";
-import type { OnboardingDraft } from "@/features/onboarding/types";
 import { useThemedStyles } from "@/theme/useThemedStyles";
 
 export default function DailyActionScreen() {
@@ -68,11 +67,7 @@ export default function DailyActionScreen() {
   );
 
   const handleContinue = () => {
-    const next: Partial<OnboardingDraft> = { step: "shrink-insight" };
-    if (draft.tinyAction.trim().length === 0) {
-      next.tinyAction = draft.dailyAction;
-    }
-    update(next);
+    update({ step: "shrink-insight" });
     router.push("/(onboarding)/shrink-insight");
   };
 

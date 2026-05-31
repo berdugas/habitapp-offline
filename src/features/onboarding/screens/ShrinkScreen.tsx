@@ -98,7 +98,9 @@ export default function ShrinkScreen() {
         label="Your tiny version"
         placeholder="Make it even smaller..."
         value={draft.tinyAction}
-        onChangeText={(text) => update({ tinyAction: text })}
+        onChangeText={(text) =>
+          update({ tinyAction: text, tinyActionTouched: true })
+        }
       />
 
       <GuidanceCard
