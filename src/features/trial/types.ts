@@ -23,6 +23,10 @@ export type CachedTrialEntitlement = {
 
 export type AccessMode = "full" | "read_only";
 
-export const TRIAL_GRACE_PERIOD_DAYS = 7;
+// 90 days is a beta safety net. Once we ship entitlement-aware access
+// (status-based gating for paid vs trial vs expired), revisit this value
+// — it should likely drop back toward 7-14 days for trial users while
+// paid users stop being gated on staleness at all.
+export const TRIAL_GRACE_PERIOD_DAYS = 90;
 
 export const TRIAL_REVALIDATION_STALENESS_MINUTES = 60;
