@@ -972,7 +972,6 @@ function PersonalizeStep({
           />
         ) : null}
 
-
         {/* Phase 2: worst-day gate */}
         <Animated.View
           style={[
