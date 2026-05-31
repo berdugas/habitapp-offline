@@ -21,13 +21,18 @@ jest.mock("@/features/trial/storage", () => ({
   clearCachedEntitlement: jest.fn(),
 }));
 
+jest.mock("expo-network", () => ({
+  addNetworkStateListener: jest.fn(),
+}));
+
 jest.mock("@/services/logger", () => ({
   logger: { error: jest.fn(), info: jest.fn(), warn: jest.fn() },
 }));
 
 import React from "react";
-import { AppState } from "react-native";
-import { renderHook, waitFor } from "@testing-library/react-native";
+import { AppState, type AppStateStatus } from "react-native";
+import * as Network from "expo-network";
+import { act, renderHook, waitFor } from "@testing-library/react-native";
 
 import { useAuthSession } from "@/features/auth/hooks";
 import { AuthSessionProvider } from "@/features/auth/hooks";
@@ -52,6 +57,15 @@ const mockFetchTrialEntitlement = fetchTrialEntitlement as jest.Mock;
 const mockReadCachedEntitlement = readCachedEntitlement as jest.Mock;
 const mockWriteCachedEntitlement = writeCachedEntitlement as jest.Mock;
 const mockClearCachedEntitlement = clearCachedEntitlement as jest.Mock;
+
+const mockAddNetworkStateListener = Network.addNetworkStateListener as jest.Mock;
+
+let capturedAppStateListener:
+  | ((nextState: AppStateStatus) => void)
+  | null = null;
+let capturedNetworkListener:
+  | ((event: Network.NetworkStateEvent) => void)
+  | null = null;
 
 const NOW = new Date("2026-05-01T12:00:00.000Z");
 
@@ -106,8 +120,25 @@ describe("useTrialValidation", () => {
     setNowForTesting(NOW);
     mockWriteCachedEntitlement.mockResolvedValue(undefined);
     mockClearCachedEntitlement.mockResolvedValue(undefined);
-    // Prevent real AppState subscriptions from firing in tests.
-    jest.spyOn(AppState, "addEventListener").mockReturnValue({ remove: jest.fn() } as never);
+
+    capturedAppStateListener = null;
+    capturedNetworkListener = null;
+
+    jest
+      .spyOn(AppState, "addEventListener")
+      .mockImplementation((event, listener) => {
+        if (event === "change") {
+          capturedAppStateListener = listener as (
+            nextState: AppStateStatus,
+          ) => void;
+        }
+        return { remove: jest.fn() } as never;
+      });
+
+    mockAddNetworkStateListener.mockImplementation((listener) => {
+      capturedNetworkListener = listener;
+      return { remove: jest.fn() };
+    });
   });
 
   afterEach(() => {
