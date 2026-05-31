@@ -1,10 +1,8 @@
 import * as Notifications from "expo-notifications";
 
-import { isActiveDay, parseActiveDays } from "@/features/habits/activeDays";
 import {
   deleteReminderByHabitId,
   getReminderByHabitId,
-  listAllReminders,
   upsertReminder,
 } from "@/lib/db/repositories/reminders";
 import { getPreference, setPreference } from "@/lib/db/repositories/preferences";
@@ -214,25 +212,6 @@ export async function cancelReminder(habitId: string): Promise<void> {
 
   if (wasActive) {
     trackEvent("reminder_cancelled", { habit_id: habitId });
-  }
-}
-
-export async function rescheduleAll(userId: string): Promise<void> {
-  const all = await listAllReminders();
-  for (const reminder of all) {
-    if (reminder.reminder_type === "none" || !reminder.reminder_time) continue;
-    const habit = await getHabit(reminder.habit_id).catch(() => null);
-    if (!habit || habit.user_id !== userId) continue;
-
-    const activeDays = parseActiveDays(habit.active_days);
-
-    await scheduleReminder(
-      reminder.habit_id,
-      userId,
-      reminder.reminder_type,
-      reminder.reminder_time,
-      activeDays,
-    );
   }
 }
 

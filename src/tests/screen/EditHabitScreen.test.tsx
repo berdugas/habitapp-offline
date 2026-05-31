@@ -64,7 +64,6 @@ jest.mock("@/lib/db/repositories/reminders", () => ({
 jest.mock("@/features/reminders/notifications", () => ({
   scheduleReminder: jest.fn().mockResolvedValue(undefined),
   cancelReminder: jest.fn().mockResolvedValue(undefined),
-  rescheduleAll: jest.fn().mockResolvedValue(undefined),
 }));
 
 const baseHabitData = {
