@@ -95,7 +95,8 @@ Reparameterize all five to derive their day offsets from
 `TRIAL_GRACE_PERIOD_DAYS`. Rename the test descriptions to reflect intent
 ("just inside the boundary," "exact boundary," "1 ms past the boundary," etc.)
 rather than specific day numbers. The "at 30 days" test becomes "well past the
-boundary" using `TRIAL_GRACE_PERIOD_DAYS + 30` so it stays meaningful.
+boundary" using `TRIAL_GRACE_PERIOD_DAYS * 2` — "doubly past" reads more
+clearly than an additive offset and self-scales if the constant moves again.
 
 After this change, only the *constant* drives the boundary; the tests follow.
 
@@ -127,12 +128,25 @@ function graceExhaustedEntitlement(userId = "user-1"): CachedTrialEntitlement {
 }
 ```
 
-This requires adding `TRIAL_GRACE_PERIOD_DAYS` to the import from
-`@/features/trial/types` at the top of the test file (currently only
-`CachedTrialEntitlement` is imported via `import type`). Case 8 — "flips to
-read_only when fetch fails and cached last_validated_at is beyond grace" —
-keeps the same intent and remains a regression guard against future
-`computeAccessMode` changes.
+This requires adding `TRIAL_GRACE_PERIOD_DAYS` to the imports from
+`@/features/trial/types` at the top of the test file. Currently the file
+has:
+
+```ts
+import type { CachedTrialEntitlement } from "@/features/trial/types";
+```
+
+Add a sibling value import (preserves the existing `import type` discipline
+that is visually obvious throughout the file):
+
+```ts
+import { TRIAL_GRACE_PERIOD_DAYS } from "@/features/trial/types";
+import type { CachedTrialEntitlement } from "@/features/trial/types";
+```
+
+Case 8 — "flips to read_only when fetch fails and cached last_validated_at
+is beyond grace" — keeps the same intent and remains a regression guard
+against future `computeAccessMode` changes.
 
 ### Files NOT changed
 
