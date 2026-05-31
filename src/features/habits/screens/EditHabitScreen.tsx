@@ -25,7 +25,6 @@ import {
 import { parseActiveDays, ALL_DAYS } from "@/features/habits/activeDays";
 import {
   cancelReminder,
-  rescheduleAll,
   scheduleReminder,
 } from "@/features/reminders/notifications";
 import { getReminderByHabitId } from "@/lib/db/repositories/reminders";
@@ -390,7 +389,6 @@ export default function EditHabitScreen() {
           await cancelReminder(ownedHabitQuery.data.id).catch(() => {});
         }
         // loadState "pending" or "failed": skip cancelReminder — state is unknown
-        await rescheduleAll(user.id).catch(() => {});
 
         // Close the race: updateHabitMutation invalidates the eligible-habits
         // prefix on success, but that fires BEFORE the reminder rows above are
