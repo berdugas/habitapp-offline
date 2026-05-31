@@ -249,6 +249,7 @@ export function useHabitDetail(
       activeDays: habit ? parseActiveDays(habit.active_days) : undefined,
       endDate: endDateObject,
       logs: recentLogs,
+      startDate: habit?.start_date,
       windowDays: TODAY_PROGRESS_WINDOW_DAYS,
     }),
     recentLogs,

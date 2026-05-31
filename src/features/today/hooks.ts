@@ -266,6 +266,7 @@ export function useTodayHabits() {
         activeDays,
         endDate: historyWindowEndDate,
         logs: logsByHabitId.get(habit.id) ?? [],
+        startDate: habit.start_date,
         windowDays: TODAY_PROGRESS_WINDOW_DAYS,
       }),
       activeDays,
@@ -496,6 +497,7 @@ export function useGoalDetail(identityPhrase: string | undefined) {
       activeDays,
       endDate: endDateObj,
       logs: habitLogs,
+      startDate: habit.start_date,
       windowDays: TODAY_PROGRESS_WINDOW_DAYS,
     });
     return {

@@ -8,6 +8,7 @@ type SummarizeHabitProgressOptions = {
   activeDays?: number[];
   endDate?: Date;
   logs: HabitLogRecord[];
+  startDate?: string;
   windowDays: number;
 };
 
@@ -69,6 +70,7 @@ export function summarizeHabitProgress({
   activeDays,
   endDate = now(),
   logs,
+  startDate,
   windowDays,
 }: SummarizeHabitProgressOptions): HabitProgressSummary {
   const normalizedEndDate = new Date(endDate);
@@ -100,7 +102,18 @@ export function summarizeHabitProgress({
     ? (logsByDate.get(endDateString)?.status ?? null)
     : null;
 
-  // Consistency rate and skip count — only active days count
+  // Consistency rate and skip count. For each active day in the window we
+  // look up a log; if the day is unlogged we treat it as missed unless it's
+  // today (no decision yet — matches the streak loop below). The app's two
+  // log-writing UI paths only ever store "done" or "skipped", so without
+  // the unlogged→missed branch missedCount stays at 0 and the rate
+  // degenerates to done/done = 100% for any sparsely-logged habit.
+  //
+  // Note: pooledConsistencyRate in goalMetrics also counts past unlogged
+  // active days, but additionally counts today unlogged in its denominator
+  // (see pooledConsistencyRate() in goalMetrics.ts). The two rates therefore differ by 1 in the
+  // denominator on days where today is active and unlogged. Bringing the
+  // two into exact agreement is a separate decision — out of scope here.
   let doneCount = 0;
   let missedCount = 0;
   let skipCount = 0;
@@ -108,17 +121,23 @@ export function summarizeHabitProgress({
   for (let offset = 0; offset < windowDays; offset++) {
     const dateString = toDeviceDateString(addDeviceDays(normalizedEndDate, -offset));
     if (activeDays && !isActiveDay(dateString, activeDays)) continue;
+    if (startDate && dateString < startDate) continue;
 
     const log = logsByDate.get(dateString);
-    if (!log) continue;
 
-    if (log.status === "done") {
-      doneCount += 1;
-    } else if (log.status === "missed") {
+    if (log) {
+      if (log.status === "done") {
+        doneCount += 1;
+      } else if (log.status === "missed") {
+        missedCount += 1;
+      } else if (log.status === "skipped") {
+        skipCount += 1;
+      }
+    } else if (dateString !== todayString) {
+      // Past active day with no log row — treat as missed.
       missedCount += 1;
-    } else if (log.status === "skipped") {
-      skipCount += 1;
     }
+    // else: today, unlogged — no decision yet, skip entirely.
   }
 
   const consistencyDenominator = doneCount + missedCount;
