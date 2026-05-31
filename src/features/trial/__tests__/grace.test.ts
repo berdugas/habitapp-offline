@@ -1,4 +1,5 @@
 import { computeAccessMode } from "@/features/trial/grace";
+import { TRIAL_GRACE_PERIOD_DAYS } from "@/features/trial/types";
 
 describe("computeAccessMode", () => {
   function isoDaysAgo(days: number, fromNow: Date = new Date()): string {
@@ -33,30 +34,30 @@ describe("computeAccessMode", () => {
     ).toBe("full");
   });
 
-  it("returns full at 6 days", () => {
+  it("returns full just inside the boundary", () => {
     const now = new Date("2026-05-01T00:00:00.000Z");
     expect(
       computeAccessMode({
-        lastValidatedAt: isoDaysAgo(6, now),
+        lastValidatedAt: isoDaysAgo(TRIAL_GRACE_PERIOD_DAYS - 1, now),
         now,
       }),
     ).toBe("full");
   });
 
-  it("returns full at exactly 7 days (boundary inclusive)", () => {
+  it("returns full at exact boundary (inclusive)", () => {
     const now = new Date("2026-05-01T00:00:00.000Z");
     expect(
       computeAccessMode({
-        lastValidatedAt: isoDaysAgo(7, now),
+        lastValidatedAt: isoDaysAgo(TRIAL_GRACE_PERIOD_DAYS, now),
         now,
       }),
     ).toBe("full");
   });
 
-  it("returns read_only at 7 days + 1 millisecond", () => {
+  it("returns read_only at 1 ms past the boundary", () => {
     const now = new Date("2026-05-01T00:00:00.000Z");
     const oneMsAfterBoundary = new Date(
-      now.getTime() - 7 * 24 * 60 * 60 * 1000 - 1,
+      now.getTime() - TRIAL_GRACE_PERIOD_DAYS * 24 * 60 * 60 * 1000 - 1,
     ).toISOString();
     expect(
       computeAccessMode({
@@ -66,21 +67,21 @@ describe("computeAccessMode", () => {
     ).toBe("read_only");
   });
 
-  it("returns read_only at 8 days", () => {
+  it("returns read_only just past the boundary", () => {
     const now = new Date("2026-05-01T00:00:00.000Z");
     expect(
       computeAccessMode({
-        lastValidatedAt: isoDaysAgo(8, now),
+        lastValidatedAt: isoDaysAgo(TRIAL_GRACE_PERIOD_DAYS + 1, now),
         now,
       }),
     ).toBe("read_only");
   });
 
-  it("returns read_only at 30 days", () => {
+  it("returns read_only well past the boundary", () => {
     const now = new Date("2026-05-01T00:00:00.000Z");
     expect(
       computeAccessMode({
-        lastValidatedAt: isoDaysAgo(30, now),
+        lastValidatedAt: isoDaysAgo(TRIAL_GRACE_PERIOD_DAYS * 2, now),
         now,
       }),
     ).toBe("read_only");

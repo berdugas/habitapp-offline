@@ -51,6 +51,7 @@ import {
 import { TrialValidationBootstrap } from "@/providers/TrialValidationBootstrap";
 import { resetClockForTesting, setNowForTesting } from "@/utils/clock";
 
+import { TRIAL_GRACE_PERIOD_DAYS } from "@/features/trial/types";
 import type { CachedTrialEntitlement } from "@/features/trial/types";
 
 const mockFetchTrialEntitlement = fetchTrialEntitlement as jest.Mock;
@@ -88,10 +89,13 @@ function staleEntitlement(userId = "user-1"): CachedTrialEntitlement {
 }
 
 function graceExhaustedEntitlement(userId = "user-1"): CachedTrialEntitlement {
-  // last_validated_at 8 days ago — beyond the 7-day grace period
+  // last_validated_at past the grace boundary (drives Case 8's "fetch
+  // fails + beyond grace → read_only" assertion regardless of the
+  // constant's value).
+  const beyondGraceMs = (TRIAL_GRACE_PERIOD_DAYS + 1) * 24 * 60 * 60 * 1000;
   return {
     ...freshEntitlement(userId),
-    last_validated_at: new Date(NOW.getTime() - 8 * 24 * 60 * 60 * 1000).toISOString(),
+    last_validated_at: new Date(NOW.getTime() - beyondGraceMs).toISOString(),
   };
 }
 
