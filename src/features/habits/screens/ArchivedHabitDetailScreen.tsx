@@ -231,7 +231,19 @@ export default function ArchivedHabitDetailScreen() {
     try {
       // api.ts deleteHabit cancels the OS reminder before deleting the row.
       await deleteHabitMutation.mutateAsync({ habitId: habit.id });
-      router.replace("/(app)/habits/backlog");
+      // Pop every pushed route back to the active tab root — returns the
+      // user to whichever tab launched the archive flow (Settings if they
+      // came to clean up, Today if they came via a goal). Deliberately
+      // does NOT force-replace to Today like restore does: a deleted habit
+      // has no destination view, so anchoring there would mislead. The
+      // canDismiss fallback covers deep-link cold-starts where this screen
+      // is the only route on the stack — without it the user would be
+      // stranded on a screen showing the deleted habit.
+      if (router.canDismiss()) {
+        router.dismissAll();
+      } else {
+        router.replace("/(app)/(tabs)/today");
+      }
     } catch {
       cancelExit();
     }

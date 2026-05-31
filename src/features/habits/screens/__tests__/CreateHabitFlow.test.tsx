@@ -73,7 +73,7 @@ async function walkToWorstday(options: { withReminder?: boolean } = {}) {
     fireEvent.press(screen.getByText("Continue"));
   });
 
-  // Build step: tinyAction + cue, optional reminder toggle.
+  // Build step: tinyAction + cue.
   await screen.findByPlaceholderText(/Make it even smaller/);
   await act(async () => {
     fireEvent.changeText(
@@ -88,9 +88,28 @@ async function walkToWorstday(options: { withReminder?: boolean } = {}) {
     );
   });
 
+  await act(async () => {
+    fireEvent.press(screen.getByText("Continue"));
+  });
+
+  // Personalize phase: habit name → optional reminder toggle → "Looks good".
+  // The ReminderPicker now lives in the personalize-phase block of
+  // PersonalizeStep (moved from BuildStep so users actually see it). It's
+  // hidden again once we enter the worstday phase, so the toggle must fire
+  // BEFORE pressing "Looks good".
+  await screen.findByPlaceholderText("Tap to name");
+  await act(async () => {
+    fireEvent.changeText(
+      screen.getByPlaceholderText("Tap to name"),
+      "Morning run",
+    );
+  });
+
   if (options.withReminder) {
     // Flip the ReminderPicker's Switch on. It accepts onValueChange with the
     // new boolean; turning it on sets draft.reminderTime to "07:00".
+    // UNSAFE_getByType still works because there's exactly one Switch on
+    // screen during the personalize phase too.
     await act(async () => {
       const sw = screen.UNSAFE_getByType(
         // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -100,18 +119,6 @@ async function walkToWorstday(options: { withReminder?: boolean } = {}) {
     });
   }
 
-  await act(async () => {
-    fireEvent.press(screen.getByText("Continue"));
-  });
-
-  // Personalize phase: habit name → "Looks good".
-  await screen.findByPlaceholderText("Tap to name");
-  await act(async () => {
-    fireEvent.changeText(
-      screen.getByPlaceholderText("Tap to name"),
-      "Morning run",
-    );
-  });
   await act(async () => {
     fireEvent.press(screen.getByText("Looks good"));
   });

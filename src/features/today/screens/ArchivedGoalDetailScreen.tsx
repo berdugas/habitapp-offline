@@ -270,9 +270,17 @@ export default function ArchivedGoalDetailScreen() {
     startExit();
     try {
       await deleteGoalMutation.mutateAsync({ identityPhrase });
-      // .replace, not .back — direct-open / stale-stack cases make .back
-      // non-deterministic, and the destination is always Archive list.
-      router.replace("/(app)/habits/backlog");
+      // Pop every pushed route back to the active tab root — returns the
+      // user to whichever tab launched the archive flow. Deliberately does
+      // NOT force-replace to Today like restore does: a deleted goal has
+      // no destination view, so anchoring there would mislead. The
+      // canDismiss fallback covers deep-link cold-starts where this screen
+      // is the only route on the stack.
+      if (router.canDismiss()) {
+        router.dismissAll();
+      } else {
+        router.replace("/(app)/(tabs)/today");
+      }
     } catch {
       cancelExit();
     }
