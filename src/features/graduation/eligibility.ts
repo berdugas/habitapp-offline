@@ -6,7 +6,7 @@ import {
 } from "@/lib/graduation/constants";
 import type { HabitState, HabitStatus } from "@/lib/db/repositories/habits";
 import type { SRHIResponse } from "@/lib/db/repositories/srhi_responses";
-import { daysBetweenDates } from "@/utils/dates";
+import { daysBetweenDates, toDeviceDateString } from "@/utils/dates";
 
 export {
   GRADUATION_COOLDOWN_DAYS,
@@ -61,10 +61,13 @@ export function checkGraduationEligibility(
   }
 
   if (input.latestSRHI && input.latestSRHI.graduated === false) {
-    const days = daysBetweenDates(
-      input.latestSRHI.created_at,
-      input.todayDate,
+    // created_at is a UTC ISO string; todayDate is a device-local YYYY-MM-DD.
+    // Convert created_at to the device-local calendar date first so the day
+    // count is in local days (avoids an off-by-one near the UTC boundary).
+    const createdLocalDate = toDeviceDateString(
+      new Date(input.latestSRHI.created_at),
     );
+    const days = daysBetweenDates(createdLocalDate, input.todayDate);
     if (days < GRADUATION_COOLDOWN_DAYS) {
       return { eligible: false, reason: "cooldown" };
     }
