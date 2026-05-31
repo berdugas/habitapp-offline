@@ -229,7 +229,7 @@ describe("CreateHabitFlow — save-for-later path", () => {
   it("auto-fills the tiny-action field with the daily action on arrival at BuildStep", async () => {
     mockAssertCanCreateActiveHabit.mockResolvedValue({ ok: true });
 
-    render(<CreateHabitFlow />, { wrapper });
+    render(<QueryClientProvider client={queryClient}><CreateHabitFlow /></QueryClientProvider>);
 
     // ActionStep
     await act(async () => {
@@ -250,7 +250,7 @@ describe("CreateHabitFlow — save-for-later path", () => {
   it("does not clobber a typed tiny version when the user goes back and edits the daily action", async () => {
     mockAssertCanCreateActiveHabit.mockResolvedValue({ ok: true });
 
-    render(<CreateHabitFlow />, { wrapper });
+    render(<QueryClientProvider client={queryClient}><CreateHabitFlow /></QueryClientProvider>);
 
     // ActionStep — type the daily action.
     await act(async () => {
