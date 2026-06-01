@@ -10,6 +10,7 @@ export type OnboardingStep =
   | "cue"
   | "schedule"
   | "personalize"
+  | "make-it-yours"
   | "confirmation";
 
 export type OnboardingDraft = {

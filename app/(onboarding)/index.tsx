@@ -16,6 +16,7 @@ const STEP_TO_HREF: Record<OnboardingStep, string> = {
   "cue": "/(onboarding)/cue",
   "schedule": "/(onboarding)/schedule",
   "personalize": "/(onboarding)/personalize",
+  "make-it-yours": "/(onboarding)/make-it-yours",
   "confirmation": "/(onboarding)/confirmation",
 };
 
