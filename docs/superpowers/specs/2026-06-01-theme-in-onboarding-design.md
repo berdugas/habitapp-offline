@@ -82,7 +82,9 @@ Key decisions:
 
 The card alone isn't enough. To honour the goal of "no drift between the two pickers" we extract both:
 
-- **`useThemePicker()` hook** (`src/features/settings/hooks/useThemePicker.ts`): owns `cachedThemeIds` preload effect, `applyTheme` with abort controller, `isApplying` and `loadError` state, the `onCardPress` flow including the download-size Alert, `formatBytes`, and `classifyError`. Returns `{ active, cachedThemeIds, isApplying, loadError, onCardPress, retry }`.
+- **`useThemePicker()` hook** (`src/features/settings/hooks/useThemePicker.ts`): owns `cachedThemeIds` preload effect, `applyTheme` with abort controller, `isApplying` and `loadError` state, the `onCardPress` flow including the download-size Alert, `formatBytes`, and `classifyError`. Returns `{ active, cachedThemeIds, isApplying, loadError, onCardPress, retry }`. Pinned signatures: `onCardPress(target: Theme): Promise<void>` (matches the existing `onCardPress` callsite), `retry(): void` (no args — the in-flight `loadError.themeId` is the retry target, same as [`AppearanceScreen.tsx:251–253`](../../../src/features/settings/screens/AppearanceScreen.tsx#L251)).
+
+  **What stays out of the hook.** `settings_appearance_opened` (at [`AppearanceScreen.tsx:57`](../../../src/features/settings/screens/AppearanceScreen.tsx#L57)) MUST remain at the `AppearanceScreen` level — moving it into the hook would have Make-it-yours fire it on mount and pollute the Settings-discovery funnel. The `[DEV] Clear font cache` button stays in `AppearanceScreen` for the same separation-of-concerns reason.
 - **`<ThemeCard>` component** (`src/features/settings/components/ThemeCard.tsx`): the existing inline `ThemeCard` at [`AppearanceScreen.tsx:299`](../../../src/features/settings/screens/AppearanceScreen.tsx#L299), now exported. Gains a new prop `downloadSizeBytes?: number | null` so the caption can be shown on the onboarding picker (Settings keeps it off by passing `null`/omitting, preserving current Settings visuals).
 - **`<ThemePickerOverlay>` and `<ThemeLoadErrorBanner>` components** (same folder): the small "Downloading fonts…" overlay (`AppearanceScreen.tsx:289–294`) and the error banner (`AppearanceScreen.tsx:243–258`). Pulled out so both screens render identical loading and error UI from the same source.
 
@@ -92,7 +94,9 @@ The card alone isn't enough. To honour the goal of "no drift between the two pic
 
 - **From Personalize → Make-it-yours.** `PersonalizeScreen.handlePass` (the "Yes, I could" button at [`PersonalizeScreen.tsx:203`](../../../src/features/onboarding/screens/PersonalizeScreen.tsx#L203)) currently does `update({ step: "confirmation" })` and `router.push("/(onboarding)/confirmation")`. Change both to `make-it-yours`.
 - **From Make-it-yours → Confirmation.** Continue button calls `update({ step: "confirmation" })` and `router.push("/(onboarding)/confirmation")`.
-- **No back button on Make-it-yours.** The screen renders without `OnboardingHeader` `onBack`. Rationale: the theme picker is a one-tap-Continue screen with nothing destructive to recover from, *and* a back button would have to either (i) drop the user into `PersonalizeScreen`'s worst-day phase — which itself renders no back button at [`PersonalizeScreen.tsx:233–242`](../../../src/features/onboarding/screens/PersonalizeScreen.tsx#L233) — stranding them, or (ii) require non-trivial seeding logic in `PersonalizeScreen`. Skipping the back button avoids both. (`gestureEnabled: false` in [`_layout.tsx:34`](app/(onboarding)/_layout.tsx#L34) already prevents the swipe-back gesture.)
+- **No back button on Make-it-yours.** Rationale: the theme picker is a one-tap-Continue screen with nothing destructive to recover from, *and* a back button would have to either (i) drop the user into `PersonalizeScreen`'s worst-day phase — which itself renders no back button at [`PersonalizeScreen.tsx:233–242`](../../../src/features/onboarding/screens/PersonalizeScreen.tsx#L233) — stranding them, or (ii) require non-trivial seeding logic in `PersonalizeScreen`. Skipping the back button avoids both. (`gestureEnabled: false` in [`_layout.tsx:34`](app/(onboarding)/_layout.tsx#L34) already prevents the swipe-back gesture.)
+
+  **Suppression mechanism.** Omitting `onBack` is not enough: [`OnboardingHeader.tsx:19`](../../../src/components/navigation/OnboardingHeader.tsx#L19) unconditionally renders `<BackButton>`, and [`BackButton.tsx:35`](../../../src/components/navigation/BackButton.tsx#L35) defaults `onPress` to `() => router.back()` when the prop is undefined. To genuinely hide the button, **add a `showBack?: boolean = true` prop to `OnboardingHeader`**. When `false`, render an empty 40×40 `View` in the BackButton's slot so the progress bar stays in the same horizontal position as every other screen. Make-it-yours passes `showBack={false}`. All other screens are unchanged.
 - **The worst-day fail path is unchanged.** If the user fails the worst-day check on Personalize, they still go to `shrink` and cycle back through cue → schedule → personalize. They'll only see Make-it-yours after a successful worst-day pass.
 
 ### Persistence and state
@@ -152,7 +156,7 @@ There are **no existing `PersonalizeScreen` tests** and the existing `completion
   - Reminder microcopy is present.
   - Tapping a non-active card invokes the shared `useThemePicker` flow (mock `loadFontsFor` and `setPreference`).
   - Tapping Continue calls `update({ step: "confirmation" })` and pushes `/(onboarding)/confirmation`.
-  - No `OnboardingHeader` `onBack` is wired.
+  - **No back-button is rendered.** Assert the absence of an element with `accessibilityLabel="Go back"` — not the absence of an `onBack` prop, since that would still leave the default-`router.back()` button visible (see `BackButton.tsx:33–35`).
 - **Hook test `useThemePicker.test.tsx`**: covers the orchestration (Alert flow, abort on rapid retap, error classification, retry). Replaces what would have been duplicated logic between `AppearanceScreen.test.tsx` and `MakeItYoursScreen.test.tsx`.
 - **`AppearanceScreen.test.tsx`** (existing, [`AppearanceScreen.test.tsx`](../../../src/features/settings/screens/__tests__/AppearanceScreen.test.tsx)): after refactor, this should still pass without behaviour changes. If it currently asserts internals of the inline `ThemeCard` / orchestration, it shifts to asserting the integration with the extracted hook/components.
 - **`STEP_TO_HREF` exhaustiveness**: adding `"make-it-yours"` to `OnboardingStep` makes TypeScript flag the missing entry. The implementation adds it; no separate test needed beyond `tsc`.
@@ -178,7 +182,7 @@ There are **no existing `PersonalizeScreen` tests** and the existing `completion
 - `src/features/onboarding/screens/PersonalizeScreen.tsx` — `handlePass` routes to `make-it-yours` instead of `confirmation` (one-line change to `step` and `router.push` path).
 - `app/(onboarding)/index.tsx` — add `"make-it-yours": "/(onboarding)/make-it-yours"` to the `STEP_TO_HREF` record so the type stays exhaustive and resumption works.
 - `src/features/settings/screens/AppearanceScreen.tsx` — replace inline `ThemeCard` declaration, `applyTheme` / `onCardPress` logic, overlay, and error banner with imports of the extracted pieces. Behaviour unchanged.
-- `src/components/navigation/OnboardingHeader.tsx` — bump default `totalSteps` from 6 to 7.
+- `src/components/navigation/OnboardingHeader.tsx` — bump default `totalSteps` from 6 to 7; add `showBack?: boolean = true` prop, rendering a 40×40 spacer `View` in place of `<BackButton>` when `false`.
 
 ## Open questions
 
