@@ -201,8 +201,8 @@ export default function PersonalizeScreen() {
   };
 
   const handlePass = () => {
-    update({ worstDayPassed: true, step: "confirmation" });
-    router.push("/(onboarding)/confirmation");
+    update({ worstDayPassed: true, step: "make-it-yours" });
+    router.push("/(onboarding)/make-it-yours");
   };
 
   const handleFail = () => {

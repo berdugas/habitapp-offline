@@ -1,9 +1,6 @@
 
 Weekly Review
-   -  there has to be an onboarding for the first time
-   -  highlight this when its due for review so the user does not forget, maybe also in the today screen.
    - selecting the option for the did the trigger work does not fully highlight the choice, it should be more visible.
-   -  when i clicked on the save review it pushed to the habit detail, but i did not get to adjust anything, i think the weekly review is broken.
 
 
 Graduation
@@ -15,12 +12,7 @@ Graduation
    - when i select an option we should highlight it more
 
 
-
-Weekly review, you cant re review the week anymore? You cannot make adjustments after the first review?
-
 We are using arrows in the buttons, maybe we can use chevrons as well
-
-after restoring the habit, then the user clicks chevron back it goes to archive screen again, which is confusing.
 
 
 
