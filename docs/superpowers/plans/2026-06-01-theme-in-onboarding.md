@@ -1219,7 +1219,14 @@ export default function MakeItYoursScreen() {
 - [ ] **Step 2: Re-run the screen test file to verify green**
 
 Run: `npx jest src/features/onboarding/screens/__tests__/MakeItYoursScreen.test.tsx --runInBand`
-Expected: PASS — all five cases green.
+Expected: PASS — all seven cases green:
+1. renders the headline and reminder microcopy
+2. renders one card per theme with Zen pre-selected
+3. does NOT render a back-affordance
+4. shows the download-size caption on uncached remote themes
+5. hides the download-size caption once fonts are cached on disk
+6. tapping Continue updates the draft step to confirmation
+7. tapping a non-active card triggers the shared picker flow
 
 If "does NOT render a back-affordance" fails, double-check that `OnboardingHeader` is being rendered with `showBack={false}` (Task 2 must be in place).
 
