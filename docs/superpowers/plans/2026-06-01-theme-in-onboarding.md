@@ -222,7 +222,6 @@ export function ThemeCard({
       swatch: { borderRadius: 6, height: 12, width: 12 },
       label: {
         color: t.colors.text,
-        flex: 1,
         fontFamily: isFontReady ? theme.fontFamilies.displaySemi : t.fontFamilies.displaySemi,
         fontSize: t.typography.titleLg,
       },
@@ -1029,7 +1028,23 @@ describe("MakeItYoursScreen", () => {
 
   it("does NOT render a back-affordance (no element with accessibilityLabel='Go back')", () => {
     renderWithTheme(<MakeItYoursScreen />);
-    expect(screen.queryByA11yLabel?.("Go back") ?? screen.queryByLabelText?.("Go back")).toBeNull();
+    expect(screen.queryByLabelText("Go back")).toBeNull();
+  });
+
+  it("shows the download-size caption on uncached remote themes", () => {
+    renderWithTheme(<MakeItYoursScreen />, { themeId: "zen" });
+    // Cafe and Fantasy are remote; areAllFontsCached defaults to false in beforeEach.
+    expect(screen.getAllByText(/ · first time$/i).length).toBeGreaterThan(0);
+  });
+
+  it("hides the download-size caption once fonts are cached on disk", async () => {
+    mockedCached.mockResolvedValue(true);
+    renderWithTheme(<MakeItYoursScreen />, { themeId: "zen" });
+    // Preload effect populates cachedThemeIds asynchronously; the caption
+    // disappears once isFontReady flips to true.
+    await waitFor(() => {
+      expect(screen.queryByText(/ · first time$/i)).toBeNull();
+    });
   });
 
   it("tapping Continue updates the draft step to confirmation and pushes the route", () => {
@@ -1151,45 +1166,52 @@ export default function MakeItYoursScreen() {
     router.push("/(onboarding)/confirmation");
   };
 
+  // Overlay must be a SIBLING of OnboardingLayout, not a child. absoluteFillObject
+  // is relative to the nearest View ancestor; placed inside the layout's ScrollView
+  // body it would only cover the body and leave the Continue button in the footer
+  // visible and tappable mid-download. Wrapping both in an outer flex:1 View lets
+  // the overlay cover the entire screen including the footer.
   return (
-    <OnboardingLayout
-      footer={
-        <PrimaryButton label="Continue" showArrow onPress={handleContinue} />
-      }
-    >
-      <OnboardingHeader currentStep={7} showBack={false} />
+    <View style={{ flex: 1 }}>
+      <OnboardingLayout
+        footer={
+          <PrimaryButton label="Continue" showArrow onPress={handleContinue} />
+        }
+      >
+        <OnboardingHeader currentStep={7} showBack={false} />
 
-      <Text style={styles.headline}>Make it yours.</Text>
-      <Text style={styles.body}>Pick a look for your app.</Text>
+        <Text style={styles.headline}>Make it yours.</Text>
+        <Text style={styles.body}>Pick a look for your app.</Text>
 
-      {loadError ? (
-        <ThemeLoadErrorBanner themeName={loadError.themeName} onRetry={retry} />
-      ) : null}
+        {loadError ? (
+          <ThemeLoadErrorBanner themeName={loadError.themeName} onRetry={retry} />
+        ) : null}
 
-      <View style={styles.cards}>
-        {(Object.values(THEMES) as Theme[]).map((t) => (
-          <ThemeCard
-            key={t.id}
-            theme={t}
-            isActive={t.id === active.id}
-            isFontReady={t.fontAssets.kind === "bundled" || t.id === active.id || cachedThemeIds.has(t.id)}
-            downloadSizeBytes={totalDownloadBytes(t)}
-            onPress={() => {
-              void onCardPress(t);
-            }}
-          />
-        ))}
-      </View>
+        <View style={styles.cards}>
+          {(Object.values(THEMES) as Theme[]).map((t) => (
+            <ThemeCard
+              key={t.id}
+              theme={t}
+              isActive={t.id === active.id}
+              isFontReady={t.fontAssets.kind === "bundled" || t.id === active.id || cachedThemeIds.has(t.id)}
+              downloadSizeBytes={totalDownloadBytes(t)}
+              onPress={() => {
+                void onCardPress(t);
+              }}
+            />
+          ))}
+        </View>
 
-      <View style={styles.micro}>
-        <SettingsIcon color={theme.colors.textFaint} size={14} strokeWidth={1.8} />
-        <Text style={styles.microText}>
-          You can change the theme anytime in Settings → Appearance.
-        </Text>
-      </View>
+        <View style={styles.micro}>
+          <SettingsIcon color={theme.colors.textFaint} size={14} strokeWidth={1.8} />
+          <Text style={styles.microText}>
+            You can change the theme anytime in Settings → Appearance.
+          </Text>
+        </View>
+      </OnboardingLayout>
 
       {isApplying ? <ThemePickerOverlay /> : null}
-    </OnboardingLayout>
+    </View>
   );
 }
 ```
