@@ -1,7 +1,7 @@
 # Theme picker in onboarding — Design
 
 **Date:** 2026-06-01
-**Status:** Approved design, ready for implementation plan
+**Status:** Approved design, revised after code-grounded review, ready for implementation plan
 
 ## Problem
 
@@ -9,7 +9,7 @@ The app shipped with three themes (Zen, Cafe, Fantasy) but the only way to disco
 
 The onboarding flow already personalises the *habit* (name, icon, formula, schedule). It does not personalise the *app*. A theme-picker step closes that gap and gives the user something to look at that's visibly theirs before they tap "Let's go" on the confirmation screen.
 
-Current Settings → Appearance lives at [`AppearanceScreen.tsx`](../../../src/features/settings/screens/AppearanceScreen.tsx) and handles the picker UI, font-download Alert, error banner, and persistence via `setPreference("theme_id", id)`.
+Current Settings → Appearance lives at [`AppearanceScreen.tsx`](../../../src/features/settings/screens/AppearanceScreen.tsx) and handles the picker UI, font-download Alert, error banner, persistence via `setPreference("theme_id", id)`, and a font-preload effect that registers cached non-active theme fonts so each card label can render in its own typeface.
 
 ## Goals / Non-goals
 
@@ -18,11 +18,11 @@ Current Settings → Appearance lives at [`AppearanceScreen.tsx`](../../../src/f
 - Make the confirmation screen render in the user's chosen theme — the visual payoff before "Let's go."
 - Zero added latency or download for users who stick with Zen (the bundled default).
 - Reassure users they can change theme later without making them hesitate.
-- Reuse the existing `AppearanceScreen` card UI so the picker stays consistent across the two places it appears.
+- Share *all* picker behaviour (cards + orchestration + Alert + error banner + overlay) across onboarding and Settings so the two never drift.
 
 **Non-goals**
 - Adding new themes or changing existing themes.
-- Changing `AppearanceScreen` behaviour or visuals.
+- Changing `AppearanceScreen` visual layout beyond extracting reusable parts.
 - Forcing a theme decision — Zen is pre-selected and a one-tap continue is the path of least resistance.
 - Placing the picker before Personalize (e.g. right after Welcome). The user has to feel some commitment first; theming an app they haven't built anything in yet is hollow.
 - Bundling Cafe/Fantasy fonts into the app to avoid the download. They're remote on purpose to keep app size down.
@@ -45,7 +45,7 @@ Personalize stays focused on the habit (name + icon + worst-day check). The new 
 
 ```
 ┌──────────────────────────────────────┐
-│ ←  [progress bar: now 7 of 7]        │
+│     [progress bar: now 7 of 7]       │  ← no back button (see Navigation)
 │                                      │
 │ Make it yours.                       │
 │ Pick a look for your app.            │
@@ -55,7 +55,7 @@ Personalize stays focused on the habit (name + icon + worst-day check). The new 
 │ └──────────────────────────────────┘ │
 │ ┌──────────────────────────────────┐ │
 │ │ [preview] Cafe     ● ● ●         │ │
-│ │           ~1.2 MB · first time   │ │  ← inline download disclosure
+│ │           ~1.2 MB · first time   │ │  ← computed; hidden when cached
 │ └──────────────────────────────────┘ │
 │ ┌──────────────────────────────────┐ │
 │ │ [preview] Fantasy  ● ● ●         │ │
@@ -72,16 +72,27 @@ Personalize stays focused on the habit (name + icon + worst-day check). The new 
 Key decisions:
 
 - **Zen pre-selected.** The screen is fully usable as a one-tap skip — `Continue` is enabled the moment the screen mounts. No "Skip" button needed.
-- **Theme cards reuse the existing component.** The `ThemeCard` component in [`AppearanceScreen.tsx:299`](../../../src/features/settings/screens/AppearanceScreen.tsx#L299) should be extracted into a shared component (e.g. `src/features/settings/components/ThemeCard.tsx`) and imported by both screens. Same swatches, same preview SVG, same active checkmark, same labels rendered in each theme's own typeface.
-- **Inline download size on Cafe/Fantasy cards.** Small "~1.2 MB · first time" caption under the swatches so the cost is disclosed before the user taps. This is additive — the existing download confirmation Alert still fires on tap (see "Download UX" below).
+- **Picker behaviour shared via a hook + a component, not the card alone.** See "Shared picker extraction" below.
+- **Inline download size on Cafe/Fantasy cards.** Computed value `formatBytes(sum of theme.fontAssets.assets[*].bytes)` — not a hardcoded string. Hidden when `cachedThemeIds.has(theme.id)` (or replaced with a quieter "Already downloaded" label, TBD in implementation). This caption is additive — the existing Alert still fires on tap (see Download UX).
+- **Card labels.** Each card's label renders in that theme's own typeface *if its fonts are cached on disk*, otherwise in the active theme's font. This is the existing Settings behaviour at [`AppearanceScreen.tsx:331`](../../../src/features/settings/screens/AppearanceScreen.tsx#L331) — on a fresh install nothing is cached, so all three labels initially render in Zen. The shared extraction preserves this without claiming more.
 - **Reminder microcopy.** Below the cards, same visual weight and pattern as the existing "You can rename or change the icon anytime" line at [`PersonalizeScreen.tsx:313`](../../../src/features/onboarding/screens/PersonalizeScreen.tsx#L313). Copy: *"You can change the theme anytime in Settings → Appearance."* with a small gear glyph for scannability.
 - **Headline + body.** "Make it yours." / "Pick a look for your app." The reassurance now lives in dedicated microcopy, so body text stays short.
+
+### Shared picker extraction
+
+The card alone isn't enough. To honour the goal of "no drift between the two pickers" we extract both:
+
+- **`useThemePicker()` hook** (`src/features/settings/hooks/useThemePicker.ts`): owns `cachedThemeIds` preload effect, `applyTheme` with abort controller, `isApplying` and `loadError` state, the `onCardPress` flow including the download-size Alert, `formatBytes`, and `classifyError`. Returns `{ active, cachedThemeIds, isApplying, loadError, onCardPress, retry }`.
+- **`<ThemeCard>` component** (`src/features/settings/components/ThemeCard.tsx`): the existing inline `ThemeCard` at [`AppearanceScreen.tsx:299`](../../../src/features/settings/screens/AppearanceScreen.tsx#L299), now exported. Gains a new prop `downloadSizeBytes?: number | null` so the caption can be shown on the onboarding picker (Settings keeps it off by passing `null`/omitting, preserving current Settings visuals).
+- **`<ThemePickerOverlay>` and `<ThemeLoadErrorBanner>` components** (same folder): the small "Downloading fonts…" overlay (`AppearanceScreen.tsx:289–294`) and the error banner (`AppearanceScreen.tsx:243–258`). Pulled out so both screens render identical loading and error UI from the same source.
+
+`AppearanceScreen` becomes a thin layout that composes these. `MakeItYoursScreen` composes the same pieces in onboarding chrome.
 
 ### Navigation wiring
 
 - **From Personalize → Make-it-yours.** `PersonalizeScreen.handlePass` (the "Yes, I could" button at [`PersonalizeScreen.tsx:203`](../../../src/features/onboarding/screens/PersonalizeScreen.tsx#L203)) currently does `update({ step: "confirmation" })` and `router.push("/(onboarding)/confirmation")`. Change both to `make-it-yours`.
 - **From Make-it-yours → Confirmation.** Continue button calls `update({ step: "confirmation" })` and `router.push("/(onboarding)/confirmation")`.
-- **Back from Make-it-yours.** Returns to Personalize. Note: `PersonalizeScreen` keeps its `phase` ("personalize" vs "worstday") in local component state, so a remount currently resets the user to the name/icon phase. The implementation plan needs to either (a) seed the initial phase from `draft.worstDayPassed` so a back-navigated user resumes in the worst-day phase, or (b) skip back-navigation entirely from Make-it-yours (no back button), since the theme picker is a one-tap-Continue screen and the user has nothing destructive to recover from. Recommended: (a), because it's a small, general improvement to `PersonalizeScreen`.
+- **No back button on Make-it-yours.** The screen renders without `OnboardingHeader` `onBack`. Rationale: the theme picker is a one-tap-Continue screen with nothing destructive to recover from, *and* a back button would have to either (i) drop the user into `PersonalizeScreen`'s worst-day phase — which itself renders no back button at [`PersonalizeScreen.tsx:233–242`](../../../src/features/onboarding/screens/PersonalizeScreen.tsx#L233) — stranding them, or (ii) require non-trivial seeding logic in `PersonalizeScreen`. Skipping the back button avoids both. (`gestureEnabled: false` in [`_layout.tsx:34`](app/(onboarding)/_layout.tsx#L34) already prevents the swipe-back gesture.)
 - **The worst-day fail path is unchanged.** If the user fails the worst-day check on Personalize, they still go to `shrink` and cycle back through cue → schedule → personalize. They'll only see Make-it-yours after a successful worst-day pass.
 
 ### Persistence and state
@@ -94,11 +105,13 @@ Theme selection uses the **same path as Settings → Appearance**:
 
 **No new field on `OnboardingDraft`.** Theme is persisted to the preferences table the moment it's chosen, exactly like Settings does. This keeps it consistent and means an interrupted onboarding still preserves the user's theme choice.
 
-The only `OnboardingStep` change is adding `"make-it-yours"` to the union in [`src/features/onboarding/types.ts`](../../../src/features/onboarding/types.ts).
+**Zen-skip path writes nothing.** If the user taps Continue without ever picking a non-Zen card, `setPreference("theme_id", …)` is never called. This is safe because the cold-start resolver at [`app/_layout.tsx:289–292`](../../../app/_layout.tsx#L289) treats a missing `theme_id` preference as Zen with no telemetry. (Tests should assert the missing-pref → Zen path stays intact.)
+
+**`OnboardingStep` union** in [`src/features/onboarding/types.ts`](../../../src/features/onboarding/types.ts) gains `"make-it-yours"`. **`STEP_TO_HREF`** in [`app/(onboarding)/index.tsx`](../../../app/(onboarding)/index.tsx) — typed as `Record<OnboardingStep, string>` — must add the corresponding entry; otherwise the type is non-exhaustive and the resumption redirect breaks for users whose persisted draft has `step: "make-it-yours"`.
 
 ### Download UX
 
-Cafe and Fantasy require downloading ~1.2–1.4 MB of font assets the first time they're picked. We considered three approaches:
+Cafe and Fantasy require downloading ~1–2 MB of font assets the first time they're picked. We considered three approaches:
 
 | | Approach | Trade-off |
 |---|---|---|
@@ -106,11 +119,13 @@ Cafe and Fantasy require downloading ~1.2–1.4 MB of font assets the first time
 | (ii) | Replace Alert with inline disclosure only — tap goes straight to download | Less friction but inconsistent with Settings; user could trigger a download by accident |
 | (iii) | Defer download — let user finish onboarding on Zen, swap themes in once download completes in background | Complex (re-render after Confirmation), and the whole point of doing this in onboarding is to *show* the chosen theme on Confirmation |
 
-**Chosen: (i).** Keep the Alert from Settings exactly as is. Add the inline size caption on the card so the cost is disclosed before the tap. This means the onboarding picker and Settings picker behave identically for downloads, the user gets two chances to back out, and the Confirmation payoff still works because the user has already downloaded before reaching it.
+**Chosen: (i).** Keep the Alert from Settings exactly as is via the shared `useThemePicker` hook. Add the inline size caption on the card so the cost is disclosed before the tap. This means the onboarding picker and Settings picker behave identically for downloads, the user gets two chances to back out, and the Confirmation payoff still works because the user has already downloaded before reaching it.
+
+The current Alert wording at [`AppearanceScreen.tsx:142–151`](../../../src/features/settings/screens/AppearanceScreen.tsx#L142) is *"Apply X theme? This will download about Y of fonts. Connect to Wi-Fi if you're on cellular."* — implementation should sanity-check this reads naturally in the onboarding context. If it doesn't, branch the wording via an optional prop on the hook rather than forking the flow.
 
 ### Error handling
 
-Reuse the existing error banner pattern from `AppearanceScreen`:
+Reuse the existing error banner pattern from `AppearanceScreen` (now extracted into `<ThemeLoadErrorBanner>`):
 
 - If `loadFontsFor` fails (network/storage/integrity), show the same error banner above the cards with a Retry button.
 - The active theme stays as whatever was last successfully applied (Zen if the user hasn't switched yet).
@@ -118,29 +133,31 @@ Reuse the existing error banner pattern from `AppearanceScreen`:
 
 ### Progress bar
 
-[`OnboardingHeader`](../../../src/components/navigation/OnboardingHeader.tsx) currently defaults to `totalSteps=6`. Adding one step means **bumping the default to 7** and using `currentStep={7}` on Make-it-yours. Personalize stays at `currentStep={6}`. Every other onboarding screen that uses the default total will be visually consistent — they'll just show 6 of 7 filled instead of 6 of 6.
+[`OnboardingHeader`](../../../src/components/navigation/OnboardingHeader.tsx) currently defaults to `totalSteps=6`. Adding one step means **bumping the default to 7** and using `currentStep={7}` on Make-it-yours. Personalize stays at `currentStep={6}`. Every other onboarding screen that uses the default total will be visually consistent — they'll just show 6 of 7 filled instead of 6 of 6. Make-it-yours renders the progress bar without the BackButton (see Navigation).
 
 ### Analytics
 
-- `onboarding_make_it_yours_viewed` — new event, fires once when the screen mounts.
-- `theme_changed` — existing event from `applyTheme` will fire as-is when the user picks a non-Zen theme. Already tracks `from_theme_id`, `to_theme_id`, `required_download`, `time_to_apply_ms`.
-- `theme_picker_card_pressed` — existing event continues to fire.
+- **`onboarding_step_viewed`** with `step: "make_it_yours"` — emitted **automatically** by [`OnboardingStepTracker`](../../../app/(onboarding)/_layout.tsx#L13) on pathname change. No additional view event needed; adding one would double-count.
+- **`theme_changed`** — existing event from `applyTheme` (now in the shared hook) fires as-is when the user picks a non-Zen theme. Already tracks `from_theme_id`, `to_theme_id`, `required_download`, `was_retry`, `time_to_apply_ms`.
+- **`theme_picker_card_pressed`** — existing event continues to fire.
 
-No new event for "continued without changing" — absence of `theme_changed` between `make_it_yours_viewed` and `confirmation_viewed` is the signal that they kept Zen.
+A user who tapped Continue without picking shows up as `onboarding_step_viewed{step: make_it_yours}` followed by `onboarding_step_viewed{step: confirmation}` with no `theme_changed` in between. That absence is the "kept Zen" signal.
 
 ### Testing
 
-- **Component test for `MakeItYoursScreen`** (RNTL):
+There are **no existing `PersonalizeScreen` tests** and the existing `completion.test.ts` asserts finalization logic only — it does not exercise screen-to-screen navigation. So the migration burden on existing tests is minimal; the new tests below carry most of the coverage.
+
+- **`MakeItYoursScreen.test.tsx`** (RNTL):
   - Renders three theme cards with Zen pre-selected.
-  - Microcopy reminder is present.
-  - Tapping a non-active card calls into the same download path as Settings (mock `loadFontsFor`).
-  - Tapping Continue calls `update({ step: "confirmation" })` and pushes.
-- **Navigation flow test:**
-  - From Personalize, passing the worst-day check pushes to `make-it-yours` (not directly to `confirmation`).
-  - From Make-it-yours, Continue pushes to `confirmation`.
-  - Back from Make-it-yours returns to Personalize.
-- **`OnboardingStep` type test:** the resumption logic in [`OnboardingProvider`](../../../src/features/onboarding/OnboardingProvider.tsx) routes a draft with `step: "make-it-yours"` to the new screen.
-- **Confirmation renders in chosen theme:** asserted via theme context — if `setActiveTheme("cafe")` was called during the previous step, the Confirmation card should pick up Cafe's `surfaceCard` color.
+  - Reminder microcopy is present.
+  - Tapping a non-active card invokes the shared `useThemePicker` flow (mock `loadFontsFor` and `setPreference`).
+  - Tapping Continue calls `update({ step: "confirmation" })` and pushes `/(onboarding)/confirmation`.
+  - No `OnboardingHeader` `onBack` is wired.
+- **Hook test `useThemePicker.test.tsx`**: covers the orchestration (Alert flow, abort on rapid retap, error classification, retry). Replaces what would have been duplicated logic between `AppearanceScreen.test.tsx` and `MakeItYoursScreen.test.tsx`.
+- **`AppearanceScreen.test.tsx`** (existing, [`AppearanceScreen.test.tsx`](../../../src/features/settings/screens/__tests__/AppearanceScreen.test.tsx)): after refactor, this should still pass without behaviour changes. If it currently asserts internals of the inline `ThemeCard` / orchestration, it shifts to asserting the integration with the extracted hook/components.
+- **`STEP_TO_HREF` exhaustiveness**: adding `"make-it-yours"` to `OnboardingStep` makes TypeScript flag the missing entry. The implementation adds it; no separate test needed beyond `tsc`.
+- **Resumption test:** add a unit test that `STEP_TO_HREF["make-it-yours"]` resolves to the new route, and that a hydrated draft with `step: "make-it-yours"` redirects there via `<OnboardingIndex>`.
+- **Confirmation renders in chosen theme**: light assertion via theme context — if `setActiveTheme("cafe")` was called during the previous step, the Confirmation card's `surfaceCard` color matches Cafe's palette.
 
 ---
 
@@ -149,16 +166,23 @@ No new event for "continued without changing" — absence of `theme_changed` bet
 **New:**
 - `app/(onboarding)/make-it-yours.tsx` — route
 - `src/features/onboarding/screens/MakeItYoursScreen.tsx` — screen component
-- `src/features/settings/components/ThemeCard.tsx` — extracted shared card component
-- `src/features/onboarding/screens/__tests__/MakeItYoursScreen.test.tsx` — component tests
+- `src/features/settings/hooks/useThemePicker.ts` — extracted orchestration hook
+- `src/features/settings/components/ThemeCard.tsx` — extracted card (with optional `downloadSizeBytes` prop)
+- `src/features/settings/components/ThemePickerOverlay.tsx` — extracted loading overlay
+- `src/features/settings/components/ThemeLoadErrorBanner.tsx` — extracted error banner
+- `src/features/onboarding/screens/__tests__/MakeItYoursScreen.test.tsx`
+- `src/features/settings/hooks/__tests__/useThemePicker.test.tsx`
 
 **Modified:**
-- `src/features/onboarding/types.ts` — add `"make-it-yours"` to `OnboardingStep` and `KNOWN_DRAFT_KEYS` is unaffected (no new draft field)
-- `src/features/onboarding/screens/PersonalizeScreen.tsx` — `handlePass` routes to `make-it-yours` instead of `confirmation`
-- `src/features/settings/screens/AppearanceScreen.tsx` — import the extracted `ThemeCard` instead of declaring it inline
-- `src/components/navigation/OnboardingHeader.tsx` — bump default `totalSteps` from 6 to 7
-- Existing onboarding flow tests that assert navigation after worst-day pass
+- `src/features/onboarding/types.ts` — add `"make-it-yours"` to `OnboardingStep`. `KNOWN_DRAFT_KEYS` unaffected (no new draft field).
+- `src/features/onboarding/screens/PersonalizeScreen.tsx` — `handlePass` routes to `make-it-yours` instead of `confirmation` (one-line change to `step` and `router.push` path).
+- `app/(onboarding)/index.tsx` — add `"make-it-yours": "/(onboarding)/make-it-yours"` to the `STEP_TO_HREF` record so the type stays exhaustive and resumption works.
+- `src/features/settings/screens/AppearanceScreen.tsx` — replace inline `ThemeCard` declaration, `applyTheme` / `onCardPress` logic, overlay, and error banner with imports of the extracted pieces. Behaviour unchanged.
+- `src/components/navigation/OnboardingHeader.tsx` — bump default `totalSteps` from 6 to 7.
 
 ## Open questions
 
-None blocking. The download UX decision (option i) is captured. The microcopy wording can be tuned in implementation review.
+None blocking. The download UX decision (option i) is captured, the shared-extraction shape is specified, the back-button decision is locked. Two minor implementation-time judgements:
+
+- Whether the size caption hides entirely when cached, or swaps to a quieter label like "Already downloaded".
+- Whether the existing Alert wording ("Connect to Wi-Fi if you're on cellular") reads naturally in the onboarding context. Branch the hook by a small optional prop if not.
