@@ -7,16 +7,22 @@ type OnboardingHeaderProps = {
   currentStep: number;
   totalSteps?: number;
   onBack?: () => void;
+  showBack?: boolean;
 };
 
 export function OnboardingHeader({
   currentStep,
-  totalSteps = 6,
+  totalSteps = 7,
   onBack,
+  showBack = true,
 }: OnboardingHeaderProps) {
   return (
     <View style={styles.container}>
-      <BackButton onPress={onBack} />
+      {showBack ? (
+        <BackButton onPress={onBack} />
+      ) : (
+        <View accessibilityElementsHidden style={styles.backSpacer} />
+      )}
       <ProgressBar currentStep={currentStep} totalSteps={totalSteps} />
     </View>
   );
@@ -28,5 +34,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 16,
     marginBottom: 44,
+  },
+  backSpacer: {
+    width: 40,
+    height: 40,
   },
 });
