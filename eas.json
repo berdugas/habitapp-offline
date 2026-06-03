@@ -9,8 +9,11 @@
       "distribution": "internal"
     },
     "preview": {
-      "distribution": "internal",
+      "autoIncrement": true,
       "environment": "preview",
+      "android": {
+        "buildType": "app-bundle"
+      },
       "env": {
         "EXPO_PUBLIC_SUPABASE_URL": "https://wrytjnucrxsqdrbwxsgi.supabase.co",
         "EXPO_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_Z2UH1JiwC0-J3avCmPsaiA_0a8ednfT"
