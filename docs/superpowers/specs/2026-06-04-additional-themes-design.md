@@ -35,7 +35,8 @@ After this work the registry holds six themes. Theme selection remains local-onl
 | Energy display font | Limelight is single-weight (400) with no italic. `displayBold` / `displaySemi` / `displaySemiItalic` all reference `Limelight_400Regular` — mirrors Fantasy's NewRocker pattern, no contract violation. |
 | Sound `primaryText` | `#000000` (black on Spotify Green) — different from Play's white-on-blue. The contract permits either; this is correct per Spotify's identity. |
 | Identity gaps left on the table | PlayStation's hover-scale-1.2× interaction (touch UI has no hover) and Spotify's uppercase + wide-letter-spacing buttons (no `letterSpacing` token in contract) cannot be captured. Energy's "thick borders" identity (no `borderWidth` token) also cannot. Deliberate omissions per Approach A — extending the contract for these would touch all ~90 themed components and risks regressing the just-shipped theme system. |
-| Picker UX | Unchanged. `AppearanceScreen.tsx` iterates `Object.values(THEMES)`, so the three new theme cards render automatically with their per-theme preview SVGs. |
+| Picker UX | Unchanged. `AppearanceScreen.tsx` (Settings) and `MakeItYoursScreen.tsx` (onboarding step 7) both iterate `Object.values(THEMES)`, so the three new theme cards render automatically in both pickers with their per-theme preview SVGs. |
+| Sound `success` overlaps `primary` | Both are `#1ed760`. Toasts and validation marks in Sound are visually indistinguishable from primary actions — intentional per Spotify identity (green is both brand and success), but called out so consumers don't assume they're separate hues. |
 | Preview SVGs | Generated via the existing opentype.js text-to-path pipeline (same as Zen/Cafe/Fantasy), committed as static strings in `previews/index.ts`. |
 
 ---
@@ -128,7 +129,7 @@ Seven font files. `Inter_400Regular` is referenced by both `displaySemi` and `bo
 | `heatSkipped` | `#FCD34D` | Sunny yellow skip marker |
 | `heatMissed` | `#FFE4C4` | Muted peach empty cell |
 | `offDayBorder` | `#FED7AA` | |
-| `graduatedCircle` | `#F59E0B` | Amber graduated ring |
+| `graduatedCircle` | `#9A3412` | Deep burnt-orange ring (originally `#F59E0B` amber but that paired at 1.76:1 on the badge, failing AA Normal — tightened to match `textMuted` for ~6.9:1) |
 | `graduatedBadge` | `#FFE4C4` | |
 
 **Fonts (Limelight + Work Sans, remote):**
@@ -229,13 +230,16 @@ Six font files: `400`, `500`, `600`, `600 Italic`, `700`, `800`. The `DMSans_600
 | `src/theme/registry.ts` | Import new themes, add to `THEMES` record, extend `isKnownThemeId` literal checks |
 | `src/theme/__tests__/registry.test.ts` | Assert presence of `play`, `energy`, `sound` IDs |
 | `src/theme/__tests__/contract.test.ts` | Update the hard-coded `ThemeId[]` literal and length assertion from 3 → 6 |
-| `src/theme/__tests__/contrast.test.ts` | Add three `textFaint` waivers each for `play`, `energy`, `sound` (matches the universal pattern from Zen/Cafe/Fantasy) |
+| `src/theme/__tests__/contrast.test.ts` | Add three `textFaint` waivers each for `play`, `energy`, `sound` (matches the universal pattern from Zen/Cafe/Fantasy). Energy's `graduatedCircle`/`graduatedBadge` pair is tightened to pass AA Normal — no waiver needed. |
+| `src/theme/__tests__/ThemeProvider.test.tsx` | Widen the hard-coded `let captured: ((id: "zen" \| "cafe" \| "fantasy") => void)` literal to `ThemeId`. Still compiles today via function-parameter bivariance, but the literal disagrees with the contract once `ThemeId` expands. |
+| `src/features/onboarding/screens/__tests__/MakeItYoursScreen.test.tsx` | Existing assertions for `theme-card-zen/cafe/fantasy` testIDs are non-exclusive and continue to pass. No new assertions added — the catalog-driven render is already covered by `AppearanceScreen` tests, and adding three more here would duplicate intent. Decision called out so reviewers don't expect it. |
 
 ### 4.2 No-touch zones
 
 These are explicitly **not** modified, and we should reject any plan task that proposes to:
 
 - `AppearanceScreen.tsx` — iterates `Object.values(THEMES)`, so new themes auto-render
+- `MakeItYoursScreen.tsx` (onboarding step 7) — same catalog-driven render pattern
 - `useThemePicker.ts` — agnostic to theme IDs
 - The ~90 themed components — they consume contract tokens, which haven't changed shape
 - `ThemeProvider.tsx`, `useTheme.ts`, `useThemedStyles.ts` — unchanged
@@ -246,7 +250,7 @@ These are explicitly **not** modified, and we should reject any plan task that p
 | Family | Bucket path | Files |
 |---|---|---|
 | Inter (Play) | `fonts/v1/inter/` | 300, 400, 400-italic, 500, 600, 700, 800 (7 files) |
-| DM Sans (Sound) | `fonts/v1/dm-sans/` | 400, 500, 600, 600-italic, 700, 800 (6 files) |
+| DM Sans (Sound) | `fonts/v1/dm-sans/` | 400, 500, 600, 600-italic, 700, 800 (6 files) — **`DMSans_600SemiBold_Italic` and `DMSans_800ExtraBold` are the highest-risk cuts**: older static DM Sans distributions only shipped 400/500/700 + italics. Implementation must verify these two cuts are available from the chosen source (Google Fonts v3 or the variable font subset) before relying on them. If unavailable, fall back to `500_Medium_Italic` and `700_Bold` respectively. |
 | Limelight (Energy) | `fonts/v1/limelight/` | 400 (1 file) |
 | Work Sans (Energy) | `fonts/v1/work-sans/` | 400, 500, 600, 700, 800 (5 files) |
 
@@ -254,7 +258,9 @@ These are explicitly **not** modified, and we should reject any plan task that p
 
 ### 4.4 Preview SVG generation
 
-Generated by the same opentype.js text-to-path script used for Zen/Cafe/Fantasy (240×80 viewBox, theme name in display font + tagline). Output committed as static strings in `previews/index.ts`. The opentype.js NaN-float bug is known (see memory `state_theming.md`) and the existing workaround applies.
+Generated via opentype.js text-to-path (240×80 viewBox, theme name in display font + tagline), same approach used for Zen/Cafe/Fantasy. Output committed as static strings in `previews/index.ts`.
+
+The original generation script was a one-off and is not currently checked in (only `scripts/generate_app_icon.py` lives in `scripts/`). The recipe lives in [docs/superpowers/plans/2026-05-29-themes-pr1-infra.md §0b](../plans/2026-05-29-themes-pr1-infra.md). **Implementation must commit a reusable preview-generation script** (suggested path: `scripts/generate_theme_previews.mjs`) so future themes don't reinvent the recipe. The script must carry the opentype.js NaN-float workaround called out in memory `state_theming.md` — render glyph-by-glyph, bypass the shaper for fonts with substitution tables, validate path coordinates for `NaN` before serializing.
 
 ---
 
@@ -277,6 +283,7 @@ Generated by the same opentype.js text-to-path script used for Zen/Cafe/Fantasy 
 3. **Identity gaps from contract limits.** PlayStation's hover-scale-1.2×, Spotify's uppercase+wide-tracking buttons, and Energy's thick borders are not capturable token-wise. Deliberately deferred — fixing them requires `letterSpacing` / `borderWidth` / interaction tokens that would touch ~90 components and is out of scope for this work.
 4. **Status bar / splash on dark themes.** The v1 theme system doesn't theme the status bar or splash screen. On Play and Sound, the OS status bar (and any white splash flash on app launch) won't match the dark canvas. Out of scope here but worth flagging for follow-up.
 5. **Bundle size impact: none.** All fonts are remote. App binary size unchanged.
+6. **Mount-time cache fan-out doubles.** `useThemePicker.ts:41–63` runs `areAllFontsCached(t)` for every theme on mount and eagerly `loadFontsFor` any non-active that's already cached. With six themes the fan-out doubles vs the v1 three-theme baseline. A user who has activated all themes at least once would preload roughly 30 font files (vs ~11 today) on app start. Not a regression of the v1 design — just a linear scale-out worth noting. If startup latency suffers, the loop is the place to look.
 
 ---
 
