@@ -129,7 +129,7 @@ Seven font files. `Inter_400Regular` is referenced by both `displaySemi` and `bo
 | `heatSkipped` | `#FCD34D` | Sunny yellow skip marker |
 | `heatMissed` | `#FFE4C4` | Muted peach empty cell |
 | `offDayBorder` | `#FED7AA` | |
-| `graduatedCircle` | `#9A3412` | Deep burnt-orange ring (originally `#F59E0B` amber but that paired at 1.76:1 on the badge, failing AA Normal — tightened to match `textMuted` for ~6.9:1) |
+| `graduatedCircle` | `#9A3412` | Deep burnt-orange ring (originally `#F59E0B` amber but that paired at 1.76:1 on the badge, failing AA Normal — tightened to match `textMuted` for ~6.0:1). **Note:** this hex equals `textMuted`. If a future layout places muted labels adjacent to the graduated ring, they'll share a hue; identity-separation now relies on shape, not color. Flag for §5 device smoke in Energy. |
 | `graduatedBadge` | `#FFE4C4` | |
 
 **Fonts (Limelight + Work Sans, remote):**
@@ -233,6 +233,7 @@ Six font files: `400`, `500`, `600`, `600 Italic`, `700`, `800`. The `DMSans_600
 | `src/theme/__tests__/contrast.test.ts` | Add three `textFaint` waivers each for `play`, `energy`, `sound` (matches the universal pattern from Zen/Cafe/Fantasy). Energy's `graduatedCircle`/`graduatedBadge` pair is tightened to pass AA Normal — no waiver needed. |
 | `src/theme/__tests__/ThemeProvider.test.tsx` | Widen the hard-coded `let captured: ((id: "zen" \| "cafe" \| "fantasy") => void)` literal to `ThemeId`. Still compiles today via function-parameter bivariance, but the literal disagrees with the contract once `ThemeId` expands. |
 | `src/features/onboarding/screens/__tests__/MakeItYoursScreen.test.tsx` | Existing assertions for `theme-card-zen/cafe/fantasy` testIDs are non-exclusive and continue to pass. No new assertions added — the catalog-driven render is already covered by `AppearanceScreen` tests, and adding three more here would duplicate intent. Decision called out so reviewers don't expect it. |
+| `scripts/generate_theme_previews.mjs` | New file — reusable opentype.js text-to-path preview generator with the NaN-float workaround. See §4.4. |
 
 ### 4.2 No-touch zones
 
@@ -250,7 +251,7 @@ These are explicitly **not** modified, and we should reject any plan task that p
 | Family | Bucket path | Files |
 |---|---|---|
 | Inter (Play) | `fonts/v1/inter/` | 300, 400, 400-italic, 500, 600, 700, 800 (7 files) |
-| DM Sans (Sound) | `fonts/v1/dm-sans/` | 400, 500, 600, 600-italic, 700, 800 (6 files) — **`DMSans_600SemiBold_Italic` and `DMSans_800ExtraBold` are the highest-risk cuts**: older static DM Sans distributions only shipped 400/500/700 + italics. Implementation must verify these two cuts are available from the chosen source (Google Fonts v3 or the variable font subset) before relying on them. If unavailable, fall back to `500_Medium_Italic` and `700_Bold` respectively. |
+| DM Sans (Sound) | `fonts/v1/dm-sans/` | 400, 500, 600, 600-italic, 700, 800 (6 files) — **`DMSans_600SemiBold_Italic` and `DMSans_800ExtraBold` are the highest-risk cuts**: older static DM Sans distributions only shipped 400/500/700 + italics. Implementation must verify these two cuts are available from the chosen source (Google Fonts v3 or the variable font subset) before relying on them. If unavailable, fall back to `500_Medium_Italic` and `700_Bold` respectively. **Fallback note:** if the 800 cut collapses to 700, Sound's `bodyBold` and `bodyExtraBold` will resolve to the same file — extra-bold body text loses its weight distinction. Acceptable since extra-bold body is rare in this app, but a future themer reading the slot map should be aware. |
 | Limelight (Energy) | `fonts/v1/limelight/` | 400 (1 file) |
 | Work Sans (Energy) | `fonts/v1/work-sans/` | 400, 500, 600, 700, 800 (5 files) |
 
