@@ -1,4 +1,4 @@
-export type ThemeId = "zen" | "cafe" | "fantasy";
+export type ThemeId = "zen" | "cafe" | "fantasy" | "play" | "energy" | "sound";
 
 export type Colors = {
   bg: string;

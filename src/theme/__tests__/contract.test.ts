@@ -1,9 +1,9 @@
 import type { Theme, ThemeId, Colors, FontAssets } from "@/theme/contract";
 
 describe("Theme contract", () => {
-  it("ThemeId is a fixed union of three ids", () => {
-    const valid: ThemeId[] = ["zen", "cafe", "fantasy"];
-    expect(valid).toHaveLength(3);
+  it("ThemeId is a fixed union of six ids", () => {
+    const valid: ThemeId[] = ["zen", "cafe", "fantasy", "play", "energy", "sound"];
+    expect(valid).toHaveLength(6);
   });
 
   it("Colors has all 23 required fields", () => {
