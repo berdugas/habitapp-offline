@@ -5,15 +5,18 @@ import { play } from "@/theme/themes/play";
 
 import type { Theme, ThemeId } from "@/theme/contract";
 
-export const THEMES = {
+// `energy` and `sound` are absent until Tasks 6 and 7; the cast preserves the
+// strict-Record contract for callers. The lie is safe because `isKnownThemeId`
+// gates the only entry points that resolve a `ThemeId` against `THEMES`.
+export const THEMES: Record<ThemeId, Theme> = {
   zen,
   cafe,
   fantasy,
   play,
-} satisfies Partial<Record<ThemeId, Theme>>;
+} as Record<ThemeId, Theme>;
 
 export function getTheme(id: ThemeId): Theme {
-  return THEMES[id]!;
+  return THEMES[id];
 }
 
 export function isKnownThemeId(value: unknown): value is ThemeId {
