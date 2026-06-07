@@ -40,9 +40,10 @@ function loadFont(path) {
 }
 
 function renderTextToPath(font, text, x, y, fontSize) {
-  // Glyph-by-glyph render bypasses the shaper, which throws on some fonts'
-  // substitution tables (Plus Jakarta Sans). Returns SVG path `d` string.
-  const glyphs = font.stringToGlyphs(text);
+  // charToGlyph per code-point bypasses the OpenType shaper entirely, which
+  // throws on some fonts' substitution tables (Plus Jakarta Sans, Inter).
+  // Returns SVG path `d` string.
+  const glyphs = Array.from(text).map((ch) => font.charToGlyph(ch));
   const fontScale = (1 / font.unitsPerEm) * fontSize;
   let cursor = x;
   const commands = [];
