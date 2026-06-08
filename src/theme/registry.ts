@@ -3,19 +3,18 @@ import { cafe } from "@/theme/themes/cafe";
 import { fantasy } from "@/theme/themes/fantasy";
 import { play } from "@/theme/themes/play";
 import { energy } from "@/theme/themes/energy";
+import { sound } from "@/theme/themes/sound";
 
 import type { Theme, ThemeId } from "@/theme/contract";
 
-// `sound` is absent until Task 7; the cast preserves the strict-Record
-// contract for callers. The lie is safe because `isKnownThemeId` gates the
-// only entry points that resolve a `ThemeId` against `THEMES`.
 export const THEMES: Record<ThemeId, Theme> = {
   zen,
   cafe,
   fantasy,
   play,
   energy,
-} as Record<ThemeId, Theme>;
+  sound,
+};
 
 export function getTheme(id: ThemeId): Theme {
   return THEMES[id];
@@ -27,6 +26,7 @@ export function isKnownThemeId(value: unknown): value is ThemeId {
     value === "cafe" ||
     value === "fantasy" ||
     value === "play" ||
-    value === "energy"
+    value === "energy" ||
+    value === "sound"
   );
 }
