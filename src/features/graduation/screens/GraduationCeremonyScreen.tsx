@@ -15,6 +15,7 @@ import { useRecordGraduationMutation } from "@/features/graduation/hooks";
 import { scoreGraduation } from "@/features/graduation/graduation";
 import { useHabitDetail } from "@/features/habits/hooks";
 import { useTrialValidation } from "@/features/trial/hooks";
+import { isReadOnly as computeIsReadOnly } from "@/features/trial/accessMode";
 import { useTheme } from "@/theme/useTheme";
 import { useThemedStyles } from "@/theme/useThemedStyles";
 import { daysBetweenDates } from "@/utils/dates";
@@ -65,7 +66,7 @@ export default function GraduationCeremonyScreen() {
   const habitId = normalizeHabitId(habitIdParam);
   const insets = useSafeAreaInsets();
   const { accessMode } = useTrialValidation();
-  const isReadOnly = accessMode === "read_only";
+  const isReadOnly = computeIsReadOnly(accessMode);
   const habitDetail = useHabitDetail(habitId);
   const recordGraduation = useRecordGraduationMutation();
   const theme = useTheme();

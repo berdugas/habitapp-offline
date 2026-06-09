@@ -18,6 +18,7 @@ import {
   useRestoreGoalMutation,
 } from "@/features/habits/hooks";
 import { useTrialValidation } from "@/features/trial/hooks";
+import { isReadOnly as computeIsReadOnly } from "@/features/trial/accessMode";
 import {
   getDeleteGoalErrorMessage,
   getRestoreGoalErrorMessage,
@@ -138,7 +139,7 @@ export default function ArchivedGoalDetailScreen() {
   const insets = useSafeAreaInsets();
 
   const { accessMode, isValidating, refresh } = useTrialValidation();
-  const isReadOnly = accessMode === "read_only";
+  const isReadOnly = computeIsReadOnly(accessMode);
 
   // Query returns ALL habits under the phrase (every status), not just
   // archived. We need the full picture to gate on "fully archived" —

@@ -21,6 +21,7 @@ import {
   useUpsertWeeklyReviewMutation,
 } from "@/features/reviews/hooks";
 import { useTrialValidation } from "@/features/trial/hooks";
+import { isReadOnly as computeIsReadOnly } from "@/features/trial/accessMode";
 import { useThemedStyles } from "@/theme/useThemedStyles";
 import { getWeekStartDateString } from "@/utils/dates";
 import { normalizeParam } from "@/utils/params";
@@ -215,7 +216,7 @@ export default function WeeklyReviewScreen() {
   const returnTo = normalizeReturnTo(returnToParam);
   const weekStart = getWeekStartDateString();
   const { accessMode } = useTrialValidation();
-  const isReadOnly = accessMode === "read_only";
+  const isReadOnly = computeIsReadOnly(accessMode);
   const habitDetail = useHabitDetail(habitId);
   const currentReviewQuery = useCurrentWeeklyReviewQuery(habitId);
   const upsertWeeklyReviewMutation = useUpsertWeeklyReviewMutation();

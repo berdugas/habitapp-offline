@@ -36,6 +36,7 @@ import { openGoalWeeklyReview } from "@/features/reviews/openReview";
 import { useGoalDetail } from "@/features/today/hooks";
 import { getStreakCopy } from "@/features/today/streakCopy";
 import { useTrialValidation } from "@/features/trial/hooks";
+import { isReadOnly as computeIsReadOnly } from "@/features/trial/accessMode";
 import { trackEvent } from "@/services/analytics";
 import {
   goalIdFor,
@@ -248,7 +249,7 @@ export default function GoalDetailScreen() {
   const insets = useSafeAreaInsets();
 
   const { accessMode, isValidating, refresh } = useTrialValidation();
-  const isReadOnly = accessMode === "read_only";
+  const isReadOnly = computeIsReadOnly(accessMode);
 
   const {
     earliestStartDate,

@@ -37,6 +37,7 @@ import {
 } from "@/features/habits/validators";
 import { getHabitSuggestionEditGuidance } from "@/features/recommendations/editGuidance";
 import { useTrialValidation } from "@/features/trial/hooks";
+import { isReadOnly as computeIsReadOnly } from "@/features/trial/accessMode";
 import { useTheme } from "@/theme/useTheme";
 import { useThemedStyles } from "@/theme/useThemedStyles";
 import {
@@ -281,7 +282,7 @@ export default function EditHabitScreen() {
   const ownedHabitQuery = useOwnedHabitQuery(habitId);
   const updateHabitMutation = useUpdateHabitMutation();
   const { accessMode, isValidating, refresh } = useTrialValidation();
-  const isReadOnly = accessMode === "read_only";
+  const isReadOnly = computeIsReadOnly(accessMode);
   const hasHydratedFormRef = useRef(false);
   const submitLockRef = useRef(false);
   const tinyActionRef = useRef<TextInput>(null);

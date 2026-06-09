@@ -38,6 +38,7 @@ import {
 } from "@/features/recovery/api";
 import { useArchiveHabitMutation } from "@/features/habits/hooks";
 import { useTrialValidation } from "@/features/trial/hooks";
+import { isReadOnly as computeIsReadOnly } from "@/features/trial/accessMode";
 import { setPreference } from "@/lib/db/repositories/preferences";
 import { useTheme } from "@/theme/useTheme";
 import { useThemedStyles } from "@/theme/useThemedStyles";
@@ -170,7 +171,7 @@ export default function TodayScreen() {
   const statusSubmitLockRef = useRef(false);
   const recoveryActionLockRef = useRef(false);
   const { accessMode, isValidating, refresh } = useTrialValidation();
-  const isReadOnly = accessMode === "read_only";
+  const isReadOnly = computeIsReadOnly(accessMode);
 
   const habitRefs = habits.map((h) => ({
     id: h.id,

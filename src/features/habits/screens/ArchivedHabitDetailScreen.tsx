@@ -18,6 +18,7 @@ import {
   useRestoreHabitMutation,
 } from "@/features/habits/hooks";
 import { useTrialValidation } from "@/features/trial/hooks";
+import { isReadOnly as computeIsReadOnly } from "@/features/trial/accessMode";
 import {
   getDeleteHabitErrorMessage,
   getRestoreHabitErrorMessage,
@@ -121,7 +122,7 @@ export default function ArchivedHabitDetailScreen() {
   );
 
   const { accessMode, isValidating, refresh } = useTrialValidation();
-  const isReadOnly = accessMode === "read_only";
+  const isReadOnly = computeIsReadOnly(accessMode);
 
   const query = useOwnedHabitQuery(habitId);
   const restoreHabitMutation = useRestoreHabitMutation();
