@@ -1,13 +1,10 @@
 import { TRIAL_GRACE_PERIOD_DAYS } from "@/features/trial/types";
-import type { AccessMode } from "@/features/trial/types";
-
-export type ComputeAccessModeInput = {
-  lastValidatedAt: string | null;
-  now: Date;
-};
+import type { AccessMode, ComputeAccessModeInput } from "@/features/trial/types";
 
 export function computeAccessMode({
   lastValidatedAt,
+  entitlementStatus: _entitlementStatus,
+  trialEndsAt: _trialEndsAt,
   now,
 }: ComputeAccessModeInput): AccessMode {
   // (D4) Strict invariant: no cache → read_only.

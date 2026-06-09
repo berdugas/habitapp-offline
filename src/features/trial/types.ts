@@ -30,3 +30,18 @@ export type AccessMode = "full" | "read_only" | "expired_no_purchase";
 export const TRIAL_GRACE_PERIOD_DAYS = 90;
 
 export const TRIAL_REVALIDATION_STALENESS_MINUTES = 60;
+
+// Inputs to computeAccessMode. Lives here rather than in grace.ts so the
+// trial context provider can build it without importing the function.
+//
+// entitlementStatus + trialEndsAt are optional so that the pre-existing
+// buildTrialContextValue caller (and any future test fixture) continues
+// to typecheck during the intermediate commits before Task 6 wires them
+// up. When undefined, computeAccessMode behaves identically to its old
+// staleness-only logic.
+export type ComputeAccessModeInput = {
+  lastValidatedAt: string | null;
+  entitlementStatus?: TrialEntitlementStatus | null;
+  trialEndsAt?: string | null;
+  now: Date;
+};
