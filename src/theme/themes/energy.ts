@@ -64,12 +64,12 @@ export const energy: Theme = {
   fontAssets: {
     kind: "remote",
     assets: {
-      Limelight_400Regular: { uri: "https://wrytjnucrxsqdrbwxsgi.supabase.co/storage/v1/object/public/fonts/v1/limelight/Limelight_400Regular.ttf", hash: "5d2c9f43d8cb4d49481a39a33cdc2a9157b1fcbfb381063a11617ede209a105c", bytes: 128852 },
-      WorkSans_400Regular: { uri: "https://wrytjnucrxsqdrbwxsgi.supabase.co/storage/v1/object/public/fonts/v1/work-sans/WorkSans_400Regular.ttf", hash: "e67985a843df0d3cdee51a3d0f329eb1774a344ad9ff0c9ab923751f1577e2a4", bytes: 188916 },
-      WorkSans_500Medium: { uri: "https://wrytjnucrxsqdrbwxsgi.supabase.co/storage/v1/object/public/fonts/v1/work-sans/WorkSans_500Medium.ttf", hash: "557428ab4c90aded98ea1ee5b3a10bcdc90d2d8cfed5fd7bb572e669d05d392b", bytes: 189556 },
-      WorkSans_600SemiBold: { uri: "https://wrytjnucrxsqdrbwxsgi.supabase.co/storage/v1/object/public/fonts/v1/work-sans/WorkSans_600SemiBold.ttf", hash: "9220892ffd913cdb1b4cd874009557b2b1330f14366d363ec99393f5c50e08e1", bytes: 191016 },
-      WorkSans_700Bold: { uri: "https://wrytjnucrxsqdrbwxsgi.supabase.co/storage/v1/object/public/fonts/v1/work-sans/WorkSans_700Bold.ttf", hash: "240d125fc9f8561363dc1ea3f513501253bd70942f41468f48f0b0cafb0c82e2", bytes: 191304 },
-      WorkSans_800ExtraBold: { uri: "https://wrytjnucrxsqdrbwxsgi.supabase.co/storage/v1/object/public/fonts/v1/work-sans/WorkSans_800ExtraBold.ttf", hash: "6fa666d8281f8f21c93d375e4a6cc73c03c51dff8fa70c5139945d92e81feef3", bytes: 192648 },
+      Limelight_400Regular: { uri: "https://wrytjnucrxsqdrbwxsgi.supabase.co/storage/v1/object/public/fonts/v1/limelight/Limelight_400Regular.ttf", hash: "7addeb941a135cc89ad7566aaeecce352717b98b42c114cdbf05babc5833179f", bytes: 128852 },
+      WorkSans_400Regular: { uri: "https://wrytjnucrxsqdrbwxsgi.supabase.co/storage/v1/object/public/fonts/v1/work-sans/WorkSans_400Regular.ttf", hash: "b20caf6d2470607d2e0313cd9e3a62fa26ff36b9226ea3cb6c26c74d4d048815", bytes: 188916 },
+      WorkSans_500Medium: { uri: "https://wrytjnucrxsqdrbwxsgi.supabase.co/storage/v1/object/public/fonts/v1/work-sans/WorkSans_500Medium.ttf", hash: "d7dc646d210001e1b60d7914c7ece4d34998087ce746e2a2c40aaf84382a982e", bytes: 189556 },
+      WorkSans_600SemiBold: { uri: "https://wrytjnucrxsqdrbwxsgi.supabase.co/storage/v1/object/public/fonts/v1/work-sans/WorkSans_600SemiBold.ttf", hash: "d5ae019dd75b3750adcfc7fc2c7dd9300b1c53ca470487a6fdc14aedaec04202", bytes: 191016 },
+      WorkSans_700Bold: { uri: "https://wrytjnucrxsqdrbwxsgi.supabase.co/storage/v1/object/public/fonts/v1/work-sans/WorkSans_700Bold.ttf", hash: "fdff6e2060aa9f26e75b72f77d3a7c815df5fefbc566a2f25795a928865bbbe2", bytes: 191304 },
+      WorkSans_800ExtraBold: { uri: "https://wrytjnucrxsqdrbwxsgi.supabase.co/storage/v1/object/public/fonts/v1/work-sans/WorkSans_800ExtraBold.ttf", hash: "55d8e67cb8c053d6514888010204b35dd9d3987ef94b52ee7cab9386a7b0891f", bytes: 192648 },
     },
   },
   previewSvg: energyPreviewSvg,

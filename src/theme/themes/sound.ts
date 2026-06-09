@@ -64,12 +64,12 @@ export const sound: Theme = {
   fontAssets: {
     kind: "remote",
     assets: {
-      DMSans_400Regular: { uri: "https://wrytjnucrxsqdrbwxsgi.supabase.co/storage/v1/object/public/fonts/v1/dm-sans/DMSans_400Regular.ttf", hash: "20ccb90498d8ca511bb0be31a74eccd5f29fbe1161852ef72781b703929e98ec", bytes: 56344 },
-      DMSans_500Medium: { uri: "https://wrytjnucrxsqdrbwxsgi.supabase.co/storage/v1/object/public/fonts/v1/dm-sans/DMSans_500Medium.ttf", hash: "568dafd2db3728534b42c064e63ed1ff45ec97739bc21e407123dfddcb2ad255", bytes: 56376 },
-      DMSans_600SemiBold: { uri: "https://wrytjnucrxsqdrbwxsgi.supabase.co/storage/v1/object/public/fonts/v1/dm-sans/DMSans_600SemiBold.ttf", hash: "b3ee9c6f271318066adae56c3033e6e4192f88f5d127cb507686d89a0a269168", bytes: 56336 },
-      DMSans_600SemiBold_Italic: { uri: "https://wrytjnucrxsqdrbwxsgi.supabase.co/storage/v1/object/public/fonts/v1/dm-sans/DMSans_600SemiBold_Italic.ttf", hash: "f687d72597eccee00638b2558bb94853d865a04eb58c9329c7db0553aeb4f2a4", bytes: 61232 },
-      DMSans_700Bold: { uri: "https://wrytjnucrxsqdrbwxsgi.supabase.co/storage/v1/object/public/fonts/v1/dm-sans/DMSans_700Bold.ttf", hash: "3764a2ce62fa95596c3315c1a0ca379e7cf827ed397c97fc036925b9b20b74dc", bytes: 56268 },
-      DMSans_800ExtraBold: { uri: "https://wrytjnucrxsqdrbwxsgi.supabase.co/storage/v1/object/public/fonts/v1/dm-sans/DMSans_800ExtraBold.ttf", hash: "25a515104f48016abc6fbb0d91308bcc155fc794d1ff9a52f14d0d628f8e5e82", bytes: 56316 },
+      DMSans_400Regular: { uri: "https://wrytjnucrxsqdrbwxsgi.supabase.co/storage/v1/object/public/fonts/v1/dm-sans/DMSans_400Regular.ttf", hash: "13e16ee918d0832af606426c5560b20f950be4753b5b7f01b102942fbaff57ce", bytes: 56344 },
+      DMSans_500Medium: { uri: "https://wrytjnucrxsqdrbwxsgi.supabase.co/storage/v1/object/public/fonts/v1/dm-sans/DMSans_500Medium.ttf", hash: "51b4196cdf129d6cce28d4793077c09a67691f1b4dbb4b765e6b644973fb6eb6", bytes: 56376 },
+      DMSans_600SemiBold: { uri: "https://wrytjnucrxsqdrbwxsgi.supabase.co/storage/v1/object/public/fonts/v1/dm-sans/DMSans_600SemiBold.ttf", hash: "8672d2c2b34f69e73d8ab7e0a4dda91f47befddd14ac2a5b71b77fdaffd87d05", bytes: 56336 },
+      DMSans_600SemiBold_Italic: { uri: "https://wrytjnucrxsqdrbwxsgi.supabase.co/storage/v1/object/public/fonts/v1/dm-sans/DMSans_600SemiBold_Italic.ttf", hash: "cc8c73a3135a35ccb06237e2d0df20c51daee5d1d69c79f734aba096d4e980f6", bytes: 61232 },
+      DMSans_700Bold: { uri: "https://wrytjnucrxsqdrbwxsgi.supabase.co/storage/v1/object/public/fonts/v1/dm-sans/DMSans_700Bold.ttf", hash: "c309bc0c357d8dc543906c4f804caa5716e4e8a73da9439d84177ba817812357", bytes: 56268 },
+      DMSans_800ExtraBold: { uri: "https://wrytjnucrxsqdrbwxsgi.supabase.co/storage/v1/object/public/fonts/v1/dm-sans/DMSans_800ExtraBold.ttf", hash: "8a716e1dd893e384f9df5e6b9e5586cd4301649a85d9da295be997fa08439962", bytes: 56316 },
     },
   },
   previewSvg: soundPreviewSvg,
