@@ -4,7 +4,6 @@ import { ChevronLeft } from "lucide-react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { ReadOnlyBanner } from "@/components/ReadOnlyBanner";
 import { SecondaryButton } from "@/components/buttons/SecondaryButton";
 import { ZenCard } from "@/components/cards/ZenCard";
 import { DangerZone } from "@/components/sections/DangerZone";
@@ -17,8 +16,9 @@ import {
   useOwnedHabitQuery,
   useRestoreHabitMutation,
 } from "@/features/habits/hooks";
-import { useTrialValidation } from "@/features/trial/hooks";
+import { AccessGateBanner } from "@/features/trial/AccessGateBanner";
 import { isReadOnly as computeIsReadOnly } from "@/features/trial/accessMode";
+import { useTrialValidation } from "@/features/trial/hooks";
 import {
   getDeleteHabitErrorMessage,
   getRestoreHabitErrorMessage,
@@ -289,12 +289,11 @@ export default function ArchivedHabitDetailScreen() {
       contentInsetAdjustmentBehavior="automatic"
       style={styles.screen}
     >
-      {isReadOnly ? (
-        <ReadOnlyBanner
-          isReconnecting={isValidating}
-          onReconnect={() => void refresh()}
-        />
-      ) : null}
+      <AccessGateBanner
+        accessMode={accessMode}
+        isReconnecting={isValidating}
+        onReconnect={() => void refresh()}
+      />
 
       {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top + theme.spacing.lg }]}>

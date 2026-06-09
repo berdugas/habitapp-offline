@@ -17,7 +17,6 @@ import { ReminderPicker } from "@/components/forms/ReminderPicker";
 import { ErrorState } from "@/components/feedback/ErrorState";
 import { LoadingState } from "@/components/feedback/LoadingState";
 import { ActiveDaysPicker } from "@/components/forms/ActiveDaysPicker";
-import { ReadOnlyBanner } from "@/components/ReadOnlyBanner";
 import {
   useOwnedHabitQuery,
   useUpdateHabitMutation,
@@ -36,8 +35,9 @@ import {
   validateHabitSetupPayload,
 } from "@/features/habits/validators";
 import { getHabitSuggestionEditGuidance } from "@/features/recommendations/editGuidance";
-import { useTrialValidation } from "@/features/trial/hooks";
+import { AccessGateBanner } from "@/features/trial/AccessGateBanner";
 import { isReadOnly as computeIsReadOnly } from "@/features/trial/accessMode";
+import { useTrialValidation } from "@/features/trial/hooks";
 import { useTheme } from "@/theme/useTheme";
 import { useThemedStyles } from "@/theme/useThemedStyles";
 import {
@@ -442,9 +442,11 @@ export default function EditHabitScreen() {
       contentInsetAdjustmentBehavior="automatic"
       style={styles.screen}
     >
-      {isReadOnly ? (
-        <ReadOnlyBanner isReconnecting={isValidating} onReconnect={() => void refresh()} />
-      ) : null}
+      <AccessGateBanner
+        accessMode={accessMode}
+        isReconnecting={isValidating}
+        onReconnect={() => void refresh()}
+      />
 
       {/* Header */}
       <View style={{ paddingTop: insets.top + theme.spacing.lg }}>

@@ -28,6 +28,9 @@ export function computeAccessMode({
   // Branch 3: client-side guard. Even if the cached status still says
   // "trial", trust the device clock once trial_ends_at is in the past.
   // Catches the case where the server hasn't been re-fetched recently.
+  // (We intentionally trust the device clock here — for the beta window
+  // this is acceptable, since a malicious user could only LOCK THEMSELVES
+  // out, not extend access. Server-side flip-on-read is authoritative.)
   if (entitlementStatus === "trial" && trialEndsAt) {
     const trialEnd = new Date(trialEndsAt);
     if (!Number.isNaN(trialEnd.getTime()) && now.getTime() > trialEnd.getTime()) {

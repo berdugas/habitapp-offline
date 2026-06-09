@@ -5,7 +5,6 @@ import { router, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { MiniHeatmapStrip } from "@/components/MiniHeatmapStrip";
-import { ReadOnlyBanner } from "@/components/ReadOnlyBanner";
 import { SecondaryButton } from "@/components/buttons/SecondaryButton";
 import { TertiaryButton } from "@/components/buttons/TertiaryButton";
 import { ZenCard } from "@/components/cards/ZenCard";
@@ -35,8 +34,9 @@ import { useGoalReviewStatusQuery } from "@/features/reviews/hooks";
 import { openGoalWeeklyReview } from "@/features/reviews/openReview";
 import { useGoalDetail } from "@/features/today/hooks";
 import { getStreakCopy } from "@/features/today/streakCopy";
-import { useTrialValidation } from "@/features/trial/hooks";
+import { AccessGateBanner } from "@/features/trial/AccessGateBanner";
 import { isReadOnly as computeIsReadOnly } from "@/features/trial/accessMode";
+import { useTrialValidation } from "@/features/trial/hooks";
 import { trackEvent } from "@/services/analytics";
 import {
   goalIdFor,
@@ -526,12 +526,11 @@ export default function GoalDetailScreen() {
       contentInsetAdjustmentBehavior="automatic"
       style={styles.screen}
     >
-      {isReadOnly ? (
-        <ReadOnlyBanner
-          isReconnecting={isValidating}
-          onReconnect={() => void refresh()}
-        />
-      ) : null}
+      <AccessGateBanner
+        accessMode={accessMode}
+        isReconnecting={isValidating}
+        onReconnect={() => void refresh()}
+      />
 
       {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top + theme.spacing.lg }]}>

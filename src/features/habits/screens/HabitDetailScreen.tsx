@@ -5,7 +5,6 @@ import { Bell, ChevronLeft, Pencil } from "lucide-react-native";
 import { router, useLocalSearchParams } from "expo-router";
 
 import type { HeatmapLog } from "@/components/CalendarGrid";
-import { ReadOnlyBanner } from "@/components/ReadOnlyBanner";
 import { PrimaryButton } from "@/components/buttons/PrimaryButton";
 import { SecondaryButton } from "@/components/buttons/SecondaryButton";
 import { ZenCard } from "@/components/cards/ZenCard";
@@ -38,8 +37,9 @@ import { getStreakCopy } from "@/features/today/streakCopy";
 import { isWeeklyReviewDue } from "@/features/reviews/due";
 import { useLatestWeeklyReviewQuery } from "@/features/reviews/hooks";
 import { openGoalWeeklyReview } from "@/features/reviews/openReview";
-import { useTrialValidation } from "@/features/trial/hooks";
+import { AccessGateBanner } from "@/features/trial/AccessGateBanner";
 import { isReadOnly as computeIsReadOnly } from "@/features/trial/accessMode";
+import { useTrialValidation } from "@/features/trial/hooks";
 import { useHabitLogsForRange } from "@/features/today/hooks";
 import { getReminderByHabitId } from "@/lib/db/repositories/reminders";
 import { useAuthSession } from "@/features/auth/hooks";
@@ -627,12 +627,11 @@ export default function HabitDetailScreen() {
       contentContainerStyle={[styles.content, { paddingTop: top + theme.spacing.lg }]}
       style={styles.screen}
     >
-      {isReadOnly ? (
-        <ReadOnlyBanner
-          isReconnecting={isValidating}
-          onReconnect={() => void refresh()}
-        />
-      ) : null}
+      <AccessGateBanner
+        accessMode={accessMode}
+        isReconnecting={isValidating}
+        onReconnect={() => void refresh()}
+      />
 
       {/* Header */}
       <View style={styles.header}>

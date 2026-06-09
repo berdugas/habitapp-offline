@@ -14,7 +14,6 @@ import { useQueryClient } from "@tanstack/react-query";
 
 import { AppLogo } from "@/components/branding/AppLogo";
 import { ConcentricRings } from "@/components/branding/ConcentricRings";
-import { ReadOnlyBanner } from "@/components/ReadOnlyBanner";
 import { RecoveryModal } from "@/components/RecoveryModal";
 import { PrimaryButton } from "@/components/buttons/PrimaryButton";
 import { ZenCard } from "@/components/cards/ZenCard";
@@ -37,8 +36,9 @@ import {
   singleMissBannerPreferenceKey,
 } from "@/features/recovery/api";
 import { useArchiveHabitMutation } from "@/features/habits/hooks";
-import { useTrialValidation } from "@/features/trial/hooks";
+import { AccessGateBanner } from "@/features/trial/AccessGateBanner";
 import { isReadOnly as computeIsReadOnly } from "@/features/trial/accessMode";
+import { useTrialValidation } from "@/features/trial/hooks";
 import { setPreference } from "@/lib/db/repositories/preferences";
 import { useTheme } from "@/theme/useTheme";
 import { useThemedStyles } from "@/theme/useThemedStyles";
@@ -321,12 +321,12 @@ export default function TodayScreen() {
       style={styles.screen}
     >
       <AppHeader />
-      {isReadOnly ? (
-        <ReadOnlyBanner
-          isReconnecting={isValidating}
-          onReconnect={() => void refresh()}
-        />
-      ) : null}
+      <AccessGateBanner
+        accessMode={accessMode}
+        isReconnecting={isValidating}
+        onReconnect={() => void refresh()}
+      />
+
       {upsertTodayHabitStatusMutation.error ? (
         <ErrorState message={getSaveTodayStatusErrorMessage()} />
       ) : null}
