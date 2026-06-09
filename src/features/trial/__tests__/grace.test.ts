@@ -99,4 +99,100 @@ describe("computeAccessMode", () => {
       }),
     ).toBe("full");
   });
+
+  describe("with entitlement-aware branches", () => {
+    const now = new Date("2026-05-15T00:00:00.000Z");
+    const freshCache = now.toISOString(); // last validated just now
+
+    it("returns full for paid entitlement, regardless of staleness", () => {
+      // Even with an ancient cache, paid users get full access.
+      expect(
+        computeAccessMode({
+          lastValidatedAt: isoDaysAgo(365, now),
+          entitlementStatus: "paid",
+          trialEndsAt: null,
+          now,
+        }),
+      ).toBe("full");
+    });
+
+    it("returns expired_no_purchase for explicit 'expired' status", () => {
+      expect(
+        computeAccessMode({
+          lastValidatedAt: freshCache,
+          entitlementStatus: "expired",
+          trialEndsAt: isoDaysAgo(1, now),
+          now,
+        }),
+      ).toBe("expired_no_purchase");
+    });
+
+    it("returns expired_no_purchase for 'trial' status when trial_ends_at has passed (client guard)", () => {
+      expect(
+        computeAccessMode({
+          lastValidatedAt: freshCache,
+          entitlementStatus: "trial",
+          trialEndsAt: isoDaysAgo(1, now),
+          now,
+        }),
+      ).toBe("expired_no_purchase");
+    });
+
+    it("returns full for 'trial' status when trial_ends_at is still in the future", () => {
+      expect(
+        computeAccessMode({
+          lastValidatedAt: freshCache,
+          entitlementStatus: "trial",
+          trialEndsAt: new Date(now.getTime() + 86400000).toISOString(), // +1 day
+          now,
+        }),
+      ).toBe("full");
+    });
+
+    it("falls through to staleness logic when entitlementStatus is null", () => {
+      expect(
+        computeAccessMode({
+          lastValidatedAt: freshCache,
+          entitlementStatus: null,
+          trialEndsAt: null,
+          now,
+        }),
+      ).toBe("full");
+    });
+
+    it("paid bypass beats stale cache", () => {
+      // (D4) says "no cache → read_only", but paid users should never
+      // hit that branch. Paid bypass is checked first.
+      expect(
+        computeAccessMode({
+          lastValidatedAt: null,
+          entitlementStatus: "paid",
+          trialEndsAt: null,
+          now,
+        }),
+      ).toBe("full");
+    });
+
+    it("treats 'active' like 'paid' (defensive — dead in current client, live in schema)", () => {
+      expect(
+        computeAccessMode({
+          lastValidatedAt: isoDaysAgo(365, now),
+          entitlementStatus: "active",
+          trialEndsAt: null,
+          now,
+        }),
+      ).toBe("full");
+    });
+
+    it("treats 'cancelled' like 'expired' (defensive)", () => {
+      expect(
+        computeAccessMode({
+          lastValidatedAt: freshCache,
+          entitlementStatus: "cancelled",
+          trialEndsAt: null,
+          now,
+        }),
+      ).toBe("expired_no_purchase");
+    });
+  });
 });
