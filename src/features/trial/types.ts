@@ -21,7 +21,7 @@ export type CachedTrialEntitlement = {
   last_validated_at: string;
 };
 
-export type AccessMode = "full" | "read_only";
+export type AccessMode = "full" | "read_only" | "expired_no_purchase";
 
 // 90 days is a beta safety net. Once we ship entitlement-aware access
 // (status-based gating for paid vs trial vs expired), revisit this value
