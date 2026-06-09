@@ -240,6 +240,8 @@ export function buildTrialContextValue(
 ): TrialValidationContextValue {
   const accessMode = computeAccessMode({
     lastValidatedAt: state.cached?.last_validated_at ?? null,
+    entitlementStatus: state.cached?.entitlement_status ?? null,
+    trialEndsAt: state.cached?.trial_ends_at ?? null,
     now: now(),
   });
 

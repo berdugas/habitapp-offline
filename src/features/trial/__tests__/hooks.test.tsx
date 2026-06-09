@@ -73,8 +73,8 @@ const NOW = new Date("2026-05-01T12:00:00.000Z");
 function freshEntitlement(userId = "user-1"): CachedTrialEntitlement {
   return {
     user_id: userId,
-    trial_started_at: "2026-04-15T00:00:00.000Z",
-    trial_ends_at: "2026-04-29T00:00:00.000Z",
+    trial_started_at: "2026-04-25T00:00:00.000Z",   // 6 days before NOW
+    trial_ends_at: "2026-05-09T00:00:00.000Z",       // 8 days after NOW (mid-trial)
     entitlement_status: "trial",
     last_validated_at: NOW.toISOString(),
   };
@@ -625,5 +625,49 @@ describe("useTrialValidation", () => {
 
     unmount();
     expect(remove).toHaveBeenCalled();
+  });
+
+  describe("buildTrialContextValue — entitlement-aware accessMode", () => {
+    beforeEach(() => {
+      setNowForTesting(NOW);
+    });
+
+    afterEach(() => {
+      resetClockForTesting();
+    });
+
+    const noop = async () => {};
+
+    function makeState(overrides: Partial<CachedTrialEntitlement>) {
+      return {
+        cached: { ...freshEntitlement(), ...overrides },
+        isBootstrapping: false,
+        isValidating: false,
+      };
+    }
+
+    it("returns 'full' for paid users even with an ancient cache", () => {
+      const state = makeState({
+        entitlement_status: "paid",
+        last_validated_at: "2024-01-01T00:00:00.000Z", // ancient
+      });
+      const value = buildTrialContextValue(state, noop);
+      expect(value.accessMode).toBe("full");
+    });
+
+    it("returns 'expired_no_purchase' when server-marked expired", () => {
+      const state = makeState({ entitlement_status: "expired" });
+      const value = buildTrialContextValue(state, noop);
+      expect(value.accessMode).toBe("expired_no_purchase");
+    });
+
+    it("returns 'expired_no_purchase' when client-side guard fires (trial_ends_at past, status still 'trial')", () => {
+      const state = makeState({
+        entitlement_status: "trial",
+        trial_ends_at: "2026-04-29T00:00:00.000Z", // before NOW
+      });
+      const value = buildTrialContextValue(state, noop);
+      expect(value.accessMode).toBe("expired_no_purchase");
+    });
   });
 });
