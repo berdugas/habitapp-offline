@@ -13,18 +13,7 @@ jest.mock("@/services/logger", () => ({
   logger: { error: jest.fn(), info: jest.fn(), warn: jest.fn() },
 }));
 
-const mockedFrom = supabase.from as jest.Mock;
 const mockedRpc = supabase.rpc as jest.Mock;
-
-function mockMaybeSingleResponse(data: unknown, error: unknown = null) {
-  mockedFrom.mockReturnValue({
-    select: jest.fn().mockReturnValue({
-      eq: jest.fn().mockReturnValue({
-        maybeSingle: jest.fn().mockResolvedValue({ data, error }),
-      }),
-    }),
-  });
-}
 
 function mockRpcResponse(data: unknown, error: unknown = null) {
   mockedRpc.mockReturnValue({
@@ -42,43 +31,11 @@ describe("fetchTrialEntitlement", () => {
     resetClockForTesting();
   });
 
-  it("returns the cached entitlement with device-recorded last_validated_at on success", async () => {
-    mockMaybeSingleResponse({
-      user_id: "user-1",
-      trial_started_at: "2026-04-15T00:00:00.000Z",
-      trial_ends_at: "2026-04-29T00:00:00.000Z",
-      entitlement_status: "trial",
-      last_validated_at: null,
-    });
-
-    const result = await fetchTrialEntitlement("user-1");
-
-    expect(result).toEqual({
-      user_id: "user-1",
-      trial_started_at: "2026-04-15T00:00:00.000Z",
-      trial_ends_at: "2026-04-29T00:00:00.000Z",
-      entitlement_status: "trial",
-      last_validated_at: "2026-05-01T12:00:00.000Z",
-    });
-  });
-
-  it("throws TrialEntitlementFetchError(network) on Supabase error", async () => {
-    mockMaybeSingleResponse(null, { message: "network error" });
-
-    await expect(fetchTrialEntitlement("user-1")).rejects.toBeInstanceOf(
-      TrialEntitlementFetchError,
-    );
-    await expect(fetchTrialEntitlement("user-1")).rejects.toMatchObject({
-      reason: "network",
-    });
-  });
-
-  it("calls ensure_trial_entitlement and returns the healed row when initial fetch returns no row", async () => {
-    mockMaybeSingleResponse(null);
+  it("calls ensure_trial_entitlement RPC and returns the entitlement with device-recorded last_validated_at", async () => {
     mockRpcResponse({
       user_id: "user-1",
-      trial_started_at: "2026-04-20T00:00:00.000Z",
-      trial_ends_at: "2026-05-04T00:00:00.000Z",
+      trial_started_at: "2026-04-15T00:00:00.000Z",
+      trial_ends_at: "2026-04-29T00:00:00.000Z",
       entitlement_status: "trial",
       last_validated_at: null,
     });
@@ -88,24 +45,38 @@ describe("fetchTrialEntitlement", () => {
     expect(mockedRpc).toHaveBeenCalledWith("ensure_trial_entitlement");
     expect(result).toEqual({
       user_id: "user-1",
-      trial_started_at: "2026-04-20T00:00:00.000Z",
-      trial_ends_at: "2026-05-04T00:00:00.000Z",
+      trial_started_at: "2026-04-15T00:00:00.000Z",
+      trial_ends_at: "2026-04-29T00:00:00.000Z",
       entitlement_status: "trial",
       last_validated_at: "2026-05-01T12:00:00.000Z",
     });
   });
 
-  it("throws TrialEntitlementFetchError(network) when ensure_trial_entitlement RPC fails", async () => {
-    mockMaybeSingleResponse(null);
+  it("returns the row with status='expired' when the server flipped it on read", async () => {
+    mockRpcResponse({
+      user_id: "user-1",
+      trial_started_at: "2026-05-01T00:00:00.000Z",
+      trial_ends_at: "2026-05-15T00:00:00.000Z",
+      entitlement_status: "expired",
+      last_validated_at: "2026-06-01T00:00:00.000Z",
+    });
+
+    const result = await fetchTrialEntitlement("user-1");
+    expect(result.entitlement_status).toBe("expired");
+  });
+
+  it("throws TrialEntitlementFetchError(network) when the RPC errors", async () => {
     mockRpcResponse(null, { message: "rpc failed" });
 
+    await expect(fetchTrialEntitlement("user-1")).rejects.toBeInstanceOf(
+      TrialEntitlementFetchError,
+    );
     await expect(fetchTrialEntitlement("user-1")).rejects.toMatchObject({
       reason: "network",
     });
   });
 
-  it("throws TrialEntitlementFetchError(missing_row) when ensure_trial_entitlement returns no row", async () => {
-    mockMaybeSingleResponse(null);
+  it("throws TrialEntitlementFetchError(missing_row) when the RPC returns no row", async () => {
     mockRpcResponse(null);
 
     await expect(fetchTrialEntitlement("user-1")).rejects.toMatchObject({
@@ -114,7 +85,7 @@ describe("fetchTrialEntitlement", () => {
   });
 
   it("throws TrialEntitlementFetchError(invalid_status) on unknown status value", async () => {
-    mockMaybeSingleResponse({
+    mockRpcResponse({
       user_id: "user-1",
       trial_started_at: "2026-04-15T00:00:00.000Z",
       trial_ends_at: "2026-04-29T00:00:00.000Z",

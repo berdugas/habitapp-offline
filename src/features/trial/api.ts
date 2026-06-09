@@ -29,80 +29,54 @@ export class TrialEntitlementFetchError extends Error {
 export async function fetchTrialEntitlement(
   userId: string,
 ): Promise<CachedTrialEntitlement> {
+  // RPC is the single source of truth: it self-heals the row if missing
+  // AND flips trial -> expired if trial_ends_at has passed. Server-side
+  // gating on auth.uid() means the userId arg here is for logging only —
+  // the RPC always operates on the authenticated user's row.
   const { data, error } = await supabase
-    .from("trial_entitlements")
-    .select(
-      "user_id, trial_started_at, trial_ends_at, entitlement_status, last_validated_at",
-    )
-    .eq("user_id", userId)
-    .maybeSingle<TrialEntitlementRow>();
+    .rpc("ensure_trial_entitlement")
+    .single<TrialEntitlementRow>();
 
   if (error) {
-    logger.error("Trial entitlement fetch failed", { error, userId });
+    logger.error("Trial entitlement RPC failed", { error, userId });
     throw new TrialEntitlementFetchError(
       "Could not reach the server to verify your account.",
       "network",
     );
   }
 
-  // Self-heal: if the handle_new_user trigger from migration 0005 didn't
-  // produce a row for this user (silent failure observed in one iOS beta
-  // tester), call the ensure_trial_entitlement RPC to lazily create one
-  // and retry. The RPC is idempotent (ON CONFLICT DO NOTHING) and gated
-  // on auth.uid(), so clients can't impersonate other users.
-  let row = data;
-  if (!row) {
-    logger.warn(
-      "Trial entitlement row missing — calling ensure_trial_entitlement",
-      { userId },
+  if (!data) {
+    logger.error("Trial entitlement RPC returned no row", { userId });
+    throw new TrialEntitlementFetchError(
+      "Account is missing trial entitlement record.",
+      "missing_row",
     );
-    const { data: healed, error: healError } = await supabase
-      .rpc("ensure_trial_entitlement")
-      .single<TrialEntitlementRow>();
-
-    if (healError) {
-      logger.error("Trial entitlement self-heal RPC failed", {
-        healError,
-        userId,
-      });
-      // Reused "network" reason because the existing taxonomy lacks an
-      // "rpc_failure" slot and hooks.tsx doesn't branch on reason.
-      throw new TrialEntitlementFetchError(
-        "Could not provision your account. Please try again.",
-        "network",
-      );
-    }
-    if (!healed) {
-      logger.error("Trial entitlement self-heal returned no row", { userId });
-      throw new TrialEntitlementFetchError(
-        "Account is missing trial entitlement record.",
-        "missing_row",
-      );
-    }
-    row = healed;
   }
 
   if (
     !TRIAL_ENTITLEMENT_STATUSES.includes(
-      row.entitlement_status as TrialEntitlementStatus,
+      data.entitlement_status as TrialEntitlementStatus,
     )
   ) {
-    logger.error("Trial entitlement returned invalid status", {
-      status: row.entitlement_status,
+    logger.error("Trial entitlement returned unknown status", {
+      status: data.entitlement_status,
       userId,
     });
     throw new TrialEntitlementFetchError(
-      "Account returned unrecognized status.",
+      "Account is in an unexpected state.",
       "invalid_status",
     );
   }
 
-  // server's last_validated_at is informational; device records its own timestamp
   return {
-    user_id: row.user_id,
-    trial_started_at: row.trial_started_at,
-    trial_ends_at: row.trial_ends_at,
-    entitlement_status: row.entitlement_status as TrialEntitlementStatus,
+    user_id: data.user_id,
+    trial_started_at: data.trial_started_at,
+    trial_ends_at: data.trial_ends_at,
+    entitlement_status: data.entitlement_status as TrialEntitlementStatus,
+    // The server's last_validated_at column is informational only
+    // (see 0005_core_v1_local_first_pivot.sql:78-79); the client is
+    // authoritative on its own grace-period bookkeeping. Always stamp
+    // the device clock here, never the server's value.
     last_validated_at: nowIso(),
   };
 }
