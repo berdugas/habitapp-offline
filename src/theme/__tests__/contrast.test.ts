@@ -25,6 +25,15 @@ const KNOWN_CONTRAST_WAIVERS: Waiver[] = [
   // Zen's mint-on-mint graduated badge (2.38:1) is the shipping app's pairing;
   // Zen is frozen to today's look. Cafe/Fantasy graduated pairs pass AA.
   { themeId: "zen",     fg: "graduatedCircle", bg: "graduatedBadge", reason: "Pre-existing low-contrast graduated badge; Zen frozen; spec §12 #8" },
+  { themeId: "play",    fg: "textFaint",       bg: "bg",             reason: "Body-faint copy fails AA Normal; mirrors Zen/Cafe/Fantasy waiver" },
+  { themeId: "play",    fg: "textFaint",       bg: "surfaceCard",    reason: "Body-faint copy fails AA Normal; mirrors Zen/Cafe/Fantasy waiver" },
+  { themeId: "play",    fg: "textFaint",       bg: "surface",        reason: "Body-faint copy fails AA Normal; mirrors Zen/Cafe/Fantasy waiver" },
+  { themeId: "energy",  fg: "textFaint",       bg: "bg",             reason: "Body-faint copy fails AA Normal; mirrors Zen/Cafe/Fantasy waiver" },
+  { themeId: "energy",  fg: "textFaint",       bg: "surfaceCard",    reason: "Body-faint copy fails AA Normal; mirrors Zen/Cafe/Fantasy waiver" },
+  { themeId: "energy",  fg: "textFaint",       bg: "surface",        reason: "Body-faint copy fails AA Normal; mirrors Zen/Cafe/Fantasy waiver" },
+  { themeId: "sound",   fg: "textFaint",       bg: "bg",             reason: "Body-faint copy fails AA Normal; mirrors Zen/Cafe/Fantasy waiver" },
+  { themeId: "sound",   fg: "textFaint",       bg: "surfaceCard",    reason: "Body-faint copy fails AA Normal; mirrors Zen/Cafe/Fantasy waiver" },
+  { themeId: "sound",   fg: "textFaint",       bg: "surface",        reason: "Body-faint copy fails AA Normal; mirrors Zen/Cafe/Fantasy waiver" },
 ];
 
 const REQUIRED_PAIRS: Array<{ fg: keyof Colors; bg: keyof Colors }> = [

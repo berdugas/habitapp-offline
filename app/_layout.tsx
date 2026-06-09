@@ -254,7 +254,7 @@ function ThemedRoot() {
       <ScreenTracker />
       <StatusBar
         backgroundColor={theme.colors.surface}
-        style="dark"
+        style={theme.mode === "dark" ? "light" : "dark"}
         translucent={false}
       />
       <ErrorBoundary fallback={<ErrorFallback />}>

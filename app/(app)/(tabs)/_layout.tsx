@@ -7,18 +7,25 @@ import { useTheme } from "@/theme/useTheme";
 
 export default function AppTabsLayout() {
   const theme = useTheme();
+  const blurTint = theme.mode === "dark" ? "dark" : "light";
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: theme.colors.primary,
         tabBarInactiveTintColor: theme.colors.textMuted,
-        tabBarStyle: styles.tabBar,
+        tabBarStyle: {
+          // Use the theme's `surface` slot. The 0.85 alpha lets the BlurView
+          // tint show through; the visible color is roughly `surface` mixed
+          // with the underlying screen content.
+          backgroundColor: `${theme.colors.surface}D9`,
+          borderTopWidth: 0,
+        },
         tabBarLabelStyle: {
           fontFamily: theme.fontFamilies.bodyMedium,
         },
         tabBarBackground: () => (
-          <BlurView intensity={80} style={StyleSheet.absoluteFill} tint="light" />
+          <BlurView intensity={80} style={StyleSheet.absoluteFill} tint={blurTint} />
         ),
       }}
     >
@@ -46,10 +53,3 @@ export default function AppTabsLayout() {
     </Tabs>
   );
 }
-
-const styles = StyleSheet.create({
-  tabBar: {
-    backgroundColor: "rgba(251, 249, 245, 0.85)",
-    borderTopWidth: 0,
-  },
-});

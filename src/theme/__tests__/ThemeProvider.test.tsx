@@ -1,6 +1,7 @@
 import { render, screen, act } from "@testing-library/react-native";
 import { Text } from "react-native";
 
+import { ThemeId } from "@/theme/contract";
 import { ThemeProvider, useThemeContext } from "@/theme/ThemeProvider";
 
 function Probe() {
@@ -25,7 +26,7 @@ describe("ThemeProvider", () => {
   });
 
   it("setActiveTheme switches the active theme", () => {
-    let captured: ((id: "zen" | "cafe" | "fantasy") => void) | null = null;
+    let captured: ((id: ThemeId) => void) | null = null;
 
     function Capture() {
       const { setActiveTheme, theme } = useThemeContext();
