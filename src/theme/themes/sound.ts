@@ -5,6 +5,7 @@ import type { Theme } from "@/theme/contract";
 export const sound: Theme = {
   id: "sound",
   name: "Sound",
+  mode: "dark",
   colors: {
     bg: "#121212",
     surface: "#181818",

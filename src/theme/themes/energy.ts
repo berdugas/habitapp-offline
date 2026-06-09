@@ -5,6 +5,7 @@ import type { Theme } from "@/theme/contract";
 export const energy: Theme = {
   id: "energy",
   name: "Energy",
+  mode: "light",
   colors: {
     bg: "#FFEDD5",
     surface: "#FED7AA",

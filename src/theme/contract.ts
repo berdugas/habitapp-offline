@@ -86,9 +86,20 @@ export type FontAssets =
   | { kind: "bundled"; assets: Record<string, number> }
   | { kind: "remote"; assets: Record<string, RemoteFontAsset> };
 
+/**
+ * Light vs dark base for the theme. Drives platform chrome that can't be
+ * captured by the color palette alone — currently:
+ *   - BlurView tint on the tab bar (`light` blur over light surfaces, `dark`
+ *     blur over dark surfaces)
+ *   - StatusBar icon color (dark icons on light bg, light icons on dark bg)
+ * Add new consumers sparingly — most things should read `colors.*` instead.
+ */
+export type ThemeMode = "light" | "dark";
+
 export type Theme = {
   id: ThemeId;
   name: string;
+  mode: ThemeMode;
   colors: Colors;
   typography: Typography;
   spacing: Spacing;

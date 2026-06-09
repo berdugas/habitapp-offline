@@ -5,6 +5,7 @@ import type { Theme } from "@/theme/contract";
 export const cafe: Theme = {
   id: "cafe",
   name: "Cafe",
+  mode: "light",
   colors: {
     bg: "#F9F7F5",
     surface: "#E9E3DD",

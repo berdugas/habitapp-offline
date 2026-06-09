@@ -18,6 +18,7 @@ import type { Theme } from "@/theme/contract";
 export const zen: Theme = {
   id: "zen",
   name: "Zen",
+  mode: "light",
   colors: {
     bg: "#fbf9f5",
     surface: "#f3f1eb",

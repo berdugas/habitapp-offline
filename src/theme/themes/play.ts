@@ -5,6 +5,7 @@ import type { Theme } from "@/theme/contract";
 export const play: Theme = {
   id: "play",
   name: "Play",
+  mode: "dark",
   colors: {
     bg: "#0A0B10",
     surface: "#14161C",

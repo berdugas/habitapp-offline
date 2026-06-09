@@ -5,6 +5,7 @@ import type { Theme } from "@/theme/contract";
 export const fantasy: Theme = {
   id: "fantasy",
   name: "Fantasy",
+  mode: "light",
   colors: {
     bg: "#FFFFFF",
     surface: "#F3F4F6",
