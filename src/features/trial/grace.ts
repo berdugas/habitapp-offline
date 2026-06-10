@@ -30,7 +30,9 @@ export function computeAccessMode({
   // Catches the case where the server hasn't been re-fetched recently.
   // (We intentionally trust the device clock here — for the beta window
   // this is acceptable, since a malicious user could only LOCK THEMSELVES
-  // out, not extend access. Server-side flip-on-read is authoritative.)
+  // out, not extend access. Server-side flip-on-read is authoritative.
+  // Note: Settings derives its label from accessMode so this branch
+  // doesn't cause status drift in the UI — see SettingsScreen.tsx.)
   if (entitlementStatus === "trial" && trialEndsAt) {
     const trialEnd = new Date(trialEndsAt);
     if (!Number.isNaN(trialEnd.getTime()) && now.getTime() > trialEnd.getTime()) {
