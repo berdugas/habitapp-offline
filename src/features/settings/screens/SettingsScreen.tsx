@@ -32,7 +32,7 @@ function formatEntitlementStatus(status: TrialEntitlementStatus | null): string 
 
 export default function SettingsScreen() {
   const { user } = useAuthSession();
-  const { entitlementStatus } = useTrialValidation();
+  const { entitlementStatus, accessMode } = useTrialValidation();
   const [isSigningOut, setIsSigningOut] = useState(false);
   const theme = useTheme();
   const styles = useThemedStyles((t) =>
@@ -85,7 +85,15 @@ export default function SettingsScreen() {
     }),
   );
 
-  const statusLabel = formatEntitlementStatus(entitlementStatus);
+  // Settings reads accessMode so Branch 3 of computeAccessMode (trial +
+  // trial_ends_at past, but cached status is still "trial") doesn't make
+  // Settings show "Trial" while the rest of the app shows the expired
+  // banner. read_only (offline-stale cache) still surfaces the cached
+  // status — it's an honest reflection of the last known server state.
+  const statusLabel =
+    accessMode === "expired_no_purchase"
+      ? "Trial ended"
+      : formatEntitlementStatus(entitlementStatus);
   const appVersion = Constants.expoConfig?.version ?? "—";
 
   async function handleSignOut() {
