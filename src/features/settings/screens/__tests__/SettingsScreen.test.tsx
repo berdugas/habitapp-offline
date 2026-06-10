@@ -50,6 +50,7 @@ const mockUseTrialValidation = useTrialValidation as jest.Mock;
 function defaultSetup(overrides: {
   email?: string | null;
   entitlementStatus?: string | null;
+  accessMode?: "full" | "read_only" | "expired_no_purchase";
 } = {}) {
   useAuthSession.mockReturnValue({
     user: overrides.email !== undefined ? { email: overrides.email } : { email: "test@example.com" },
@@ -59,7 +60,7 @@ function defaultSetup(overrides: {
   mockUseTrialValidation.mockReturnValue({
     isBootstrapping: false,
     isValidating: false,
-    accessMode: "full",
+    accessMode: overrides.accessMode ?? "full",
     entitlementStatus: overrides.entitlementStatus !== undefined ? overrides.entitlementStatus : "trial",
     trialStartedAt: null,
     trialEndsAt: null,
@@ -105,6 +106,33 @@ describe("SettingsScreen", () => {
     expect(screen.queryByText("Trial")).toBeNull();
     expect(screen.queryByText("Trial ended")).toBeNull();
     expect(screen.queryByText("Active")).toBeNull();
+  });
+
+  // Regression: Branch 3 of computeAccessMode can yield
+  // accessMode="expired_no_purchase" while the cached entitlementStatus
+  // is still "trial" (offline client, device clock past trial_ends_at).
+  // Settings must respect accessMode, otherwise it drifts from the rest
+  // of the app's expired UI. See SettingsScreen.tsx comment.
+  it("shows 'Trial ended' when accessMode is 'expired_no_purchase' even if cached entitlementStatus is still 'trial'", () => {
+    defaultSetup({ accessMode: "expired_no_purchase", entitlementStatus: "trial" });
+    render(<SettingsScreen />);
+    expect(screen.getByText("Trial ended")).toBeTruthy();
+    expect(screen.queryByText("Trial")).toBeNull();
+  });
+
+  it("shows 'Trial ended' when accessMode is 'expired_no_purchase' and entitlementStatus is 'expired' (both aligned)", () => {
+    defaultSetup({ accessMode: "expired_no_purchase", entitlementStatus: "expired" });
+    render(<SettingsScreen />);
+    expect(screen.getByText("Trial ended")).toBeTruthy();
+  });
+
+  it("keeps showing cached entitlementStatus when accessMode is 'read_only' (offline stale, not expired)", () => {
+    // read_only is "offline cache too stale" — last known server state
+    // should still surface honestly. Don't override to "Trial ended" here.
+    defaultSetup({ accessMode: "read_only", entitlementStatus: "trial" });
+    render(<SettingsScreen />);
+    expect(screen.getByText("Trial")).toBeTruthy();
+    expect(screen.queryByText("Trial ended")).toBeNull();
   });
 
   it("does not render the legacy archived habits card", () => {
