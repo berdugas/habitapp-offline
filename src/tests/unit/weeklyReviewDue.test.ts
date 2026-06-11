@@ -4,6 +4,7 @@ import type { Habit } from "@/features/habits/types";
 const baseHabit: Habit = {
   active_days: "[1,2,3,4,5,6,7]",
   archived_at: null,
+  archived_reason: null,
   automated_at: null,
   backlog_at: null,
   created_at: "2026-04-01T00:00:00.000Z",

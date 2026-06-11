@@ -22,6 +22,7 @@ export type Habit = {
   created_at: string;
   updated_at: string;
   archived_at: string | null;
+  archived_reason: string | null;
   automated_at: string | null;
   backlog_at: string | null;
 };
@@ -32,6 +33,7 @@ export type CreateHabitInput = Omit<
   | "created_at"
   | "updated_at"
   | "archived_at"
+  | "archived_reason"
   | "automated_at"
   | "backlog_at"
   | "habit_state"
@@ -61,6 +63,7 @@ export type UpdateHabitPatch = Partial<
     | "active_days"
     | "automated_at"
     | "backlog_at"
+    | "archived_reason"
   >
 >;
 

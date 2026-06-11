@@ -24,6 +24,7 @@ function makeHabit(overrides: Partial<Habit> = {}): Habit {
     created_at: "2026-04-01T00:00:00Z",
     updated_at: "2026-04-01T00:00:00Z",
     archived_at: null,
+    archived_reason: null,
     automated_at: null,
     backlog_at: null,
     ...overrides,
