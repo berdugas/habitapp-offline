@@ -98,8 +98,8 @@ describe("migration 007 — local_srhi_responses", () => {
 
       expect(await tableExists(db, "local_srhi_responses")).toBe(true);
       expect(await indexExists(db, "idx_srhi_habit")).toBe(true);
-      // Picks up the full migration set including 008's column drop.
-      expect(await appliedIds(db)).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
+      // Picks up the full migration set including 008's column drop and 009's archived_reason.
+      expect(await appliedIds(db)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9]);
     });
   });
 });
