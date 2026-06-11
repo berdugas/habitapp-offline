@@ -17,6 +17,7 @@ export const LOCAL_HABIT_FIELDS = [
   "created_at",
   "updated_at",
   "archived_at",
+  "archived_reason",
   "automated_at",
   "backlog_at",
 ] as const;

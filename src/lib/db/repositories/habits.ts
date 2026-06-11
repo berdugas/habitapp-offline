@@ -83,8 +83,9 @@ export async function createHabit(input: CreateHabitInput): Promise<Habit> {
     `INSERT INTO local_habits (
       id, user_id, title, identity_phrase, cue, tiny_action,
       minimum_viable_action, preferred_time_window, icon, habit_state, status,
-      active_days, start_date, created_at, updated_at, archived_at, automated_at, backlog_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, ?)`,
+      active_days, start_date, created_at, updated_at,
+      archived_at, archived_reason, automated_at, backlog_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, NULL, ?)`,
     id,
     input.user_id,
     input.title,
@@ -129,6 +130,7 @@ export async function updateHabit(
     "active_days",
     "automated_at",
     "backlog_at",
+    "archived_reason",
   ];
 
   for (const key of allowed) {
