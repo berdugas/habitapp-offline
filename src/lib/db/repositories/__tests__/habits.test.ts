@@ -107,6 +107,16 @@ describe("habits repository", () => {
     expect(after!.identity_phrase).toBeNull();
   });
 
+  it("createHabit defaults archived_reason to null; updateHabit can set it", async () => {
+    const habit = await createHabit(makeInput());
+    expect(habit.archived_reason).toBeNull();
+
+    await updateHabit(habit.id, { archived_reason: "paywall_keep_one" });
+
+    const after = await getHabit(habit.id);
+    expect(after!.archived_reason).toBe("paywall_keep_one");
+  });
+
   it("archiveHabit sets status=archived and archived_at", async () => {
     const habit = await createHabit(makeInput());
     await archiveHabit(habit.id);
