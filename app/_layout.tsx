@@ -41,6 +41,7 @@ import {
   initPostHog,
   screen as posthogScreen,
 } from "@/services/posthog";
+import { initRevenueCat } from "@/services/revenuecat";
 import { useAuthSession } from "@/features/auth/hooks";
 import { getPreference, setPreference } from "@/lib/db/repositories/preferences";
 import { THEMES, isKnownThemeId } from "@/theme/registry";
@@ -77,10 +78,13 @@ if (
 }
 
 // Telemetry init at module load — Sentry first so it can catch any PostHog
-// init errors, then PostHog. Both no-op without DSN/key in app.json extra,
-// and both no-op in __DEV__ unless extra.telemetryInDev is set.
+// or RevenueCat init errors, then PostHog, then RevenueCat. All three no-op
+// without their respective key/DSN in app.json extra (or env), and Sentry +
+// PostHog no-op in __DEV__ unless extra.telemetryInDev is set. RevenueCat
+// also no-ops in Expo Go (executionEnvironment === "storeClient").
 initSentry();
 initPostHog();
+initRevenueCat();
 
 // Hydrate the persisted goal_id ↔ identityPhrase map BEFORE anything in
 // the UI can trigger a goal mutation. goalIdFor() falls back to a
