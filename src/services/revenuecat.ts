@@ -16,6 +16,7 @@ function makePurchasesStub(): PurchasesModule {
     logIn: asyncNoop,
     logOut: asyncNoop,
     restorePurchases: asyncNoop,
+    syncPurchases: asyncNoop,
     getCustomerInfo: asyncNoop,
     getOfferings: asyncNoop,
     purchasePackage: asyncNoop,
@@ -52,42 +53,88 @@ export function initRevenueCat(): void {
   logger.info("RevenueCat initialized");
 }
 
+// Identity-op queue: ensures logIn / logOut / sync / restore execute in
+// caller order against the SDK. Without this, two overlapping logIn
+// calls can race at the native layer and leave RC stuck on whichever
+// promise resolves last, regardless of which was called last by the app.
+// The queue is a single in-flight tail; every public wrapper appends.
+let identityQueue: Promise<unknown> = Promise.resolve();
+function enqueueIdentityOp<T>(op: () => Promise<T>): Promise<T> {
+  const next = identityQueue.then(op, op);
+  // Swallow the result type for the chain; tail tracks only ordering.
+  identityQueue = next.catch(() => undefined);
+  return next;
+}
+
 // Returns true if the identity was successfully established (or if the
 // SDK gate short-circuited in Expo Go, where there's no real identity to
 // establish). Returns false on a real SDK failure. Callers MUST check
-// the return value before calling restorePurchases() — restoring against
-// a stale RC identity would associate purchases with the wrong account.
+// the return value before calling syncPurchases() / restorePurchases() —
+// running those against a stale RC identity would associate purchases
+// with the wrong account.
+//
+// Serialized via the identity queue: an in-flight logIn(A) finishes
+// before logIn(B) starts, so the SDK's final appUserID always reflects
+// the last caller (in program order), not whichever native promise
+// resolved last in real time.
 export async function logInRevenueCat(userId: string): Promise<boolean> {
   if (isExpoGo()) return true;
-  try {
-    await Purchases.logIn(userId);
-    return true;
-  } catch (error) {
-    logger.error("RevenueCat logIn failed", { userId, error });
-    return false;
-  }
+  return enqueueIdentityOp(async () => {
+    try {
+      await Purchases.logIn(userId);
+      return true;
+    } catch (error) {
+      logger.error("RevenueCat logIn failed", { userId, error });
+      return false;
+    }
+  });
 }
 
 export async function logOutRevenueCat(): Promise<void> {
   if (isExpoGo()) return;
-  try {
-    await Purchases.logOut();
-  } catch (error) {
-    logger.error("RevenueCat logOut failed", { error });
-  }
+  await enqueueIdentityOp(async () => {
+    try {
+      await Purchases.logOut();
+    } catch (error) {
+      logger.error("RevenueCat logOut failed", { error });
+    }
+  });
 }
 
+// Silent, programmatic purchase sync. Safe to run on every app launch /
+// auth change because it does NOT trigger OS sign-in prompts. Per RC
+// docs, this is the correct API for background reconciliation; the
+// loud restorePurchases() below is reserved for an explicit user gesture
+// ("Restore Purchase" button) where an iOS prompt is acceptable.
+export async function syncPurchases(): Promise<void> {
+  if (isExpoGo()) return;
+  await enqueueIdentityOp(async () => {
+    try {
+      await Purchases.syncPurchases();
+    } catch (error) {
+      logger.error("RevenueCat syncPurchases failed", { error });
+    }
+  });
+}
+
+// User-initiated restore — may show OS sign-in prompts (iOS).
+// Call ONLY from a user tap (e.g. Settings → Restore Purchase), never
+// from auto-running lifecycle code. The lifecycle hook uses
+// syncPurchases() instead.
 export async function restorePurchases(): Promise<void> {
   if (isExpoGo()) return;
-  try {
-    await Purchases.restorePurchases();
-  } catch (error) {
-    logger.error("RevenueCat restorePurchases failed", { error });
-  }
+  await enqueueIdentityOp(async () => {
+    try {
+      await Purchases.restorePurchases();
+    } catch (error) {
+      logger.error("RevenueCat restorePurchases failed", { error });
+    }
+  });
 }
 
 export { Purchases };
 
 export function __resetForTests(): void {
   initialized = false;
+  identityQueue = Promise.resolve();
 }
