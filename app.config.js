@@ -29,6 +29,7 @@ module.exports = ({ config }) => ({
       "expo-notifications",
       "@react-native-community/datetimepicker",
       "@sentry/react-native",
+      "react-native-purchases",
     ],
     splash: {
       image: "./assets/icons/splash-icon.png",
@@ -60,6 +61,7 @@ module.exports = ({ config }) => ({
       sentryDsn: process.env.EXPO_PUBLIC_SENTRY_DSN ?? "",
       posthogApiKey: process.env.EXPO_PUBLIC_POSTHOG_API_KEY ?? "",
       posthogHost: process.env.EXPO_PUBLIC_POSTHOG_HOST ?? "",
+      revenueCatApiKey: process.env.EXPO_PUBLIC_REVENUECAT_API_KEY ?? "",
       // Boolean from string: only the literal "true" enables dev telemetry.
       // Anything else (including unset) leaves it off. Prod builds always
       // emit regardless of this flag — see src/services/posthog.ts.
