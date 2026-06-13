@@ -16,8 +16,12 @@ export function TrialValidationBootstrap({ children }: PropsWithChildren) {
     isAuthBootstrapping,
   );
 
-  // RevenueCat identifies the signed-in user and runs silent
-  // restorePurchases() on every auth change.
+  // Identifies the signed-in user with RevenueCat on every auth change
+  // and re-fetches the trial entitlement. Does NOT auto-call
+  // syncPurchases/restorePurchases — per RC docs, auto-syncing on every
+  // launch risks unintended subscriber aliasing/transfers. Explicit
+  // user-initiated restore (Settings → Restore Purchase) is wired
+  // separately in sub-plan #4.
   useRevenueCatLifecycle(user?.id ?? null, refresh);
 
   // Watch for non-paid → paid transitions to auto-restore paywall-archived
