@@ -27,6 +27,7 @@ import {
   getSRHIHistoryQueryKey,
 } from "@/features/graduation/queryKeys";
 import { parseActiveDays } from "@/features/habits/activeDays";
+import { useTrialValidation } from "@/features/trial/hooks";
 import { getLatestWeeklyReview } from "@/features/reviews/api";
 import { getLatestWeeklyReviewQueryKey } from "@/features/reviews/queryKeys";
 import { formatHabitFormula } from "@/features/habits/formatters";
@@ -258,6 +259,7 @@ export function useHabitDetail(
 
 export function useCreateHabitMutation() {
   const { user } = useAuthSession();
+  const { accessMode } = useTrialValidation();
 
   return useMutation({
     mutationFn: async (payload: CreateHabitPayload) => {
@@ -265,7 +267,7 @@ export function useCreateHabitMutation() {
         throw new Error("You need an account session before creating a habit.");
       }
 
-      return createHabit(user.id, payload);
+      return createHabit(user.id, payload, accessMode);
     },
     onSuccess: () => {
       trackEvent("habit_created");
@@ -396,6 +398,7 @@ type UpdateHabitMutationVariables = {
 
 export function useUpdateHabitMutation() {
   const { user } = useAuthSession();
+  const { accessMode } = useTrialValidation();
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -404,7 +407,7 @@ export function useUpdateHabitMutation() {
         throw new Error("You need an account session before updating a habit.");
       }
 
-      return updateHabit(user.id, habitId, payload);
+      return updateHabit(user.id, habitId, payload, accessMode);
     },
     onSuccess: async (_updatedHabit, variables) => {
       if (!user?.id) {
@@ -431,6 +434,7 @@ export function useUpdateHabitMutation() {
 
 export function useArchiveHabitMutation() {
   const { user } = useAuthSession();
+  const { accessMode } = useTrialValidation();
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -441,7 +445,7 @@ export function useArchiveHabitMutation() {
         );
       }
 
-      return archiveHabit(user.id, habitId);
+      return archiveHabit(user.id, habitId, accessMode);
     },
     onSuccess: async (_result, variables) => {
       if (!user?.id) {
@@ -463,6 +467,7 @@ export function useArchiveHabitMutation() {
 
 export function useRestoreHabitMutation() {
   const { user } = useAuthSession();
+  const { accessMode } = useTrialValidation();
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -472,7 +477,7 @@ export function useRestoreHabitMutation() {
           "You need an account session before restoring a habit.",
         );
       }
-      return restoreHabit(user.id, habitId);
+      return restoreHabit(user.id, habitId, accessMode);
     },
     onSuccess: async (_result, variables) => {
       if (!user?.id) return;
@@ -528,6 +533,7 @@ export function useActivateBacklogHabitMutation() {
 
 export function useDeleteHabitMutation() {
   const { user } = useAuthSession();
+  const { accessMode } = useTrialValidation();
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -537,7 +543,7 @@ export function useDeleteHabitMutation() {
           "You need an account session before deleting a habit.",
         );
       }
-      await deleteHabit(user.id, habitId);
+      await deleteHabit(user.id, habitId, accessMode);
     },
     onSuccess: async (_result, variables) => {
       if (!user?.id) return;
