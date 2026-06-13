@@ -9,24 +9,57 @@ import { handleWebhook } from "./index.ts";
 // both paths). The mock records every filter call so tests can assert on
 // them, and returns the configured `updatedRows` from `.select()` so
 // tests can simulate the race-loser case by setting `updatedRows: []`.
+//
+// `selectRow` is either a single row (returned for every SELECT, with
+// `user_id` auto-injected from the `.eq("user_id", X)` filter so
+// production code reading `row.user_id` works), or a map of user_id to
+// row for tests (TRANSFER) that exercise multiple users in one
+// invocation. Pass `null` (or omit) to simulate the row-missing branch.
+type SelectRowShape =
+  | { entitlement_status?: string; trial_ends_at?: string; last_revenuecat_event_at?: string | null; user_id?: string }
+  | null;
 type UpdateCall = {
   table: string;
   values: Record<string, unknown>;
   userId: string;
   filters: Array<{ kind: "eq" | "or"; column?: string; value?: unknown; expr?: string }>;
 };
+type SelectCall = { table: string; userId: string };
 function mockSupabase(opts: {
-  selectRow?: { entitlement_status?: string; trial_ends_at?: string; last_revenuecat_event_at?: string | null } | null;
+  selectRow?: SelectRowShape;
+  selectRowsByUserId?: Record<string, SelectRowShape>;
   updatedRows?: Array<Record<string, unknown>>;
+  updatedRowsByUserId?: Record<string, Array<Record<string, unknown>>>;
 } = {}) {
   const calls: UpdateCall[] = [];
-  const selectRow = opts.selectRow === undefined ? null : opts.selectRow;
+  const selectCalls: SelectCall[] = [];
   const updatedRows = opts.updatedRows === undefined ? [{}] : opts.updatedRows;
+  function resolveSelect(userId: string): SelectRowShape {
+    if (opts.selectRowsByUserId && Object.prototype.hasOwnProperty.call(opts.selectRowsByUserId, userId)) {
+      const row = opts.selectRowsByUserId[userId];
+      if (!row) return null;
+      // Auto-inject user_id so production code can read row.user_id.
+      return { ...row, user_id: row.user_id ?? userId };
+    }
+    if (opts.selectRow === undefined) return null;
+    if (opts.selectRow === null) return null;
+    return { ...opts.selectRow, user_id: opts.selectRow.user_id ?? userId };
+  }
+  function resolveUpdated(userId: string) {
+    if (opts.updatedRowsByUserId && Object.prototype.hasOwnProperty.call(opts.updatedRowsByUserId, userId)) {
+      return opts.updatedRowsByUserId[userId];
+    }
+    return updatedRows;
+  }
   return {
     from: (table: string) => ({
       select: (_cols: string) => ({
-        eq: (_col: string, _val: unknown) => ({
-          maybeSingle: () => Promise.resolve({ data: selectRow, error: null }),
+        eq: (col: string, val: unknown) => ({
+          maybeSingle: () => {
+            const userId = col === "user_id" ? (val as string) : "";
+            selectCalls.push({ table, userId });
+            return Promise.resolve({ data: resolveSelect(userId), error: null });
+          },
         }),
       }),
       update: (values: Record<string, unknown>) => {
@@ -57,13 +90,15 @@ function mockSupabase(opts: {
             return builder;
           },
           select() {
-            return Promise.resolve({ data: updatedRows, error: null });
+            const data = currentCall ? resolveUpdated(currentCall.userId) : updatedRows;
+            return Promise.resolve({ data, error: null });
           },
         };
         return builder;
       },
     }),
     _calls: calls,
+    _selectCalls: selectCalls,
   };
 }
 
@@ -320,4 +355,175 @@ Deno.test("CANCELLATION update: lost race to a concurrent newer write returns 20
   const orAnchorFilter = filters.find((f) => f.kind === "or");
   assertEquals(eqPaidFilter !== undefined, true);
   assertEquals(orAnchorFilter !== undefined, true);
+});
+
+// === TRANSFER event coverage =================================================
+// TRANSFER events have no app_user_id. They carry transferred_from / transferred_to
+// arrays. Each transferred_from user is demoted (paid -> trial/expired); each
+// transferred_to user is promoted to paid. Both writes are atomic.
+
+Deno.test("TRANSFER: missing both transferred_from and transferred_to returns 400", async () => {
+  const sb = mockSupabase();
+  const res = await handleWebhook(
+    req(evt({ type: "TRANSFER", app_user_id: undefined })),
+    { secret: "shhh", supabase: sb as never },
+  );
+  assertEquals(res.status, 400);
+});
+
+Deno.test("TRANSFER: does NOT require app_user_id (regression: old handler 400'd here)", async () => {
+  // Before the fix, the handler rejected TRANSFER on missing app_user_id
+  // before reaching the route gate. That blocked the retry forever.
+  const sb = mockSupabase({
+    selectRowsByUserId: {
+      "user-old": {
+        entitlement_status: "paid",
+        trial_ends_at: "2099-01-01T00:00:00Z",
+        last_revenuecat_event_at: null,
+      },
+    },
+  });
+  const res = await handleWebhook(
+    req(
+      evt({
+        type: "TRANSFER",
+        app_user_id: undefined,
+        transferred_from: ["user-old"],
+        transferred_to: ["user-new"],
+      }),
+    ),
+    { secret: "shhh", supabase: sb as never },
+  );
+  assertEquals(res.status, 200);
+});
+
+Deno.test("TRANSFER: demotes transferred_from user (paid -> trial/expired)", async () => {
+  const sb = mockSupabase({
+    selectRowsByUserId: {
+      "user-old": {
+        entitlement_status: "paid",
+        trial_ends_at: new Date(Date.now() - 86_400_000).toISOString(),
+        last_revenuecat_event_at: null,
+      },
+    },
+  });
+  const res = await handleWebhook(
+    req(
+      evt({
+        type: "TRANSFER",
+        app_user_id: undefined,
+        transferred_from: ["user-old"],
+        transferred_to: [],
+      }),
+    ),
+    { secret: "shhh", supabase: sb as never },
+  );
+  assertEquals(res.status, 200);
+  // Exactly one UPDATE call, targeting user-old, demoting to 'expired'.
+  assertEquals(sb._calls.length, 1);
+  assertEquals(sb._calls[0].userId, "user-old");
+  assertEquals(sb._calls[0].values.entitlement_status, "expired");
+  // Demote is gated on entitlement_status='paid' (atomic).
+  const eqPaid = sb._calls[0].filters.find(
+    (f) => f.kind === "eq" && f.column === "entitlement_status" && f.value === "paid",
+  );
+  assertEquals(eqPaid !== undefined, true);
+});
+
+Deno.test("TRANSFER: promotes transferred_to user to 'paid'", async () => {
+  const sb = mockSupabase({
+    selectRowsByUserId: { "user-new": null }, // no row lookup needed for promote
+  });
+  const res = await handleWebhook(
+    req(
+      evt({
+        type: "TRANSFER",
+        app_user_id: undefined,
+        transferred_from: [],
+        transferred_to: ["user-new"],
+      }),
+    ),
+    { secret: "shhh", supabase: sb as never },
+  );
+  assertEquals(res.status, 200);
+  assertEquals(sb._calls.length, 1);
+  assertEquals(sb._calls[0].userId, "user-new");
+  assertEquals(sb._calls[0].values.entitlement_status, "paid");
+});
+
+Deno.test("TRANSFER: transferred_from user with missing row is silently skipped", async () => {
+  const sb = mockSupabase({
+    selectRowsByUserId: { "user-anonymous": null },
+  });
+  const res = await handleWebhook(
+    req(
+      evt({
+        type: "TRANSFER",
+        app_user_id: undefined,
+        transferred_from: ["user-anonymous"],
+        transferred_to: [],
+      }),
+    ),
+    { secret: "shhh", supabase: sb as never },
+  );
+  // 200, no UPDATEs.
+  assertEquals(res.status, 200);
+  assertEquals(sb._calls.length, 0);
+});
+
+Deno.test("TRANSFER: applies both demote and promote in one event", async () => {
+  const sb = mockSupabase({
+    selectRowsByUserId: {
+      "user-old": {
+        entitlement_status: "paid",
+        trial_ends_at: "2099-01-01T00:00:00Z",
+        last_revenuecat_event_at: null,
+      },
+    },
+  });
+  const res = await handleWebhook(
+    req(
+      evt({
+        type: "TRANSFER",
+        app_user_id: undefined,
+        transferred_from: ["user-old"],
+        transferred_to: ["user-new"],
+      }),
+    ),
+    { secret: "shhh", supabase: sb as never },
+  );
+  assertEquals(res.status, 200);
+  // Two writes: demote user-old + promote user-new.
+  assertEquals(sb._calls.length, 2);
+  const demoteCall = sb._calls.find((c) => c.userId === "user-old");
+  const promoteCall = sb._calls.find((c) => c.userId === "user-new");
+  assertEquals(demoteCall?.values.entitlement_status, "trial"); // still in trial window
+  assertEquals(promoteCall?.values.entitlement_status, "paid");
+});
+
+Deno.test("paid event: falls back to original_app_user_id when app_user_id row is missing", async () => {
+  const sb = mockSupabase({
+    selectRowsByUserId: {
+      "u-current": null,                  // current id has no row
+      "u-original": {                      // original id does
+        entitlement_status: "trial",
+        trial_ends_at: "2099-01-01T00:00:00Z",
+        last_revenuecat_event_at: null,
+      },
+    },
+  });
+  const res = await handleWebhook(
+    req(
+      evt({
+        app_user_id: "u-current",
+        original_app_user_id: "u-original",
+      }),
+    ),
+    { secret: "shhh", supabase: sb as never },
+  );
+  assertEquals(res.status, 200);
+  // UPDATE targets the original id (the row we found via fallback).
+  assertEquals(sb._calls.length, 1);
+  assertEquals(sb._calls[0].userId, "u-original");
+  assertEquals(sb._calls[0].values.entitlement_status, "paid");
 });
