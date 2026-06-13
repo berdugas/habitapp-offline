@@ -46,6 +46,19 @@ type HandlerDeps = {
   supabase: SupabaseClient;
 };
 
+// RevenueCat assigns anonymous identities the prefix "$RCAnonymousID:"
+// when the SDK is configured before a logIn(supabaseUserId) call. Those
+// strings cannot be cast to the uuid type the trial_entitlements.user_id
+// column (and the revenuecat_demote RPC's p_user_id arg) require, so any
+// SQL touching them errors with Postgres 22P02 BEFORE the destination's
+// promote can run. Skip non-UUID source AND destination identities up
+// front; for our model real customers always have a Supabase Auth UUID.
+const UUID_REGEX =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+function isUuid(s: string): boolean {
+  return UUID_REGEX.test(s);
+}
+
 // PAID promotion fires for the three event types that grant or
 // re-grant lifetime entitlement:
 //   - INITIAL_PURCHASE        — first non-renewing purchase
@@ -71,12 +84,18 @@ type TrialRow = {
 // Look up the trial row by app_user_id first; if missing, fall back to
 // original_app_user_id and then aliases (per RC's recommendation for
 // handling identity merges). Returns the first non-null match.
+//
+// Non-UUID candidates (e.g. $RCAnonymousID:...) are skipped because
+// trial_entitlements.user_id is a uuid column — passing one would
+// trigger Postgres 22P02 and propagate as a 500 to the caller. Those
+// identities cannot have a row anyway in our model.
 async function findTrialRow(
   supabase: SupabaseClient,
   candidates: string[],
 ): Promise<{ row: TrialRow | null; error: unknown }> {
   for (const candidate of candidates) {
     if (!candidate) continue;
+    if (!isUuid(candidate)) continue;
     const { data, error } = await supabase
       .from("trial_entitlements")
       .select(
@@ -206,7 +225,20 @@ export async function handleWebhook(
     }
 
     let demoteApplied = 0;
+    let demoteSkippedNonUuid = 0;
     for (const userId of transferredFrom) {
+      // RC anonymous IDs ($RCAnonymousID:...) cannot cast to uuid and
+      // would 500 the RPC, blocking the destination promotion below.
+      // Skip them silently — they have no trial_entitlements row to
+      // demote anyway.
+      if (!isUuid(userId)) {
+        demoteSkippedNonUuid++;
+        console.info("transfer demote: skipping non-UUID source id", {
+          userId,
+          eventAt,
+        });
+        continue;
+      }
       // Atomic demote — single SQL RPC. Either reverts paid→trial/expired
       // OR advances anchor only, based on the current row state at SQL
       // eval time (not at any earlier SELECT). Race-safe against a
@@ -232,8 +264,22 @@ export async function handleWebhook(
 
     let promoteApplied = 0;
     let promoteIdempotent = 0;
+    let promoteSkippedNonUuid = 0;
     const missingDestRows: string[] = [];
     for (const userId of transferredTo) {
+      // Same UUID guard as the demote loop — non-UUID destinations
+      // would error the SELECT (Postgres 22P02 on the uuid cast) and
+      // poison the rest of the loop. In our model destinations are
+      // always Supabase Auth UUIDs; an anonymous destination wouldn't
+      // correspond to a purchasable account anyway.
+      if (!isUuid(userId)) {
+        promoteSkippedNonUuid++;
+        console.info("transfer promote: skipping non-UUID destination id", {
+          userId,
+          eventAt,
+        });
+        continue;
+      }
       // SELECT first so we can distinguish "row missing entirely" from
       // "row exists but anchor already advanced" — the atomic UPDATE
       // collapses both to data: [] otherwise. Returning 200 on a missing
@@ -306,8 +352,10 @@ export async function handleWebhook(
     console.info("transfer applied", {
       eventAt,
       demoteCount: demoteApplied,
+      demoteSkippedNonUuid,
       promoteCount: promoteApplied,
       promoteIdempotent,
+      promoteSkippedNonUuid,
       transferredFromCount: transferredFrom.length,
       transferredToCount: transferredTo.length,
     });

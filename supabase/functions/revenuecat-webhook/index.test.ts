@@ -133,7 +133,7 @@ function evt(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
     event: {
       type: "INITIAL_PURCHASE",
-      app_user_id: "u1",
+      app_user_id: "00000000-0000-0000-0000-000000000001",
       product_id: "lifetime_unlock",
       event_timestamp_ms: 1_000_000_000_000,
       ...overrides,
@@ -193,7 +193,7 @@ Deno.test("flips entitlement_status to 'paid' on INITIAL_PURCHASE", async () => 
   assertEquals(sb._calls.length, 1);
   assertEquals(sb._calls[0].table, "trial_entitlements");
   assertEquals(sb._calls[0].values.entitlement_status, "paid");
-  assertEquals(sb._calls[0].userId, "u1");
+  assertEquals(sb._calls[0].userId, "00000000-0000-0000-0000-000000000001");
 });
 
 Deno.test("flips entitlement_status to 'paid' on NON_RENEWING_PURCHASE", async () => {
@@ -275,7 +275,7 @@ Deno.test("CANCELLATION calls the revenuecat_demote RPC with the correct args (p
   assertEquals(sb._calls.length, 0);
   assertEquals(sb._rpcCalls.length, 1);
   assertEquals(sb._rpcCalls[0].name, "revenuecat_demote");
-  assertEquals(sb._rpcCalls[0].args.p_user_id, "u1");
+  assertEquals(sb._rpcCalls[0].args.p_user_id, "00000000-0000-0000-0000-000000000001");
   assertEquals(
     sb._rpcCalls[0].args.p_event_at,
     new Date(1_000_000_000_000).toISOString(),
@@ -409,12 +409,12 @@ Deno.test("TRANSFER: does NOT require app_user_id (regression: old handler 400'd
   // before reaching the route gate. That blocked the retry forever.
   const sb = mockSupabase({
     selectRowsByUserId: {
-      "user-old": {
+      "00000000-0000-0000-0000-00000000aaaa": {
         entitlement_status: "paid",
         trial_ends_at: "2099-01-01T00:00:00Z",
         last_revenuecat_event_at: null,
       },
-      "user-new": {
+      "00000000-0000-0000-0000-00000000bbbb": {
         entitlement_status: "trial",
         trial_ends_at: "2099-01-01T00:00:00Z",
         last_revenuecat_event_at: null,
@@ -426,8 +426,8 @@ Deno.test("TRANSFER: does NOT require app_user_id (regression: old handler 400'd
       evt({
         type: "TRANSFER",
         app_user_id: undefined,
-        transferred_from: ["user-old"],
-        transferred_to: ["user-new"],
+        transferred_from: ["00000000-0000-0000-0000-00000000aaaa"],
+        transferred_to: ["00000000-0000-0000-0000-00000000bbbb"],
       }),
     ),
     { secret: "shhh", supabase: sb as never },
@@ -438,7 +438,7 @@ Deno.test("TRANSFER: does NOT require app_user_id (regression: old handler 400'd
 Deno.test("TRANSFER: demotes transferred_from user (paid -> trial/expired)", async () => {
   const sb = mockSupabase({
     selectRowsByUserId: {
-      "user-old": {
+      "00000000-0000-0000-0000-00000000aaaa": {
         entitlement_status: "paid",
         trial_ends_at: new Date(Date.now() - 86_400_000).toISOString(),
         last_revenuecat_event_at: null,
@@ -450,7 +450,7 @@ Deno.test("TRANSFER: demotes transferred_from user (paid -> trial/expired)", asy
       evt({
         type: "TRANSFER",
         app_user_id: undefined,
-        transferred_from: ["user-old"],
+        transferred_from: ["00000000-0000-0000-0000-00000000aaaa"],
         transferred_to: [],
       }),
     ),
@@ -461,13 +461,13 @@ Deno.test("TRANSFER: demotes transferred_from user (paid -> trial/expired)", asy
   assertEquals(sb._calls.length, 0);
   assertEquals(sb._rpcCalls.length, 1);
   assertEquals(sb._rpcCalls[0].name, "revenuecat_demote");
-  assertEquals(sb._rpcCalls[0].args.p_user_id, "user-old");
+  assertEquals(sb._rpcCalls[0].args.p_user_id, "00000000-0000-0000-0000-00000000aaaa");
 });
 
 Deno.test("TRANSFER: promotes transferred_to user to 'paid'", async () => {
   const sb = mockSupabase({
     selectRowsByUserId: {
-      "user-new": {
+      "00000000-0000-0000-0000-00000000bbbb": {
         entitlement_status: "trial",
         trial_ends_at: "2099-01-01T00:00:00Z",
         last_revenuecat_event_at: null,
@@ -480,14 +480,14 @@ Deno.test("TRANSFER: promotes transferred_to user to 'paid'", async () => {
         type: "TRANSFER",
         app_user_id: undefined,
         transferred_from: [],
-        transferred_to: ["user-new"],
+        transferred_to: ["00000000-0000-0000-0000-00000000bbbb"],
       }),
     ),
     { secret: "shhh", supabase: sb as never },
   );
   assertEquals(res.status, 200);
   assertEquals(sb._calls.length, 1);
-  assertEquals(sb._calls[0].userId, "user-new");
+  assertEquals(sb._calls[0].userId, "00000000-0000-0000-0000-00000000bbbb");
   assertEquals(sb._calls[0].values.entitlement_status, "paid");
 });
 
@@ -503,7 +503,7 @@ Deno.test("TRANSFER: transferred_from user with missing row is silently skipped 
       evt({
         type: "TRANSFER",
         app_user_id: undefined,
-        transferred_from: ["user-anonymous"],
+        transferred_from: ["00000000-0000-0000-0000-00000000ffff"],
         transferred_to: [],
       }),
     ),
@@ -518,7 +518,7 @@ Deno.test("TRANSFER: transferred_from user with missing row is silently skipped 
 Deno.test("TRANSFER: applies both demote (RPC) and promote (direct UPDATE) in one event", async () => {
   const sb = mockSupabase({
     selectRowsByUserId: {
-      "user-new": {
+      "00000000-0000-0000-0000-00000000bbbb": {
         entitlement_status: "trial",
         trial_ends_at: "2099-01-01T00:00:00Z",
         last_revenuecat_event_at: null,
@@ -530,8 +530,8 @@ Deno.test("TRANSFER: applies both demote (RPC) and promote (direct UPDATE) in on
       evt({
         type: "TRANSFER",
         app_user_id: undefined,
-        transferred_from: ["user-old"],
-        transferred_to: ["user-new"],
+        transferred_from: ["00000000-0000-0000-0000-00000000aaaa"],
+        transferred_to: ["00000000-0000-0000-0000-00000000bbbb"],
       }),
     ),
     { secret: "shhh", supabase: sb as never },
@@ -539,18 +539,18 @@ Deno.test("TRANSFER: applies both demote (RPC) and promote (direct UPDATE) in on
   assertEquals(res.status, 200);
   // Demote went through the RPC.
   assertEquals(sb._rpcCalls.length, 1);
-  assertEquals(sb._rpcCalls[0].args.p_user_id, "user-old");
+  assertEquals(sb._rpcCalls[0].args.p_user_id, "00000000-0000-0000-0000-00000000aaaa");
   // Promote went through a direct UPDATE.
   assertEquals(sb._calls.length, 1);
-  assertEquals(sb._calls[0].userId, "user-new");
+  assertEquals(sb._calls[0].userId, "00000000-0000-0000-0000-00000000bbbb");
   assertEquals(sb._calls[0].values.entitlement_status, "paid");
 });
 
 Deno.test("paid event: falls back to original_app_user_id when app_user_id row is missing", async () => {
   const sb = mockSupabase({
     selectRowsByUserId: {
-      "u-current": null,                  // current id has no row
-      "u-original": {                      // original id does
+      "00000000-0000-0000-0000-00000000c001": null,                  // current id has no row
+      "00000000-0000-0000-0000-00000000a001": {                      // original id does
         entitlement_status: "trial",
         trial_ends_at: "2099-01-01T00:00:00Z",
         last_revenuecat_event_at: null,
@@ -560,8 +560,8 @@ Deno.test("paid event: falls back to original_app_user_id when app_user_id row i
   const res = await handleWebhook(
     req(
       evt({
-        app_user_id: "u-current",
-        original_app_user_id: "u-original",
+        app_user_id: "00000000-0000-0000-0000-00000000c001",
+        original_app_user_id: "00000000-0000-0000-0000-00000000a001",
       }),
     ),
     { secret: "shhh", supabase: sb as never },
@@ -569,7 +569,7 @@ Deno.test("paid event: falls back to original_app_user_id when app_user_id row i
   assertEquals(res.status, 200);
   // UPDATE targets the original id (the row we found via fallback).
   assertEquals(sb._calls.length, 1);
-  assertEquals(sb._calls[0].userId, "u-original");
+  assertEquals(sb._calls[0].userId, "00000000-0000-0000-0000-00000000a001");
   assertEquals(sb._calls[0].values.entitlement_status, "paid");
 });
 
@@ -585,7 +585,7 @@ Deno.test("paid event: falls back to original_app_user_id when app_user_id row i
 Deno.test("TRANSFER: missing destination row returns 503 so RC retries", async () => {
   const sb = mockSupabase({
     selectRowsByUserId: {
-      "user-new": null, // dest row doesn't exist yet (signup trigger race?)
+      "00000000-0000-0000-0000-00000000bbbb": null, // dest row doesn't exist yet (signup trigger race?)
     },
     // updatedRows: [] would also be returned by Postgres in this case; the
     // SELECT-first guard catches it before the UPDATE attempt anyway.
@@ -597,7 +597,7 @@ Deno.test("TRANSFER: missing destination row returns 503 so RC retries", async (
         type: "TRANSFER",
         app_user_id: undefined,
         transferred_from: [],
-        transferred_to: ["user-new"],
+        transferred_to: ["00000000-0000-0000-0000-00000000bbbb"],
       }),
     ),
     { secret: "shhh", supabase: sb as never },
@@ -613,7 +613,7 @@ Deno.test("TRANSFER: dest row exists but UPDATE returns empty (anchor advanced) 
   // success, not a missing-row 503.
   const sb = mockSupabase({
     selectRowsByUserId: {
-      "user-new": {
+      "00000000-0000-0000-0000-00000000bbbb": {
         entitlement_status: "paid",
         trial_ends_at: "2099-01-01T00:00:00Z",
         last_revenuecat_event_at: new Date(2_000_000_000_000).toISOString(),
@@ -628,7 +628,7 @@ Deno.test("TRANSFER: dest row exists but UPDATE returns empty (anchor advanced) 
         type: "TRANSFER",
         app_user_id: undefined,
         transferred_from: [],
-        transferred_to: ["user-new"],
+        transferred_to: ["00000000-0000-0000-0000-00000000bbbb"],
       }),
     ),
     { secret: "shhh", supabase: sb as never },
@@ -641,12 +641,12 @@ Deno.test("TRANSFER: dest row exists but UPDATE returns empty (anchor advanced) 
 Deno.test("TRANSFER: mixed missing + present dest rows still 503 (one missing is enough)", async () => {
   const sb = mockSupabase({
     selectRowsByUserId: {
-      "user-good": {
+      "00000000-0000-0000-0000-00000000dddd": {
         entitlement_status: "trial",
         trial_ends_at: "2099-01-01T00:00:00Z",
         last_revenuecat_event_at: null,
       },
-      "user-bad": null,
+      "00000000-0000-0000-0000-00000000eeee": null,
     },
   });
   const res = await handleWebhook(
@@ -655,7 +655,7 @@ Deno.test("TRANSFER: mixed missing + present dest rows still 503 (one missing is
         type: "TRANSFER",
         app_user_id: undefined,
         transferred_from: [],
-        transferred_to: ["user-good", "user-bad"],
+        transferred_to: ["00000000-0000-0000-0000-00000000dddd", "00000000-0000-0000-0000-00000000eeee"],
       }),
     ),
     { secret: "shhh", supabase: sb as never },
@@ -666,7 +666,7 @@ Deno.test("TRANSFER: mixed missing + present dest rows still 503 (one missing is
   // (its anchor now matches eventAt) and user-bad will either succeed
   // (if its row appeared) or 503 again.
   assertEquals(sb._calls.length, 1);
-  assertEquals(sb._calls[0].userId, "user-good");
+  assertEquals(sb._calls[0].userId, "00000000-0000-0000-0000-00000000dddd");
 });
 
 // === REFUND_REVERSED coverage ================================================
@@ -785,7 +785,7 @@ Deno.test("TRANSFER demote on non-paid row dispatches to RPC (anchor advanced at
       evt({
         type: "TRANSFER",
         app_user_id: undefined,
-        transferred_from: ["user-from"],
+        transferred_from: ["00000000-0000-0000-0000-00000000cccc"],
         transferred_to: [],
       }),
     ),
@@ -794,7 +794,7 @@ Deno.test("TRANSFER demote on non-paid row dispatches to RPC (anchor advanced at
   assertEquals(res.status, 200);
   // Demote went through RPC, NOT a direct UPDATE.
   assertEquals(sb._rpcCalls.length, 1);
-  assertEquals(sb._rpcCalls[0].args.p_user_id, "user-from");
+  assertEquals(sb._rpcCalls[0].args.p_user_id, "00000000-0000-0000-0000-00000000cccc");
   assertEquals(sb._calls.length, 0);
 });
 
@@ -836,4 +836,108 @@ Deno.test("race-safe: CANCELLATION calls RPC even when the application SELECT sa
   // The dispatch happens regardless of the pre-SELECT status, because the
   // app cannot tell whether status changed in the WINDOW after SELECT.
   // The RPC is authoritative.
+});
+
+// === Round-6 regression: anonymous RC identities ============================
+// RevenueCat assigns anonymous identities the prefix "$RCAnonymousID:"
+// when the SDK is configured before logIn. Those strings cannot cast to
+// the uuid type the demote RPC and SELECT both require — without a guard
+// the call would 22P02 (invalid uuid syntax) and 500, skipping the rest
+// of the loop including any real destination promote.
+
+Deno.test("TRANSFER: anonymous transferred_from is skipped; real destination still promoted", async () => {
+  // The bug: $RCAnonymousID:... in transferred_from caused the demote
+  // RPC to error -> handler 500 -> destination 'user-real' never received
+  // 'paid' -> RC eventually gave up -> entitlement permanently lost.
+  const sb = mockSupabase({
+    selectRowsByUserId: {
+      "00000000-0000-0000-0000-000000000abc": {
+        entitlement_status: "trial",
+        trial_ends_at: "2099-01-01T00:00:00Z",
+        last_revenuecat_event_at: null,
+      },
+    },
+  });
+  const res = await handleWebhook(
+    req(
+      evt({
+        type: "TRANSFER",
+        app_user_id: undefined,
+        transferred_from: ["$RCAnonymousID:abcdef0123456789"],
+        transferred_to: ["00000000-0000-0000-0000-000000000abc"],
+      }),
+    ),
+    { secret: "shhh", supabase: sb as never },
+  );
+  assertEquals(res.status, 200);
+  // Anonymous source: NO RPC call (would have 500'd otherwise).
+  assertEquals(sb._rpcCalls.length, 0);
+  // Real destination: promote went through as a direct UPDATE.
+  assertEquals(sb._calls.length, 1);
+  assertEquals(
+    sb._calls[0].userId,
+    "00000000-0000-0000-0000-000000000abc",
+  );
+  assertEquals(sb._calls[0].values.entitlement_status, "paid");
+});
+
+Deno.test("TRANSFER: anonymous transferred_to is skipped (no SELECT attempt for non-UUID)", async () => {
+  const sb = mockSupabase();
+  const res = await handleWebhook(
+    req(
+      evt({
+        type: "TRANSFER",
+        app_user_id: undefined,
+        transferred_from: [],
+        transferred_to: ["$RCAnonymousID:def987654321"],
+      }),
+    ),
+    { secret: "shhh", supabase: sb as never },
+  );
+  assertEquals(res.status, 200);
+  // No SELECT, no UPDATE — the guard short-circuits before the row lookup.
+  assertEquals(sb._selectCalls.length, 0);
+  assertEquals(sb._calls.length, 0);
+});
+
+Deno.test("TRANSFER: mixed anonymous + real on both sides processes only the UUIDs", async () => {
+  const sb = mockSupabase({
+    selectRowsByUserId: {
+      "11111111-1111-1111-1111-111111111111": {
+        entitlement_status: "trial",
+        trial_ends_at: "2099-01-01T00:00:00Z",
+        last_revenuecat_event_at: null,
+      },
+    },
+  });
+  const res = await handleWebhook(
+    req(
+      evt({
+        type: "TRANSFER",
+        app_user_id: undefined,
+        transferred_from: [
+          "$RCAnonymousID:aaa",
+          "22222222-2222-2222-2222-222222222222",
+        ],
+        transferred_to: [
+          "$RCAnonymousID:bbb",
+          "11111111-1111-1111-1111-111111111111",
+        ],
+      }),
+    ),
+    { secret: "shhh", supabase: sb as never },
+  );
+  assertEquals(res.status, 200);
+  // Demote: only the real source -> RPC.
+  assertEquals(sb._rpcCalls.length, 1);
+  assertEquals(
+    sb._rpcCalls[0].args.p_user_id,
+    "22222222-2222-2222-2222-222222222222",
+  );
+  // Promote: only the real destination -> direct UPDATE.
+  assertEquals(sb._calls.length, 1);
+  assertEquals(
+    sb._calls[0].userId,
+    "11111111-1111-1111-1111-111111111111",
+  );
 });
