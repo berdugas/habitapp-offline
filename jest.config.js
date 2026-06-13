@@ -13,6 +13,7 @@ module.exports = {
     "**/src/utils/**/__tests__/**/*.test.ts",
     "**/src/theme/**/__tests__/**/*.test.ts",
     "**/src/theme/**/__tests__/**/*.test.tsx",
+    "**/src/services/**/__tests__/**/*.test.ts",
   ],
   // Sibling worktrees under .claude/worktrees/* contain their own checked-out
   // copies of src/ that match the testMatch globs above. Without ignoring
