@@ -6,12 +6,22 @@ import {
   TrialValidationProvider,
   useTrialValidationLifecycle,
 } from "@/features/trial/hooks";
+import { useRestorePaywallKeptHabitsOnUpgrade } from "@/features/trial/useRestorePaywallKeptHabitsOnUpgrade";
 
 export function TrialValidationBootstrap({ children }: PropsWithChildren) {
   const { user, isBootstrapping: isAuthBootstrapping } = useAuthSession();
   const { state, refresh } = useTrialValidationLifecycle(
     user?.id ?? null,
     isAuthBootstrapping,
+  );
+
+  // Watch for non-paid → paid transitions to auto-restore paywall-archived
+  // habits. The cached entitlement status flips as soon as the next fetch
+  // returns; this hook runs the local SQLite UPDATE for paywall_keep_one
+  // tagged rows.
+  useRestorePaywallKeptHabitsOnUpgrade(
+    user?.id ?? null,
+    state.cached?.entitlement_status ?? null,
   );
 
   const contextValue = buildTrialContextValue(state, refresh);
