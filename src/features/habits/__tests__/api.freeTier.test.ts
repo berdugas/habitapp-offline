@@ -178,6 +178,13 @@ describe("archiveHabit — free-tier guard", () => {
     await expect(archiveHabit("user-1", "h1", "expired_no_purchase")).rejects.toThrow(FreeTierCapError);
     expect(mockArchiveRow).not.toHaveBeenCalled();
   });
+
+  it("allows archive when accessMode is 'expired_no_purchase' and activeCount is 0 (pass-through edge case)", async () => {
+    mockAssertCanCreate.mockResolvedValue({ ok: true });
+    mockArchiveRow.mockResolvedValue(undefined);
+    await archiveHabit("user-1", "h1", "expired_no_purchase");
+    expect(mockArchiveRow).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe("deleteHabit — free-tier guard", () => {
@@ -201,6 +208,13 @@ describe("deleteHabit — free-tier guard", () => {
     });
     await expect(deleteHabit("user-1", "h1", "expired_no_purchase")).rejects.toThrow(FreeTierCapError);
     expect(mockDeleteRow).not.toHaveBeenCalled();
+  });
+
+  it("allows delete when accessMode is 'expired_no_purchase' and activeCount is 0 (pass-through edge case)", async () => {
+    mockAssertCanCreate.mockResolvedValue({ ok: true });
+    mockDeleteRow.mockResolvedValue(true);
+    await deleteHabit("user-1", "h1", "expired_no_purchase");
+    expect(mockDeleteRow).toHaveBeenCalledTimes(1);
   });
 });
 
