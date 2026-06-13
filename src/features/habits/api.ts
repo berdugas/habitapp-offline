@@ -272,6 +272,33 @@ export async function archiveHabitsForPaywallKeepOne(
   return { archivedCount: toArchive.length };
 }
 
+/**
+ * Auto-restore paywall-archived habits when the user upgrades to paid.
+ * One UPDATE per row that has archived_reason='paywall_keep_one'.
+ * Idempotent: re-running on a user with no paywall_keep_one rows is a no-op.
+ *
+ * Intentionally does NOT re-materialize OS reminders. The archive flow
+ * cancelled them; the restored habit reappears in Today without an active
+ * reminder schedule. User re-enables per-habit from habit detail.
+ */
+export async function restorePaywallKeptHabits(
+  userId: string,
+): Promise<{ restoredCount: number }> {
+  const allHabits = await listHabits({ user_id: userId });
+  const paywallArchived = allHabits.filter(
+    (h) => h.archived_reason === "paywall_keep_one",
+  );
+
+  for (const habit of paywallArchived) {
+    await updateHabitRow(habit.id, {
+      status: "active",
+      archived_reason: null,
+    });
+  }
+
+  return { restoredCount: paywallArchived.length };
+}
+
 export async function restoreHabit(
   userId: string,
   habitId: string,

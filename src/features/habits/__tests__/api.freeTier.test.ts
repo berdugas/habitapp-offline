@@ -5,6 +5,7 @@ import {
   deleteHabit,
   FreeTierCapError,
   restoreHabit,
+  restorePaywallKeptHabits,
   updateHabit,
 } from "@/features/habits/api";
 import {
@@ -318,5 +319,88 @@ describe("archiveHabitsForPaywallKeepOne", () => {
     const result = await archiveHabitsForPaywallKeepOne("user-1", null);
     expect(result).toEqual({ archivedCount: 1 });
     expect(mockArchiveRow).toHaveBeenCalledWith("h1");
+  });
+});
+
+describe("restorePaywallKeptHabits", () => {
+  beforeEach(() => {
+    [mockListHabits, mockUpdateRow, mockMaterializePendingReminder].forEach(
+      (m) => m.mockReset(),
+    );
+    mockUpdateRow.mockResolvedValue({ id: "ignored" });
+    mockMaterializePendingReminder.mockResolvedValue(true);
+  });
+
+  it("restores only paywall-keep-one tagged habits", async () => {
+    mockListHabits.mockResolvedValue([
+      {
+        id: "h1",
+        status: "archived",
+        habit_state: "active",
+        archived_reason: "paywall_keep_one",
+      },
+      {
+        id: "h2",
+        status: "archived",
+        habit_state: "active",
+        archived_reason: null,
+      },
+      {
+        id: "h3",
+        status: "active",
+        habit_state: "active",
+        archived_reason: null,
+      },
+    ]);
+
+    const result = await restorePaywallKeptHabits("user-1");
+    expect(result).toEqual({ restoredCount: 1 });
+
+    // Implementation reads all habits for the user (no status filter) so it
+    // can spot paywall-tagged rows in any status.
+    expect(mockListHabits).toHaveBeenCalledTimes(1);
+    expect(mockListHabits).toHaveBeenCalledWith({ user_id: "user-1" });
+
+    // Only h1 gets restored — h2 has a null tag, h3 is already active.
+    expect(mockUpdateRow).toHaveBeenCalledTimes(1);
+    expect(mockUpdateRow).toHaveBeenCalledWith("h1", {
+      status: "active",
+      archived_reason: null,
+    });
+  });
+
+  it("returns restoredCount=0 when no paywall_keep_one habits exist", async () => {
+    mockListHabits.mockResolvedValue([
+      {
+        id: "h1",
+        status: "active",
+        habit_state: "active",
+        archived_reason: null,
+      },
+      {
+        id: "h2",
+        status: "archived",
+        habit_state: "active",
+        archived_reason: null,
+      },
+    ]);
+
+    const result = await restorePaywallKeptHabits("user-1");
+    expect(result).toEqual({ restoredCount: 0 });
+    expect(mockUpdateRow).not.toHaveBeenCalled();
+  });
+
+  it("does not re-arm OS reminders (documented behavior)", async () => {
+    mockListHabits.mockResolvedValue([
+      {
+        id: "h1",
+        status: "archived",
+        habit_state: "active",
+        archived_reason: "paywall_keep_one",
+      },
+    ]);
+
+    await restorePaywallKeptHabits("user-1");
+    expect(mockMaterializePendingReminder).not.toHaveBeenCalled();
   });
 });
