@@ -1,5 +1,6 @@
 import { exceedsLength, isBlank } from "@/utils/validation";
 import { listActiveHabits } from "@/features/habits/api";
+import { listHabits } from "@/lib/db/repositories/habits";
 import { ACTIVE_HABITS_PER_GOAL_SOFT_CAP } from "@/features/habits/contract";
 import { stripLeadingAfter, stripLeadingIWill } from "@/features/habits/formatters";
 
@@ -115,6 +116,10 @@ export type FreeTierCapCheck =
  * Only counts habit_state='active' rows; 'automatic' (graduated)
  * habits are excluded so a user who graduated their one allowed habit
  * isn't blocked from creating a replacement.
+ *
+ * Counts active AND backlog status rows because the paywall picker
+ * treats both as "slots taken". Without this, a gated user could
+ * bypass the cap by stacking backlog habits.
  */
 export async function assertCanCreateHabitOnFreeTier(
   userId: string,
@@ -124,11 +129,14 @@ export async function assertCanCreateHabitOnFreeTier(
     return { ok: true };
   }
 
-  const active = await listActiveHabits(userId);
-  const activeCount = active.filter((h) => h.habit_state === "active").length;
+  const habits = await listHabits({
+    user_id: userId,
+    status: ["active", "backlog"],
+  });
+  const slotsUsed = habits.filter((h) => h.habit_state === "active").length;
 
-  if (activeCount >= 1) {
-    return { ok: false, reason: "free_tier_cap", activeCount };
+  if (slotsUsed >= 1) {
+    return { ok: false, reason: "free_tier_cap", activeCount: slotsUsed };
   }
 
   return { ok: true };
