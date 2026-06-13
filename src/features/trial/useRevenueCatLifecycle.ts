@@ -45,8 +45,20 @@ export function useRevenueCatLifecycle(
 
     void (async () => {
       try {
-        await logInRevenueCat(userId);
-        await restorePurchases();
+        // CRITICAL: only restore after a confirmed identity swap.
+        // Restoring against a stale RC identity would associate purchases
+        // with the previous user. If logIn fails, skip restore but still
+        // refresh — the webhook may have applied state from a separate
+        // event.
+        const identityOk = await logInRevenueCat(userId);
+        if (identityOk) {
+          await restorePurchases();
+        } else {
+          logger.warn(
+            "RevenueCat logIn failed; skipping restorePurchases for safety",
+            { userId },
+          );
+        }
       } catch (error) {
         logger.error("RevenueCat lifecycle (logIn/restore) failed", { error });
         // Fall through to refresh anyway — the webhook may have updated

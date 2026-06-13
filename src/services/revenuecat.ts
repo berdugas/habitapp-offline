@@ -52,12 +52,19 @@ export function initRevenueCat(): void {
   logger.info("RevenueCat initialized");
 }
 
-export async function logInRevenueCat(userId: string): Promise<void> {
-  if (isExpoGo()) return;
+// Returns true if the identity was successfully established (or if the
+// SDK gate short-circuited in Expo Go, where there's no real identity to
+// establish). Returns false on a real SDK failure. Callers MUST check
+// the return value before calling restorePurchases() — restoring against
+// a stale RC identity would associate purchases with the wrong account.
+export async function logInRevenueCat(userId: string): Promise<boolean> {
+  if (isExpoGo()) return true;
   try {
     await Purchases.logIn(userId);
+    return true;
   } catch (error) {
     logger.error("RevenueCat logIn failed", { userId, error });
+    return false;
   }
 }
 

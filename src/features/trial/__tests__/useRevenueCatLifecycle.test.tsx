@@ -7,7 +7,11 @@ import {
 } from "@/services/revenuecat";
 
 jest.mock("@/services/revenuecat", () => ({
-  logInRevenueCat: jest.fn().mockResolvedValue(undefined),
+  // logInRevenueCat returns a boolean indicating whether identity was
+  // successfully established. The hook MUST check this before calling
+  // restorePurchases — restoring against a stale identity would
+  // associate purchases with the wrong user.
+  logInRevenueCat: jest.fn().mockResolvedValue(true),
   logOutRevenueCat: jest.fn().mockResolvedValue(undefined),
   restorePurchases: jest.fn().mockResolvedValue(undefined),
 }));
@@ -19,7 +23,7 @@ const mockRefresh = jest.fn().mockResolvedValue(undefined);
 
 describe("useRevenueCatLifecycle", () => {
   beforeEach(() => {
-    mockLogIn.mockReset().mockResolvedValue(undefined);
+    mockLogIn.mockReset().mockResolvedValue(true);
     mockLogOut.mockReset().mockResolvedValue(undefined);
     mockRestore.mockReset().mockResolvedValue(undefined);
     mockRefresh.mockReset().mockResolvedValue(undefined);
@@ -113,6 +117,17 @@ describe("useRevenueCatLifecycle", () => {
     expect(mockLogIn).toHaveBeenCalledWith("user-1");
     // refresh should still fire even after a failed restore — the webhook
     // may have updated the row from a separate purchase event.
+    expect(mockRefresh).toHaveBeenCalledTimes(1);
+  });
+
+  it("skips restorePurchases when logIn fails — restore against a stale identity would attribute purchases to the wrong user", async () => {
+    mockLogIn.mockResolvedValueOnce(false);
+    renderHook(() => useRevenueCatLifecycle("user-1", mockRefresh));
+    await new Promise((r) => setTimeout(r, 0));
+    expect(mockLogIn).toHaveBeenCalledWith("user-1");
+    expect(mockRestore).not.toHaveBeenCalled();
+    // refresh still fires — the webhook may have updated state from a
+    // separate event, so re-fetching is harmless and informative.
     expect(mockRefresh).toHaveBeenCalledTimes(1);
   });
 });
