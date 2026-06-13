@@ -47,7 +47,27 @@ also reads via `Deno.env.get()` — are pre-injected on hosted Edge
 Functions; you do NOT set those manually. The service-role key bypasses
 RLS so the function can update `trial_entitlements`.)
 
-## D. Deploy the function
+## D. Apply database migrations (REQUIRED before function deploy)
+
+The webhook function depends on two pieces of database state:
+- `trial_entitlements.last_revenuecat_event_at` column (migration
+  `20260613120000_add_last_revenuecat_event_at.sql`)
+- `public.revenuecat_demote(uuid, timestamptz)` RPC (migration
+  `20260613130000_revenuecat_demote_rpc.sql`)
+
+Without both migrations applied, every CANCELLATION and TRANSFER
+event will fail with a 500 (RPC not found, or missing column).
+Apply migrations first:
+
+```powershell
+supabase db push
+```
+
+This pushes every file in `supabase/migrations/` that isn't already
+recorded in the `supabase_migrations.schema_migrations` table. Idempotent
+— safe to re-run.
+
+## E. Deploy the function
 
 ```powershell
 supabase functions deploy revenuecat-webhook
@@ -73,7 +93,7 @@ curl -X POST "https://<project-ref>.supabase.co/functions/v1/revenuecat-webhook"
 
 Expected: 200 (no-op for unknown event type).
 
-## E. Trigger a test event from RC dashboard
+## F. Trigger a test event from RC dashboard
 
 RC dashboard → Webhooks → Send test event. Confirm 200 in the dashboard's
 delivery log. Tail Supabase function logs in another window:
