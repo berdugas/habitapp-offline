@@ -232,7 +232,40 @@ export async function handleWebhook(
     }
 
     let promoteApplied = 0;
+    let promoteIdempotent = 0;
+    const missingDestRows: string[] = [];
     for (const userId of transferredTo) {
+      // SELECT first so we can distinguish "row missing entirely" from
+      // "row exists but anchor already advanced" — the atomic UPDATE
+      // collapses both to data: [] otherwise. Returning 200 on a missing
+      // destination row would mark RC's TRANSFER as delivered without
+      // crediting the entitlement, permanently losing the purchase.
+      const { row: destRow, error: readErr } = await findTrialRow(
+        deps.supabase,
+        [userId],
+      );
+      if (readErr) {
+        console.error("transfer promote read failed", {
+          userId,
+          eventAt,
+          error: readErr,
+        });
+        return new Response("read failed", { status: 500 });
+      }
+      if (!destRow) {
+        // Anomalous: a TRANSFER destination identity should map to a
+        // Supabase user (the app calls Purchases.logIn(supabaseUserId)
+        // before any purchase). If the row is missing the signup trigger
+        // may have raced TRANSFER delivery, or a deletion happened, or
+        // the destination identity is unknown. Surface the failure so RC
+        // retries (up to 5 attempts) and emit a clear log line.
+        missingDestRows.push(userId);
+        console.error("transfer promote: destination row missing", {
+          userId,
+          eventAt,
+        });
+        continue;
+      }
       const { applied, error } = await applyPaidPromote(
         deps.supabase,
         userId,
@@ -246,12 +279,36 @@ export async function handleWebhook(
         });
         return new Response("update failed", { status: 500 });
       }
-      if (applied) promoteApplied++;
+      if (applied) {
+        promoteApplied++;
+      } else {
+        // Row exists but anchor already at-or-past eventAt — known
+        // idempotent. Acknowledge as success.
+        promoteIdempotent++;
+      }
+    }
+    if (missingDestRows.length > 0) {
+      console.error("transfer rejected: missing destination rows", {
+        eventAt,
+        missingDestRows,
+        demoteApplied,
+        promoteApplied,
+        promoteIdempotent,
+      });
+      // 503 invites RC's retry (it retries non-200 up to 5 times). By
+      // then the destination row may exist (handle_new_user trigger
+      // finishes after signup); if it never appears we accept the
+      // permanent failure with logs visible in Supabase function logs.
+      return new Response(
+        "transfer destination row missing — retry expected",
+        { status: 503 },
+      );
     }
     console.info("transfer applied", {
       eventAt,
       demoteCount: demoteApplied,
       promoteCount: promoteApplied,
+      promoteIdempotent,
       transferredFromCount: transferredFrom.length,
       transferredToCount: transferredTo.length,
     });

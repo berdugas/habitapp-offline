@@ -381,6 +381,11 @@ Deno.test("TRANSFER: does NOT require app_user_id (regression: old handler 400'd
         trial_ends_at: "2099-01-01T00:00:00Z",
         last_revenuecat_event_at: null,
       },
+      "user-new": {
+        entitlement_status: "trial",
+        trial_ends_at: "2099-01-01T00:00:00Z",
+        last_revenuecat_event_at: null,
+      },
     },
   });
   const res = await handleWebhook(
@@ -432,7 +437,13 @@ Deno.test("TRANSFER: demotes transferred_from user (paid -> trial/expired)", asy
 
 Deno.test("TRANSFER: promotes transferred_to user to 'paid'", async () => {
   const sb = mockSupabase({
-    selectRowsByUserId: { "user-new": null }, // no row lookup needed for promote
+    selectRowsByUserId: {
+      "user-new": {
+        entitlement_status: "trial",
+        trial_ends_at: "2099-01-01T00:00:00Z",
+        last_revenuecat_event_at: null,
+      },
+    },
   });
   const res = await handleWebhook(
     req(
@@ -476,6 +487,11 @@ Deno.test("TRANSFER: applies both demote and promote in one event", async () => 
     selectRowsByUserId: {
       "user-old": {
         entitlement_status: "paid",
+        trial_ends_at: "2099-01-01T00:00:00Z",
+        last_revenuecat_event_at: null,
+      },
+      "user-new": {
+        entitlement_status: "trial",
         trial_ends_at: "2099-01-01T00:00:00Z",
         last_revenuecat_event_at: null,
       },
@@ -526,4 +542,100 @@ Deno.test("paid event: falls back to original_app_user_id when app_user_id row i
   assertEquals(sb._calls.length, 1);
   assertEquals(sb._calls[0].userId, "u-original");
   assertEquals(sb._calls[0].values.entitlement_status, "paid");
+});
+
+// === TRANSFER destination-row regression coverage =============================
+// Reviewer pointed out that the atomic UPDATE returns data: [] when no row
+// matches user_id, which is indistinguishable at the supabase-js layer from
+// "row matched but anchor advanced". Previously the handler returned 200 in
+// both cases, so RC marked TRANSFER delivered and permanently lost the
+// entitlement when a destination row didn't exist. The handler now SELECTs
+// the dest row first: if missing → 503 (RC retries up to 5 times); if
+// present but UPDATE returns 0 rows → 200 (known idempotent).
+
+Deno.test("TRANSFER: missing destination row returns 503 so RC retries", async () => {
+  const sb = mockSupabase({
+    selectRowsByUserId: {
+      "user-new": null, // dest row doesn't exist yet (signup trigger race?)
+    },
+    // updatedRows: [] would also be returned by Postgres in this case; the
+    // SELECT-first guard catches it before the UPDATE attempt anyway.
+    updatedRows: [],
+  });
+  const res = await handleWebhook(
+    req(
+      evt({
+        type: "TRANSFER",
+        app_user_id: undefined,
+        transferred_from: [],
+        transferred_to: ["user-new"],
+      }),
+    ),
+    { secret: "shhh", supabase: sb as never },
+  );
+  assertEquals(res.status, 503);
+  // No UPDATE attempted — the SELECT-first guard short-circuited.
+  assertEquals(sb._calls.length, 0);
+});
+
+Deno.test("TRANSFER: dest row exists but UPDATE returns empty (anchor advanced) → 200 idempotent", async () => {
+  // Row exists, dest user has already received a NEWER event so the
+  // atomic UPDATE's WHERE filter rejects ours. That's known-idempotent
+  // success, not a missing-row 503.
+  const sb = mockSupabase({
+    selectRowsByUserId: {
+      "user-new": {
+        entitlement_status: "paid",
+        trial_ends_at: "2099-01-01T00:00:00Z",
+        last_revenuecat_event_at: new Date(2_000_000_000_000).toISOString(),
+      },
+    },
+    // Atomic WHERE rejected our older write.
+    updatedRows: [],
+  });
+  const res = await handleWebhook(
+    req(
+      evt({
+        type: "TRANSFER",
+        app_user_id: undefined,
+        transferred_from: [],
+        transferred_to: ["user-new"],
+      }),
+    ),
+    { secret: "shhh", supabase: sb as never },
+  );
+  assertEquals(res.status, 200);
+  // UPDATE was still attempted (the SELECT-first guard let us through).
+  assertEquals(sb._calls.length, 1);
+});
+
+Deno.test("TRANSFER: mixed missing + present dest rows still 503 (one missing is enough)", async () => {
+  const sb = mockSupabase({
+    selectRowsByUserId: {
+      "user-good": {
+        entitlement_status: "trial",
+        trial_ends_at: "2099-01-01T00:00:00Z",
+        last_revenuecat_event_at: null,
+      },
+      "user-bad": null,
+    },
+  });
+  const res = await handleWebhook(
+    req(
+      evt({
+        type: "TRANSFER",
+        app_user_id: undefined,
+        transferred_from: [],
+        transferred_to: ["user-good", "user-bad"],
+      }),
+    ),
+    { secret: "shhh", supabase: sb as never },
+  );
+  assertEquals(res.status, 503);
+  // user-good's UPDATE was attempted (and committed) before user-bad
+  // was discovered missing. On retry the user-good row will be idempotent
+  // (its anchor now matches eventAt) and user-bad will either succeed
+  // (if its row appeared) or 503 again.
+  assertEquals(sb._calls.length, 1);
+  assertEquals(sb._calls[0].userId, "user-good");
 });
