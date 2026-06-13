@@ -3,21 +3,30 @@ import { useRevenueCatLifecycle } from "@/features/trial/useRevenueCatLifecycle"
 import {
   logInRevenueCat,
   logOutRevenueCat,
+  restorePurchases,
   syncPurchases,
 } from "@/services/revenuecat";
 
 jest.mock("@/services/revenuecat", () => ({
   // logInRevenueCat returns a boolean indicating whether identity was
-  // successfully established. The hook MUST check this before calling
-  // syncPurchases — syncing against a stale identity would associate
-  // purchases with the wrong user.
+  // successfully established. The hook's behaviour is the same on
+  // success vs failure (refresh still runs); the boolean is just so
+  // future Settings UI can show an inline warning.
   logInRevenueCat: jest.fn().mockResolvedValue(true),
   logOutRevenueCat: jest.fn().mockResolvedValue(undefined),
+  // restorePurchases and syncPurchases are exported but the lifecycle
+  // hook MUST NOT call them automatically. They're reserved for an
+  // explicit user gesture (Settings → Restore Purchase, sub-plan #4)
+  // and for future one-time migrations respectively. Per RC docs,
+  // auto-syncing on every launch can cause unintended subscriber
+  // aliasing or transfers.
+  restorePurchases: jest.fn().mockResolvedValue(undefined),
   syncPurchases: jest.fn().mockResolvedValue(undefined),
 }));
 
 const mockLogIn = logInRevenueCat as jest.Mock;
 const mockLogOut = logOutRevenueCat as jest.Mock;
+const mockRestore = restorePurchases as jest.Mock;
 const mockSync = syncPurchases as jest.Mock;
 const mockRefresh = jest.fn().mockResolvedValue(undefined);
 
@@ -25,11 +34,12 @@ describe("useRevenueCatLifecycle", () => {
   beforeEach(() => {
     mockLogIn.mockReset().mockResolvedValue(true);
     mockLogOut.mockReset().mockResolvedValue(undefined);
+    mockRestore.mockReset().mockResolvedValue(undefined);
     mockSync.mockReset().mockResolvedValue(undefined);
     mockRefresh.mockReset().mockResolvedValue(undefined);
   });
 
-  it("calls logIn + syncPurchases + refresh on mount when userId is present", async () => {
+  it("calls logIn + refresh on mount when userId is present (NO automatic sync/restore)", async () => {
     jest.useFakeTimers();
     const { unmount } = renderHook(() =>
       useRevenueCatLifecycle("user-1", mockRefresh),
@@ -39,7 +49,9 @@ describe("useRevenueCatLifecycle", () => {
     await Promise.resolve();
     await Promise.resolve();
     expect(mockLogIn).toHaveBeenCalledWith("user-1");
-    expect(mockSync).toHaveBeenCalledTimes(1);
+    // CRITICAL: neither sync nor restore is called automatically.
+    expect(mockSync).not.toHaveBeenCalled();
+    expect(mockRestore).not.toHaveBeenCalled();
     expect(mockRefresh).toHaveBeenCalledTimes(1);
 
     // Follow-up refresh fires 3s later
@@ -73,7 +85,6 @@ describe("useRevenueCatLifecycle", () => {
     renderHook(() => useRevenueCatLifecycle(null, mockRefresh));
     await new Promise((r) => setTimeout(r, 0));
     expect(mockLogIn).not.toHaveBeenCalled();
-    expect(mockSync).not.toHaveBeenCalled();
     expect(mockRefresh).not.toHaveBeenCalled();
   });
 
@@ -84,7 +95,6 @@ describe("useRevenueCatLifecycle", () => {
     );
     await new Promise((r) => setTimeout(r, 0));
     mockLogIn.mockClear();
-    mockSync.mockClear();
     mockRefresh.mockClear();
 
     rerender({ userId: null });
@@ -93,45 +103,42 @@ describe("useRevenueCatLifecycle", () => {
     expect(mockLogIn).not.toHaveBeenCalled();
   });
 
-  it("calls logIn + sync + refresh when userId switches users", async () => {
+  it("calls logIn + refresh when userId switches users", async () => {
     const { rerender } = renderHook<void, { userId: string }>(
       ({ userId }) => useRevenueCatLifecycle(userId, mockRefresh),
       { initialProps: { userId: "user-1" } },
     );
     await new Promise((r) => setTimeout(r, 0));
     mockLogIn.mockClear();
-    mockSync.mockClear();
     mockRefresh.mockClear();
 
     rerender({ userId: "user-2" });
     await new Promise((r) => setTimeout(r, 0));
     expect(mockLogIn).toHaveBeenCalledWith("user-2");
-    expect(mockSync).toHaveBeenCalledTimes(1);
+    expect(mockSync).not.toHaveBeenCalled();
+    expect(mockRestore).not.toHaveBeenCalled();
     expect(mockRefresh).toHaveBeenCalledTimes(1);
   });
 
-  it("does not crash if syncPurchases rejects (best-effort)", async () => {
-    mockSync.mockRejectedValueOnce(new Error("network"));
-    renderHook(() => useRevenueCatLifecycle("user-1", mockRefresh));
-    await new Promise((r) => setTimeout(r, 0));
-    expect(mockLogIn).toHaveBeenCalledWith("user-1");
-    // refresh should still fire even after a failed sync — the webhook
-    // may have updated the row from a separate purchase event.
-    expect(mockRefresh).toHaveBeenCalledTimes(1);
-  });
-
-  it("skips syncPurchases when logIn fails — syncing against a stale identity would attribute purchases to the wrong user", async () => {
+  it("still calls refresh when logIn fails (the webhook may have applied state separately)", async () => {
     mockLogIn.mockResolvedValueOnce(false);
     renderHook(() => useRevenueCatLifecycle("user-1", mockRefresh));
     await new Promise((r) => setTimeout(r, 0));
     expect(mockLogIn).toHaveBeenCalledWith("user-1");
+    // No client-side sync regardless of logIn outcome.
     expect(mockSync).not.toHaveBeenCalled();
-    // refresh still fires — the webhook may have updated state from a
-    // separate event, so re-fetching is harmless and informative.
     expect(mockRefresh).toHaveBeenCalledTimes(1);
   });
 
-  it("skips syncPurchases and refresh when userId switches before logIn resolves (in-flight identity superseded)", async () => {
+  it("does not crash if logIn rejects (best-effort) and still calls refresh", async () => {
+    mockLogIn.mockRejectedValueOnce(new Error("network"));
+    renderHook(() => useRevenueCatLifecycle("user-1", mockRefresh));
+    await new Promise((r) => setTimeout(r, 0));
+    expect(mockLogIn).toHaveBeenCalledWith("user-1");
+    expect(mockRefresh).toHaveBeenCalledTimes(1);
+  });
+
+  it("skips refresh when userId switches before logIn resolves (in-flight identity superseded)", async () => {
     // Keep logIn pending for user-1, so the swap to user-2 races it.
     let resolveFirst: ((v: boolean) => void) | undefined;
     mockLogIn.mockReturnValueOnce(
@@ -150,19 +157,16 @@ describe("useRevenueCatLifecycle", () => {
     await new Promise((r) => setTimeout(r, 0));
 
     // Now resolve the in-flight user-1 logIn. The hook MUST notice the
-    // identity changed and NOT call sync against user-1.
+    // identity changed and NOT call refresh against user-1.
     expect(resolveFirst).toBeDefined();
     resolveFirst?.(true);
     await new Promise((r) => setTimeout(r, 0));
     await new Promise((r) => setTimeout(r, 0));
 
-    // logIn was called for both users, but sync only ran for user-2.
+    // logIn was called for both users.
     expect(mockLogIn).toHaveBeenCalledWith("user-1");
     expect(mockLogIn).toHaveBeenCalledWith("user-2");
-    // Exactly one sync (for user-2). The stale user-1 chain abandoned.
-    expect(mockSync).toHaveBeenCalledTimes(1);
-    // Exactly one refresh (for user-2). The stale user-1 chain also
-    // skipped refresh, since lastUserIdRef.current !== intendedUserId.
+    // Exactly one refresh (for user-2). The stale user-1 chain abandoned.
     expect(mockRefresh).toHaveBeenCalledTimes(1);
   });
 });
