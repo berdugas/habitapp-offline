@@ -2,3 +2,9 @@ project_id = "habit-builder"
 
 [db]
 major_version = 17
+
+# RevenueCat authenticates this webhook with its own bearer token
+# (REVENUECAT_WEBHOOK_SECRET), not a Supabase JWT. Disable the platform
+# JWT gate so the request actually reaches handleWebhook() in index.ts.
+[functions.revenuecat-webhook]
+verify_jwt = false
