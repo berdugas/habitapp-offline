@@ -29,7 +29,6 @@ module.exports = ({ config }) => ({
       "expo-notifications",
       "@react-native-community/datetimepicker",
       "@sentry/react-native",
-      "react-native-purchases",
     ],
     splash: {
       image: "./assets/icons/splash-icon.png",
