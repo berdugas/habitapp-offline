@@ -170,7 +170,19 @@ export async function updateHabit(
   userId: string,
   habitId: string,
   payload: HabitSetupPayload,
+  accessMode?: AccessMode,
 ): Promise<Habit> {
+  // Free-tier guard: a non-full user is locked to the 1 active habit they
+  // already have — edits to that locked habit go through the cap check and
+  // are rejected once activeCount has hit the cap. Skip when accessMode is
+  // undefined (transient back-compat before Task 7.5 migrates call sites).
+  if (accessMode !== undefined) {
+    const cap = await assertCanCreateHabitOnFreeTier(userId, accessMode);
+    if (!cap.ok) {
+      throw new FreeTierCapError("cap_exceeded", cap.activeCount);
+    }
+  }
+
   await getHabitById(userId, habitId);
 
   const patch: UpdateHabitPatch = {
@@ -189,7 +201,18 @@ export async function updateHabit(
 export async function archiveHabit(
   userId: string,
   habitId: string,
+  accessMode?: AccessMode,
 ): Promise<void> {
+  // Free-tier guard: archiving the locked habit would clear the user's only
+  // active slot — at the cap, the upgrade prompt fires instead. The cap fn
+  // is a no-op at activeCount < 1, so 0-active edge cases pass through.
+  if (accessMode !== undefined) {
+    const cap = await assertCanCreateHabitOnFreeTier(userId, accessMode);
+    if (!cap.ok) {
+      throw new FreeTierCapError("cap_exceeded", cap.activeCount);
+    }
+  }
+
   const habit = await getHabitById(userId, habitId);
 
   // Cancel any OS-scheduled reminder ONLY for previously-active rows.
@@ -213,7 +236,17 @@ export async function archiveHabit(
 export async function restoreHabit(
   userId: string,
   habitId: string,
+  accessMode?: AccessMode,
 ): Promise<{ restored: boolean; wasExBacklog: boolean }> {
+  // Free-tier guard: restore is blocked for any non-full user, regardless
+  // of count. Restoring would put them at or past the 1-habit cap, so the
+  // honest UX is "Upgrade to restore" (UI surfaces the reason in sub-plan 4).
+  if (accessMode !== undefined && accessMode !== "full") {
+    const active = await listActiveHabits(userId);
+    const activeCount = active.filter((h) => h.habit_state === "active").length;
+    throw new FreeTierCapError("restore_blocked", activeCount);
+  }
+
   await getHabitById(userId, habitId);
   const { restored, habit, wasExBacklog } = await restoreHabitRow(
     habitId,
@@ -264,7 +297,18 @@ export async function activateBacklogHabit(
 export async function deleteHabit(
   userId: string,
   habitId: string,
+  accessMode?: AccessMode,
 ): Promise<void> {
+  // Free-tier guard: deleting the locked habit would clear the user's only
+  // active slot — at the cap, the upgrade prompt fires instead. The cap fn
+  // is a no-op at activeCount < 1, so 0-active edge cases pass through.
+  if (accessMode !== undefined) {
+    const cap = await assertCanCreateHabitOnFreeTier(userId, accessMode);
+    if (!cap.ok) {
+      throw new FreeTierCapError("cap_exceeded", cap.activeCount);
+    }
+  }
+
   await getHabitById(userId, habitId);
   // Cancel any OS-scheduled notifications BEFORE the row is deleted — the DB
   // row cascades via FK but expo-notifications schedule entries live in the OS
