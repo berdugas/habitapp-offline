@@ -156,3 +156,54 @@ Deno.test("applies the event when last_revenuecat_event_at is older than incomin
   assertEquals(sb._calls.length, 1);
   assertEquals(sb._calls[0].values.entitlement_status, "paid");
 });
+
+Deno.test("CANCELLATION reverts paid -> 'expired' when trial_ends_at is in the past", async () => {
+  const sb = mockSupabase({
+    selectRow: {
+      entitlement_status: "paid",
+      trial_ends_at: new Date(Date.now() - 86_400_000).toISOString(),
+      last_revenuecat_event_at: null,
+    },
+  });
+  const res = await handleWebhook(
+    req(evt({ type: "CANCELLATION", cancel_reason: "CUSTOMER_SUPPORT" })),
+    { secret: "shhh", supabase: sb as never },
+  );
+  assertEquals(res.status, 200);
+  assertEquals(sb._calls.length, 1);
+  assertEquals(sb._calls[0].values.entitlement_status, "expired");
+});
+
+Deno.test("CANCELLATION reverts paid -> 'trial' when trial_ends_at is in the future", async () => {
+  const sb = mockSupabase({
+    selectRow: {
+      entitlement_status: "paid",
+      trial_ends_at: new Date(Date.now() + 86_400_000).toISOString(),
+      last_revenuecat_event_at: null,
+    },
+  });
+  const res = await handleWebhook(
+    req(evt({ type: "CANCELLATION", cancel_reason: "BILLING_ERROR" })),
+    { secret: "shhh", supabase: sb as never },
+  );
+  assertEquals(res.status, 200);
+  assertEquals(sb._calls[0].values.entitlement_status, "trial");
+});
+
+Deno.test("CANCELLATION is a no-op when current entitlement is not 'paid'", async () => {
+  const sb = mockSupabase({
+    selectRow: {
+      entitlement_status: "expired",
+      trial_ends_at: new Date(Date.now() + 86_400_000).toISOString(),
+      last_revenuecat_event_at: null,
+    },
+  });
+  const res = await handleWebhook(
+    req(evt({ type: "CANCELLATION" })),
+    { secret: "shhh", supabase: sb as never },
+  );
+  assertEquals(res.status, 200);
+  // No UPDATE — the row was already non-paid (probably a duplicate
+  // cancellation delivery).
+  assertEquals(sb._calls.length, 0);
+});

@@ -144,9 +144,45 @@ export async function handleWebhook(
     return new Response("ok", { status: 200 });
   }
 
-  // CANCELLATION placeholder — Task 7 replaces this with the real revert.
+  // CANCELLATION — refund or chargeback. Only revert if the row currently
+  // shows 'paid'; for anything else this is a duplicate delivery or a
+  // refund-before-purchase corner case, both of which we want to ignore.
   if (isCancel) {
-    return new Response("ok (cancellation placeholder)", { status: 200 });
+    if (row.entitlement_status !== "paid") {
+      console.info("CANCELLATION ignored (entitlement not paid)", {
+        userId: event.app_user_id,
+        currentStatus: row.entitlement_status,
+        eventAt,
+      });
+      return new Response("ok (no-op — not paid)", { status: 200 });
+    }
+
+    const trialEndsAt = new Date(row.trial_ends_at as string).getTime();
+    const newStatus = trialEndsAt > Date.now() ? "trial" : "expired";
+
+    const { error: updErr } = await deps.supabase
+      .from("trial_entitlements")
+      .update({
+        entitlement_status: newStatus,
+        last_validated_at: new Date().toISOString(),
+        last_revenuecat_event_at: eventAt,
+      })
+      .eq("user_id", event.app_user_id)
+      .select();
+
+    if (updErr) {
+      console.error("trial_entitlements revert failed", {
+        userId: event.app_user_id,
+        eventType: event.type,
+        eventAt,
+        error: updErr,
+      });
+      return new Response("update failed", { status: 500 });
+    }
+    // Habits are deliberately NOT auto-re-archived — see spec E7. The user
+    // sees the existing read-only / paywall UI on next sync, and any habits
+    // they added while paid stay visible in the picker.
+    return new Response("ok (reverted)", { status: 200 });
   }
 
   // Unreachable; defensive return.
