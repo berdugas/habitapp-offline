@@ -25,15 +25,36 @@ type UpdateCall = {
   filters: Array<{ kind: "eq" | "or"; column?: string; value?: unknown; expr?: string }>;
 };
 type SelectCall = { table: string; userId: string };
+type RpcCall = { name: string; args: Record<string, unknown> };
+type RpcResultShape = { applied?: boolean; final_status?: string | null; final_anchor?: string | null };
 function mockSupabase(opts: {
   selectRow?: SelectRowShape;
   selectRowsByUserId?: Record<string, SelectRowShape>;
   updatedRows?: Array<Record<string, unknown>>;
   updatedRowsByUserId?: Record<string, Array<Record<string, unknown>>>;
+  // RPC results. Pass a single result for all calls, or a function that
+  // decides per-call (e.g. simulating race: first call returns
+  // applied=true, second returns applied=false). Defaults to a fresh
+  // applied=true row reflecting an idle non-paid state.
+  rpcResult?: RpcResultShape | ((args: Record<string, unknown>, idx: number) => RpcResultShape);
 } = {}) {
   const calls: UpdateCall[] = [];
   const selectCalls: SelectCall[] = [];
+  const rpcCalls: RpcCall[] = [];
   const updatedRows = opts.updatedRows === undefined ? [{}] : opts.updatedRows;
+  function resolveRpc(args: Record<string, unknown>): RpcResultShape {
+    if (typeof opts.rpcResult === "function") {
+      return opts.rpcResult(args, rpcCalls.length - 1);
+    }
+    if (opts.rpcResult) return opts.rpcResult;
+    // Default: simulate "applied=true, final_status='trial'" so the
+    // happy-path tests don't all need to spell it out.
+    return {
+      applied: true,
+      final_status: "trial",
+      final_anchor: (args.p_event_at as string) ?? null,
+    };
+  }
   function resolveSelect(userId: string): SelectRowShape {
     if (opts.selectRowsByUserId && Object.prototype.hasOwnProperty.call(opts.selectRowsByUserId, userId)) {
       const row = opts.selectRowsByUserId[userId];
@@ -97,8 +118,14 @@ function mockSupabase(opts: {
         return builder;
       },
     }),
+    rpc(name: string, args: Record<string, unknown>) {
+      rpcCalls.push({ name, args });
+      const result = resolveRpc(args);
+      return Promise.resolve({ data: [result], error: null });
+    },
     _calls: calls,
     _selectCalls: selectCalls,
+    _rpcCalls: rpcCalls,
   };
 }
 
@@ -230,66 +257,66 @@ Deno.test("applies the event when last_revenuecat_event_at is older than incomin
   assertEquals(sb._calls[0].values.entitlement_status, "paid");
 });
 
-Deno.test("CANCELLATION reverts paid -> 'expired' when trial_ends_at is in the past", async () => {
+Deno.test("CANCELLATION calls the revenuecat_demote RPC with the correct args (paid revert path)", async () => {
   const sb = mockSupabase({
     selectRow: {
       entitlement_status: "paid",
       trial_ends_at: new Date(Date.now() - 86_400_000).toISOString(),
       last_revenuecat_event_at: null,
     },
+    rpcResult: { applied: true, final_status: "expired", final_anchor: new Date(1_000_000_000_000).toISOString() },
   });
   const res = await handleWebhook(
     req(evt({ type: "CANCELLATION", cancel_reason: "CUSTOMER_SUPPORT" })),
     { secret: "shhh", supabase: sb as never },
   );
   assertEquals(res.status, 200);
-  assertEquals(sb._calls.length, 1);
-  assertEquals(sb._calls[0].values.entitlement_status, "expired");
+  // No direct .update() — all writes go through the RPC.
+  assertEquals(sb._calls.length, 0);
+  assertEquals(sb._rpcCalls.length, 1);
+  assertEquals(sb._rpcCalls[0].name, "revenuecat_demote");
+  assertEquals(sb._rpcCalls[0].args.p_user_id, "u1");
+  assertEquals(
+    sb._rpcCalls[0].args.p_event_at,
+    new Date(1_000_000_000_000).toISOString(),
+  );
 });
 
-Deno.test("CANCELLATION reverts paid -> 'trial' when trial_ends_at is in the future", async () => {
+Deno.test("CANCELLATION returns 200 when the RPC reports applied=true (revert succeeded)", async () => {
   const sb = mockSupabase({
     selectRow: {
       entitlement_status: "paid",
       trial_ends_at: new Date(Date.now() + 86_400_000).toISOString(),
       last_revenuecat_event_at: null,
     },
+    rpcResult: { applied: true, final_status: "trial", final_anchor: new Date(1_000_000_000_000).toISOString() },
   });
   const res = await handleWebhook(
     req(evt({ type: "CANCELLATION", cancel_reason: "BILLING_ERROR" })),
     { secret: "shhh", supabase: sb as never },
   );
   assertEquals(res.status, 200);
-  assertEquals(sb._calls[0].values.entitlement_status, "trial");
 });
 
-Deno.test("CANCELLATION on already-non-paid row does NOT change status but DOES advance the anchor", async () => {
-  // Previously this returned 200 with no UPDATE. That left the anchor null
-  // and allowed a delayed older INITIAL_PURCHASE to win later. The fix
-  // issues an anchor-only UPDATE (no entitlement_status change) so the
-  // atomic filter rejects any subsequent older paid event.
+Deno.test("CANCELLATION on already-non-paid row delegates to RPC (which is responsible for atomic anchor advance + race protection)", async () => {
+  // The RPC handles both "demote if paid" and "advance anchor if not"
+  // in a single SQL statement. Application code no longer branches on
+  // row.entitlement_status — it just calls the RPC.
   const sb = mockSupabase({
     selectRow: {
       entitlement_status: "expired",
       trial_ends_at: new Date(Date.now() + 86_400_000).toISOString(),
       last_revenuecat_event_at: null,
     },
+    rpcResult: { applied: true, final_status: "expired", final_anchor: new Date(1_000_000_000_000).toISOString() },
   });
   const res = await handleWebhook(
     req(evt({ type: "CANCELLATION" })),
     { secret: "shhh", supabase: sb as never },
   );
   assertEquals(res.status, 200);
-  // Exactly one UPDATE — anchor advance, status untouched.
-  assertEquals(sb._calls.length, 1);
-  assertEquals(
-    Object.prototype.hasOwnProperty.call(
-      sb._calls[0].values,
-      "entitlement_status",
-    ),
-    false,
-  );
-  assertEquals(typeof sb._calls[0].values.last_revenuecat_event_at, "string");
+  assertEquals(sb._rpcCalls.length, 1);
+  assertEquals(sb._rpcCalls[0].name, "revenuecat_demote");
 });
 
 // --- Race-condition coverage: the UPDATE itself is atomic, so even if
@@ -342,30 +369,25 @@ Deno.test("PAID update: atomic UPDATE includes the timestamp-anchor or() filter"
   );
 });
 
-Deno.test("CANCELLATION update: lost race to a concurrent newer write returns 200 (raced)", async () => {
+Deno.test("CANCELLATION RPC returning applied=false (lost race / idempotent) returns 200", async () => {
+  // RPC returns applied=false when no row matched the WHERE (no row, or
+  // anchor already at-or-past eventAt). Either way RC retries would
+  // not produce a different result, so respond 200.
   const sb = mockSupabase({
     selectRow: {
       entitlement_status: "paid",
       trial_ends_at: new Date(Date.now() - 86_400_000).toISOString(),
       last_revenuecat_event_at: null,
     },
-    updatedRows: [],
+    rpcResult: { applied: false, final_status: null, final_anchor: null },
   });
   const res = await handleWebhook(
     req(evt({ type: "CANCELLATION" })),
     { secret: "shhh", supabase: sb as never },
   );
   assertEquals(res.status, 200);
-  assertEquals(sb._calls.length, 1);
-  // CANCELLATION update gates on both entitlement_status='paid' AND the
-  // anchor — verify both filters are present.
-  const filters = sb._calls[0].filters;
-  const eqPaidFilter = filters.find(
-    (f) => f.kind === "eq" && f.column === "entitlement_status" && f.value === "paid",
-  );
-  const orAnchorFilter = filters.find((f) => f.kind === "or");
-  assertEquals(eqPaidFilter !== undefined, true);
-  assertEquals(orAnchorFilter !== undefined, true);
+  assertEquals(sb._rpcCalls.length, 1);
+  assertEquals(sb._calls.length, 0);
 });
 
 // === TRANSFER event coverage =================================================
@@ -435,15 +457,11 @@ Deno.test("TRANSFER: demotes transferred_from user (paid -> trial/expired)", asy
     { secret: "shhh", supabase: sb as never },
   );
   assertEquals(res.status, 200);
-  // Exactly one UPDATE call, targeting user-old, demoting to 'expired'.
-  assertEquals(sb._calls.length, 1);
-  assertEquals(sb._calls[0].userId, "user-old");
-  assertEquals(sb._calls[0].values.entitlement_status, "expired");
-  // Demote is gated on entitlement_status='paid' (atomic).
-  const eqPaid = sb._calls[0].filters.find(
-    (f) => f.kind === "eq" && f.column === "entitlement_status" && f.value === "paid",
-  );
-  assertEquals(eqPaid !== undefined, true);
+  // Demote goes through the revenuecat_demote RPC — no direct UPDATE.
+  assertEquals(sb._calls.length, 0);
+  assertEquals(sb._rpcCalls.length, 1);
+  assertEquals(sb._rpcCalls[0].name, "revenuecat_demote");
+  assertEquals(sb._rpcCalls[0].args.p_user_id, "user-old");
 });
 
 Deno.test("TRANSFER: promotes transferred_to user to 'paid'", async () => {
@@ -473,9 +491,12 @@ Deno.test("TRANSFER: promotes transferred_to user to 'paid'", async () => {
   assertEquals(sb._calls[0].values.entitlement_status, "paid");
 });
 
-Deno.test("TRANSFER: transferred_from user with missing row is silently skipped", async () => {
+Deno.test("TRANSFER: transferred_from user with missing row is silently skipped (RPC returns applied=false)", async () => {
+  // The demote RPC returns applied=false when no row matches user_id.
+  // The application code reads that as a no-op for transfer-away (the
+  // source identity may have been anonymous / pre-auth).
   const sb = mockSupabase({
-    selectRowsByUserId: { "user-anonymous": null },
+    rpcResult: { applied: false, final_status: null, final_anchor: null },
   });
   const res = await handleWebhook(
     req(
@@ -488,19 +509,15 @@ Deno.test("TRANSFER: transferred_from user with missing row is silently skipped"
     ),
     { secret: "shhh", supabase: sb as never },
   );
-  // 200, no UPDATEs.
   assertEquals(res.status, 200);
+  // RPC was called (and returned applied=false), no direct UPDATEs.
+  assertEquals(sb._rpcCalls.length, 1);
   assertEquals(sb._calls.length, 0);
 });
 
-Deno.test("TRANSFER: applies both demote and promote in one event", async () => {
+Deno.test("TRANSFER: applies both demote (RPC) and promote (direct UPDATE) in one event", async () => {
   const sb = mockSupabase({
     selectRowsByUserId: {
-      "user-old": {
-        entitlement_status: "paid",
-        trial_ends_at: "2099-01-01T00:00:00Z",
-        last_revenuecat_event_at: null,
-      },
       "user-new": {
         entitlement_status: "trial",
         trial_ends_at: "2099-01-01T00:00:00Z",
@@ -520,12 +537,13 @@ Deno.test("TRANSFER: applies both demote and promote in one event", async () => 
     { secret: "shhh", supabase: sb as never },
   );
   assertEquals(res.status, 200);
-  // Two writes: demote user-old + promote user-new.
-  assertEquals(sb._calls.length, 2);
-  const demoteCall = sb._calls.find((c) => c.userId === "user-old");
-  const promoteCall = sb._calls.find((c) => c.userId === "user-new");
-  assertEquals(demoteCall?.values.entitlement_status, "trial"); // still in trial window
-  assertEquals(promoteCall?.values.entitlement_status, "paid");
+  // Demote went through the RPC.
+  assertEquals(sb._rpcCalls.length, 1);
+  assertEquals(sb._rpcCalls[0].args.p_user_id, "user-old");
+  // Promote went through a direct UPDATE.
+  assertEquals(sb._calls.length, 1);
+  assertEquals(sb._calls[0].userId, "user-new");
+  assertEquals(sb._calls[0].values.entitlement_status, "paid");
 });
 
 Deno.test("paid event: falls back to original_app_user_id when app_user_id row is missing", async () => {
@@ -679,14 +697,21 @@ Deno.test("REFUND_REVERSED promotes entitlement_status to 'paid'", async () => {
 // The fix advances the anchor on those no-op acknowledgements so the
 // atomic filter on a subsequent stale paid event rejects.
 
-Deno.test("CANCELLATION on non-paid row STILL advances the anchor", async () => {
-  // Reproduces the regression: row is currently 'trial' (no purchase yet),
-  // CANCELLATION arrives. Old code returned 200 with no write.
+Deno.test("CANCELLATION on non-paid row dispatches to revenuecat_demote RPC (which atomically advances the anchor)", async () => {
+  // The RPC's CASE expression handles both "demote if paid" and "advance
+  // anchor if not" in one SQL statement. Application code unconditionally
+  // calls the RPC and trusts it to do the right thing — the row's
+  // pre-SELECT status (here 'trial') doesn't gate the dispatch.
   const sb = mockSupabase({
     selectRow: {
       entitlement_status: "trial",
       trial_ends_at: "2099-01-01T00:00:00Z",
       last_revenuecat_event_at: null,
+    },
+    rpcResult: {
+      applied: true,
+      final_status: "trial",
+      final_anchor: new Date(1_000_000_000_000).toISOString(),
     },
   });
   const res = await handleWebhook(
@@ -694,83 +719,65 @@ Deno.test("CANCELLATION on non-paid row STILL advances the anchor", async () => 
     { secret: "shhh", supabase: sb as never },
   );
   assertEquals(res.status, 200);
-  // Exactly one UPDATE call — an anchor advance, NOT a status flip.
-  assertEquals(sb._calls.length, 1);
-  // status is NOT in the UPDATE values (we don't touch it).
-  assertEquals(
-    Object.prototype.hasOwnProperty.call(
-      sb._calls[0].values,
-      "entitlement_status",
-    ),
-    false,
-  );
-  // The anchor is in the values.
-  assertEquals(
-    typeof sb._calls[0].values.last_revenuecat_event_at,
-    "string",
-  );
+  assertEquals(sb._rpcCalls.length, 1);
+  assertEquals(sb._rpcCalls[0].name, "revenuecat_demote");
+  // No direct UPDATE — the RPC owns the write.
+  assertEquals(sb._calls.length, 0);
 });
 
-Deno.test("out-of-order: CANCELLATION applied first blocks a later older INITIAL_PURCHASE", async () => {
-  // Simulate a 2-event sequence: CANCELLATION(t=2000), then a delayed
-  // INITIAL_PURCHASE(t=1000) arriving second. The CANCELLATION must
-  // advance the anchor; the older INITIAL_PURCHASE must then idempotency-
-  // reject and NOT promote the row to paid.
+Deno.test("out-of-order: CANCELLATION advances anchor via RPC then older INITIAL_PURCHASE is idempotency-rejected", async () => {
+  // Two-step sequence: CANCELLATION(t=2000) goes through RPC, advancing
+  // anchor in real Postgres. Then a delayed INITIAL_PURCHASE(t=1000)
+  // arrives — its pre-check sees anchor=t=2000 and idempotency-rejects.
   //
-  // This test exercises BOTH calls against the same in-memory mock so
-  // the anchor advance from the first call is observable by the second.
-  const sb = mockSupabase({
+  // The mock here doesn't propagate state between SELECTs so we simulate
+  // post-RPC state for the second call.
+  const sbCancel = mockSupabase({
     selectRow: {
       entitlement_status: "trial",
       trial_ends_at: "2099-01-01T00:00:00Z",
       last_revenuecat_event_at: null,
     },
+    rpcResult: {
+      applied: true,
+      final_status: "trial",
+      final_anchor: new Date(2_000_000_000_000).toISOString(),
+    },
   });
-
-  // First: CANCELLATION at t=2000 (the "newer" event in real time).
   const res1 = await handleWebhook(
     req(evt({ type: "CANCELLATION", event_timestamp_ms: 2_000_000_000_000 })),
-    { secret: "shhh", supabase: sb as never },
+    { secret: "shhh", supabase: sbCancel as never },
   );
   assertEquals(res1.status, 200);
-  // The mock doesn't propagate anchor writes back into the selectRow it
-  // returns on subsequent SELECTs, so we have to simulate the post-state
-  // via a fresh mock that reflects what the CANCELLATION would have left.
-  // The important assertion here is the FIRST call wrote an anchor (no
-  // status flip).
-  assertEquals(sb._calls.length, 1);
-  assertEquals(sb._calls[0].values.last_revenuecat_event_at, new Date(2_000_000_000_000).toISOString());
+  assertEquals(sbCancel._rpcCalls.length, 1);
+  assertEquals(
+    sbCancel._rpcCalls[0].args.p_event_at,
+    new Date(2_000_000_000_000).toISOString(),
+  );
 
-  // Second mock: simulates the row AFTER CANCELLATION advanced the anchor.
-  const sb2 = mockSupabase({
+  // Second mock simulates the row AFTER the RPC advanced the anchor.
+  const sbPaid = mockSupabase({
     selectRow: {
       entitlement_status: "trial",
       trial_ends_at: "2099-01-01T00:00:00Z",
       last_revenuecat_event_at: new Date(2_000_000_000_000).toISOString(),
     },
   });
-  // Older INITIAL_PURCHASE arrives.
   const res2 = await handleWebhook(
     req(evt({ event_timestamp_ms: 1_000_000_000_000 })),
-    { secret: "shhh", supabase: sb2 as never },
+    { secret: "shhh", supabase: sbPaid as never },
   );
-  // The pre-check fast-bails on idempotent.
   assertEquals(res2.status, 200);
-  // NO UPDATE attempted — the older paid event cannot grant.
-  assertEquals(sb2._calls.length, 0);
+  // No UPDATE attempted — the pre-check fast-bailed on idempotent.
+  assertEquals(sbPaid._calls.length, 0);
 });
 
-Deno.test("TRANSFER demote on non-paid row STILL advances the anchor", async () => {
-  // Row exists for user-from but isn't paid (already reverted, or never
-  // bought). TRANSFER-from event must still advance the anchor so a
-  // delayed older INITIAL_PURCHASE for this same user can't grant.
+Deno.test("TRANSFER demote on non-paid row dispatches to RPC (anchor advanced atomically)", async () => {
   const sb = mockSupabase({
-    selectRowsByUserId: {
-      "user-from": {
-        entitlement_status: "trial",
-        trial_ends_at: "2099-01-01T00:00:00Z",
-        last_revenuecat_event_at: null,
-      },
+    rpcResult: {
+      applied: true,
+      final_status: "trial",
+      final_anchor: new Date(1_000_000_000_000).toISOString(),
     },
   });
   const res = await handleWebhook(
@@ -785,14 +792,48 @@ Deno.test("TRANSFER demote on non-paid row STILL advances the anchor", async () 
     { secret: "shhh", supabase: sb as never },
   );
   assertEquals(res.status, 200);
-  assertEquals(sb._calls.length, 1);
-  // status NOT in UPDATE values, anchor IS.
-  assertEquals(
-    Object.prototype.hasOwnProperty.call(
-      sb._calls[0].values,
-      "entitlement_status",
-    ),
-    false,
+  // Demote went through RPC, NOT a direct UPDATE.
+  assertEquals(sb._rpcCalls.length, 1);
+  assertEquals(sb._rpcCalls[0].args.p_user_id, "user-from");
+  assertEquals(sb._calls.length, 0);
+});
+
+// === Round-5 regression: concurrent paid+cancel race =========================
+// This is the bug the reviewer flagged. The two-step (SELECT→branch→UPDATE)
+// approach failed to atomically demote when a concurrent paid event flipped
+// status='paid' BETWEEN the application's SELECT and a separate anchor-only
+// UPDATE. With the RPC in place, the demote-or-anchor-advance decision is
+// made AT SQL EVALUATION TIME — Postgres serializes the write, so whichever
+// concurrent operation runs second sees the other's effect and the CASE
+// expression picks the right outcome.
+
+Deno.test("race-safe: CANCELLATION calls RPC even when the application SELECT saw non-paid (the RPC's CASE handles the concurrent paid flip)", async () => {
+  // Pre-SELECT shows non-paid (concurrent INITIAL_PURCHASE hasn't run yet
+  // from our perspective). The application code MUST still dispatch the
+  // demote — if status flipped to paid by the time the RPC's UPDATE runs,
+  // the CASE WHEN demotes it; if not, the UPDATE advances the anchor only.
+  // Either way the row state is consistent after the call.
+  const sb = mockSupabase({
+    selectRow: {
+      entitlement_status: "trial",
+      trial_ends_at: "2099-01-01T00:00:00Z",
+      last_revenuecat_event_at: null,
+    },
+    // Simulate the race: by the time the RPC runs, a concurrent paid event
+    // flipped status. The RPC's CASE WHEN sees status='paid' AND demotes.
+    rpcResult: {
+      applied: true,
+      final_status: "trial", // CASE WHEN: was paid → trial (still in window)
+      final_anchor: new Date(1_000_000_000_000).toISOString(),
+    },
+  });
+  const res = await handleWebhook(
+    req(evt({ type: "CANCELLATION" })),
+    { secret: "shhh", supabase: sb as never },
   );
-  assertEquals(typeof sb._calls[0].values.last_revenuecat_event_at, "string");
+  assertEquals(res.status, 200);
+  assertEquals(sb._rpcCalls.length, 1);
+  // The dispatch happens regardless of the pre-SELECT status, because the
+  // app cannot tell whether status changed in the WINDOW after SELECT.
+  // The RPC is authoritative.
 });

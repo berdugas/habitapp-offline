@@ -112,56 +112,38 @@ async function applyPaidPromote(
   return { applied: !!data && data.length > 0, error };
 }
 
-// Atomic anchor advance with no business-logic change. Used on every
-// no-op acknowledgement path (CANCELLATION on non-paid row,
-// TRANSFER-from on non-paid row, etc.) so that an out-of-order delivery
-// of an OLDER paid event later cannot win and grant access. Without
-// this, a refund/transfer event arriving BEFORE the original purchase
-// (rare but documented RC behaviour) leaves the anchor empty and the
-// later purchase event flips the row to 'paid' incorrectly.
-async function applyAnchorOnly(
+// Atomic demote via the revenuecat_demote SQL RPC. ONE statement that:
+//   - if current status='paid' (at SQL eval time, not at the application's
+//     earlier SELECT) → demote to 'trial' (still in trial window) or
+//     'expired' (otherwise), AND advance anchor
+//   - else → just advance anchor
+//   - in either case, only if anchor is null or older than eventAt
+// Collapses the previous SELECT-decide-UPDATE-or-UPDATE two-step into a
+// single Postgres-serialized write. Closes the race where a concurrent
+// INITIAL_PURCHASE flips status='paid' between our application SELECT
+// and a separate anchor-only UPDATE. See migration
+// 20260613130000_revenuecat_demote_rpc.sql for full rationale.
+async function applyDemoteAtomic(
   supabase: SupabaseClient,
   userId: string,
   eventAt: string,
-): Promise<{ applied: boolean; error: unknown }> {
-  const { data, error } = await supabase
-    .from("trial_entitlements")
-    .update({
-      last_validated_at: new Date().toISOString(),
-      last_revenuecat_event_at: eventAt,
-    })
-    .eq("user_id", userId)
-    .or(
-      `last_revenuecat_event_at.is.null,last_revenuecat_event_at.lt.${eventAt}`,
-    )
-    .select();
-  return { applied: !!data && data.length > 0, error };
-}
-
-// Atomic cancel/transfer-from revert. Demote paid → trial (if still
-// inside trial window) or expired (otherwise). Atomic against both a
-// concurrent flip-off-paid AND a newer event arriving first.
-async function applyCancelRevert(
-  supabase: SupabaseClient,
-  row: TrialRow,
-  eventAt: string,
-): Promise<{ applied: boolean; error: unknown }> {
-  const trialEndsAt = new Date(row.trial_ends_at).getTime();
-  const newStatus = trialEndsAt > Date.now() ? "trial" : "expired";
-  const { data, error } = await supabase
-    .from("trial_entitlements")
-    .update({
-      entitlement_status: newStatus,
-      last_validated_at: new Date().toISOString(),
-      last_revenuecat_event_at: eventAt,
-    })
-    .eq("user_id", row.user_id)
-    .eq("entitlement_status", "paid")
-    .or(
-      `last_revenuecat_event_at.is.null,last_revenuecat_event_at.lt.${eventAt}`,
-    )
-    .select();
-  return { applied: !!data && data.length > 0, error };
+): Promise<{
+  applied: boolean;
+  finalStatus: string | null;
+  error: unknown;
+}> {
+  const { data, error } = await supabase.rpc("revenuecat_demote", {
+    p_user_id: userId,
+    p_event_at: eventAt,
+  });
+  if (error) return { applied: false, finalStatus: null, error };
+  // RPCs returning TABLE come back as an array of objects.
+  const row = Array.isArray(data) ? data[0] : data;
+  return {
+    applied: !!row?.applied,
+    finalStatus: (row?.final_status as string | null) ?? null,
+    error: null,
+  };
 }
 
 export async function handleWebhook(
@@ -225,54 +207,16 @@ export async function handleWebhook(
 
     let demoteApplied = 0;
     for (const userId of transferredFrom) {
-      const { row, error: readErr } = await findTrialRow(deps.supabase, [userId]);
-      if (readErr) {
-        console.error("trial_entitlements read failed (transfer demote)", {
-          userId,
-          eventType: event.type,
-          eventAt,
-          error: readErr,
-        });
-        return new Response("read failed", { status: 500 });
-      }
-      if (!row) {
-        console.info("transfer demote: no row for user_id (ignored)", {
-          userId,
-          eventType: event.type,
-          eventAt,
-        });
-        continue;
-      }
-      // Fast bail if this event is already-applied or older.
-      if (
-        row.last_revenuecat_event_at &&
-        new Date(row.last_revenuecat_event_at).getTime() >=
-          event.event_timestamp_ms
-      ) {
-        continue;
-      }
-      // If the row exists but isn't paid, the demote is a no-op — but we
-      // still advance the anchor so a delayed older INITIAL_PURCHASE
-      // can't promote the user later. (See applyAnchorOnly comment.)
-      if (row.entitlement_status !== "paid") {
-        const { error: anchorErr } = await applyAnchorOnly(
-          deps.supabase,
-          row.user_id,
-          eventAt,
-        );
-        if (anchorErr) {
-          console.error("transfer demote anchor advance failed", {
-            userId,
-            eventAt,
-            error: anchorErr,
-          });
-          return new Response("update failed", { status: 500 });
-        }
-        continue;
-      }
-      const { applied, error } = await applyCancelRevert(
+      // Atomic demote — single SQL RPC. Either reverts paid→trial/expired
+      // OR advances anchor only, based on the current row state at SQL
+      // eval time (not at any earlier SELECT). Race-safe against a
+      // concurrent INITIAL_PURCHASE for the same user. Returns
+      // applied=false when no row exists OR the anchor has already
+      // advanced past eventAt — both are correct silent no-ops here
+      // (anonymous source, or duplicate delivery).
+      const { applied, error } = await applyDemoteAtomic(
         deps.supabase,
-        row,
+        userId,
         eventAt,
       );
       if (error) {
@@ -452,40 +396,21 @@ export async function handleWebhook(
     return new Response("ok", { status: 200 });
   }
 
-  // CANCELLATION — refund or chargeback. Only revert if the row currently
-  // shows 'paid'; for anything else this is a duplicate delivery or a
-  // refund-before-purchase corner case. Either way we MUST advance the
-  // idempotency anchor so a delayed older INITIAL_PURCHASE for the same
-  // user can't grant access later.
+  // CANCELLATION — refund or chargeback. ONE atomic RPC call handles
+  // both the revert-when-paid AND advance-anchor-when-not-paid paths in
+  // a single SQL statement. Previously this branched in application
+  // code: if our SELECT saw status='paid' we did a revert-UPDATE, else
+  // an anchor-only UPDATE. A concurrent INITIAL_PURCHASE could land in
+  // the WINDOW between our SELECT and our anchor-only UPDATE, flipping
+  // status='paid' and leaving the row permanently paid with anchor=T2.
+  // The RPC's CASE expression evaluates at SQL time, eliminating that
+  // window — see migration 20260613130000_revenuecat_demote_rpc.sql.
   if (isCancel) {
-    if (row.entitlement_status !== "paid") {
-      const { error: anchorErr } = await applyAnchorOnly(
-        deps.supabase,
-        row.user_id,
-        eventAt,
-      );
-      if (anchorErr) {
-        console.error("CANCELLATION anchor advance failed", {
-          userId: row.user_id,
-          eventAt,
-          error: anchorErr,
-        });
-        return new Response("update failed", { status: 500 });
-      }
-      console.info("CANCELLATION ignored (entitlement not paid); anchor advanced", {
-        userId: row.user_id,
-        currentStatus: row.entitlement_status,
-        eventAt,
-      });
-      return new Response("ok (no-op — not paid)", { status: 200 });
-    }
-
-    const { applied, error: updErr } = await applyCancelRevert(
+    const { applied, finalStatus, error: updErr } = await applyDemoteAtomic(
       deps.supabase,
-      row,
+      row.user_id,
       eventAt,
     );
-
     if (updErr) {
       console.error("trial_entitlements revert failed", {
         userId: row.user_id,
@@ -506,7 +431,17 @@ export async function handleWebhook(
     // Habits are deliberately NOT auto-re-archived — see spec E7. The user
     // sees the existing read-only / paywall UI on next sync, and any habits
     // they added while paid stay visible in the picker.
-    return new Response("ok (reverted)", { status: 200 });
+    // Note: row.entitlement_status is the value at our pre-SELECT and may
+    // be stale relative to finalStatus when a concurrent INITIAL_PURCHASE
+    // raced between SELECT and the RPC. The RPC's CASE handled either
+    // case atomically — finalStatus is authoritative.
+    console.info("CANCELLATION applied", {
+      userId: row.user_id,
+      preStatus: row.entitlement_status,
+      finalStatus,
+      eventAt,
+    });
+    return new Response("ok (applied)", { status: 200 });
   }
 
   // Unreachable; defensive return.
