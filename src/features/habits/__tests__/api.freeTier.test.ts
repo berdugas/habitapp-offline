@@ -390,6 +390,24 @@ describe("restorePaywallKeptHabits", () => {
     expect(mockUpdateRow).not.toHaveBeenCalled();
   });
 
+  it("restores multiple paywall_keep_one rows and leaves a sibling user-archived row alone", async () => {
+    mockListHabits.mockResolvedValue([
+      { id: "h1", status: "archived", habit_state: "active", archived_reason: "paywall_keep_one" },
+      { id: "h2", status: "archived", habit_state: "active", archived_reason: "paywall_keep_one" },
+      { id: "h3", status: "archived", habit_state: "active", archived_reason: "paywall_keep_one" },
+      { id: "h4", status: "archived", habit_state: "active", archived_reason: null },
+    ]);
+
+    const result = await restorePaywallKeptHabits("user-1");
+
+    expect(result).toEqual({ restoredCount: 3 });
+    expect(mockUpdateRow).toHaveBeenCalledTimes(3);
+    expect(mockUpdateRow).toHaveBeenCalledWith("h1", { status: "active", archived_reason: null });
+    expect(mockUpdateRow).toHaveBeenCalledWith("h2", { status: "active", archived_reason: null });
+    expect(mockUpdateRow).toHaveBeenCalledWith("h3", { status: "active", archived_reason: null });
+    expect(mockUpdateRow).not.toHaveBeenCalledWith("h4", expect.anything());
+  });
+
   it("does not re-arm OS reminders (documented behavior)", async () => {
     mockListHabits.mockResolvedValue([
       {
