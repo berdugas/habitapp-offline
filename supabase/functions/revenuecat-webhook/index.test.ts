@@ -263,7 +263,11 @@ Deno.test("CANCELLATION reverts paid -> 'trial' when trial_ends_at is in the fut
   assertEquals(sb._calls[0].values.entitlement_status, "trial");
 });
 
-Deno.test("CANCELLATION is a no-op when current entitlement is not 'paid'", async () => {
+Deno.test("CANCELLATION on already-non-paid row does NOT change status but DOES advance the anchor", async () => {
+  // Previously this returned 200 with no UPDATE. That left the anchor null
+  // and allowed a delayed older INITIAL_PURCHASE to win later. The fix
+  // issues an anchor-only UPDATE (no entitlement_status change) so the
+  // atomic filter rejects any subsequent older paid event.
   const sb = mockSupabase({
     selectRow: {
       entitlement_status: "expired",
@@ -276,9 +280,16 @@ Deno.test("CANCELLATION is a no-op when current entitlement is not 'paid'", asyn
     { secret: "shhh", supabase: sb as never },
   );
   assertEquals(res.status, 200);
-  // No UPDATE — the row was already non-paid (probably a duplicate
-  // cancellation delivery).
-  assertEquals(sb._calls.length, 0);
+  // Exactly one UPDATE — anchor advance, status untouched.
+  assertEquals(sb._calls.length, 1);
+  assertEquals(
+    Object.prototype.hasOwnProperty.call(
+      sb._calls[0].values,
+      "entitlement_status",
+    ),
+    false,
+  );
+  assertEquals(typeof sb._calls[0].values.last_revenuecat_event_at, "string");
 });
 
 // --- Race-condition coverage: the UPDATE itself is atomic, so even if
@@ -638,4 +649,150 @@ Deno.test("TRANSFER: mixed missing + present dest rows still 503 (one missing is
   // (if its row appeared) or 503 again.
   assertEquals(sb._calls.length, 1);
   assertEquals(sb._calls[0].userId, "user-good");
+});
+
+// === REFUND_REVERSED coverage ================================================
+
+Deno.test("REFUND_REVERSED promotes entitlement_status to 'paid'", async () => {
+  // Apple/Google reversed a previous refund — restore access.
+  const sb = mockSupabase({
+    selectRow: {
+      entitlement_status: "expired",
+      trial_ends_at: "2026-01-01T00:00:00Z",
+      last_revenuecat_event_at: null,
+    },
+  });
+  const res = await handleWebhook(
+    req(evt({ type: "REFUND_REVERSED" })),
+    { secret: "shhh", supabase: sb as never },
+  );
+  assertEquals(res.status, 200);
+  assertEquals(sb._calls.length, 1);
+  assertEquals(sb._calls[0].values.entitlement_status, "paid");
+});
+
+// === Out-of-order regression coverage ========================================
+// The reviewer noted that CANCELLATION-on-non-paid and TRANSFER-demote-on-
+// non-paid previously returned 200 without advancing last_revenuecat_event_at,
+// leaving the anchor null. A later DELAYED INITIAL_PURCHASE (with an OLDER
+// event_timestamp_ms) could then pass the anchor check and grant access.
+// The fix advances the anchor on those no-op acknowledgements so the
+// atomic filter on a subsequent stale paid event rejects.
+
+Deno.test("CANCELLATION on non-paid row STILL advances the anchor", async () => {
+  // Reproduces the regression: row is currently 'trial' (no purchase yet),
+  // CANCELLATION arrives. Old code returned 200 with no write.
+  const sb = mockSupabase({
+    selectRow: {
+      entitlement_status: "trial",
+      trial_ends_at: "2099-01-01T00:00:00Z",
+      last_revenuecat_event_at: null,
+    },
+  });
+  const res = await handleWebhook(
+    req(evt({ type: "CANCELLATION" })),
+    { secret: "shhh", supabase: sb as never },
+  );
+  assertEquals(res.status, 200);
+  // Exactly one UPDATE call — an anchor advance, NOT a status flip.
+  assertEquals(sb._calls.length, 1);
+  // status is NOT in the UPDATE values (we don't touch it).
+  assertEquals(
+    Object.prototype.hasOwnProperty.call(
+      sb._calls[0].values,
+      "entitlement_status",
+    ),
+    false,
+  );
+  // The anchor is in the values.
+  assertEquals(
+    typeof sb._calls[0].values.last_revenuecat_event_at,
+    "string",
+  );
+});
+
+Deno.test("out-of-order: CANCELLATION applied first blocks a later older INITIAL_PURCHASE", async () => {
+  // Simulate a 2-event sequence: CANCELLATION(t=2000), then a delayed
+  // INITIAL_PURCHASE(t=1000) arriving second. The CANCELLATION must
+  // advance the anchor; the older INITIAL_PURCHASE must then idempotency-
+  // reject and NOT promote the row to paid.
+  //
+  // This test exercises BOTH calls against the same in-memory mock so
+  // the anchor advance from the first call is observable by the second.
+  const sb = mockSupabase({
+    selectRow: {
+      entitlement_status: "trial",
+      trial_ends_at: "2099-01-01T00:00:00Z",
+      last_revenuecat_event_at: null,
+    },
+  });
+
+  // First: CANCELLATION at t=2000 (the "newer" event in real time).
+  const res1 = await handleWebhook(
+    req(evt({ type: "CANCELLATION", event_timestamp_ms: 2_000_000_000_000 })),
+    { secret: "shhh", supabase: sb as never },
+  );
+  assertEquals(res1.status, 200);
+  // The mock doesn't propagate anchor writes back into the selectRow it
+  // returns on subsequent SELECTs, so we have to simulate the post-state
+  // via a fresh mock that reflects what the CANCELLATION would have left.
+  // The important assertion here is the FIRST call wrote an anchor (no
+  // status flip).
+  assertEquals(sb._calls.length, 1);
+  assertEquals(sb._calls[0].values.last_revenuecat_event_at, new Date(2_000_000_000_000).toISOString());
+
+  // Second mock: simulates the row AFTER CANCELLATION advanced the anchor.
+  const sb2 = mockSupabase({
+    selectRow: {
+      entitlement_status: "trial",
+      trial_ends_at: "2099-01-01T00:00:00Z",
+      last_revenuecat_event_at: new Date(2_000_000_000_000).toISOString(),
+    },
+  });
+  // Older INITIAL_PURCHASE arrives.
+  const res2 = await handleWebhook(
+    req(evt({ event_timestamp_ms: 1_000_000_000_000 })),
+    { secret: "shhh", supabase: sb2 as never },
+  );
+  // The pre-check fast-bails on idempotent.
+  assertEquals(res2.status, 200);
+  // NO UPDATE attempted — the older paid event cannot grant.
+  assertEquals(sb2._calls.length, 0);
+});
+
+Deno.test("TRANSFER demote on non-paid row STILL advances the anchor", async () => {
+  // Row exists for user-from but isn't paid (already reverted, or never
+  // bought). TRANSFER-from event must still advance the anchor so a
+  // delayed older INITIAL_PURCHASE for this same user can't grant.
+  const sb = mockSupabase({
+    selectRowsByUserId: {
+      "user-from": {
+        entitlement_status: "trial",
+        trial_ends_at: "2099-01-01T00:00:00Z",
+        last_revenuecat_event_at: null,
+      },
+    },
+  });
+  const res = await handleWebhook(
+    req(
+      evt({
+        type: "TRANSFER",
+        app_user_id: undefined,
+        transferred_from: ["user-from"],
+        transferred_to: [],
+      }),
+    ),
+    { secret: "shhh", supabase: sb as never },
+  );
+  assertEquals(res.status, 200);
+  assertEquals(sb._calls.length, 1);
+  // status NOT in UPDATE values, anchor IS.
+  assertEquals(
+    Object.prototype.hasOwnProperty.call(
+      sb._calls[0].values,
+      "entitlement_status",
+    ),
+    false,
+  );
+  assertEquals(typeof sb._calls[0].values.last_revenuecat_event_at, "string");
 });

@@ -46,9 +46,19 @@ type HandlerDeps = {
   supabase: SupabaseClient;
 };
 
+// PAID promotion fires for the three event types that grant or
+// re-grant lifetime entitlement:
+//   - INITIAL_PURCHASE        — first non-renewing purchase
+//   - NON_RENEWING_PURCHASE   — subsequent non-renewing purchases (rare
+//                               for our one-product model but spec'd)
+//   - REFUND_REVERSED         — Apple/Google reversed a previous refund;
+//                               user regains access. Without this branch
+//                               a reversed refund leaves the customer
+//                               permanently locked out.
 const PAID_EVENT_TYPES = new Set([
   "INITIAL_PURCHASE",
   "NON_RENEWING_PURCHASE",
+  "REFUND_REVERSED",
 ]);
 
 type TrialRow = {
@@ -91,6 +101,32 @@ async function applyPaidPromote(
     .from("trial_entitlements")
     .update({
       entitlement_status: "paid",
+      last_validated_at: new Date().toISOString(),
+      last_revenuecat_event_at: eventAt,
+    })
+    .eq("user_id", userId)
+    .or(
+      `last_revenuecat_event_at.is.null,last_revenuecat_event_at.lt.${eventAt}`,
+    )
+    .select();
+  return { applied: !!data && data.length > 0, error };
+}
+
+// Atomic anchor advance with no business-logic change. Used on every
+// no-op acknowledgement path (CANCELLATION on non-paid row,
+// TRANSFER-from on non-paid row, etc.) so that an out-of-order delivery
+// of an OLDER paid event later cannot win and grant access. Without
+// this, a refund/transfer event arriving BEFORE the original purchase
+// (rare but documented RC behaviour) leaves the anchor empty and the
+// later purchase event flips the row to 'paid' incorrectly.
+async function applyAnchorOnly(
+  supabase: SupabaseClient,
+  userId: string,
+  eventAt: string,
+): Promise<{ applied: boolean; error: unknown }> {
+  const { data, error } = await supabase
+    .from("trial_entitlements")
+    .update({
       last_validated_at: new Date().toISOString(),
       last_revenuecat_event_at: eventAt,
     })
@@ -213,6 +249,25 @@ export async function handleWebhook(
         new Date(row.last_revenuecat_event_at).getTime() >=
           event.event_timestamp_ms
       ) {
+        continue;
+      }
+      // If the row exists but isn't paid, the demote is a no-op — but we
+      // still advance the anchor so a delayed older INITIAL_PURCHASE
+      // can't promote the user later. (See applyAnchorOnly comment.)
+      if (row.entitlement_status !== "paid") {
+        const { error: anchorErr } = await applyAnchorOnly(
+          deps.supabase,
+          row.user_id,
+          eventAt,
+        );
+        if (anchorErr) {
+          console.error("transfer demote anchor advance failed", {
+            userId,
+            eventAt,
+            error: anchorErr,
+          });
+          return new Response("update failed", { status: 500 });
+        }
         continue;
       }
       const { applied, error } = await applyCancelRevert(
@@ -399,10 +454,25 @@ export async function handleWebhook(
 
   // CANCELLATION — refund or chargeback. Only revert if the row currently
   // shows 'paid'; for anything else this is a duplicate delivery or a
-  // refund-before-purchase corner case, both of which we want to ignore.
+  // refund-before-purchase corner case. Either way we MUST advance the
+  // idempotency anchor so a delayed older INITIAL_PURCHASE for the same
+  // user can't grant access later.
   if (isCancel) {
     if (row.entitlement_status !== "paid") {
-      console.info("CANCELLATION ignored (entitlement not paid)", {
+      const { error: anchorErr } = await applyAnchorOnly(
+        deps.supabase,
+        row.user_id,
+        eventAt,
+      );
+      if (anchorErr) {
+        console.error("CANCELLATION anchor advance failed", {
+          userId: row.user_id,
+          eventAt,
+          error: anchorErr,
+        });
+        return new Response("update failed", { status: 500 });
+      }
+      console.info("CANCELLATION ignored (entitlement not paid); anchor advanced", {
         userId: row.user_id,
         currentStatus: row.entitlement_status,
         eventAt,
