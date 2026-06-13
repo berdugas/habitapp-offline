@@ -62,6 +62,7 @@ export type UpdateHabitPatch = Partial<
     | "status"
     | "active_days"
     | "automated_at"
+    | "archived_at"
     | "backlog_at"
     | "archived_reason"
   >
@@ -129,6 +130,7 @@ export async function updateHabit(
     "status",
     "active_days",
     "automated_at",
+    "archived_at",
     "backlog_at",
     "archived_reason",
   ];

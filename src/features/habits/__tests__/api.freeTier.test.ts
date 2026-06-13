@@ -338,18 +338,21 @@ describe("restorePaywallKeptHabits", () => {
         status: "archived",
         habit_state: "active",
         archived_reason: "paywall_keep_one",
+        backlog_at: null,
       },
       {
         id: "h2",
         status: "archived",
         habit_state: "active",
         archived_reason: null,
+        backlog_at: null,
       },
       {
         id: "h3",
         status: "active",
         habit_state: "active",
         archived_reason: null,
+        backlog_at: null,
       },
     ]);
 
@@ -365,6 +368,7 @@ describe("restorePaywallKeptHabits", () => {
     expect(mockUpdateRow).toHaveBeenCalledTimes(1);
     expect(mockUpdateRow).toHaveBeenCalledWith("h1", {
       status: "active",
+      archived_at: null,
       archived_reason: null,
     });
   });
@@ -392,20 +396,55 @@ describe("restorePaywallKeptHabits", () => {
 
   it("restores multiple paywall_keep_one rows and leaves a sibling user-archived row alone", async () => {
     mockListHabits.mockResolvedValue([
-      { id: "h1", status: "archived", habit_state: "active", archived_reason: "paywall_keep_one" },
-      { id: "h2", status: "archived", habit_state: "active", archived_reason: "paywall_keep_one" },
-      { id: "h3", status: "archived", habit_state: "active", archived_reason: "paywall_keep_one" },
-      { id: "h4", status: "archived", habit_state: "active", archived_reason: null },
+      { id: "h1", status: "archived", habit_state: "active", archived_reason: "paywall_keep_one", backlog_at: null },
+      { id: "h2", status: "archived", habit_state: "active", archived_reason: "paywall_keep_one", backlog_at: null },
+      { id: "h3", status: "archived", habit_state: "active", archived_reason: "paywall_keep_one", backlog_at: null },
+      { id: "h4", status: "archived", habit_state: "active", archived_reason: null, backlog_at: null },
     ]);
 
     const result = await restorePaywallKeptHabits("user-1");
 
     expect(result).toEqual({ restoredCount: 3 });
     expect(mockUpdateRow).toHaveBeenCalledTimes(3);
-    expect(mockUpdateRow).toHaveBeenCalledWith("h1", { status: "active", archived_reason: null });
-    expect(mockUpdateRow).toHaveBeenCalledWith("h2", { status: "active", archived_reason: null });
-    expect(mockUpdateRow).toHaveBeenCalledWith("h3", { status: "active", archived_reason: null });
+    expect(mockUpdateRow).toHaveBeenCalledWith("h1", { status: "active", archived_at: null, archived_reason: null });
+    expect(mockUpdateRow).toHaveBeenCalledWith("h2", { status: "active", archived_at: null, archived_reason: null });
+    expect(mockUpdateRow).toHaveBeenCalledWith("h3", { status: "active", archived_at: null, archived_reason: null });
     expect(mockUpdateRow).not.toHaveBeenCalledWith("h4", expect.anything());
+  });
+
+  it("restores ex-backlog paywall rows to status='backlog' (preserves lifecycle)", async () => {
+    mockListHabits.mockResolvedValue([
+      {
+        id: "h1",
+        status: "archived",
+        habit_state: "active",
+        archived_reason: "paywall_keep_one",
+        backlog_at: "2026-06-01T00:00:00.000Z", // was a backlog item before paywall archive
+      },
+      {
+        id: "h2",
+        status: "archived",
+        habit_state: "active",
+        archived_reason: "paywall_keep_one",
+        backlog_at: null, // ex-active
+      },
+    ]);
+
+    const result = await restorePaywallKeptHabits("user-1");
+    expect(result).toEqual({ restoredCount: 2 });
+
+    // Ex-backlog → status: 'backlog'
+    expect(mockUpdateRow).toHaveBeenCalledWith("h1", {
+      status: "backlog",
+      archived_at: null,
+      archived_reason: null,
+    });
+    // Ex-active → status: 'active'
+    expect(mockUpdateRow).toHaveBeenCalledWith("h2", {
+      status: "active",
+      archived_at: null,
+      archived_reason: null,
+    });
   });
 
   it("does not re-arm OS reminders (documented behavior)", async () => {
@@ -415,6 +454,7 @@ describe("restorePaywallKeptHabits", () => {
         status: "archived",
         habit_state: "active",
         archived_reason: "paywall_keep_one",
+        backlog_at: null,
       },
     ]);
 

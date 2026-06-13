@@ -277,6 +277,9 @@ export async function archiveHabitsForPaywallKeepOne(
  * One UPDATE per row that has archived_reason='paywall_keep_one'.
  * Idempotent: re-running on a user with no paywall_keep_one rows is a no-op.
  *
+ * Ex-backlog rows restore to status='backlog' (lifecycle preserved); ex-active
+ * rows restore to status='active'. Both clear archived_at and archived_reason.
+ *
  * Intentionally does NOT re-materialize OS reminders. The archive flow
  * cancelled them; the restored habit reappears in Today without an active
  * reminder schedule. User re-enables per-habit from habit detail.
@@ -290,10 +293,23 @@ export async function restorePaywallKeptHabits(
   );
 
   for (const habit of paywallArchived) {
-    await updateHabitRow(habit.id, {
-      status: "active",
-      archived_reason: null,
-    });
+    // backlog_at survives archive (archiveHabitRow doesn't touch it), so a
+    // non-null value here means the row was on the backlog at paywall-archive
+    // time and should return there. Active rows restore to active.
+    const wasExBacklog = habit.backlog_at !== null;
+    if (wasExBacklog) {
+      await updateHabitRow(habit.id, {
+        status: "backlog",
+        archived_at: null,
+        archived_reason: null,
+      });
+    } else {
+      await updateHabitRow(habit.id, {
+        status: "active",
+        archived_at: null,
+        archived_reason: null,
+      });
+    }
   }
 
   return { restoredCount: paywallArchived.length };
