@@ -29,6 +29,10 @@ jest.mock("@/services/logger", () => ({
   logger: { error: jest.fn(), info: jest.fn(), warn: jest.fn() },
 }));
 
+jest.mock("@/features/trial/useRevenueCatLifecycle", () => ({
+  useRevenueCatLifecycle: jest.fn(),
+}));
+
 import React from "react";
 import { AppState, type AppStateStatus } from "react-native";
 import * as Network from "expo-network";
