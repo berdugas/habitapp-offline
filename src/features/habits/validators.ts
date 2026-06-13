@@ -4,6 +4,7 @@ import { ACTIVE_HABITS_PER_GOAL_SOFT_CAP } from "@/features/habits/contract";
 import { stripLeadingAfter, stripLeadingIWill } from "@/features/habits/formatters";
 
 import type { HabitSetupPayload } from "@/features/habits/types";
+import type { AccessMode } from "@/features/trial/types";
 
 export type HabitValidationErrors = Partial<Record<keyof HabitSetupPayload, string>>;
 
@@ -90,6 +91,44 @@ export async function assertCanCreateActiveHabit(
 
   if (count >= ACTIVE_HABITS_PER_GOAL_SOFT_CAP) {
     return { ok: false, reason: "soft_cap_warning", count };
+  }
+
+  return { ok: true };
+}
+
+// ─── Free-tier global cap ─────────────────────────────────────────────────────
+
+export type FreeTierCapCheck =
+  | { ok: true }
+  | { ok: false; reason: "free_tier_cap"; activeCount: number };
+
+/**
+ * Free-tier hard cap: when accessMode gates the user (anything other
+ * than 'full'), allow at most 1 active habit.
+ *
+ * Why accessMode and not entitlement_status: the spec promises trial
+ * users full access for the entire 14-day window. computeAccessMode
+ * encodes that policy (Branch 3) and returns 'full' for in-window
+ * trial users; reusing its output here keeps a single source of truth
+ * for "who is currently capped".
+ *
+ * Only counts habit_state='active' rows; 'automatic' (graduated)
+ * habits are excluded so a user who graduated their one allowed habit
+ * isn't blocked from creating a replacement.
+ */
+export async function assertCanCreateHabitOnFreeTier(
+  userId: string,
+  accessMode: AccessMode,
+): Promise<FreeTierCapCheck> {
+  if (accessMode === "full") {
+    return { ok: true };
+  }
+
+  const active = await listActiveHabits(userId);
+  const activeCount = active.filter((h) => h.habit_state === "active").length;
+
+  if (activeCount >= 1) {
+    return { ok: false, reason: "free_tier_cap", activeCount };
   }
 
   return { ok: true };
