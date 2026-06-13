@@ -47,6 +47,7 @@ yarn-error.*
 # project docs
 /docs/*
 !/docs/superpowers/
+!/docs/runbooks/
 
 # local scaffolding
 _foundation/
