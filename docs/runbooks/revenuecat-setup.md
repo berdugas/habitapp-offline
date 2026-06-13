@@ -42,17 +42,10 @@ eas env:create --environment preview `
 supabase secrets set REVENUECAT_WEBHOOK_SECRET=<bearer-secret-from-step-A5>
 ```
 
-Plus the two server-side secrets the Edge Function reads:
-
-```powershell
-supabase secrets set SUPABASE_URL=https://<project-ref>.supabase.co
-supabase secrets set SUPABASE_SERVICE_ROLE_KEY=<from-supabase-dashboard-settings-api>
-```
-
-(`SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are conventional Supabase
-secret names; the function reads them via `Deno.env.get()`. The
-service-role key bypasses RLS so the function can update
-`trial_entitlements`.)
+(`SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` — which the function
+also reads via `Deno.env.get()` — are pre-injected on hosted Edge
+Functions; you do NOT set those manually. The service-role key bypasses
+RLS so the function can update `trial_entitlements`.)
 
 ## D. Deploy the function
 
