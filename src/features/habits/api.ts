@@ -24,6 +24,7 @@ import {
 } from "@/features/reminders/notifications";
 import { now, todayDateString } from "@/utils/clock";
 import { logger } from "@/services/logger";
+import { assertCanCreateHabitOnFreeTier } from "@/features/habits/validators";
 
 import type {
   CreateHabitInput,
@@ -34,6 +35,7 @@ import type {
   UpdateHabitPatch,
   UpsertHabitLogPayload,
 } from "@/features/habits/types";
+import type { AccessMode } from "@/features/trial/types";
 
 // ─── Typed errors ─────────────────────────────────────────────────────────────
 
@@ -48,6 +50,23 @@ export class RetroLogError extends Error {
   constructor(reason: RetroLogReason) {
     super(`Retro log rejected: ${reason}`);
     this.reason = reason;
+  }
+}
+
+export type FreeTierCapReason = "cap_exceeded" | "restore_blocked";
+
+export class FreeTierCapError extends Error {
+  reason: FreeTierCapReason;
+  activeCount: number;
+  constructor(reason: FreeTierCapReason, activeCount: number) {
+    const msg =
+      reason === "restore_blocked"
+        ? "Free tier requires upgrading to restore archived habits."
+        : `Free tier allows only 1 active habit; user already has ${activeCount}.`;
+    super(msg);
+    this.name = "FreeTierCapError";
+    this.reason = reason;
+    this.activeCount = activeCount;
   }
 }
 
@@ -115,7 +134,19 @@ export async function getHabitById(
 export async function createHabit(
   userId: string,
   payload: CreateHabitPayload,
+  accessMode?: AccessMode,
 ): Promise<Habit> {
+  // Free-tier guard: enforce 1-active-habit cap for non-full users.
+  // When the arg is `undefined` (call site not yet migrated — transient
+  // between Task 5 and Task 7.5), skip the guard. After Task 7.5 the
+  // signature is required so this branch becomes unreachable.
+  if (accessMode !== undefined) {
+    const cap = await assertCanCreateHabitOnFreeTier(userId, accessMode);
+    if (!cap.ok) {
+      throw new FreeTierCapError("cap_exceeded", cap.activeCount);
+    }
+  }
+
   const status = payload.status ?? "active";
   const input: CreateHabitInput = {
     user_id: userId,
