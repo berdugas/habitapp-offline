@@ -223,6 +223,55 @@ export async function archiveHabit(
   await archiveHabitRow(habitId);
 }
 
+/**
+ * Bulk-archive all active+backlog habits except the kept one, tagging them
+ * with archived_reason='paywall_keep_one'. Used by the paywall keep-one
+ * picker flow. Idempotent (re-running with the same kept habit is a no-op).
+ *
+ * Best-effort cancels OS-scheduled reminders for the archived active habits;
+ * matches the existing archiveHabit policy.
+ *
+ * No entitlement guard — the caller is the paywall, which already knows
+ * the user is on free tier.
+ */
+export async function archiveHabitsForPaywallKeepOne(
+  userId: string,
+  keptHabitId: string | null,
+): Promise<{ archivedCount: number }> {
+  const [actives, backlogs] = await Promise.all([
+    listActiveHabits(userId),
+    listBacklogHabits(userId),
+  ]);
+
+  const toArchive = [...actives, ...backlogs].filter(
+    (h) => h.id !== keptHabitId,
+  );
+
+  // Cancel reminders for previously-active rows only (mirrors archiveHabit).
+  await Promise.all(
+    toArchive
+      .filter((h) => h.status === "active")
+      .map((h) => cancelReminder(h.id).catch(() => {})),
+  );
+
+  // Two-step archive per habit:
+  //   1. archiveHabitRow — preserves existing archive semantics (sets
+  //      status='archived', archived_at=now, updated_at=now; guarded by
+  //      `WHERE status != 'archived'` for idempotence)
+  //   2. updateHabitRow with archived_reason='paywall_keep_one' tag
+  //
+  // Two SQL calls per habit, no enclosing transaction. Acceptable for
+  // expected sizes (~10 habits) and the picker UI is behind a hard-block
+  // paywall, so a partial failure leaves the user on the paywall and a
+  // retry simply re-runs from where it left off.
+  for (const habit of toArchive) {
+    await archiveHabitRow(habit.id);
+    await updateHabitRow(habit.id, { archived_reason: "paywall_keep_one" });
+  }
+
+  return { archivedCount: toArchive.length };
+}
+
 export async function restoreHabit(
   userId: string,
   habitId: string,

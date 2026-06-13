@@ -1,5 +1,6 @@
 import {
   archiveHabit,
+  archiveHabitsForPaywallKeepOne,
   createHabit,
   deleteHabit,
   FreeTierCapError,
@@ -233,5 +234,89 @@ describe("restoreHabit — free-tier guard", () => {
       reason: "restore_blocked",
     });
     expect(mockRestoreRow).not.toHaveBeenCalled();
+  });
+});
+
+describe("archiveHabitsForPaywallKeepOne", () => {
+  beforeEach(() => {
+    // mockListHabits, mockArchiveRow, mockUpdateRow, mockCancelReminder
+    // are already defined at module scope from earlier tasks.
+    [mockListHabits, mockArchiveRow, mockUpdateRow, mockCancelReminder].forEach(
+      (m) => m.mockReset(),
+    );
+    mockArchiveRow.mockResolvedValue(undefined);
+    mockUpdateRow.mockResolvedValue({ id: "ignored" });
+    mockCancelReminder.mockResolvedValue(undefined);
+  });
+
+  it("archives all active+backlog habits except the kept one", async () => {
+    mockListHabits.mockImplementation(async (filter: { status?: string }) => {
+      if (filter.status === "active") {
+        return [
+          { id: "h1", status: "active", habit_state: "active" },
+          { id: "h2", status: "active", habit_state: "active" },
+        ];
+      }
+      if (filter.status === "backlog") {
+        return [{ id: "h3", status: "backlog", habit_state: "active" }];
+      }
+      return [];
+    });
+
+    const result = await archiveHabitsForPaywallKeepOne("user-1", "h2");
+    expect(result).toEqual({ archivedCount: 2 });
+
+    // h1 and h3 archived; h2 untouched.
+    expect(mockArchiveRow).toHaveBeenCalledWith("h1");
+    expect(mockArchiveRow).toHaveBeenCalledWith("h3");
+    expect(mockArchiveRow).not.toHaveBeenCalledWith("h2");
+
+    // archived_reason tag applied to both.
+    expect(mockUpdateRow).toHaveBeenCalledWith("h1", {
+      archived_reason: "paywall_keep_one",
+    });
+    expect(mockUpdateRow).toHaveBeenCalledWith("h3", {
+      archived_reason: "paywall_keep_one",
+    });
+
+    // Reminder cancel only for the active row (h1), not the backlog row (h3).
+    expect(mockCancelReminder).toHaveBeenCalledWith("h1");
+    expect(mockCancelReminder).not.toHaveBeenCalledWith("h3");
+  });
+
+  it("archives all habits when keptHabitId is null", async () => {
+    mockListHabits.mockImplementation(async (filter: { status?: string }) => {
+      if (filter.status === "active") {
+        return [{ id: "h1", status: "active", habit_state: "active" }];
+      }
+      if (filter.status === "backlog") {
+        return [{ id: "h2", status: "backlog", habit_state: "active" }];
+      }
+      return [];
+    });
+
+    const result = await archiveHabitsForPaywallKeepOne("user-1", null);
+    expect(result).toEqual({ archivedCount: 2 });
+  });
+
+  it("returns archivedCount=0 when user has no active+backlog habits", async () => {
+    mockListHabits.mockResolvedValue([]);
+    const result = await archiveHabitsForPaywallKeepOne("user-1", null);
+    expect(result).toEqual({ archivedCount: 0 });
+    expect(mockArchiveRow).not.toHaveBeenCalled();
+  });
+
+  it("does not abort when cancelReminder rejects (best-effort)", async () => {
+    mockListHabits.mockImplementation(async (filter: { status?: string }) => {
+      if (filter.status === "active") {
+        return [{ id: "h1", status: "active", habit_state: "active" }];
+      }
+      return [];
+    });
+    mockCancelReminder.mockRejectedValue(new Error("no permission"));
+
+    const result = await archiveHabitsForPaywallKeepOne("user-1", null);
+    expect(result).toEqual({ archivedCount: 1 });
+    expect(mockArchiveRow).toHaveBeenCalledWith("h1");
   });
 });
