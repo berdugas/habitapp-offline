@@ -17,6 +17,7 @@ import {
 import { ALL_DAYS, parseActiveDays, serializeActiveDays } from "@/features/habits/activeDays";
 
 import { deleteLogByHabitAndDate, listLogs, listLogsByUser, upsertLog } from "@/lib/db/repositories/habit_logs";
+import { getDb } from "@/lib/db/client";
 import { RETRO_LOG_WINDOW_HOURS } from "@/features/habits/contract";
 import {
   cancelReminder,
@@ -260,13 +261,23 @@ export async function archiveHabitsForPaywallKeepOne(
   //      `WHERE status != 'archived'` for idempotence)
   //   2. updateHabitRow with archived_reason='paywall_keep_one' tag
   //
-  // Two SQL calls per habit, no enclosing transaction. Acceptable for
-  // expected sizes (~10 habits) and the picker UI is behind a hard-block
-  // paywall, so a partial failure leaves the user on the paywall and a
-  // retry simply re-runs from where it left off.
+  // Per-habit transaction wrapper makes the two writes atomic: without it,
+  // a failure between writes (transient SQLite error, mid-loop crash)
+  // would leave a row status='archived' but archived_reason=null, which
+  // the auto-restore detector (`restorePaywallKeptHabits`) wouldn't pick
+  // up on upgrade — and the row would no longer appear in the picker's
+  // active/backlog lists, so a retry wouldn't touch it either.
+  //
+  // Per-habit (not whole-loop) on purpose: if one habit's pair fails,
+  // only that pair rolls back; previously-completed habits stay archived,
+  // so a picker retry resumes from where it left off instead of redoing
+  // every archive from scratch on every failure.
+  const db = getDb();
   for (const habit of toArchive) {
-    await archiveHabitRow(habit.id);
-    await updateHabitRow(habit.id, { archived_reason: "paywall_keep_one" });
+    await db.withTransactionAsync(async () => {
+      await archiveHabitRow(habit.id);
+      await updateHabitRow(habit.id, { archived_reason: "paywall_keep_one" });
+    });
   }
 
   return { archivedCount: toArchive.length };

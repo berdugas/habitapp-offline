@@ -41,6 +41,19 @@ jest.mock("@/lib/db/repositories/habits", () => ({
   listHabits: jest.fn(),
 }));
 
+// archiveHabitsForPaywallKeepOne wraps each habit's two writes in
+// db.withTransactionAsync for atomicity (archive + tag must commit or
+// rollback together). Default implementation runs the callback inline so
+// other tests' archiveRow/updateRow assertions still hold. The rollback
+// test relies on the callback's rejection propagating out of the await.
+const mockWithTransactionAsync = jest.fn(async (fn: () => Promise<void>) => fn());
+
+jest.mock("@/lib/db/client", () => ({
+  getDb: () => ({
+    withTransactionAsync: mockWithTransactionAsync,
+  }),
+}));
+
 // Mock validators directly to drive the cap result without going through the
 // api ↔ validators ↔ api circular import (the self-mock-on-api pattern hits a
 // recursive-factory issue where validators.ts captures the unmocked
@@ -319,6 +332,24 @@ describe("archiveHabitsForPaywallKeepOne", () => {
     const result = await archiveHabitsForPaywallKeepOne("user-1", null);
     expect(result).toEqual({ archivedCount: 1 });
     expect(mockArchiveRow).toHaveBeenCalledWith("h1");
+  });
+
+  it("rolls back the archive if the tag write fails (atomic per habit)", async () => {
+    mockListHabits.mockImplementation(async (filter: { status?: string }) => {
+      if (filter.status === "active") {
+        return [{ id: "h1", status: "active", habit_state: "active" }];
+      }
+      return [];
+    });
+
+    // Archive succeeds, but the tag write fails for this one habit.
+    mockArchiveRow.mockResolvedValue(undefined);
+    mockUpdateRow.mockRejectedValueOnce(new Error("transient db error"));
+
+    // The whole call should throw because the transaction rolls back.
+    await expect(
+      archiveHabitsForPaywallKeepOne("user-1", null),
+    ).rejects.toThrow("transient db error");
   });
 });
 
