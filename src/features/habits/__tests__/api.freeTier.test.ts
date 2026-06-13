@@ -121,12 +121,6 @@ describe("createHabit — free-tier guard", () => {
     ).rejects.toThrow(FreeTierCapError);
   });
 
-  it("skips the cap when accessMode arg is omitted (back-compat — transient between Task 5 and Task 7.5)", async () => {
-    const result = await createHabit("user-1", basePayload);
-    expect(result.id).toBe("new-habit-id");
-    expect(mockCreateHabitRow).toHaveBeenCalledTimes(1);
-    expect(mockAssertCanCreate).not.toHaveBeenCalled();
-  });
 });
 
 describe("updateHabit — free-tier guard", () => {

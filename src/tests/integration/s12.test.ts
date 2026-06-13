@@ -94,7 +94,7 @@ describe("S12 — icon wiring + cap check", () => {
   // ─── 3. Icon round-trip ───────────────────────────────────────────────────────
 
   it("icon persists through create and read-back", async () => {
-    const created = await createHabit(USER, { ...BASE_PAYLOAD, icon: "BookOpen" });
+    const created = await createHabit(USER, { ...BASE_PAYLOAD, icon: "BookOpen" }, "full");
 
     expect(created.icon).toBe("BookOpen");
 
@@ -105,7 +105,7 @@ describe("S12 — icon wiring + cap check", () => {
   // ─── 4. Icon update ───────────────────────────────────────────────────────────
 
   it("icon updates correctly from BookOpen to Brain", async () => {
-    const created = await createHabit(USER, { ...BASE_PAYLOAD, icon: "BookOpen" });
+    const created = await createHabit(USER, { ...BASE_PAYLOAD, icon: "BookOpen" }, "full");
 
     const updated = await updateHabit(USER, created.id, {
       title: "Run",
@@ -115,7 +115,7 @@ describe("S12 — icon wiring + cap check", () => {
       minimumViableAction: "",
       preferredTimeWindow: "",
       icon: "Brain",
-    });
+    }, "full");
 
     expect(updated.icon).toBe("Brain");
   });

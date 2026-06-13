@@ -62,7 +62,7 @@ describe("habits API integration", () => {
       icon: "",
       habitState: "active",
       ...overrides,
-    });
+    }, "full");
   }
 
   // ─── CRUD round-trips ────────────────────────────────────────────────────
@@ -100,7 +100,7 @@ describe("habits API integration", () => {
       minimumViableAction: "",
       preferredTimeWindow: "evening",
       icon: "",
-    });
+    }, "full");
 
     expect(updated.title).toBe("Read");
     expect(updated.cue).toBe("After dinner");
@@ -109,7 +109,7 @@ describe("habits API integration", () => {
 
   it("archiveHabit sets status to archived and populates archived_at", async () => {
     const habit = await makeHabit();
-    await archiveHabit("user-1", habit.id);
+    await archiveHabit("user-1", habit.id, "full");
     const archived = await getHabitById("user-1", habit.id);
     expect(archived.status).toBe("archived");
     expect(archived.archived_at).toBeTruthy();
@@ -120,7 +120,7 @@ describe("habits API integration", () => {
   it("listActiveHabits returns only active habits for the given user", async () => {
     const h1 = await makeHabit("user-1");
     const h2 = await makeHabit("user-1");
-    await archiveHabit("user-1", h2.id);
+    await archiveHabit("user-1", h2.id, "full");
     await makeHabit("user-2"); // different user
 
     const active = await listActiveHabits("user-1");
@@ -142,7 +142,7 @@ describe("habits API integration", () => {
       preferredTimeWindow: "",
       icon: "",
       habitState: "active",
-    });
+    }, "full");
     // Override start_date to tomorrow by using the repo directly after creation
     // We verify by checking the filter, not by mutating — the API sets start_date = today
     // so both would be eligible. Use a trick: archive the "upcoming" one and check the list.
@@ -207,7 +207,7 @@ describe("habits API integration", () => {
 
   it("listArchivedHabits returns only archived habits for the user", async () => {
     const h = await makeHabit("user-1");
-    await archiveHabit("user-1", h.id);
+    await archiveHabit("user-1", h.id, "full");
     const active = await makeHabit("user-1");
 
     const archived = await listArchivedHabits("user-1");
@@ -381,7 +381,7 @@ describe("habits API integration", () => {
 
   it("rejects a log for an archived habit (habit_archived)", async () => {
     const habit = await makeHabit();
-    await archiveHabit("user-1", habit.id);
+    await archiveHabit("user-1", habit.id, "full");
     await expect(
       upsertHabitLog("user-1", { habitId: habit.id, logDate: TODAY, status: "done" }),
     ).rejects.toMatchObject({ reason: "habit_archived" });

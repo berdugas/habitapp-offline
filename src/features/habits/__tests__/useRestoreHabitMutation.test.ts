@@ -55,7 +55,7 @@ async function seedArchivedHabit(identity_phrase: string) {
     habit_state: "active",
     status: "active",
   });
-  await archiveHabit("user-1", habit.id);
+  await archiveHabit("user-1", habit.id, "full");
   return habit;
 }
 

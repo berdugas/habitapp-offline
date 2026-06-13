@@ -43,7 +43,7 @@ async function seedActiveHabit(overrides: Partial<{
     icon: "",
     activeDays: [1, 2, 3, 4, 5, 6, 7],
     habitState: "active",
-  });
+  }, "full");
 }
 
 describe("habits/api — new mutations", () => {
@@ -73,7 +73,7 @@ describe("habits/api — new mutations", () => {
         activeDays: [1, 2, 3, 4, 5, 6, 7],
         habitState: "active",
         status: "backlog",
-      });
+      }, "full");
 
       const row = await getHabit(habit.id);
       expect(row?.status).toBe("backlog");
@@ -98,7 +98,7 @@ describe("habits/api — new mutations", () => {
         icon: "",
         habitState: "active",
         status: "active",
-      });
+      }, "full");
       await createHabit("user-1", {
         title: "Backlogged",
         identityPhrase: "a doer",
@@ -109,7 +109,7 @@ describe("habits/api — new mutations", () => {
         icon: "",
         habitState: "active",
         status: "backlog",
-      });
+      }, "full");
       const active = await listHabits({ user_id: "user-1", status: "active" });
       expect(active.map((h) => h.title)).toEqual(["Active"]);
     });
@@ -181,7 +181,7 @@ describe("habits/api — new mutations", () => {
         icon: "",
         habitState: "active",
         status: "backlog",
-      });
+      }, "full");
       await expect(activateBacklogHabit("user-2", habit.id)).rejects.toThrow(
         /not found/i,
       );
@@ -205,7 +205,7 @@ describe("habits/api — new mutations", () => {
         icon: "",
         habitState: "active",
         status: "backlog",
-      });
+      }, "full");
 
       setNowForTesting(new Date("2026-06-01T08:00:00.000Z"));
       const result = await activateBacklogHabit("user-1", habit.id);
@@ -227,7 +227,7 @@ describe("habits/api — new mutations", () => {
         activeDays: [1, 3, 5],
         habitState: "active",
         status: "backlog",
-      });
+      }, "full");
 
       await activateBacklogHabit("user-1", habit.id);
 
@@ -251,7 +251,7 @@ describe("habits/api — new mutations", () => {
         icon: "",
         habitState: "active",
         status: "backlog",
-      });
+      }, "full");
 
       const result = await activateBacklogHabit("user-1", habit.id);
       expect(result.status).toBe("active");
@@ -261,7 +261,7 @@ describe("habits/api — new mutations", () => {
   describe("deleteHabit", () => {
     it("throws when habit is not owned by user", async () => {
       const habit = await seedActiveHabit({ user_id: "user-1" });
-      await expect(deleteHabit("user-2", habit.id)).rejects.toThrow(/not found/i);
+      await expect(deleteHabit("user-2", habit.id, "full")).rejects.toThrow(/not found/i);
       // Row should still exist.
       expect(await getHabit(habit.id)).not.toBeNull();
     });
@@ -271,7 +271,7 @@ describe("habits/api — new mutations", () => {
       const deleteHabitSpy = jest.spyOn(habitsRepo, "deleteHabit");
 
       const habit = await seedActiveHabit();
-      await deleteHabit("user-1", habit.id);
+      await deleteHabit("user-1", habit.id, "full");
 
       expect(mockCancelReminder).toHaveBeenCalled();
       expect(deleteHabitSpy).toHaveBeenCalled();
@@ -286,13 +286,13 @@ describe("habits/api — new mutations", () => {
     it("does not throw when cancelReminder rejects (best-effort)", async () => {
       mockCancelReminder.mockRejectedValueOnce(new Error("permission denied"));
       const habit = await seedActiveHabit();
-      await expect(deleteHabit("user-1", habit.id)).resolves.toBeUndefined();
+      await expect(deleteHabit("user-1", habit.id, "full")).resolves.toBeUndefined();
       expect(await getHabit(habit.id)).toBeNull();
     });
 
     it("hard-deletes the habit row", async () => {
       const habit = await seedActiveHabit();
-      await deleteHabit("user-1", habit.id);
+      await deleteHabit("user-1", habit.id, "full");
       expect(await getHabit(habit.id)).toBeNull();
     });
   });
@@ -300,7 +300,7 @@ describe("habits/api — new mutations", () => {
   describe("archiveHabit", () => {
     it("throws when habit is not owned by user", async () => {
       const habit = await seedActiveHabit({ user_id: "user-1" });
-      await expect(archiveHabit("user-2", habit.id)).rejects.toThrow(/not found/i);
+      await expect(archiveHabit("user-2", habit.id, "full")).rejects.toThrow(/not found/i);
     });
 
     it("cancels the OS reminder for active habits before flipping status — every archive entry point gets reminder teardown", async () => {
@@ -309,7 +309,7 @@ describe("habits/api — new mutations", () => {
       // (Today recovery modal's "Pause for now", etc.) flipped status without
       // tearing down the OS notification — the archived habit kept firing.
       const habit = await seedActiveHabit();
-      await archiveHabit("user-1", habit.id);
+      await archiveHabit("user-1", habit.id, "full");
 
       expect(mockCancelReminder).toHaveBeenCalledTimes(1);
       expect(mockCancelReminder).toHaveBeenCalledWith(habit.id);
@@ -333,9 +333,9 @@ describe("habits/api — new mutations", () => {
         activeDays: [1, 2, 3, 4, 5, 6, 7],
         habitState: "active",
         status: "backlog",
-      });
+      }, "full");
 
-      await archiveHabit("user-1", habit.id);
+      await archiveHabit("user-1", habit.id, "full");
 
       expect(mockCancelReminder).not.toHaveBeenCalled();
       expect((await getHabit(habit.id))!.status).toBe("archived");
@@ -346,7 +346,7 @@ describe("habits/api — new mutations", () => {
     it("does not throw when cancelReminder rejects (best-effort)", async () => {
       mockCancelReminder.mockRejectedValueOnce(new Error("permission denied"));
       const habit = await seedActiveHabit();
-      await expect(archiveHabit("user-1", habit.id)).resolves.toBeUndefined();
+      await expect(archiveHabit("user-1", habit.id, "full")).resolves.toBeUndefined();
       expect((await getHabit(habit.id))!.status).toBe("archived");
     });
   });
@@ -375,7 +375,7 @@ describe("habits/api — new mutations", () => {
         icon: "",
         activeDays: [1, 2, 3, 4, 5, 6, 7],
         habitState: "automatic",
-      });
+      }, "full");
       // Archived and backlog rows need to be inserted directly — the api's
       // createHabit forces status defaults. Use the repo to bypass that.
       const archived = await habitsRepo.createHabit({
@@ -467,7 +467,7 @@ describe("habits/api — new mutations", () => {
         activeDays: [1, 2, 3, 4, 5, 6, 7],
         habitState: "active",
         status: "backlog",
-      });
+      }, "full");
       // Already-archived habit must not have its reminder touched.
       const archivedHabit = await habitsRepo.createHabit({
         user_id: "user-1",
@@ -536,7 +536,7 @@ describe("habits/api — new mutations", () => {
         activeDays: [1, 2, 3, 4, 5, 6, 7],
         habitState: "active",
         status: "backlog",
-      });
+      }, "full");
       await archiveGoal("user-1", "a writer");
       mockCancelReminder.mockClear();
 
@@ -586,7 +586,7 @@ describe("habits/api — new mutations", () => {
         activeDays: [1, 2, 3, 4, 5, 6, 7],
         habitState: "active",
         status: "backlog",
-      });
+      }, "full");
       await archiveGoal("user-1", "a writer");
 
       await expect(restoreGoal("user-1", "a writer")).resolves.toMatchObject({
@@ -598,15 +598,15 @@ describe("habits/api — new mutations", () => {
   describe("restoreHabit", () => {
     it("throws when habit is not owned by user", async () => {
       const habit = await seedActiveHabit({ user_id: "user-1" });
-      await archiveHabit("user-1", habit.id);
-      await expect(restoreHabit("user-2", habit.id)).rejects.toThrow(/not found/i);
+      await archiveHabit("user-1", habit.id, "full");
+      await expect(restoreHabit("user-2", habit.id, "full")).rejects.toThrow(/not found/i);
     });
 
     it("restores an ex-active habit without rematerializing a reminder", async () => {
       const habit = await seedActiveHabit({ identity_phrase: "a writer" });
-      await archiveHabit("user-1", habit.id);
+      await archiveHabit("user-1", habit.id, "full");
 
-      const result = await restoreHabit("user-1", habit.id);
+      const result = await restoreHabit("user-1", habit.id, "full");
 
       expect(result.restored).toBe(true);
       expect(result.wasExBacklog).toBe(false);
@@ -628,12 +628,12 @@ describe("habits/api — new mutations", () => {
         activeDays: [1, 3, 5],
         habitState: "active",
         status: "backlog",
-      });
+      }, "full");
       // archiveHabit (single-habit, API layer) preserves backlog_at — same
       // marker pattern goal cascade uses. Restore re-arms the reminder.
-      await archiveHabit("user-1", habit.id);
+      await archiveHabit("user-1", habit.id, "full");
 
-      const result = await restoreHabit("user-1", habit.id);
+      const result = await restoreHabit("user-1", habit.id, "full");
 
       expect(result.restored).toBe(true);
       expect(result.wasExBacklog).toBe(true);
@@ -660,10 +660,10 @@ describe("habits/api — new mutations", () => {
         activeDays: [1, 2, 3, 4, 5, 6, 7],
         habitState: "active",
         status: "backlog",
-      });
-      await archiveHabit("user-1", habit.id);
+      }, "full");
+      await archiveHabit("user-1", habit.id, "full");
 
-      await expect(restoreHabit("user-1", habit.id)).resolves.toMatchObject({
+      await expect(restoreHabit("user-1", habit.id, "full")).resolves.toMatchObject({
         restored: true,
         wasExBacklog: true,
       });
@@ -671,7 +671,7 @@ describe("habits/api — new mutations", () => {
 
     it("returns restored:false when the row is not archived (no-op)", async () => {
       const habit = await seedActiveHabit();
-      const result = await restoreHabit("user-1", habit.id);
+      const result = await restoreHabit("user-1", habit.id, "full");
 
       expect(result.restored).toBe(false);
       expect(result.wasExBacklog).toBe(false);

@@ -134,17 +134,12 @@ export async function getHabitById(
 export async function createHabit(
   userId: string,
   payload: CreateHabitPayload,
-  accessMode?: AccessMode,
+  accessMode: AccessMode,
 ): Promise<Habit> {
   // Free-tier guard: enforce 1-active-habit cap for non-full users.
-  // When the arg is `undefined` (call site not yet migrated — transient
-  // between Task 5 and Task 7.5), skip the guard. After Task 7.5 the
-  // signature is required so this branch becomes unreachable.
-  if (accessMode !== undefined) {
-    const cap = await assertCanCreateHabitOnFreeTier(userId, accessMode);
-    if (!cap.ok) {
-      throw new FreeTierCapError("cap_exceeded", cap.activeCount);
-    }
+  const cap = await assertCanCreateHabitOnFreeTier(userId, accessMode);
+  if (!cap.ok) {
+    throw new FreeTierCapError("cap_exceeded", cap.activeCount);
   }
 
   const status = payload.status ?? "active";
@@ -170,17 +165,14 @@ export async function updateHabit(
   userId: string,
   habitId: string,
   payload: HabitSetupPayload,
-  accessMode?: AccessMode,
+  accessMode: AccessMode,
 ): Promise<Habit> {
   // Free-tier guard: a non-full user is locked to the 1 active habit they
   // already have — edits to that locked habit go through the cap check and
-  // are rejected once activeCount has hit the cap. Skip when accessMode is
-  // undefined (transient back-compat before Task 7.5 migrates call sites).
-  if (accessMode !== undefined) {
-    const cap = await assertCanCreateHabitOnFreeTier(userId, accessMode);
-    if (!cap.ok) {
-      throw new FreeTierCapError("cap_exceeded", cap.activeCount);
-    }
+  // are rejected once activeCount has hit the cap.
+  const cap = await assertCanCreateHabitOnFreeTier(userId, accessMode);
+  if (!cap.ok) {
+    throw new FreeTierCapError("cap_exceeded", cap.activeCount);
   }
 
   await getHabitById(userId, habitId);
@@ -201,16 +193,14 @@ export async function updateHabit(
 export async function archiveHabit(
   userId: string,
   habitId: string,
-  accessMode?: AccessMode,
+  accessMode: AccessMode,
 ): Promise<void> {
   // Free-tier guard: archiving the locked habit would clear the user's only
   // active slot — at the cap, the upgrade prompt fires instead. The cap fn
   // is a no-op at activeCount < 1, so 0-active edge cases pass through.
-  if (accessMode !== undefined) {
-    const cap = await assertCanCreateHabitOnFreeTier(userId, accessMode);
-    if (!cap.ok) {
-      throw new FreeTierCapError("cap_exceeded", cap.activeCount);
-    }
+  const cap = await assertCanCreateHabitOnFreeTier(userId, accessMode);
+  if (!cap.ok) {
+    throw new FreeTierCapError("cap_exceeded", cap.activeCount);
   }
 
   const habit = await getHabitById(userId, habitId);
@@ -236,12 +226,12 @@ export async function archiveHabit(
 export async function restoreHabit(
   userId: string,
   habitId: string,
-  accessMode?: AccessMode,
+  accessMode: AccessMode,
 ): Promise<{ restored: boolean; wasExBacklog: boolean }> {
   // Free-tier guard: restore is blocked for any non-full user, regardless
   // of count. Restoring would put them at or past the 1-habit cap, so the
   // honest UX is "Upgrade to restore" (UI surfaces the reason in sub-plan 4).
-  if (accessMode !== undefined && accessMode !== "full") {
+  if (accessMode !== "full") {
     const active = await listActiveHabits(userId);
     const activeCount = active.filter((h) => h.habit_state === "active").length;
     throw new FreeTierCapError("restore_blocked", activeCount);
@@ -297,16 +287,14 @@ export async function activateBacklogHabit(
 export async function deleteHabit(
   userId: string,
   habitId: string,
-  accessMode?: AccessMode,
+  accessMode: AccessMode,
 ): Promise<void> {
   // Free-tier guard: deleting the locked habit would clear the user's only
   // active slot — at the cap, the upgrade prompt fires instead. The cap fn
   // is a no-op at activeCount < 1, so 0-active edge cases pass through.
-  if (accessMode !== undefined) {
-    const cap = await assertCanCreateHabitOnFreeTier(userId, accessMode);
-    if (!cap.ok) {
-      throw new FreeTierCapError("cap_exceeded", cap.activeCount);
-    }
+  const cap = await assertCanCreateHabitOnFreeTier(userId, accessMode);
+  if (!cap.ok) {
+    throw new FreeTierCapError("cap_exceeded", cap.activeCount);
   }
 
   await getHabitById(userId, habitId);
