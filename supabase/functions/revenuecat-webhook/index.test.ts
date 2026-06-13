@@ -2,7 +2,19 @@ import { assertEquals } from "https://deno.land/std@0.220.0/assert/mod.ts";
 import { handleWebhook } from "./index.ts";
 
 // Builds a mock Supabase client that records SELECT and UPDATE calls.
-type UpdateCall = { table: string; values: Record<string, unknown>; userId: string };
+//
+// The UPDATE chain supports an arbitrary sequence of `.eq()` and `.or()`
+// filters (the production code adds `.eq("entitlement_status", "paid")`
+// on CANCELLATION and an `.or(last_revenuecat_event_at...)` filter on
+// both paths). The mock records every filter call so tests can assert on
+// them, and returns the configured `updatedRows` from `.select()` so
+// tests can simulate the race-loser case by setting `updatedRows: []`.
+type UpdateCall = {
+  table: string;
+  values: Record<string, unknown>;
+  userId: string;
+  filters: Array<{ kind: "eq" | "or"; column?: string; value?: unknown; expr?: string }>;
+};
 function mockSupabase(opts: {
   selectRow?: { entitlement_status?: string; trial_ends_at?: string; last_revenuecat_event_at?: string | null } | null;
   updatedRows?: Array<Record<string, unknown>>;
@@ -17,13 +29,39 @@ function mockSupabase(opts: {
           maybeSingle: () => Promise.resolve({ data: selectRow, error: null }),
         }),
       }),
-      update: (values: Record<string, unknown>) => ({
-        eq: (col: string, val: unknown) => {
-          if (col !== "user_id") throw new Error(`unexpected eq column: ${col}`);
-          calls.push({ table, values, userId: val as string });
-          return { select: () => Promise.resolve({ data: updatedRows, error: null }) };
-        },
-      }),
+      update: (values: Record<string, unknown>) => {
+        let currentCall: UpdateCall | null = null;
+        const builder = {
+          eq(col: string, val: unknown) {
+            if (col === "user_id") {
+              currentCall = {
+                table,
+                values,
+                userId: val as string,
+                filters: [],
+              };
+              calls.push(currentCall);
+            } else if (currentCall) {
+              currentCall.filters.push({ kind: "eq", column: col, value: val });
+            } else {
+              throw new Error(
+                `unexpected eq before user_id: ${col}`,
+              );
+            }
+            return builder;
+          },
+          or(expr: string) {
+            if (currentCall) {
+              currentCall.filters.push({ kind: "or", expr });
+            }
+            return builder;
+          },
+          select() {
+            return Promise.resolve({ data: updatedRows, error: null });
+          },
+        };
+        return builder;
+      },
     }),
     _calls: calls,
   };
@@ -206,4 +244,80 @@ Deno.test("CANCELLATION is a no-op when current entitlement is not 'paid'", asyn
   // No UPDATE — the row was already non-paid (probably a duplicate
   // cancellation delivery).
   assertEquals(sb._calls.length, 0);
+});
+
+// --- Race-condition coverage: the UPDATE itself is atomic, so even if
+// two webhook invocations both pass the upfront SELECT-and-pre-check, the
+// SQL filter on UPDATE only lets one apply. Simulate this by configuring
+// the mock to return `updatedRows: []` (the conditional WHERE matched no
+// row), which is what real Postgres would return when a concurrent newer
+// event already advanced last_revenuecat_event_at past ours.
+
+Deno.test("PAID update: lost race to a concurrent newer write returns 200 (raced)", async () => {
+  const sb = mockSupabase({
+    selectRow: {
+      entitlement_status: "trial",
+      trial_ends_at: "2099-01-01T00:00:00Z",
+      last_revenuecat_event_at: null,
+    },
+    // SQL-level conditional filter rejected our write (a concurrent newer
+    // event landed between our SELECT and UPDATE).
+    updatedRows: [],
+  });
+  const res = await handleWebhook(req(evt()), { secret: "shhh", supabase: sb as never });
+  assertEquals(res.status, 200);
+  // Update attempt WAS sent (idempotency is enforced server-side, not in
+  // application code). The mock recorded the call.
+  assertEquals(sb._calls.length, 1);
+  // The UPDATE includes the atomic anchor filter as an .or() clause.
+  const orFilter = sb._calls[0].filters.find((f) => f.kind === "or");
+  assertEquals(orFilter !== undefined, true);
+});
+
+Deno.test("PAID update: atomic UPDATE includes the timestamp-anchor or() filter", async () => {
+  const sb = mockSupabase({
+    selectRow: {
+      entitlement_status: "trial",
+      trial_ends_at: "2099-01-01T00:00:00Z",
+      last_revenuecat_event_at: null,
+    },
+  });
+  await handleWebhook(req(evt()), { secret: "shhh", supabase: sb as never });
+  const filters = sb._calls[0].filters;
+  const orFilter = filters.find((f) => f.kind === "or");
+  assertEquals(orFilter?.kind, "or");
+  // The .or() expression names the anchor column and uses both
+  // "is.null" and "lt.<eventAt>" branches.
+  assertEquals(
+    typeof orFilter?.expr === "string" &&
+      orFilter.expr.includes("last_revenuecat_event_at.is.null") &&
+      orFilter.expr.includes("last_revenuecat_event_at.lt."),
+    true,
+  );
+});
+
+Deno.test("CANCELLATION update: lost race to a concurrent newer write returns 200 (raced)", async () => {
+  const sb = mockSupabase({
+    selectRow: {
+      entitlement_status: "paid",
+      trial_ends_at: new Date(Date.now() - 86_400_000).toISOString(),
+      last_revenuecat_event_at: null,
+    },
+    updatedRows: [],
+  });
+  const res = await handleWebhook(
+    req(evt({ type: "CANCELLATION" })),
+    { secret: "shhh", supabase: sb as never },
+  );
+  assertEquals(res.status, 200);
+  assertEquals(sb._calls.length, 1);
+  // CANCELLATION update gates on both entitlement_status='paid' AND the
+  // anchor — verify both filters are present.
+  const filters = sb._calls[0].filters;
+  const eqPaidFilter = filters.find(
+    (f) => f.kind === "eq" && f.column === "entitlement_status" && f.value === "paid",
+  );
+  const orAnchorFilter = filters.find((f) => f.kind === "or");
+  assertEquals(eqPaidFilter !== undefined, true);
+  assertEquals(orAnchorFilter !== undefined, true);
 });

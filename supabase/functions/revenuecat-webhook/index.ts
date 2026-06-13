@@ -8,10 +8,12 @@
 //   - CANCELLATION                              -> revert (Task 7)
 //   - everything else                           -> 200 no-op
 //
-// Idempotency: every row carries last_revenuecat_event_at. Any incoming
-// event with event_timestamp_ms <= last_revenuecat_event_at is rejected
-// as a no-op. Defends against RC's at-least-once delivery and out-of-order
-// retries.
+// Idempotency: every row carries last_revenuecat_event_at. The UPDATE
+// itself is gated on `last_revenuecat_event_at IS NULL OR < eventAt`, so
+// two concurrent deliveries cannot both apply — Postgres serializes the
+// row write and the older one's WHERE clause fails to match. The upfront
+// SELECT-and-pre-check is just a fast bail to avoid an obvious wasted
+// round trip; the atomicity comes from the SQL filter on UPDATE.
 //
 // Uses the SERVICE ROLE key to write to trial_entitlements, bypassing RLS
 // (which has no UPDATE policy for the authenticated role per 0005:137-138).
@@ -122,7 +124,9 @@ export async function handleWebhook(
 
   // 6. Route.
   if (isPaid) {
-    const { error: updErr } = await deps.supabase
+    // Atomic update: only apply if no newer event has already won the row.
+    // The .or() filter is ANDed with the .eq("user_id", ...) clause.
+    const { data: updated, error: updErr } = await deps.supabase
       .from("trial_entitlements")
       .update({
         entitlement_status: "paid",
@@ -130,6 +134,9 @@ export async function handleWebhook(
         last_revenuecat_event_at: eventAt,
       })
       .eq("user_id", event.app_user_id)
+      .or(
+        `last_revenuecat_event_at.is.null,last_revenuecat_event_at.lt.${eventAt}`,
+      )
       .select();
 
     if (updErr) {
@@ -140,6 +147,16 @@ export async function handleWebhook(
         error: updErr,
       });
       return new Response("update failed", { status: 500 });
+    }
+    if (!updated || updated.length === 0) {
+      // Lost the race to a concurrent (newer) delivery between our SELECT
+      // and our UPDATE. The atomic filter on UPDATE rejected our write.
+      console.info("revenuecat paid update raced (no rows applied)", {
+        userId: event.app_user_id,
+        eventType: event.type,
+        eventAt,
+      });
+      return new Response("ok (raced)", { status: 200 });
     }
     return new Response("ok", { status: 200 });
   }
@@ -160,7 +177,11 @@ export async function handleWebhook(
     const trialEndsAt = new Date(row.trial_ends_at as string).getTime();
     const newStatus = trialEndsAt > Date.now() ? "trial" : "expired";
 
-    const { error: updErr } = await deps.supabase
+    // Atomic revert: gate on (a) still currently paid (so a concurrent
+    // writer that flipped the row off paid wins) and (b) no newer event
+    // already applied (so an INITIAL_PURCHASE arriving after this
+    // CANCELLATION with a newer timestamp keeps the row paid).
+    const { data: updated, error: updErr } = await deps.supabase
       .from("trial_entitlements")
       .update({
         entitlement_status: newStatus,
@@ -168,6 +189,10 @@ export async function handleWebhook(
         last_revenuecat_event_at: eventAt,
       })
       .eq("user_id", event.app_user_id)
+      .eq("entitlement_status", "paid")
+      .or(
+        `last_revenuecat_event_at.is.null,last_revenuecat_event_at.lt.${eventAt}`,
+      )
       .select();
 
     if (updErr) {
@@ -178,6 +203,16 @@ export async function handleWebhook(
         error: updErr,
       });
       return new Response("update failed", { status: 500 });
+    }
+    if (!updated || updated.length === 0) {
+      // Lost the race to a concurrent writer (paid status flipped off, or
+      // a newer event already applied).
+      console.info("revenuecat cancellation update raced (no rows applied)", {
+        userId: event.app_user_id,
+        eventType: event.type,
+        eventAt,
+      });
+      return new Response("ok (raced)", { status: 200 });
     }
     // Habits are deliberately NOT auto-re-archived — see spec E7. The user
     // sees the existing read-only / paywall UI on next sync, and any habits
