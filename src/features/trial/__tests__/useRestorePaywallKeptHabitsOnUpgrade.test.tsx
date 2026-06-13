@@ -1,6 +1,7 @@
 import { renderHook } from "@testing-library/react-native";
 import { useRestorePaywallKeptHabitsOnUpgrade } from "@/features/trial/useRestorePaywallKeptHabitsOnUpgrade";
 import { restorePaywallKeptHabits } from "@/features/habits/api";
+import { logger } from "@/services/logger";
 
 import type { TrialEntitlementStatus } from "@/features/trial/types";
 
@@ -80,5 +81,42 @@ describe("useRestorePaywallKeptHabitsOnUpgrade", () => {
     );
     rerender({ userId: "user-1", status: "active" });
     expect(mockRestore).toHaveBeenCalledTimes(1);
+  });
+
+  it("does NOT call restore on paid → active transition (both paid-like — no upgrade)", () => {
+    // First seed a non-paid status so hasSeenNonPaidRef.current = true
+    const { rerender } = renderHook<void, HookProps>(
+      ({ userId, status }) => useRestorePaywallKeptHabitsOnUpgrade(userId, status),
+      { initialProps: { userId: "user-1", status: "trial" } },
+    );
+    rerender({ userId: "user-1", status: "paid" });
+    expect(mockRestore).toHaveBeenCalledTimes(1); // first transition
+
+    // Now the paid → active flip; both are paid-like, should NOT fire again.
+    rerender({ userId: "user-1", status: "active" });
+    expect(mockRestore).toHaveBeenCalledTimes(1); // still 1
+  });
+
+  it("logs an error when restorePaywallKeptHabits rejects", async () => {
+    const loggerErrorSpy = jest.spyOn(logger, "error").mockImplementation(() => {});
+    mockRestore.mockReset();
+    mockRestore.mockRejectedValueOnce(new Error("DB unavailable"));
+
+    const { rerender } = renderHook<void, HookProps>(
+      ({ userId, status }) => useRestorePaywallKeptHabitsOnUpgrade(userId, status),
+      { initialProps: { userId: "user-1", status: "trial" } },
+    );
+    rerender({ userId: "user-1", status: "paid" });
+
+    // Drain microtasks so the async IIFE's catch block runs
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(loggerErrorSpy).toHaveBeenCalledWith(
+      "Failed to restore paywall habits on upgrade",
+      expect.objectContaining({ userId: "user-1", error: expect.any(Error) }),
+    );
+
+    loggerErrorSpy.mockRestore();
   });
 });
