@@ -54,3 +54,20 @@ it("returns 'paid' even if earlier attempts couldn't reach the server", async ()
     "paid",
   );
 });
+
+it("stops polling early when isAborted() turns true (does not exhaust attempts)", async () => {
+  // Simulate auth changing during the first sleep: the next loop iteration's
+  // isAborted check must break instead of polling the new account again.
+  const refresh = jest.fn().mockResolvedValue(ent("expired"));
+  let aborted = false;
+  const result = await waitForServerPaid(refresh, {
+    attempts: 5,
+    sleep: async () => {
+      aborted = true;
+    },
+    isAborted: () => aborted,
+  });
+  // Only attempt 0 ran refresh; the budget of 5 was NOT exhausted.
+  expect(refresh).toHaveBeenCalledTimes(1);
+  expect(result).toBe("timed_out");
+});

@@ -30,6 +30,11 @@ export async function waitForServerPaid(
     attempts?: number;
     intervalMs?: number;
     sleep?: (ms: number) => Promise<void>;
+    // Returns true when the caller wants to stop early (e.g. the authenticated
+    // user changed mid-poll, so polling the new account is meaningless and just
+    // holds the caller's lock). Checked before the first poll, after each
+    // refresh, and before each subsequent attempt.
+    isAborted?: () => boolean;
   } = {},
 ): Promise<PaidPollResult> {
   const attempts = options.attempts ?? DEFAULT_ATTEMPTS;
@@ -37,10 +42,13 @@ export async function waitForServerPaid(
   const sleep =
     options.sleep ??
     ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)));
+  const isAborted = options.isAborted ?? (() => false);
 
   let reachedServer = false;
   for (let attempt = 0; attempt < attempts; attempt += 1) {
+    if (isAborted()) break;
     const entitlement = await refresh();
+    if (isAborted()) break; // auth changed during the refresh — stop before sleeping
     if (entitlement) {
       reachedServer = true;
       if (isPaidStatus(entitlement.entitlement_status)) return "paid";

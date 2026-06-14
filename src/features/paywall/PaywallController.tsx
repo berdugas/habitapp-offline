@@ -160,6 +160,12 @@ export function usePaywallActions(
   // DIFFERENT user's entitlement, so the result is meaningless here — abort to
   // idle rather than (re-)enter `processing` and trap the post-sign-out UI.
   const resolveWhenServerPaid = useCallback(async (opUserId: string) => {
+    // Auth already changed before we even start polling — don't poll the new
+    // account or hold the lock for a stale op.
+    if (latestUserIdRef.current !== opUserId) {
+      setStatus({ kind: "idle" });
+      return;
+    }
     setIsVerifying(true);
     let result;
     try {
@@ -167,6 +173,8 @@ export function usePaywallActions(
         attempts: pollAttempts,
         intervalMs: pollIntervalMs,
         sleep,
+        // Stop polling (and release the lock sooner) if auth changes mid-poll.
+        isAborted: () => latestUserIdRef.current !== opUserId,
       });
     } finally {
       setIsVerifying(false);
@@ -182,6 +190,17 @@ export function usePaywallActions(
       setStatus({ kind: "processing" });
     }
   }, [refresh, pollAttempts, pollIntervalMs, sleep, onResolved]);
+
+  // Set an error only if this op is still the CURRENT user's. An auth change
+  // during a store op would otherwise let a stale error repopulate over the
+  // auth-reset effect's idle.
+  const setErrorIfCurrent = useCallback((opUserId: string, message: string) => {
+    setStatus(
+      latestUserIdRef.current === opUserId
+        ? { kind: "error", message }
+        : { kind: "idle" },
+    );
+  }, []);
 
   const onUnlock = useCallback(async () => {
     if (storeOpInFlight) return;
@@ -200,8 +219,8 @@ export function usePaywallActions(
         ({ cancelled } = await purchaseLifetimeUnlock(userId));
       } catch (err) {
         logger.error("Paywall purchase failed", { err: err as Error });
-        setStatus({ kind: "error", message: paywallCopy.purchaseFailed });
         setIsPurchasing(false);
+        setErrorIfCurrent(userId, paywallCopy.purchaseFailed);
         return;
       }
       setIsPurchasing(false);
@@ -210,7 +229,7 @@ export function usePaywallActions(
     } finally {
       setStoreOpInFlight(false);
     }
-  }, [resolveWhenServerPaid, userId]);
+  }, [resolveWhenServerPaid, userId, setErrorIfCurrent]);
 
   const onRestore = useCallback(async () => {
     if (storeOpInFlight) return;
@@ -227,25 +246,25 @@ export function usePaywallActions(
         result = await restorePurchases(userId);
       } catch (err) {
         logger.error("Paywall restore failed", { err: err as Error });
-        setStatus({ kind: "error", message: paywallCopy.restoreFailed });
         setIsRestoring(false);
+        setErrorIfCurrent(userId, paywallCopy.restoreFailed);
         return;
       }
       setIsRestoring(false);
       if (result.status === "failed") {
-        setStatus({ kind: "error", message: paywallCopy.restoreFailed });
+        setErrorIfCurrent(userId, paywallCopy.restoreFailed);
         return;
       }
       if (!result.hasLifetimeEntitlement) {
         // RC ran fine but this account never bought the unlock.
-        setStatus({ kind: "error", message: paywallCopy.restoreNoneFound });
+        setErrorIfCurrent(userId, paywallCopy.restoreNoneFound);
         return;
       }
       await resolveWhenServerPaid(userId);
     } finally {
       setStoreOpInFlight(false);
     }
-  }, [resolveWhenServerPaid, userId]);
+  }, [resolveWhenServerPaid, userId, setErrorIfCurrent]);
 
   // "Check again" from the processing state: the store op already succeeded, so
   // just re-poll the server for the webhook to have landed.

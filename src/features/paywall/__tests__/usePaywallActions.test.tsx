@@ -204,6 +204,31 @@ describe("auth change mid-flight", () => {
     expect(result.current.status).toEqual({ kind: "idle" });
   });
 
+  it("does NOT show a stale error when auth changes during a failed purchase", async () => {
+    // The purchase rejects, but the user has signed out / switched by the time
+    // we handle it — the error branch must not repopulate over the auth-reset.
+    let rejectPurchase!: (e: Error) => void;
+    mockPurchase.mockReturnValue(new Promise((_res, rej) => (rejectPurchase = rej)));
+    const { result, rerender } = renderHook(() => usePaywallActions(jest.fn(), fastPoll));
+
+    let opPromise!: Promise<void>;
+    await act(async () => {
+      opPromise = result.current.onUnlock(); // parks in the purchase
+      await Promise.resolve();
+    });
+
+    mockUserId = "user-2"; // auth changes while the purchase is in flight
+    rerender(undefined);
+
+    await act(async () => {
+      rejectPurchase(new Error("boom"));
+      await opPromise;
+    });
+
+    // Bound to user-1; the failure must abort to idle, not show a stale error.
+    expect(result.current.status).toEqual({ kind: "idle" });
+  });
+
   it("aborts the verification to idle (never re-enters processing) if the user changes during the poll", async () => {
     // The in-flight verification, bound to user-1, must NOT re-set processing
     // after the auth-change reset has cleared it.
