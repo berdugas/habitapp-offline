@@ -96,14 +96,23 @@ export function useTrialValidationLifecycle(
     cachedRef.current = state.cached;
   }, [state.cached]);
 
+  // Monotonic counter so overlapping fetches commit in start-order, not
+  // completion-order. AppState/network/refresh/purchase-poll can all call
+  // fetchAndCache concurrently; without this an OLDER (e.g. pre-webhook
+  // "expired") response completing after a NEWER "paid" one would overwrite a
+  // confirmed purchaser back to unpaid. Only the latest-started fetch commits.
+  const fetchSeqRef = useRef(0);
+
   const fetchAndCache = useCallback(
     async (uid: string): Promise<CachedTrialEntitlement | null> => {
+    const seq = (fetchSeqRef.current += 1);
     setState((prev) => ({ ...prev, isValidating: true }));
     try {
       const entitlement = await fetchTrialEntitlement(uid);
-      // Guard: user may have signed out while fetch was in flight.
-      if (userIdRef.current !== uid) return null;
+      // Discard if a newer fetch superseded this one, or the user changed.
+      if (fetchSeqRef.current !== seq || userIdRef.current !== uid) return null;
       await writeCachedEntitlement(entitlement);
+      if (fetchSeqRef.current !== seq) return null; // re-check after the write
       setState({ cached: entitlement, isBootstrapping: false, isValidating: false });
       return entitlement;
     } catch (error) {
@@ -118,8 +127,11 @@ export function useTrialValidationLifecycle(
           userId: uid,
         });
       }
-      // Keep whatever cache we have; stop the spinner.
-      setState((prev) => ({ ...prev, isBootstrapping: false, isValidating: false }));
+      // Keep whatever cache we have; stop the spinner — but only if a newer
+      // fetch hasn't superseded this one (else we'd clear ITS validating flag).
+      if (fetchSeqRef.current === seq) {
+        setState((prev) => ({ ...prev, isBootstrapping: false, isValidating: false }));
+      }
       return null;
     }
   }, []);

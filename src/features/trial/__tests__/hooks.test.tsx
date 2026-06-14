@@ -320,6 +320,47 @@ describe("useTrialValidation", () => {
     expect(mockFetchTrialEntitlement).toHaveBeenCalledWith("user-1");
   });
 
+  it("discards an OLDER refresh response so it can't overwrite a newer paid one", async () => {
+    mockReadCachedEntitlement.mockResolvedValue(freshEntitlement()); // fresh → no bootstrap fetch
+    const wrapper = makeAuthWrapper({ isBootstrapping: false, userId: "user-1" });
+
+    // Two overlapping fetches: the FIRST (older) will resolve to expired, the
+    // SECOND (newer) to paid. The newer lands first, the older second.
+    let resolveOlder!: (v: CachedTrialEntitlement) => void;
+    let resolveNewer!: (v: CachedTrialEntitlement) => void;
+    mockFetchTrialEntitlement
+      .mockImplementationOnce(() => new Promise((r) => (resolveOlder = r)))
+      .mockImplementationOnce(() => new Promise((r) => (resolveNewer = r)));
+
+    const { result } = renderHook(() => useTrialValidation(), { wrapper });
+    await waitFor(() => expect(result.current.isBootstrapping).toBe(false));
+
+    let older!: Promise<unknown>;
+    let newer!: Promise<unknown>;
+    act(() => {
+      older = result.current.refresh(); // seq 1
+      newer = result.current.refresh(); // seq 2
+    });
+
+    const paid = { ...freshEntitlement(), entitlement_status: "paid" as const };
+    const expired = { ...freshEntitlement(), entitlement_status: "expired" as const };
+
+    // Newer (paid) completes first → commits.
+    await act(async () => {
+      resolveNewer(paid);
+      await newer;
+    });
+    expect(result.current.entitlementStatus).toBe("paid");
+
+    // Older (expired) completes second → must be DISCARDED, paid stands.
+    await act(async () => {
+      resolveOlder(expired);
+      await older;
+    });
+    expect(result.current.entitlementStatus).toBe("paid");
+    expect(result.current.accessMode).toBe("full");
+  });
+
   // ─── Case 10: AppState foreground with no cache (offline cold-start recovery) ──
 
   it("fetches when app becomes active and there is no cached entitlement", async () => {
