@@ -35,6 +35,8 @@ export function PaywallHardBlock() {
   const [pickerError, setPickerError] = useState<string | null>(null);
   const cleanupRanRef = useRef(false);
   const cleanupAttemptsRef = useRef(0);
+  const cleanupUserRef = useRef<string | null>(user?.id ?? null);
+  const prevPickerUserRef = useRef<string | null>(user?.id ?? null);
   const [cleanupRetryTick, setCleanupRetryTick] = useState(0);
   // Bumped whenever we leave hard_block; an in-flight openPicker load captures
   // it and discards its result if the episode changed, so a late list response
@@ -46,18 +48,21 @@ export function PaywallHardBlock() {
   const pickerReqRef = useRef(0);
 
   // This component stays mounted under the (app) layout, so its picker state
-  // must NOT leak into a future hard-block episode (keep-one → upgrade → refund
-  // → hard-block again): a stale, no-longer-existent habit id would make the
-  // archive keep NOTHING and wipe every current habit. Reset whenever we leave
-  // the hard-block state.
+  // must NOT leak into a future episode — either the gate leaving hard_block
+  // (keep-one → upgrade → refund → hard-block again) OR a direct ACCOUNT SWITCH
+  // that stays hard_block. A stale habit id from a different user/episode would
+  // make the archive keep NOTHING and wipe every current habit. Reset on both.
   useEffect(() => {
-    if (gate.status !== "hard_block") {
+    const userId = user?.id ?? null;
+    const userChanged = prevPickerUserRef.current !== userId;
+    prevPickerUserRef.current = userId;
+    if (userChanged || gate.status !== "hard_block") {
       episodeRef.current += 1; // invalidate any in-flight openPicker load
       setShowPicker(false);
       setPickerHabits([]);
       setPickerError(null);
     }
-  }, [gate.status]);
+  }, [gate.status, user?.id]);
 
   // Auto-resolve: archive leftover backlog so a <=1-active free-tier user's
   // queued habits restore on upgrade. Idempotent. A rejection is caught (not
@@ -65,9 +70,16 @@ export function PaywallHardBlock() {
   // schedules a BOUNDED timer retry — clearing the latch alone wouldn't re-run
   // the effect while the gate is stable, so the retry is driven through state.
   useEffect(() => {
-    const inCleanupState =
-      gate.status === "free_tier" && gate.needsCleanup && !!user?.id;
-    if (!inCleanupState) {
+    const userId = user?.id ?? null;
+    // Account switch: the latch/budget belong to the previous user, so reset
+    // them — otherwise a free_tier → free_tier switch would skip the new user's
+    // cleanup (or, worse, attribute it to the old episode).
+    if (cleanupUserRef.current !== userId) {
+      cleanupUserRef.current = userId;
+      cleanupRanRef.current = false;
+      cleanupAttemptsRef.current = 0;
+    }
+    if (gate.status !== "free_tier" || !gate.needsCleanup || !userId) {
       // Left the cleanup state — reset the latch + budget so a FUTURE cleanup
       // episode (e.g. refund back to free tier after an upgrade restored the
       // backlog) runs again. The latch must not outlive the episode for the
@@ -80,7 +92,6 @@ export function PaywallHardBlock() {
     if (cleanupAttemptsRef.current >= MAX_CLEANUP_ATTEMPTS) return;
     cleanupAttemptsRef.current += 1;
     cleanupRanRef.current = true; // optimistic — blocks concurrent re-entry
-    const userId = user.id;
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
     void archiveHabitsForPaywallKeepOne(userId, gate.soleActiveHabitId)

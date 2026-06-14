@@ -9,6 +9,7 @@ const mockGate = jest.fn();
 const mockArchiveKeepOne = jest.fn().mockResolvedValue({ archivedCount: 0 });
 const mockRefresh = jest.fn().mockResolvedValue(undefined);
 const mockListHabits = jest.fn().mockResolvedValue([]);
+let mockUserId: string | null = "user-1";
 
 jest.mock("@/features/paywall/usePaywallGate", () => ({
   usePaywallGate: () => mockGate(),
@@ -17,7 +18,7 @@ jest.mock("@/features/trial/hooks", () => ({
   useTrialValidation: () => ({ entitlementStatus: "expired", refresh: mockRefresh }),
 }));
 jest.mock("@/features/auth/hooks", () => ({
-  useAuthSession: () => ({ user: { id: "user-1" } }),
+  useAuthSession: () => ({ user: mockUserId ? { id: mockUserId } : null }),
 }));
 jest.mock("@/services/revenuecat", () => ({
   purchaseLifetimeUnlock: jest.fn(),
@@ -44,6 +45,7 @@ function renderHardBlock() {
 beforeEach(() => {
   mockGate.mockReset();
   mockArchiveKeepOne.mockClear();
+  mockUserId = "user-1";
 });
 
 it("renders nothing when status is inactive", () => {
@@ -285,4 +287,28 @@ it("an older picker load that fails later does NOT overwrite a newer successful 
   });
   expect(screen.getByText("New Habit")).toBeTruthy();
   expect(screen.queryByText(paywallCopy.keepOneError)).toBeNull();
+});
+
+it("resets the picker on a direct account switch that stays hard_block", async () => {
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  mockGate.mockReturnValue({ status: "hard_block", needsCleanup: false, soleActiveHabitId: null });
+  mockListHabits
+    .mockResolvedValueOnce([
+      { id: "a1", title: "User-1 Habit", habit_state: "active", status: "active", identity_phrase: null },
+    ])
+    .mockResolvedValueOnce([]);
+
+  const { rerender } = render(tree(qc));
+  await act(async () => {
+    fireEvent.press(screen.getByText(paywallCopy.continueFreeCta));
+  });
+  await waitFor(() => expect(screen.getByText("User-1 Habit")).toBeTruthy());
+
+  // Account switches while the gate stays hard_block — user-1's picker must
+  // NOT carry over (confirming its stale ids would archive user-2's habits).
+  mockUserId = "user-2";
+  rerender(tree(qc));
+
+  expect(screen.queryByText("User-1 Habit")).toBeNull();
+  expect(screen.getByText(paywallCopy.expiryTitle)).toBeTruthy();
 });
