@@ -446,6 +446,67 @@ describe("HabitDetailScreen", () => {
     ).toBeNull();
   });
 
+  it("free-tier (expired_no_purchase) can reach the edit screen via the pencil", () => {
+    // Regression: the pencil was disabled for the broad isReadOnly (which
+    // covers expired_no_purchase), making EditHabitScreen's "Unlock to edit"
+    // CTA unreachable. The fix narrows the disable to offline-only read_only.
+    useTrialValidation.mockReturnValue({
+      accessMode: "expired_no_purchase",
+      entitlementStatus: "expired",
+      isBootstrapping: false,
+      isValidating: false,
+      lastValidatedAt: null,
+      refresh: jest.fn().mockResolvedValue(undefined),
+      trialEndsAt: null,
+      trialStartedAt: null,
+    });
+    useHabitDetail.mockReturnValue({
+      error: null,
+      formula: "After morning coffee, run for 2 minutes",
+      habit: makeHabit({ start_date: "2026-04-01" }),
+      isLoading: false,
+      isUpcoming: false,
+      latestReview: null,
+      progress: makeProgress(),
+      recentLogs: [],
+    });
+    renderWithClient(<HabitDetailScreen />);
+
+    fireEvent.press(screen.getByLabelText("Edit habit"));
+
+    expect(mockRouterPush).toHaveBeenCalledWith(
+      expect.objectContaining({ pathname: "/(app)/habits/[habitId]/edit" }),
+    );
+  });
+
+  it("offline read_only disables the edit pencil (no navigation)", () => {
+    useTrialValidation.mockReturnValue({
+      accessMode: "read_only",
+      entitlementStatus: "expired",
+      isBootstrapping: false,
+      isValidating: false,
+      lastValidatedAt: null,
+      refresh: jest.fn().mockResolvedValue(undefined),
+      trialEndsAt: null,
+      trialStartedAt: null,
+    });
+    useHabitDetail.mockReturnValue({
+      error: null,
+      formula: "After morning coffee, run for 2 minutes",
+      habit: makeHabit({ start_date: "2026-04-01" }),
+      isLoading: false,
+      isUpcoming: false,
+      latestReview: null,
+      progress: makeProgress(),
+      recentLogs: [],
+    });
+    renderWithClient(<HabitDetailScreen />);
+
+    fireEvent.press(screen.getByLabelText("Edit habit"));
+
+    expect(mockRouterPush).not.toHaveBeenCalled();
+  });
+
   it("cells before habit.start_date are not present in the growing grid", () => {
     // start_date = April 27. With today = April 30 (Thu), the grid starts on Monday Apr 27
     // and shows only that week (Apr 27 – May 3). Apr 25 is before startDate and not in grid.

@@ -672,7 +672,9 @@ export default function HabitDetailScreen() {
           ) : null}
           <Text selectable style={styles.habitTitle}>{habit.title}</Text>
           <Pressable
-            disabled={isReadOnly}
+            accessibilityLabel="Edit habit"
+            accessibilityRole="button"
+            disabled={isOfflineReadOnly}
             hitSlop={12}
             onPress={() =>
               router.push({
@@ -681,7 +683,7 @@ export default function HabitDetailScreen() {
               })
             }
           >
-            <Pencil color={isReadOnly ? theme.colors.textFaint : theme.colors.primary} size={16} strokeWidth={1.75} />
+            <Pencil color={isOfflineReadOnly ? theme.colors.textFaint : theme.colors.primary} size={16} strokeWidth={1.75} />
           </Pressable>
         </View>
         {habit.habit_state === "automatic" ? (
