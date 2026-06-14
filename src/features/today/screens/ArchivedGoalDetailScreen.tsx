@@ -17,8 +17,10 @@ import {
   useRestoreGoalMutation,
 } from "@/features/habits/hooks";
 import { AccessGateBanner } from "@/features/trial/AccessGateBanner";
-import { isReadOnly as computeIsReadOnly } from "@/features/trial/accessMode";
+import { isPaywallLocked, isReadOnly as computeIsReadOnly } from "@/features/trial/accessMode";
 import { useTrialValidation } from "@/features/trial/hooks";
+import { usePaywall } from "@/features/paywall/PaywallController";
+import { paywallCopy } from "@/features/paywall/copy";
 import {
   getDeleteGoalErrorMessage,
   getRestoreGoalErrorMessage,
@@ -140,6 +142,9 @@ export default function ArchivedGoalDetailScreen() {
 
   const { accessMode, isValidating, refresh } = useTrialValidation();
   const isReadOnly = computeIsReadOnly(accessMode);
+  const isFreeTierLocked = isPaywallLocked(accessMode);
+  const isOfflineReadOnly = accessMode === "read_only";
+  const { showCapBlockPaywall } = usePaywall();
 
   // Query returns ALL habits under the phrase (every status), not just
   // archived. We need the full picture to gate on "fully archived" —
@@ -405,8 +410,24 @@ export default function ArchivedGoalDetailScreen() {
 
       {/* Restore — neutral. Reminders for ex-backlog rows rematerialize via
           the API wrapper; ex-active reminders stay off and the user can
-          re-enable per habit. */}
-      {!isReadOnly ? (
+          re-enable per habit.
+          Three-way branch:
+            1. free-tier (expired_no_purchase) → "Unlock $1.99 to restore" CTA → paywall
+            2. full/trial access → normal restore card
+            3. offline read_only → hidden */}
+      {isFreeTierLocked ? (
+        <View style={styles.cardContainer}>
+          {/* Tinted card surface matches the live Archive card on GoalDetailScreen. */}
+          <ZenCard style={styles.restoreCard}>
+            <Eyebrow label="Restore goal" />
+            <Text style={styles.bodyText}>Restoring is part of the paid plan.</Text>
+            <SecondaryButton
+              label={paywallCopy.unlockToRestore}
+              onPress={() => showCapBlockPaywall("cap_restore")}
+            />
+          </ZenCard>
+        </View>
+      ) : !isOfflineReadOnly ? (
         <View style={styles.cardContainer}>
           {/* Tinted card surface — matches the live Archive card on
               GoalDetailScreen. Gives the white SecondaryButton a surface

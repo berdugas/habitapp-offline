@@ -17,8 +17,10 @@ import {
   useRestoreHabitMutation,
 } from "@/features/habits/hooks";
 import { AccessGateBanner } from "@/features/trial/AccessGateBanner";
-import { isReadOnly as computeIsReadOnly } from "@/features/trial/accessMode";
+import { isPaywallLocked, isReadOnly as computeIsReadOnly } from "@/features/trial/accessMode";
 import { useTrialValidation } from "@/features/trial/hooks";
+import { usePaywall } from "@/features/paywall/PaywallController";
+import { paywallCopy } from "@/features/paywall/copy";
 import {
   getDeleteHabitErrorMessage,
   getRestoreHabitErrorMessage,
@@ -123,6 +125,9 @@ export default function ArchivedHabitDetailScreen() {
 
   const { accessMode, isValidating, refresh } = useTrialValidation();
   const isReadOnly = computeIsReadOnly(accessMode);
+  const isFreeTierLocked = isPaywallLocked(accessMode);
+  const isOfflineReadOnly = accessMode === "read_only";
+  const { showCapBlockPaywall } = usePaywall();
 
   const query = useOwnedHabitQuery(habitId);
   const restoreHabitMutation = useRestoreHabitMutation();
@@ -340,8 +345,23 @@ export default function ArchivedHabitDetailScreen() {
 
       {/* Restore — neutral. Ex-backlog reminders rematerialize via the api
           wrapper; ex-active reminders were cancelled at archive time and stay
-          off (user re-enables per habit). */}
-      {!isReadOnly ? (
+          off (user re-enables per habit).
+          Three-way branch:
+            1. free-tier (expired_no_purchase) → "Unlock $1.99 to restore" CTA → paywall
+            2. full/trial access → normal restore card
+            3. offline read_only → hidden */}
+      {isFreeTierLocked ? (
+        <View style={styles.cardContainer}>
+          <ZenCard style={styles.restoreCard}>
+            <Eyebrow label="Restore habit" />
+            <Text style={styles.bodyText}>Restoring is part of the paid plan.</Text>
+            <SecondaryButton
+              label={paywallCopy.unlockToRestore}
+              onPress={() => showCapBlockPaywall("cap_restore")}
+            />
+          </ZenCard>
+        </View>
+      ) : !isOfflineReadOnly ? (
         <View style={styles.cardContainer}>
           <ZenCard style={styles.restoreCard}>
             <Eyebrow label="Restore habit" />
