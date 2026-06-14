@@ -12,6 +12,7 @@ const mockPurchase = jest.fn();
 const mockRestore = jest.fn();
 const mockRefresh = jest.fn().mockResolvedValue(undefined);
 let mockEntitlementStatus = "expired";
+let mockUserId: string | null = "user-1";
 
 jest.mock("@/services/revenuecat", () => ({
   purchaseLifetimeUnlock: (...a: unknown[]) => mockPurchase(...a),
@@ -27,7 +28,7 @@ jest.mock("@/features/trial/hooks", () => ({
 }));
 
 jest.mock("@/features/auth/hooks", () => ({
-  useAuthSession: () => ({ user: { id: "user-1" } }),
+  useAuthSession: () => ({ user: mockUserId ? { id: mockUserId } : null }),
 }));
 
 function Trigger() {
@@ -52,6 +53,7 @@ beforeEach(() => {
   mockRestore.mockReset();
   mockRefresh.mockClear();
   mockEntitlementStatus = "expired";
+  mockUserId = "user-1";
   __resetStoreOpLockForTests(); // module-level lock — reset between tests
 });
 
@@ -60,6 +62,23 @@ it("is hidden until showCapBlockPaywall is called", () => {
   expect(screen.queryByText(paywallCopy.capBlockTitle)).toBeNull();
   fireEvent.press(screen.getByText("open"));
   expect(screen.getByText(paywallCopy.capBlockTitle)).toBeTruthy();
+});
+
+it("closes the cap-block modal when the authenticated user changes (sign-out / switch)", () => {
+  const { rerender } = renderWithController();
+  fireEvent.press(screen.getByText("open"));
+  expect(screen.getByText(paywallCopy.capBlockTitle)).toBeTruthy();
+
+  // Auth changes (sign-out / account switch) — a modal opened for the previous
+  // user must not linger (and possibly trap) over the new UI.
+  mockUserId = "user-2";
+  rerender(
+    <PaywallController>
+      <Trigger />
+    </PaywallController>,
+  );
+
+  expect(screen.queryByText(paywallCopy.capBlockTitle)).toBeNull();
 });
 
 it("dismisses a visible (idle) cap modal once paid is observed via another path", () => {

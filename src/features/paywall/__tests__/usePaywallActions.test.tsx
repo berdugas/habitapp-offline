@@ -10,6 +10,7 @@ const mockPurchase = jest.fn();
 const mockRestore = jest.fn();
 const mockRefresh = jest.fn();
 let mockEntitlementStatus: string | null = null;
+let mockUserId: string | null = "user-1";
 
 jest.mock("@/services/revenuecat", () => ({
   purchaseLifetimeUnlock: (...a: unknown[]) => mockPurchase(...a),
@@ -22,7 +23,7 @@ jest.mock("@/features/trial/hooks", () => ({
   }),
 }));
 jest.mock("@/features/auth/hooks", () => ({
-  useAuthSession: () => ({ user: { id: "user-1" } }),
+  useAuthSession: () => ({ user: mockUserId ? { id: mockUserId } : null }),
 }));
 jest.mock("@/services/logger", () => ({
   logger: { error: jest.fn(), warn: jest.fn(), info: jest.fn() },
@@ -40,6 +41,7 @@ beforeEach(() => {
   mockRestore.mockReset();
   mockRefresh.mockReset();
   mockEntitlementStatus = null;
+  mockUserId = "user-1";
   __resetStoreOpLockForTests(); // module-level lock — reset between tests
 });
 
@@ -177,6 +179,61 @@ describe("externally-observed paid", () => {
 
     expect(onResolved).toHaveBeenCalledTimes(1);
     expect(result.current.status).toEqual({ kind: "idle" });
+  });
+});
+
+describe("auth change mid-flight", () => {
+  it("resets a processing state to idle when the authenticated user changes (no trap)", async () => {
+    // Drive into processing (purchase ok, poll times out), then the user signs
+    // out / switches. processing hides every exit + blocks Back, so it must not
+    // persist for a different/absent user — otherwise it traps the new UI.
+    mockPurchase.mockResolvedValue({ cancelled: false });
+    mockRefresh.mockResolvedValue(ent("expired"));
+    const onResolved = jest.fn();
+    const { result, rerender } = renderHook(() =>
+      usePaywallActions(onResolved, fastPoll),
+    );
+    await act(async () => {
+      await result.current.onUnlock();
+    });
+    expect(result.current.status).toEqual({ kind: "processing" });
+
+    mockUserId = "user-2"; // account switch / sign-out
+    rerender(undefined);
+
+    expect(result.current.status).toEqual({ kind: "idle" });
+  });
+
+  it("aborts the verification to idle (never re-enters processing) if the user changes during the poll", async () => {
+    // The in-flight verification, bound to user-1, must NOT re-set processing
+    // after the auth-change reset has cleared it.
+    mockPurchase.mockResolvedValue({ cancelled: false });
+    let resolveRefresh!: (v: unknown) => void;
+    mockRefresh.mockReturnValue(new Promise((r) => (resolveRefresh = r)));
+    const onResolved = jest.fn();
+    const onePoll = { pollAttempts: 1, pollIntervalMs: 0, sleep: () => Promise.resolve() };
+    const { result, rerender } = renderHook(() =>
+      usePaywallActions(onResolved, onePoll),
+    );
+
+    let opPromise!: Promise<void>;
+    await act(async () => {
+      opPromise = result.current.onUnlock(); // parks at the refresh poll
+      await Promise.resolve();
+    });
+
+    // Auth changes while the poll is parked.
+    mockUserId = "user-2";
+    rerender(undefined);
+
+    await act(async () => {
+      resolveRefresh(ent("expired")); // poll completes as not-paid
+      await opPromise;
+    });
+
+    // Bound to user-1, the completed poll must abort to idle — not processing.
+    expect(result.current.status).toEqual({ kind: "idle" });
+    expect(onResolved).not.toHaveBeenCalled();
   });
 });
 

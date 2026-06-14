@@ -4,6 +4,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   useSyncExternalStore,
 } from "react";
@@ -107,6 +108,10 @@ export function usePaywallActions(
   // anonymous) RevenueCat customer.
   const { user } = useAuthSession();
   const userId = user?.id ?? null;
+  // Latest authenticated userId, readable AFTER an await (a closure's value
+  // would be stale). Lets an in-flight verification detect that auth changed.
+  const latestUserIdRef = useRef(userId);
+  latestUserIdRef.current = userId;
   const [isPurchasing, setIsPurchasing] = useState(false);
   const [isRestoring, setIsRestoring] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
@@ -136,10 +141,25 @@ export function usePaywallActions(
     }
   }, [status.kind, entitlementStatus, onResolved]);
 
+  // Auth changed mid-flight (sign-out / account switch): any pending
+  // verification was bound to the PREVIOUS user. Drop the processing/error
+  // state so it can't trap the post-sign-out UI — `processing` hides every exit
+  // and blocks Android Back. The in-flight op (if any) re-checks the user after
+  // its poll and also bails (so it can't re-set processing after this reset).
+  const prevUserIdRef = useRef(userId);
+  useEffect(() => {
+    if (prevUserIdRef.current === userId) return;
+    prevUserIdRef.current = userId;
+    setStatus({ kind: "idle" });
+  }, [userId]);
+
   // After a store-confirmed op, wait for the server then resolve or surface a
   // processing state. timed_out (webhook lag) and failed (offline) both keep
   // the paywall up with Check again — the money/entitlement is already secured.
-  const resolveWhenServerPaid = useCallback(async () => {
+  // Bound to opUserId: if auth changed during the poll, refresh() read a
+  // DIFFERENT user's entitlement, so the result is meaningless here — abort to
+  // idle rather than (re-)enter `processing` and trap the post-sign-out UI.
+  const resolveWhenServerPaid = useCallback(async (opUserId: string) => {
     setIsVerifying(true);
     let result;
     try {
@@ -150,6 +170,10 @@ export function usePaywallActions(
       });
     } finally {
       setIsVerifying(false);
+    }
+    if (latestUserIdRef.current !== opUserId) {
+      setStatus({ kind: "idle" });
+      return;
     }
     if (result === "paid") {
       setStatus({ kind: "idle" });
@@ -182,7 +206,7 @@ export function usePaywallActions(
       }
       setIsPurchasing(false);
       if (cancelled) return; // user backed out — no message
-      await resolveWhenServerPaid();
+      await resolveWhenServerPaid(userId);
     } finally {
       setStoreOpInFlight(false);
     }
@@ -217,7 +241,7 @@ export function usePaywallActions(
         setStatus({ kind: "error", message: paywallCopy.restoreNoneFound });
         return;
       }
-      await resolveWhenServerPaid();
+      await resolveWhenServerPaid(userId);
     } finally {
       setStoreOpInFlight(false);
     }
@@ -227,13 +251,18 @@ export function usePaywallActions(
   // just re-poll the server for the webhook to have landed.
   const onRecheck = useCallback(async () => {
     if (storeOpInFlight) return;
+    if (!userId) {
+      // Signed out while in the processing state — nothing to verify; drop it.
+      setStatus({ kind: "idle" });
+      return;
+    }
     setStoreOpInFlight(true);
     try {
-      await resolveWhenServerPaid();
+      await resolveWhenServerPaid(userId);
     } finally {
       setStoreOpInFlight(false);
     }
-  }, [resolveWhenServerPaid]);
+  }, [resolveWhenServerPaid, userId]);
 
   const clearStatus = useCallback(() => setStatus({ kind: "idle" }), []);
 
@@ -253,6 +282,8 @@ export function usePaywallActions(
 export function PaywallController({ children }: { children: React.ReactNode }) {
   const [visible, setVisible] = useState(false);
   const { entitlementStatus } = useTrialValidation();
+  const { user } = useAuthSession();
+  const userId = user?.id ?? null;
   const dismiss = useCallback(() => setVisible(false), []);
   const actions = usePaywallActions(dismiss);
   const { clearStatus } = actions; // stable (useCallback []) — safe as a dep
@@ -274,6 +305,17 @@ export function PaywallController({ children }: { children: React.ReactNode }) {
       setVisible(false);
     }
   }, [visible, entitlementStatus]);
+
+  // Close a stale cap-block modal if the authenticated user changes (sign-out /
+  // account switch): it was opened for the previous user, and leaving it up —
+  // especially mid-verification — could trap the post-sign-out UI. (The actions
+  // hook independently resets its own status on the same change.)
+  const prevUserIdRef = useRef(userId);
+  useEffect(() => {
+    if (prevUserIdRef.current === userId) return;
+    prevUserIdRef.current = userId;
+    setVisible(false);
+  }, [userId]);
 
   const value = useMemo(() => ({ showCapBlockPaywall }), [showCapBlockPaywall]);
 
