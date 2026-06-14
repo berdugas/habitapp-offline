@@ -140,6 +140,59 @@ export async function restorePurchases(): Promise<void> {
 
 export { Purchases };
 
+export type PurchaseFailureReason = "no_offering" | "not_configured";
+
+export class PurchaseError extends Error {
+  reason: PurchaseFailureReason;
+  constructor(reason: PurchaseFailureReason) {
+    super(`Purchase unavailable: ${reason}`);
+    this.name = "PurchaseError";
+    this.reason = reason;
+  }
+}
+
+/**
+ * Fetch the lifetime-unlock package from RevenueCat's current offering.
+ * Prefers the typed `lifetime` package; falls back to the first available
+ * package so a mis-typed dashboard offering still purchases.
+ */
+export async function getLifetimePackage() {
+  if (!initialized) {
+    throw new PurchaseError("not_configured");
+  }
+  const offerings = await Purchases.getOfferings();
+  const current = offerings.current;
+  const pkg = current?.lifetime ?? current?.availablePackages?.[0] ?? null;
+  if (!pkg) {
+    throw new PurchaseError("no_offering");
+  }
+  return pkg;
+}
+
+/**
+ * Open the Google Play purchase sheet for the lifetime unlock. Resolves
+ * { cancelled: true } when the user backs out (RC throws with
+ * userCancelled=true) and { cancelled: false } on success. Any other
+ * error propagates so the caller can show a toast. The actual entitlement
+ * flip happens server-side via the RC webhook; the client just refetches
+ * the trial context afterward.
+ *
+ * Deliberately NOT routed through any identity queue: a purchase is not an
+ * identity op, and the Play purchase sheet is inherently user-serialized.
+ */
+export async function purchaseLifetimeUnlock(): Promise<{ cancelled: boolean }> {
+  const pkg = await getLifetimePackage();
+  try {
+    await Purchases.purchasePackage(pkg);
+    return { cancelled: false };
+  } catch (err) {
+    if (err && typeof err === "object" && (err as { userCancelled?: boolean }).userCancelled) {
+      return { cancelled: true };
+    }
+    throw err;
+  }
+}
+
 export function __resetForTests(): void {
   initialized = false;
   identityQueue = Promise.resolve();
