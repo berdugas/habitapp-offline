@@ -13,6 +13,10 @@ import { Eyebrow } from "@/components/text/Eyebrow";
 import { useAuthSession } from "@/features/auth/hooks";
 import { signOut } from "@/features/auth/api";
 import { useTrialValidation } from "@/features/trial/hooks";
+import { isPaidStatus } from "@/features/trial/entitlement";
+import { usePaywall } from "@/features/paywall/PaywallController";
+import { paywallCopy } from "@/features/paywall/copy";
+import { restorePurchases } from "@/services/revenuecat";
 import { trackEvent } from "@/services/analytics";
 import { useTheme } from "@/theme/useTheme";
 import { useThemedStyles } from "@/theme/useThemedStyles";
@@ -32,8 +36,11 @@ function formatEntitlementStatus(status: TrialEntitlementStatus | null): string 
 
 export default function SettingsScreen() {
   const { user } = useAuthSession();
-  const { entitlementStatus, accessMode } = useTrialValidation();
+  const { entitlementStatus, accessMode, refresh } = useTrialValidation();
+  const { showCapBlockPaywall } = usePaywall();
   const [isSigningOut, setIsSigningOut] = useState(false);
+  const [isRestoring, setIsRestoring] = useState(false);
+  const isPaid = isPaidStatus(entitlementStatus);
   const theme = useTheme();
   const styles = useThemedStyles((t) =>
     StyleSheet.create({
@@ -104,6 +111,18 @@ export default function SettingsScreen() {
     router.replace("/");
   }
 
+  async function handleRestore() {
+    if (isRestoring) return;
+    setIsRestoring(true);
+    trackEvent("settings_restore_purchase");
+    try {
+      await restorePurchases();
+      await refresh();
+    } finally {
+      setIsRestoring(false);
+    }
+  }
+
   function handleExportPressed() {
     trackEvent("settings_export_initiated");
     router.push("/(app)/settings/export");
@@ -130,6 +149,33 @@ export default function SettingsScreen() {
             {statusLabel}
           </Text>
         ) : null}
+      </ZenCard>
+
+      <ZenCard gap={0}>
+        {isPaid ? (
+          <View style={styles.row}>
+            <Text style={styles.rowLabel}>{paywallCopy.settingsPaid}</Text>
+          </View>
+        ) : (
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => showCapBlockPaywall("settings_upgrade")}
+            style={styles.row}
+          >
+            <Text style={styles.rowLabel}>{paywallCopy.settingsUpgrade}</Text>
+            <ChevronRight color={theme.colors.textFaint} size={18} strokeWidth={1.75} />
+          </Pressable>
+        )}
+        <Pressable
+          accessibilityRole="button"
+          disabled={isRestoring}
+          onPress={() => void handleRestore()}
+          style={styles.row}
+        >
+          <Text style={styles.rowLabel}>
+            {isRestoring ? "Restoring…" : paywallCopy.restoreCta}
+          </Text>
+        </Pressable>
       </ZenCard>
 
       <ZenCard gap={0}>
