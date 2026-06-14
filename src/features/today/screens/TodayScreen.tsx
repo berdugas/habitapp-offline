@@ -37,8 +37,9 @@ import {
 } from "@/features/recovery/api";
 import { useArchiveHabitMutation } from "@/features/habits/hooks";
 import { AccessGateBanner } from "@/features/trial/AccessGateBanner";
-import { isReadOnly as computeIsReadOnly } from "@/features/trial/accessMode";
+import { isReadOnly as computeIsReadOnly, isPaywallLocked } from "@/features/trial/accessMode";
 import { useTrialValidation } from "@/features/trial/hooks";
+import { usePaywall } from "@/features/paywall/PaywallController";
 import { setPreference } from "@/lib/db/repositories/preferences";
 import { useTheme } from "@/theme/useTheme";
 import { useThemedStyles } from "@/theme/useThemedStyles";
@@ -172,6 +173,19 @@ export default function TodayScreen() {
   const recoveryActionLockRef = useRef(false);
   const { accessMode, isValidating, refresh } = useTrialValidation();
   const isReadOnly = computeIsReadOnly(accessMode);
+  const isFreeTierLocked = isPaywallLocked(accessMode);
+  // Gate logging/undo/row-disabled on ONLY offline-stale state, not free-tier.
+  // Free-tier users (expired_no_purchase) can always log their 1 habit.
+  const isOfflineReadOnly = accessMode === "read_only";
+  const { showCapBlockPaywall } = usePaywall();
+
+  function handleNewGoalPress() {
+    if (isFreeTierLocked) {
+      showCapBlockPaywall("cap_create");
+      return;
+    }
+    router.push("/(app)/habits/create");
+  }
 
   const habitRefs = habits.map((h) => ({
     id: h.id,
@@ -353,11 +367,13 @@ export default function TodayScreen() {
               onAddHabit={
                 isReadOnly
                   ? undefined
-                  : () =>
-                      router.push({
-                        pathname: "/(app)/habits/create",
-                        params: { goalIdentityPhrase: group.identityPhrase },
-                      })
+                  : isFreeTierLocked
+                    ? () => showCapBlockPaywall("cap_create")
+                    : () =>
+                        router.push({
+                          pathname: "/(app)/habits/create",
+                          params: { goalIdentityPhrase: group.identityPhrase },
+                        })
               }
               onGoalPress={() =>
                 router.push({
@@ -377,7 +393,7 @@ export default function TodayScreen() {
                   disabled={
                     upsertTodayHabitStatusMutation.isPending ||
                     deleteTodayHabitLogMutation.isPending ||
-                    isReadOnly
+                    isOfflineReadOnly
                   }
                   graduated={habit.habitState === "automatic"}
                   habit={habit}
@@ -397,9 +413,9 @@ export default function TodayScreen() {
           </React.Fragment>
         );
       })}
-      {!isReadOnly ? (
+      {!isReadOnly || isFreeTierLocked ? (
         <Pressable
-          onPress={() => router.push("/(app)/habits/create")}
+          onPress={handleNewGoalPress}
           style={({ pressed }) => [
             styles.newGoalRow,
             pressed && styles.newGoalRowPressed,

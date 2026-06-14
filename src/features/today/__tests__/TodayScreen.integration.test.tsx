@@ -11,6 +11,10 @@ jest.mock("@/features/trial/hooks", () => ({
   })),
 }));
 
+jest.mock("@/features/paywall/PaywallController", () => ({
+  usePaywall: jest.fn(() => ({ showCapBlockPaywall: jest.fn() })),
+}));
+
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import React from "react";
 import { fireEvent, render, screen, waitFor } from "@/tests/setup/render";
