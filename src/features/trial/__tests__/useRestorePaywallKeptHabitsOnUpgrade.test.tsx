@@ -43,26 +43,40 @@ describe("useRestorePaywallKeptHabitsOnUpgrade", () => {
     expect(mockRestore).toHaveBeenCalledWith("user-1");
   });
 
-  it("does NOT call restore on a paid → paid 're-render' (no transition)", () => {
+  it("reconciles once on a cold start that begins already paid (the fix), not again on re-render", () => {
+    // The old version skipped this case, which stranded paywall-archived habits
+    // when the upgrade transition was missed (app closed before it was seen).
     const { rerender } = renderHook<void, HookProps>(
       ({ userId, status }) => useRestorePaywallKeptHabitsOnUpgrade(userId, status),
       { initialProps: { userId: "user-1", status: "paid" } },
     );
-    expect(mockRestore).toHaveBeenCalledTimes(0); // initial paid does NOT fire
+    expect(mockRestore).toHaveBeenCalledTimes(1); // cold-start paid reconciles
     rerender({ userId: "user-1", status: "paid" });
-    expect(mockRestore).toHaveBeenCalledTimes(0);
+    expect(mockRestore).toHaveBeenCalledTimes(1); // once per signed-in session
   });
 
-  it("does NOT call restore on null → paid until a non-null non-paid is seen first", () => {
-    // null status = no cache loaded yet. Without a prior non-paid observation,
-    // we can't tell if this is a true upgrade or a cold-start of a paid user.
-    // Conservative: skip the restore until we see a non-paid status first.
+  it("reconciles on null → paid (no prior non-paid observation required)", () => {
+    // null = cache not loaded yet; the next launch of an already-upgraded user
+    // begins null → paid. restorePaywallKeptHabits is idempotent, so reconciling
+    // here is safe and closes the missed-upgrade gap.
     const { rerender } = renderHook<void, HookProps>(
       ({ userId, status }) => useRestorePaywallKeptHabitsOnUpgrade(userId, status),
       { initialProps: { userId: "user-1", status: null } },
     );
     rerender({ userId: "user-1", status: "paid" });
-    expect(mockRestore).not.toHaveBeenCalled();
+    expect(mockRestore).toHaveBeenCalledWith("user-1");
+    expect(mockRestore).toHaveBeenCalledTimes(1);
+  });
+
+  it("reconciles again for a different signed-in user even if both are paid", () => {
+    const { rerender } = renderHook<void, HookProps>(
+      ({ userId, status }) => useRestorePaywallKeptHabitsOnUpgrade(userId, status),
+      { initialProps: { userId: "user-1", status: "paid" } },
+    );
+    expect(mockRestore).toHaveBeenCalledTimes(1);
+    rerender({ userId: "user-2", status: "paid" });
+    expect(mockRestore).toHaveBeenCalledWith("user-2");
+    expect(mockRestore).toHaveBeenCalledTimes(2);
   });
 
   it("does NOT call restore when userId is null", () => {
@@ -83,8 +97,9 @@ describe("useRestorePaywallKeptHabitsOnUpgrade", () => {
     expect(mockRestore).toHaveBeenCalledTimes(1);
   });
 
-  it("does NOT call restore on paid → active transition (both paid-like — no upgrade)", () => {
-    // First seed a non-paid status so hasSeenNonPaidRef.current = true
+  it("does NOT call restore on paid → active transition (both paid-like — already reconciled)", () => {
+    // trial → paid reconciles once; the later paid → active flip is still the
+    // same signed-in paid session, so the once-per-session latch skips it.
     const { rerender } = renderHook<void, HookProps>(
       ({ userId, status }) => useRestorePaywallKeptHabitsOnUpgrade(userId, status),
       { initialProps: { userId: "user-1", status: "trial" } },
@@ -113,7 +128,7 @@ describe("useRestorePaywallKeptHabitsOnUpgrade", () => {
     await Promise.resolve();
 
     expect(loggerErrorSpy).toHaveBeenCalledWith(
-      "Failed to restore paywall habits on upgrade",
+      "Failed to restore paywall habits",
       expect.objectContaining({ userId: "user-1", error: expect.any(Error) }),
     );
 

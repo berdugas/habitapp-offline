@@ -7,55 +7,47 @@ import { logger } from "@/services/logger";
 import type { TrialEntitlementStatus } from "@/features/trial/types";
 
 /**
- * Watches entitlement_status for non-paid → paid transitions and runs the
- * one-shot local SQLite UPDATE that restores paywall-archived habits.
+ * Reconciles paywall-archived habits whenever a signed-in user is observed
+ * paid — once per signed-in paid session.
  *
- * Skips the initial render when status is already paid, because we can't
- * distinguish "user is paying since signup" from "user just upgraded" on
- * the first render of a session. To upgrade we require having seen a
- * non-null non-paid status FIRST. Cold-start paid users still have their
- * habits intact because the picker never archived anything for them.
+ * The old version only fired on an in-session non-paid → paid TRANSITION, and
+ * deliberately skipped a cold start that began already paid. That stranded a
+ * real case: a user upgrades, the app closes before the client observes the
+ * transition, and on the next launch they start paid → the upgrade is never
+ * seen → their `paywall_keep_one`-tagged habits stay archived forever.
  *
- * Idempotent at the api.ts level too — restorePaywallKeptHabits is a
- * no-op when no paywall_keep_one rows exist.
+ * restorePaywallKeptHabits is idempotent (a no-op SELECT when no tagged rows
+ * exist), so reconciling on first-observed-paid each session is cheap and
+ * safe. Keyed by userId so a different signed-in user reconciles too. On
+ * failure the latch resets so a later render retries.
  */
 export function useRestorePaywallKeptHabitsOnUpgrade(
   userId: string | null,
   entitlementStatus: TrialEntitlementStatus | null,
 ): void {
-  const hasSeenNonPaidRef = useRef(false);
-  const lastStatusRef = useRef<TrialEntitlementStatus | null>(null);
+  const reconciledForUserRef = useRef<string | null>(null);
 
   useEffect(() => {
-    const prev = lastStatusRef.current;
-    lastStatusRef.current = entitlementStatus;
-
-    // Track whether we've observed a non-null non-paid status. Until then,
-    // any transition to paid could be a cold-start (no upgrade).
-    if (entitlementStatus !== null && !isPaidStatus(entitlementStatus)) {
-      hasSeenNonPaidRef.current = true;
-    }
-
     if (!userId) return;
-    if (prev === entitlementStatus) return;
-    if (!hasSeenNonPaidRef.current) return;
     if (!isPaidStatus(entitlementStatus)) return;
-    if (isPaidStatus(prev)) return; // already-paid stays already-paid
+    if (reconciledForUserRef.current === userId) return; // already done this session
+    reconciledForUserRef.current = userId;
 
     void (async () => {
       try {
         const result = await restorePaywallKeptHabits(userId);
         if (result.restoredCount > 0) {
-          logger.info("Restored paywall-archived habits on upgrade", {
+          logger.info("Restored paywall-archived habits", {
             userId,
             restoredCount: result.restoredCount,
           });
         }
       } catch (error) {
-        logger.error("Failed to restore paywall habits on upgrade", {
-          userId,
-          error,
-        });
+        // Allow a retry on a later render if the reconcile failed.
+        if (reconciledForUserRef.current === userId) {
+          reconciledForUserRef.current = null;
+        }
+        logger.error("Failed to restore paywall habits", { userId, error });
       }
     })();
   }, [userId, entitlementStatus]);
