@@ -339,6 +339,7 @@ export default function HabitDetailScreen() {
   const calendarLogs = useHabitLogsForRange(habit?.id, calendarDays).data ?? [];
   const { accessMode, isValidating, refresh } = useTrialValidation();
   const isReadOnly = computeIsReadOnly(accessMode);
+  const isOfflineReadOnly = accessMode === "read_only";
   const isFreeTierLocked = isPaywallLocked(accessMode);
   const { showCapBlockPaywall } = usePaywall();
 
@@ -527,7 +528,10 @@ export default function HabitDetailScreen() {
     if (!withinWindow) {
       canEdit = false;
       readOnlyReason = "window";
-    } else if (isReadOnly) {
+    } else if (isOfflineReadOnly) {
+      // Only genuine offline-stale read_only blocks retro-logging. A resolved
+      // free-tier user (expired_no_purchase) must be able to retro-log their
+      // one allowed habit — logging is entitlement-agnostic.
       canEdit = false;
       readOnlyReason = "app";
     } else {
