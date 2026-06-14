@@ -42,7 +42,19 @@ export function useRestorePaywallKeptHabitsOnUpgrade(
 
   useEffect(() => {
     if (!userId) return;
-    if (!isPaidStatus(entitlementStatus)) return;
+
+    if (!isPaidStatus(entitlementStatus)) {
+      // Observed non-paid for this user. Clear the per-user latch + retry
+      // budget so a later re-purchase in the SAME session (refund/cancel →
+      // continue-free → buy again) reconciles again instead of being skipped
+      // as "already done this session".
+      if (reconciledForUserRef.current === userId) {
+        reconciledForUserRef.current = null;
+      }
+      attemptsForUserRef.current = userId;
+      attemptsRef.current = 0;
+      return;
+    }
 
     // Fresh retry budget per signed-in user.
     if (attemptsForUserRef.current !== userId) {

@@ -75,6 +75,15 @@ describe("useRestorePaywallKeptHabitsOnUpgrade", () => {
     expect(mockRestore).toHaveBeenCalledTimes(2);
   });
 
+  it("reconciles again on a same-session re-purchase (paid → non-paid → paid)", () => {
+    // Refund/cancel → continue-free → buy again, without restarting the app.
+    const { rerender } = renderReconcile({ userId: "user-1", status: "paid" });
+    expect(mockRestore).toHaveBeenCalledTimes(1);
+    rerender({ userId: "user-1", status: "expired" }); // latch must clear here
+    rerender({ userId: "user-1", status: "paid" });
+    expect(mockRestore).toHaveBeenCalledTimes(2);
+  });
+
   it("does NOT call restore when userId is null", () => {
     const { rerender } = renderReconcile({ userId: null, status: "trial" });
     rerender({ userId: null, status: "paid" });
