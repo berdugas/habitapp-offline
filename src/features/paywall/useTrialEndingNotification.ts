@@ -64,6 +64,10 @@ export function useTrialEndingNotification(
       }
       if (perms?.status !== "granted") return; // no prompt — banner covers it
 
+      // Cleanup may have raced the permissions await — don't schedule for a
+      // superseded effect (account/status changed).
+      if (!active) return;
+
       try {
         const id = await Notifications.scheduleNotificationAsync({
           content: {
@@ -76,7 +80,13 @@ export function useTrialEndingNotification(
             date: fire,
           },
         });
-        if (active) await setStoredItem(SCHEDULED_KEY, `${trialEndsAt}|${id}`);
+        if (active) {
+          await setStoredItem(SCHEDULED_KEY, `${trialEndsAt}|${id}`);
+        } else {
+          // Cleanup raced the scheduling itself — we can't store this id, so
+          // the replacement effect couldn't cancel it. Cancel the orphan now.
+          await Notifications.cancelScheduledNotificationAsync(id).catch(() => {});
+        }
       } catch (err) {
         logger.warn("Failed to schedule trial-ending notification", { err });
       }
