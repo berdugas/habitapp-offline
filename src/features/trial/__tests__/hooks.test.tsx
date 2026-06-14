@@ -640,7 +640,7 @@ describe("useTrialValidation", () => {
       resetClockForTesting();
     });
 
-    const noop = async () => {};
+    const noop = async () => null;
 
     function makeState(overrides: Partial<CachedTrialEntitlement>) {
       return {

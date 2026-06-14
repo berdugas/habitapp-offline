@@ -48,7 +48,10 @@ export type TrialValidationContextValue = {
   trialStartedAt: string | null;
   trialEndsAt: string | null;
   lastValidatedAt: string | null;
-  refresh: () => Promise<void>;
+  // Resolves with the freshly-fetched entitlement (or null on no-session /
+  // fetch failure). Callers that only want a side-effect can ignore it; the
+  // paywall poll reads the returned value to avoid observing stale React state.
+  refresh: () => Promise<CachedTrialEntitlement | null>;
 };
 
 const TrialValidationContext =
@@ -75,7 +78,7 @@ export function useTrialValidationLifecycle(
   isAuthBootstrapping: boolean,
 ): {
   state: LifecycleState;
-  refresh: () => Promise<void>;
+  refresh: () => Promise<CachedTrialEntitlement | null>;
 } {
   const [state, setState] = useState<LifecycleState>({
     cached: null,
@@ -93,14 +96,16 @@ export function useTrialValidationLifecycle(
     cachedRef.current = state.cached;
   }, [state.cached]);
 
-  const fetchAndCache = useCallback(async (uid: string) => {
+  const fetchAndCache = useCallback(
+    async (uid: string): Promise<CachedTrialEntitlement | null> => {
     setState((prev) => ({ ...prev, isValidating: true }));
     try {
       const entitlement = await fetchTrialEntitlement(uid);
       // Guard: user may have signed out while fetch was in flight.
-      if (userIdRef.current !== uid) return;
+      if (userIdRef.current !== uid) return null;
       await writeCachedEntitlement(entitlement);
       setState({ cached: entitlement, isBootstrapping: false, isValidating: false });
+      return entitlement;
     } catch (error) {
       if (error instanceof TrialEntitlementFetchError) {
         logger.error("Trial validation failed", {
@@ -115,6 +120,7 @@ export function useTrialValidationLifecycle(
       }
       // Keep whatever cache we have; stop the spinner.
       setState((prev) => ({ ...prev, isBootstrapping: false, isValidating: false }));
+      return null;
     }
   }, []);
 
@@ -214,10 +220,10 @@ export function useTrialValidationLifecycle(
     return () => subscription.remove();
   }, [fetchAndCache]);
 
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async (): Promise<CachedTrialEntitlement | null> => {
     const uid = userIdRef.current;
-    if (!uid) return;
-    await fetchAndCache(uid);
+    if (!uid) return null;
+    return fetchAndCache(uid);
   }, [fetchAndCache]);
 
   return { state, refresh };
@@ -236,7 +242,7 @@ export function TrialValidationProvider({
 
 export function buildTrialContextValue(
   state: LifecycleState,
-  refresh: () => Promise<void>,
+  refresh: () => Promise<CachedTrialEntitlement | null>,
 ): TrialValidationContextValue {
   const accessMode = computeAccessMode({
     lastValidatedAt: state.cached?.last_validated_at ?? null,

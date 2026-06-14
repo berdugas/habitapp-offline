@@ -36,7 +36,9 @@ import { logger } from "@/services/logger";
  */
 export function useRevenueCatLifecycle(
   userId: string | null,
-  refresh: () => Promise<void>,
+  // Only awaited for its side-effect (Supabase re-fetch); the returned
+  // entitlement (if any) is ignored here, so accept any Promise.
+  refresh: () => Promise<unknown>,
 ): void {
   const lastUserIdRef = useRef<string | null>(null);
 

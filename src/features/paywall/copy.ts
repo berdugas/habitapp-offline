@@ -14,6 +14,10 @@ export const paywallCopy = {
   purchaseFailed: "That didn't go through. Please try again.",
   restoreNoneFound: "No previous purchase found on this account.",
   restoreFailed: "Couldn't restore right now. Please try again.",
+  // Shown when the purchase/restore succeeded on the store but the server
+  // hasn't confirmed it yet (RevenueCat webhook still propagating).
+  processing: "Payment processing — this can take a moment.",
+  checkAgainCta: "Check again",
   pickerTitle: "Pick 1 habit to keep",
   pickerKeepNone: "Keep none",
   pickerConfirmTitle: "Archive the rest?",

@@ -123,17 +123,35 @@ export async function syncPurchases(): Promise<void> {
   });
 }
 
+export type RestoreResult =
+  | { status: "ok"; hasLifetimeEntitlement: boolean }
+  | { status: "failed" };
+
 // User-initiated restore — may show OS sign-in prompts (iOS).
 // Call ONLY from a user tap (e.g. Settings → Restore Purchase), never
-// from auto-running lifecycle code. The lifecycle hook uses
-// syncPurchases() instead.
-export async function restorePurchases(): Promise<void> {
-  if (!initialized) return;
-  await enqueueIdentityOp(async () => {
+// from auto-running lifecycle code. The lifecycle hook uses syncPurchases().
+//
+// Returns a typed result so the caller can show honest messaging:
+//   { status: "failed" }                            — SDK threw OR unconfigured
+//   { status: "ok", hasLifetimeEntitlement: false } — restored, but this
+//        account never bought the unlock ("no previous purchase found")
+//   { status: "ok", hasLifetimeEntitlement: true }  — RC has the entitlement;
+//        the caller still polls Supabase before granting access.
+// RC is used only to PICK THE MESSAGE here, never to grant client-side access.
+export async function restorePurchases(): Promise<RestoreResult> {
+  if (!initialized) return { status: "failed" };
+  return enqueueIdentityOp(async () => {
     try {
-      await Purchases.restorePurchases();
+      const customerInfo = await Purchases.restorePurchases();
+      // Single lifetime product, so any active entitlement IS the unlock.
+      const active = customerInfo?.entitlements?.active ?? {};
+      return {
+        status: "ok" as const,
+        hasLifetimeEntitlement: Object.keys(active).length > 0,
+      };
     } catch (error) {
       logger.error("RevenueCat restorePurchases failed", { error });
+      return { status: "failed" as const };
     }
   });
 }
