@@ -3,6 +3,13 @@ jest.mock(
   () => require("@react-native-async-storage/async-storage/jest/async-storage-mock"),
 );
 
+// TrialValidationBootstrap mounts useRestorePaywallKeptHabitsOnUpgrade, which
+// calls restorePaywallKeptHabits on a paid status. Stub it so the lifecycle
+// tests never touch real SQLite.
+jest.mock("@/features/habits/api", () => ({
+  restorePaywallKeptHabits: jest.fn().mockResolvedValue({ restoredCount: 0 }),
+}));
+
 jest.mock("@/features/trial/api", () => ({
   fetchTrialEntitlement: jest.fn(),
   TrialEntitlementFetchError: class TrialEntitlementFetchError extends Error {
@@ -37,6 +44,7 @@ import React from "react";
 import { AppState, type AppStateStatus } from "react-native";
 import * as Network from "expo-network";
 import { act, renderHook, waitFor } from "@testing-library/react-native";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 import { useAuthSession } from "@/features/auth/hooks";
 import { AuthSessionProvider } from "@/features/auth/hooks";
@@ -107,17 +115,22 @@ function makeAuthWrapper(authState: {
   isBootstrapping: boolean;
   userId: string | null;
 }) {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
   return function Wrapper({ children }: { children: React.ReactNode }) {
     return (
-      <AuthSessionProvider
-        value={{
-          isBootstrapping: authState.isBootstrapping,
-          session: authState.userId ? ({ user: { id: authState.userId } } as never) : null,
-          user: authState.userId ? ({ id: authState.userId } as never) : null,
-        }}
-      >
-        <TrialValidationBootstrap>{children}</TrialValidationBootstrap>
-      </AuthSessionProvider>
+      <QueryClientProvider client={queryClient}>
+        <AuthSessionProvider
+          value={{
+            isBootstrapping: authState.isBootstrapping,
+            session: authState.userId ? ({ user: { id: authState.userId } } as never) : null,
+            user: authState.userId ? ({ id: authState.userId } as never) : null,
+          }}
+        >
+          <TrialValidationBootstrap>{children}</TrialValidationBootstrap>
+        </AuthSessionProvider>
+      </QueryClientProvider>
     );
   };
 }

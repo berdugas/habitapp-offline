@@ -1,4 +1,7 @@
-import { renderHook } from "@testing-library/react-native";
+import React from "react";
+import { renderHook, act, waitFor } from "@testing-library/react-native";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+
 import { useRestorePaywallKeptHabitsOnUpgrade } from "@/features/trial/useRestorePaywallKeptHabitsOnUpgrade";
 import { restorePaywallKeptHabits } from "@/features/habits/api";
 import { logger } from "@/services/logger";
@@ -16,6 +19,19 @@ type HookProps = {
   status: TrialEntitlementStatus | null;
 };
 
+function renderReconcile(initialProps: HookProps) {
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const invalidateSpy = jest.spyOn(qc, "invalidateQueries");
+  function wrapper({ children }: { children: React.ReactNode }) {
+    return <QueryClientProvider client={qc}>{children}</QueryClientProvider>;
+  }
+  const utils = renderHook<void, HookProps>(
+    ({ userId, status }) => useRestorePaywallKeptHabitsOnUpgrade(userId, status),
+    { wrapper, initialProps },
+  );
+  return { ...utils, invalidateSpy };
+}
+
 describe("useRestorePaywallKeptHabitsOnUpgrade", () => {
   beforeEach(() => {
     mockRestore.mockReset();
@@ -23,10 +39,7 @@ describe("useRestorePaywallKeptHabitsOnUpgrade", () => {
   });
 
   it("calls restore on the trial → paid transition", () => {
-    const { rerender } = renderHook<void, HookProps>(
-      ({ userId, status }) => useRestorePaywallKeptHabitsOnUpgrade(userId, status),
-      { initialProps: { userId: "user-1", status: "trial" } },
-    );
+    const { rerender } = renderReconcile({ userId: "user-1", status: "trial" });
     expect(mockRestore).not.toHaveBeenCalled();
 
     rerender({ userId: "user-1", status: "paid" });
@@ -35,44 +48,27 @@ describe("useRestorePaywallKeptHabitsOnUpgrade", () => {
   });
 
   it("calls restore on the expired → paid transition", () => {
-    const { rerender } = renderHook<void, HookProps>(
-      ({ userId, status }) => useRestorePaywallKeptHabitsOnUpgrade(userId, status),
-      { initialProps: { userId: "user-1", status: "expired" } },
-    );
+    const { rerender } = renderReconcile({ userId: "user-1", status: "expired" });
     rerender({ userId: "user-1", status: "paid" });
     expect(mockRestore).toHaveBeenCalledWith("user-1");
   });
 
   it("reconciles once on a cold start that begins already paid (the fix), not again on re-render", () => {
-    // The old version skipped this case, which stranded paywall-archived habits
-    // when the upgrade transition was missed (app closed before it was seen).
-    const { rerender } = renderHook<void, HookProps>(
-      ({ userId, status }) => useRestorePaywallKeptHabitsOnUpgrade(userId, status),
-      { initialProps: { userId: "user-1", status: "paid" } },
-    );
+    const { rerender } = renderReconcile({ userId: "user-1", status: "paid" });
     expect(mockRestore).toHaveBeenCalledTimes(1); // cold-start paid reconciles
     rerender({ userId: "user-1", status: "paid" });
     expect(mockRestore).toHaveBeenCalledTimes(1); // once per signed-in session
   });
 
   it("reconciles on null → paid (no prior non-paid observation required)", () => {
-    // null = cache not loaded yet; the next launch of an already-upgraded user
-    // begins null → paid. restorePaywallKeptHabits is idempotent, so reconciling
-    // here is safe and closes the missed-upgrade gap.
-    const { rerender } = renderHook<void, HookProps>(
-      ({ userId, status }) => useRestorePaywallKeptHabitsOnUpgrade(userId, status),
-      { initialProps: { userId: "user-1", status: null } },
-    );
+    const { rerender } = renderReconcile({ userId: "user-1", status: null });
     rerender({ userId: "user-1", status: "paid" });
     expect(mockRestore).toHaveBeenCalledWith("user-1");
     expect(mockRestore).toHaveBeenCalledTimes(1);
   });
 
   it("reconciles again for a different signed-in user even if both are paid", () => {
-    const { rerender } = renderHook<void, HookProps>(
-      ({ userId, status }) => useRestorePaywallKeptHabitsOnUpgrade(userId, status),
-      { initialProps: { userId: "user-1", status: "paid" } },
-    );
+    const { rerender } = renderReconcile({ userId: "user-1", status: "paid" });
     expect(mockRestore).toHaveBeenCalledTimes(1);
     rerender({ userId: "user-2", status: "paid" });
     expect(mockRestore).toHaveBeenCalledWith("user-2");
@@ -80,50 +76,83 @@ describe("useRestorePaywallKeptHabitsOnUpgrade", () => {
   });
 
   it("does NOT call restore when userId is null", () => {
-    const { rerender } = renderHook<void, HookProps>(
-      ({ userId, status }) => useRestorePaywallKeptHabitsOnUpgrade(userId, status),
-      { initialProps: { userId: null, status: "trial" } },
-    );
+    const { rerender } = renderReconcile({ userId: null, status: "trial" });
     rerender({ userId: null, status: "paid" });
     expect(mockRestore).not.toHaveBeenCalled();
   });
 
   it("treats 'active' the same as 'paid' (defensive — paid-like)", () => {
-    const { rerender } = renderHook<void, HookProps>(
-      ({ userId, status }) => useRestorePaywallKeptHabitsOnUpgrade(userId, status),
-      { initialProps: { userId: "user-1", status: "trial" } },
-    );
+    const { rerender } = renderReconcile({ userId: "user-1", status: "trial" });
     rerender({ userId: "user-1", status: "active" });
     expect(mockRestore).toHaveBeenCalledTimes(1);
   });
 
   it("does NOT call restore on paid → active transition (both paid-like — already reconciled)", () => {
-    // trial → paid reconciles once; the later paid → active flip is still the
-    // same signed-in paid session, so the once-per-session latch skips it.
-    const { rerender } = renderHook<void, HookProps>(
-      ({ userId, status }) => useRestorePaywallKeptHabitsOnUpgrade(userId, status),
-      { initialProps: { userId: "user-1", status: "trial" } },
-    );
+    const { rerender } = renderReconcile({ userId: "user-1", status: "trial" });
     rerender({ userId: "user-1", status: "paid" });
-    expect(mockRestore).toHaveBeenCalledTimes(1); // first transition
-
-    // Now the paid → active flip; both are paid-like, should NOT fire again.
+    expect(mockRestore).toHaveBeenCalledTimes(1);
     rerender({ userId: "user-1", status: "active" });
-    expect(mockRestore).toHaveBeenCalledTimes(1); // still 1
+    expect(mockRestore).toHaveBeenCalledTimes(1);
+  });
+
+  it("invalidates the habits queries after a non-zero restore so mounted screens refresh", async () => {
+    mockRestore.mockResolvedValue({ restoredCount: 2 });
+    const { rerender, invalidateSpy } = renderReconcile({
+      userId: "user-1",
+      status: "trial",
+    });
+    rerender({ userId: "user-1", status: "paid" });
+    await waitFor(() =>
+      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["habits"] }),
+    );
+  });
+
+  it("does NOT invalidate when nothing was restored (restoredCount 0)", async () => {
+    mockRestore.mockResolvedValue({ restoredCount: 0 });
+    const { rerender, invalidateSpy } = renderReconcile({
+      userId: "user-1",
+      status: "trial",
+    });
+    rerender({ userId: "user-1", status: "paid" });
+    await waitFor(() => expect(mockRestore).toHaveBeenCalled());
+    expect(invalidateSpy).not.toHaveBeenCalledWith({ queryKey: ["habits"] });
+  });
+
+  it("retries via a bounded timer after a transient failure (stable paid session)", async () => {
+    jest.useFakeTimers();
+    const loggerErrorSpy = jest.spyOn(logger, "error").mockImplementation(() => {});
+    mockRestore.mockReset();
+    mockRestore
+      .mockRejectedValueOnce(new Error("transient"))
+      .mockResolvedValue({ restoredCount: 0 });
+
+    renderReconcile({ userId: "user-1", status: "paid" });
+
+    // First attempt fails — flush its microtasks so the catch schedules a timer.
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(mockRestore).toHaveBeenCalledTimes(1);
+
+    // Advancing the timer retries WITHOUT any dep change (the whole point).
+    await act(async () => {
+      await jest.advanceTimersByTimeAsync(3000);
+    });
+    expect(mockRestore).toHaveBeenCalledTimes(2);
+
+    loggerErrorSpy.mockRestore();
+    jest.useRealTimers();
   });
 
   it("logs an error when restorePaywallKeptHabits rejects", async () => {
     const loggerErrorSpy = jest.spyOn(logger, "error").mockImplementation(() => {});
     mockRestore.mockReset();
-    mockRestore.mockRejectedValueOnce(new Error("DB unavailable"));
+    mockRestore.mockRejectedValue(new Error("DB unavailable"));
 
-    const { rerender } = renderHook<void, HookProps>(
-      ({ userId, status }) => useRestorePaywallKeptHabitsOnUpgrade(userId, status),
-      { initialProps: { userId: "user-1", status: "trial" } },
-    );
+    const { rerender } = renderReconcile({ userId: "user-1", status: "trial" });
     rerender({ userId: "user-1", status: "paid" });
 
-    // Drain microtasks so the async IIFE's catch block runs
     await Promise.resolve();
     await Promise.resolve();
 
