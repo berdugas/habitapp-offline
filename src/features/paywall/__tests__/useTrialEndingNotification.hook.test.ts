@@ -1,6 +1,7 @@
 import { renderHook, act, waitFor } from "@testing-library/react-native";
 
 import { useTrialEndingNotification } from "@/features/paywall/useTrialEndingNotification";
+import type { TrialEntitlementStatus } from "@/features/trial/types";
 
 const mockGetPerms = jest.fn();
 const mockSchedule = jest.fn();
@@ -87,4 +88,52 @@ it("cancels the just-scheduled notification if cleanup races scheduling (no orph
     KEY,
     expect.stringContaining("notif-1"),
   );
+});
+
+it("cancels the scheduled notification if persisting its id fails (no untracked orphan)", async () => {
+  // schedule succeeds, but the storage write rejects. Without cancelling, the
+  // notification stays scheduled with an id nobody recorded — it can never be
+  // found or cancelled again.
+  mockSchedule.mockResolvedValue("id-x");
+  mockSetStored.mockRejectedValueOnce(new Error("storage full"));
+
+  renderHook(() => useTrialEndingNotification("trial", ENDS_AT));
+
+  await waitFor(() => expect(mockCancel).toHaveBeenCalledWith("id-x"));
+});
+
+it("a superseded non-trial cleanup does not erase a newer effect's stored id", async () => {
+  // Effect A (non-trial) reads "end1|id1" and parks inside cancel(id1). While
+  // it's parked, the deps flip to a NEW trial window: effect B schedules id2
+  // and stores "end2|id2". When A resumes it must NOT clear storage — it has
+  // been superseded, and clearing would orphan id2.
+  const END2 = new Date("2026-06-18T12:00:00.000Z").toISOString(); // fire is future
+  mockGetStored.mockResolvedValue("end1|id1");
+  let resolveCancel!: () => void;
+  mockCancel.mockImplementationOnce(
+    () => new Promise<void>((r) => (resolveCancel = r)),
+  );
+  mockSchedule.mockResolvedValue("id2");
+
+  const { rerender } = renderHook(
+    ({ status, ends }: { status: TrialEntitlementStatus | null; ends: string | null }) =>
+      useTrialEndingNotification(status, ends),
+    { initialProps: { status: "paid" as TrialEntitlementStatus | null, ends: null as string | null } },
+  );
+
+  // Effect A is now parked inside cancel("id1").
+  await waitFor(() => expect(mockCancel).toHaveBeenCalledWith("id1"));
+
+  // Deps flip to a new trial window → effect B schedules + stores id2.
+  rerender({ status: "trial", ends: END2 });
+  await waitFor(() => expect(mockSetStored).toHaveBeenCalledWith(KEY, `${END2}|id2`));
+
+  // A resumes: it must bail without clearing the storage B just wrote.
+  mockSetStored.mockClear();
+  await act(async () => {
+    resolveCancel();
+    await Promise.resolve();
+    await Promise.resolve();
+  });
+  expect(mockSetStored).not.toHaveBeenCalledWith(KEY, "");
 });

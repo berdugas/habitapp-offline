@@ -35,6 +35,10 @@ export function useTrialEndingNotification(
     let active = true;
     async function sync() {
       const stored = await getStoredItem(SCHEDULED_KEY);
+      // Superseded during the read (deps changed) — a newer effect re-reads the
+      // same state and handles it. Bail before mutating shared notification /
+      // storage state so we can't clobber what the newer effect committed.
+      if (!active) return;
 
       if (entitlementStatus !== "trial") {
         if (stored) {
@@ -42,6 +46,10 @@ export function useTrialEndingNotification(
           if (notifId) {
             await Notifications.cancelScheduledNotificationAsync(notifId).catch(() => {});
           }
+          // A newer effect may have scheduled + stored a notification after our
+          // read; if we were superseded mid-cancel, clearing storage now would
+          // orphan ITS id. Re-check ownership before the clear.
+          if (!active) return;
           await setStoredItem(SCHEDULED_KEY, "");
         }
         return;
@@ -79,8 +87,9 @@ export function useTrialEndingNotification(
       // superseded effect (account/status changed).
       if (!active) return;
 
+      let id: string;
       try {
-        const id = await Notifications.scheduleNotificationAsync({
+        id = await Notifications.scheduleNotificationAsync({
           content: {
             title: "Your trial is ending",
             body: "Your free trial ends in 2 days. Unlock anytime for $1.99.",
@@ -91,15 +100,30 @@ export function useTrialEndingNotification(
             date: fire,
           },
         });
-        if (active) {
-          await setStoredItem(SCHEDULED_KEY, `${trialEndsAt}|${id}`);
-        } else {
-          // Cleanup raced the scheduling itself — we can't store this id, so
-          // the replacement effect couldn't cancel it. Cancel the orphan now.
-          await Notifications.cancelScheduledNotificationAsync(id).catch(() => {});
-        }
       } catch (err) {
         logger.warn("Failed to schedule trial-ending notification", { err });
+        return;
+      }
+
+      // A notification IS now scheduled. We MUST either persist its id (so a
+      // later effect can find + cancel it) or cancel it ourselves — never leave
+      // it scheduled-but-untracked.
+      if (!active) {
+        // Cleanup raced the scheduling itself — we can't store this id, so a
+        // replacement effect couldn't cancel it. Cancel the orphan now.
+        await Notifications.cancelScheduledNotificationAsync(id).catch(() => {});
+        return;
+      }
+
+      try {
+        await setStoredItem(SCHEDULED_KEY, `${trialEndsAt}|${id}`);
+      } catch (err) {
+        // Scheduled but persistence failed → the id would be untracked and
+        // could never be cancelled. Cancel it now rather than orphan it.
+        logger.warn("Failed to persist trial-ending notification id; cancelling", {
+          err,
+        });
+        await Notifications.cancelScheduledNotificationAsync(id).catch(() => {});
       }
     }
     void sync();
