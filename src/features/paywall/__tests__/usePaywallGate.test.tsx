@@ -50,3 +50,24 @@ it("stays inactive while the count query is still loading", () => {
   setup("expired_no_purchase", undefined);
   expect(renderHook(() => usePaywallGate()).result.current.status).toBe("inactive");
 });
+
+it("fails CLOSED (hard_block) when the count query ERRORS for an expired user", () => {
+  // Logging is entitlement-agnostic, so an "inactive" gate would let an expired
+  // user keep using an unknown number of habits. A terminal count error must
+  // block, not silently disable the paywall.
+  mockUseTrial.mockReturnValue({ accessMode: "expired_no_purchase" });
+  mockUseCount.mockReturnValue({ data: undefined, isError: true });
+  expect(renderHook(() => usePaywallGate()).result.current.status).toBe("hard_block");
+});
+
+it("stays inactive on loading (isError false, no data) — does not flash the paywall", () => {
+  mockUseTrial.mockReturnValue({ accessMode: "expired_no_purchase" });
+  mockUseCount.mockReturnValue({ data: undefined, isError: false });
+  expect(renderHook(() => usePaywallGate()).result.current.status).toBe("inactive");
+});
+
+it("does NOT hard_block a non-expired user even if the count query errors", () => {
+  mockUseTrial.mockReturnValue({ accessMode: "full" });
+  mockUseCount.mockReturnValue({ data: undefined, isError: true });
+  expect(renderHook(() => usePaywallGate()).result.current.status).toBe("inactive");
+});

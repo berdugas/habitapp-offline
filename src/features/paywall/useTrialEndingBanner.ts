@@ -42,12 +42,20 @@ export function useTrialEndingBanner() {
 
   useEffect(() => {
     let active = true;
-    getStoredItem(STORAGE_KEY).then((v) => {
-      if (active) {
-        setDismissedKey(v);
-        setLoaded(true);
-      }
-    });
+    getStoredItem(STORAGE_KEY)
+      .then((v) => {
+        if (active) {
+          setDismissedKey(v);
+          setLoaded(true);
+        }
+      })
+      .catch(() => {
+        // Storage read failed — treat as "no dismissal recorded" and still mark
+        // loaded, so a storage glitch can't leave the banner permanently
+        // unloaded (visible stays false while !loaded). Fail open: showing the
+        // reminder is the safe outcome for a non-blocking banner.
+        if (active) setLoaded(true);
+      });
     return () => {
       active = false;
     };
@@ -59,9 +67,17 @@ export function useTrialEndingBanner() {
     shouldShowEndingBanner({ status: entitlementStatus, trialEndsAt, now: now(), dismissedKey });
 
   async function dismiss() {
+    // In-memory latch hides it this session regardless of persistence.
     setSessionHidden(true);
     if (trialEndsAt) {
-      await setStoredItem(STORAGE_KEY, endingBannerKey(trialEndsAt));
+      try {
+        await setStoredItem(STORAGE_KEY, endingBannerKey(trialEndsAt));
+      } catch {
+        // Persisting the dismissal failed — the sessionHidden latch still hides
+        // it this session; it may re-show on a future launch, which is
+        // acceptable. Never let this escape as an unhandled rejection (dismiss
+        // is invoked fire-and-forget).
+      }
     }
   }
 

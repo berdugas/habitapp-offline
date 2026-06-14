@@ -204,32 +204,45 @@ export async function getLifetimePackage() {
  * flip happens server-side via the RC webhook; the client just refetches
  * the trial context afterward.
  *
- * Binds the purchase to the authenticated `userId`: it establishes the RC
- * identity (logInRevenueCat — serialized via the identity queue, idempotent)
- * BEFORE charging, so the purchase and its webhook can't land on the
- * anonymous/previous RC customer and then fail to unlock this Supabase user.
- * Throws PurchaseError("identity_failed") if identity can't be established
- * (better to not charge than to charge the wrong customer). The logIn itself
- * is serialized, but the Play sheet is deliberately NOT held inside the queue
- * (that would stall a later account switch behind an open/abandoned sheet).
+ * Binds the purchase to the authenticated `userId`. Identity establishment,
+ * the offering fetch, and the charge run as ONE serialized identity-queue op,
+ * so NO account-switch logIn can interleave between establishing identity and
+ * the charge — which would otherwise bill the wrong RC customer and the webhook
+ * couldn't unlock this Supabase user. Throws PurchaseError("identity_failed")
+ * if identity can't be established (better to not charge than charge the wrong
+ * customer). Holding the queue across the Play sheet is safe: the sheet is
+ * modal/foreground (the user can't trigger an account switch while it's open)
+ * and purchasePackage always settles (success/cancel/error), so the queue is
+ * never held indefinitely.
  */
 export async function purchaseLifetimeUnlock(
   userId: string,
 ): Promise<{ cancelled: boolean }> {
-  const identityOk = await logInRevenueCat(userId);
-  if (!identityOk) {
-    throw new PurchaseError("identity_failed");
+  if (!initialized) {
+    // SDK never configured (Expo Go / no key) — getLifetimePackage would throw
+    // anyway; don't enqueue an op against an unconfigured SDK.
+    throw new PurchaseError("not_configured");
   }
-  const pkg = await getLifetimePackage();
-  try {
-    await Purchases.purchasePackage(pkg);
-    return { cancelled: false };
-  } catch (err) {
-    if (err && typeof err === "object" && (err as { userCancelled?: boolean }).userCancelled) {
-      return { cancelled: true };
+  // logIn directly (NOT logInRevenueCat) — we're already inside the queue, so a
+  // nested enqueue would deadlock.
+  return enqueueIdentityOp(async () => {
+    try {
+      await Purchases.logIn(userId);
+    } catch (error) {
+      logger.error("RevenueCat logIn (pre-purchase) failed", { userId, error });
+      throw new PurchaseError("identity_failed");
     }
-    throw err;
-  }
+    const pkg = await getLifetimePackage();
+    try {
+      await Purchases.purchasePackage(pkg);
+      return { cancelled: false };
+    } catch (err) {
+      if (err && typeof err === "object" && (err as { userCancelled?: boolean }).userCancelled) {
+        return { cancelled: true };
+      }
+      throw err;
+    }
+  });
 }
 
 export function __resetForTests(): void {

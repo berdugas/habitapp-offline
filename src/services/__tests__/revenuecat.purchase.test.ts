@@ -2,6 +2,7 @@ import {
   PurchaseError,
   getLifetimePackage,
   purchaseLifetimeUnlock,
+  logInRevenueCat,
   initRevenueCat,
   __resetForTests,
 } from "@/services/revenuecat";
@@ -121,5 +122,42 @@ describe("purchaseLifetimeUnlock", () => {
       reason: "identity_failed",
     });
     expect(mockPurchasePackage).not.toHaveBeenCalled();
+  });
+
+  it("holds the identity queue through the charge — a concurrent logIn waits", async () => {
+    // The residual race: identity must stay owned by the buyer for the WHOLE
+    // purchase, so an account-switch logIn can't change the RC customer between
+    // establishing identity and the charge.
+    mockGetOfferings.mockResolvedValue({ current: { lifetime: LIFETIME_PKG } });
+    const order: string[] = [];
+    mockLogIn.mockImplementation(async (id: string) => {
+      order.push(`logIn:${id}`);
+      return { customerInfo: {}, created: false };
+    });
+    let finishPurchase!: () => void;
+    mockPurchasePackage.mockImplementation(
+      () => new Promise((resolve) => {
+        finishPurchase = () => resolve({ customerInfo: {} });
+      }),
+    );
+    const flush = async () => {
+      for (let i = 0; i < 10; i++) await Promise.resolve();
+    };
+
+    const purchaseP = purchaseLifetimeUnlock("buyer");
+    await flush();
+    // Logged in as the buyer; parked in purchasePackage holding the queue.
+    expect(order).toEqual(["logIn:buyer"]);
+
+    // A competing account-switch logIn enqueues WHILE the purchase is in flight.
+    const switchP = logInRevenueCat("other");
+    await flush();
+    expect(order).toEqual(["logIn:buyer"]); // still queued behind the purchase
+
+    // Completing the charge releases the queue → the competing logIn runs.
+    finishPurchase();
+    await purchaseP;
+    await switchP;
+    expect(order).toEqual(["logIn:buyer", "logIn:other"]);
   });
 });
