@@ -108,9 +108,12 @@ export function PaywallHardBlock() {
           variant="expiry"
           isPurchasing={actions.isPurchasing}
           isRestoring={actions.isRestoring}
+          isVerifying={actions.isVerifying}
+          status={actions.status}
           showRefundedBanner={entitlementStatus === "cancelled"}
           onUnlock={actions.onUnlock}
           onRestore={actions.onRestore}
+          onRecheck={actions.onRecheck}
           onContinueFree={() => void openPicker()}
           onDismiss={() => {}}
         />

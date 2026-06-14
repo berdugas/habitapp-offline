@@ -8,8 +8,11 @@ function baseProps() {
     variant: "expiry" as const,
     isPurchasing: false,
     isRestoring: false,
+    isVerifying: false,
+    status: { kind: "idle" } as const,
     onUnlock: jest.fn(),
     onRestore: jest.fn(),
+    onRecheck: jest.fn(),
     onContinueFree: jest.fn(),
     onDismiss: jest.fn(),
     showRefundedBanner: false,
@@ -63,6 +66,39 @@ describe("PaywallScreen", () => {
   it("renders the refunded banner when showRefundedBanner is true", () => {
     render(<PaywallScreen {...baseProps()} showRefundedBanner />);
     expect(screen.getByText(paywallCopy.refundedBanner)).toBeTruthy();
+  });
+
+  it("processing status shows the processing message + a 'Check again' CTA instead of Unlock", () => {
+    render(<PaywallScreen {...baseProps()} status={{ kind: "processing" }} />);
+    expect(screen.getByText(paywallCopy.processing)).toBeTruthy();
+    expect(screen.getByText(paywallCopy.checkAgainCta)).toBeTruthy();
+    // Unlock CTA is replaced by Check again while processing.
+    expect(screen.queryByText(paywallCopy.unlockCta)).toBeNull();
+  });
+
+  it("Check again calls onRecheck", () => {
+    const props = baseProps();
+    render(<PaywallScreen {...props} status={{ kind: "processing" }} />);
+    fireEvent.press(screen.getByText(paywallCopy.checkAgainCta));
+    expect(props.onRecheck).toHaveBeenCalledTimes(1);
+  });
+
+  it("error status surfaces the message (e.g. no previous purchase)", () => {
+    render(
+      <PaywallScreen
+        {...baseProps()}
+        status={{ kind: "error", message: paywallCopy.restoreNoneFound }}
+      />,
+    );
+    expect(screen.getByText(paywallCopy.restoreNoneFound)).toBeTruthy();
+  });
+
+  it("verifying disables the actions and labels the primary 'Verifying…'", () => {
+    const props = baseProps();
+    render(<PaywallScreen {...props} isVerifying />);
+    expect(screen.queryByText(paywallCopy.unlockCta)).toBeNull();
+    fireEvent.press(screen.getByText("Verifying…"));
+    expect(props.onUnlock).not.toHaveBeenCalled();
   });
 
   it("calls onRestore when the restore CTA is pressed", () => {

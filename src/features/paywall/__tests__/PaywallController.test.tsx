@@ -58,8 +58,10 @@ it("Maybe later dismisses the cap-block modal", () => {
   expect(screen.queryByText(paywallCopy.capBlockTitle)).toBeNull();
 });
 
-it("Unlock runs the purchase then refreshes the trial context", async () => {
+it("Unlock purchases, polls the server, and dismisses once paid is observed", async () => {
   mockPurchase.mockResolvedValue({ cancelled: false });
+  // Server confirms paid on the first poll → no sleeps, fast path.
+  mockRefresh.mockResolvedValue({ entitlement_status: "paid" });
   renderWithController();
   fireEvent.press(screen.getByText("open"));
   await act(async () => {
@@ -67,6 +69,10 @@ it("Unlock runs the purchase then refreshes the trial context", async () => {
   });
   await waitFor(() => expect(mockPurchase).toHaveBeenCalledTimes(1));
   expect(mockRefresh).toHaveBeenCalled();
+  // paid observed → onResolved (dismiss) → modal closes.
+  await waitFor(() =>
+    expect(screen.queryByText(paywallCopy.capBlockTitle)).toBeNull(),
+  );
 });
 
 it("a cancelled purchase keeps the modal open and does not refresh", async () => {

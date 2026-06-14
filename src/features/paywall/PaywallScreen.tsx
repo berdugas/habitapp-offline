@@ -7,13 +7,18 @@ import { TertiaryButton } from "@/components/buttons/TertiaryButton";
 import { useThemedStyles } from "@/theme/useThemedStyles";
 import { paywallCopy } from "@/features/paywall/copy";
 
+import type { PaywallActionStatus } from "@/features/paywall/PaywallController";
+
 type Props = {
   variant: "expiry" | "cap_block";
   isPurchasing: boolean;
   isRestoring: boolean;
+  isVerifying: boolean;
+  status: PaywallActionStatus;
   showRefundedBanner: boolean;
   onUnlock: () => void;
   onRestore: () => void;
+  onRecheck: () => void;
   onContinueFree: () => void;
   onDismiss: () => void;
 };
@@ -22,9 +27,12 @@ export function PaywallScreen({
   variant,
   isPurchasing,
   isRestoring,
+  isVerifying,
+  status,
   showRefundedBanner,
   onUnlock,
   onRestore,
+  onRecheck,
   onContinueFree,
   onDismiss,
 }: Props) {
@@ -61,6 +69,12 @@ export function PaywallScreen({
         padding: t.spacing.md,
         textAlign: "center",
       },
+      statusText: {
+        color: t.colors.textMuted,
+        fontFamily: t.fontFamilies.bodySemi,
+        fontSize: t.typography.bodyMd,
+        textAlign: "center",
+      },
       actions: { gap: t.spacing.md },
     }),
   );
@@ -70,7 +84,8 @@ export function PaywallScreen({
   const body =
     variant === "expiry" ? paywallCopy.expiryBody : paywallCopy.capBlockBody;
 
-  const busy = isPurchasing || isRestoring;
+  const busy = isPurchasing || isRestoring || isVerifying;
+  const isProcessing = status.kind === "processing";
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top }]}>
@@ -80,12 +95,33 @@ export function PaywallScreen({
         ) : null}
         <Text style={styles.title}>{title}</Text>
         <Text style={styles.body}>{body}</Text>
+        {status.kind === "processing" ? (
+          <Text style={styles.statusText}>{paywallCopy.processing}</Text>
+        ) : status.kind === "error" ? (
+          <Text style={styles.statusText}>{status.message}</Text>
+        ) : null}
         <View style={styles.actions}>
-          <PrimaryButton
-            disabled={busy}
-            label={isPurchasing ? "Opening…" : paywallCopy.unlockCta}
-            onPress={onUnlock}
-          />
+          {isProcessing ? (
+            // Store already confirmed the purchase/restore — the only thing
+            // left is the server webhook. Offer a re-poll, not "Unlock" again.
+            <PrimaryButton
+              disabled={busy}
+              label={isVerifying ? "Checking…" : paywallCopy.checkAgainCta}
+              onPress={onRecheck}
+            />
+          ) : (
+            <PrimaryButton
+              disabled={busy}
+              label={
+                isPurchasing
+                  ? "Opening…"
+                  : isVerifying
+                    ? "Verifying…"
+                    : paywallCopy.unlockCta
+              }
+              onPress={onUnlock}
+            />
+          )}
           {variant === "expiry" ? (
             <SecondaryButton
               disabled={busy}
