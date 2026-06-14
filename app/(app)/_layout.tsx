@@ -1,7 +1,9 @@
+import { Fragment } from "react";
 import { Redirect, Stack } from "expo-router";
 
 import { LoadingState } from "@/components/feedback/LoadingState";
 import { useAuthSession } from "@/features/auth/hooks";
+import { PaywallHardBlock } from "@/features/paywall/PaywallHardBlock";
 
 export default function ProtectedLayout() {
   const { isBootstrapping, session } = useAuthSession();
@@ -15,55 +17,58 @@ export default function ProtectedLayout() {
   }
 
   return (
-    <Stack>
-      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-      <Stack.Screen name="habits/create" options={{ headerShown: false }} />
-      <Stack.Screen name="habits/backlog" options={{ headerShown: false }} />
-      <Stack.Screen name="habits/[habitId]" options={{ headerShown: false }} />
-      <Stack.Screen
-        name="habits/archived/[habitId]"
-        options={{ headerShown: false }}
-      />
-      <Stack.Screen
-        name="habits/[habitId]/edit"
-        options={{ headerShown: false }}
-      />
-      <Stack.Screen
-        name="habits/[habitId]/context"
-        options={{ title: "Habit Context" }}
-      />
-      <Stack.Screen
-        name="goals/[identityPhrase]"
-        options={{ headerShown: false }}
-      />
-      <Stack.Screen
-        name="goals/archived/[identityPhrase]"
-        options={{ headerShown: false }}
-      />
-      <Stack.Screen
-        name="reviews/[habitId]"
-        options={{ title: "Weekly Review" }}
-      />
-      <Stack.Screen
-        name="reviews/goal/[identityPhrase]"
-        options={{ gestureEnabled: false, headerShown: false }}
-      />
-      <Stack.Screen
-        name="reviews/intro"
-        options={{ gestureEnabled: false, headerShown: false }}
-      />
-      <Stack.Screen
-        name="graduation/[habitId]"
-        options={{ headerShown: false }}
-      />
-      <Stack.Screen
-        name="settings/export"
-        options={{ headerShown: false }}
-      />
-      <Stack.Screen
-        name="settings/appearance"
-        options={{ headerShown: false }}
-      />
-    </Stack>
+    <Fragment>
+      <Stack>
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="habits/create" options={{ headerShown: false }} />
+        <Stack.Screen name="habits/backlog" options={{ headerShown: false }} />
+        <Stack.Screen name="habits/[habitId]" options={{ headerShown: false }} />
+        <Stack.Screen
+          name="habits/archived/[habitId]"
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="habits/[habitId]/edit"
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="habits/[habitId]/context"
+          options={{ title: "Habit Context" }}
+        />
+        <Stack.Screen
+          name="goals/[identityPhrase]"
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="goals/archived/[identityPhrase]"
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="reviews/[habitId]"
+          options={{ title: "Weekly Review" }}
+        />
+        <Stack.Screen
+          name="reviews/goal/[identityPhrase]"
+          options={{ gestureEnabled: false, headerShown: false }}
+        />
+        <Stack.Screen
+          name="reviews/intro"
+          options={{ gestureEnabled: false, headerShown: false }}
+        />
+        <Stack.Screen
+          name="graduation/[habitId]"
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="settings/export"
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="settings/appearance"
+          options={{ headerShown: false }}
+        />
+      </Stack>
+      <PaywallHardBlock />
+    </Fragment>
   );
 }
