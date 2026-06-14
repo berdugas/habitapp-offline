@@ -1,6 +1,7 @@
 import { renderHook, act, waitFor } from "@testing-library/react-native";
 
 import { useTrialEndingNotification } from "@/features/paywall/useTrialEndingNotification";
+import { logger } from "@/services/logger";
 import type { TrialEntitlementStatus } from "@/features/trial/types";
 
 const mockGetPerms = jest.fn();
@@ -102,11 +103,12 @@ it("cancels the scheduled notification if persisting its id fails (no untracked 
   await waitFor(() => expect(mockCancel).toHaveBeenCalledWith("id-x"));
 });
 
-it("a superseded non-trial cleanup does not erase a newer effect's stored id", async () => {
-  // Effect A (non-trial) reads "end1|id1" and parks inside cancel(id1). While
-  // it's parked, the deps flip to a NEW trial window: effect B schedules id2
-  // and stores "end2|id2". When A resumes it must NOT clear storage — it has
-  // been superseded, and clearing would orphan id2.
+it("a superseded non-trial cleanup does not clobber the newer window's stored id", async () => {
+  // Effect A (non-trial) reads "end1|id1" and parks inside cancel(id1). The deps
+  // flip to a NEW trial window (effect B). Runs are serialized, so B waits for A;
+  // when A resumes it must BAIL (superseded) without clearing storage. Then B
+  // runs and stores id2. If A's clear weren't ownership-guarded it would orphan
+  // id2.
   const END2 = new Date("2026-06-18T12:00:00.000Z").toISOString(); // fire is future
   mockGetStored.mockResolvedValue("end1|id1");
   let resolveCancel!: () => void;
@@ -121,19 +123,71 @@ it("a superseded non-trial cleanup does not erase a newer effect's stored id", a
     { initialProps: { status: "paid" as TrialEntitlementStatus | null, ends: null as string | null } },
   );
 
-  // Effect A is now parked inside cancel("id1").
+  // Effect A is now parked inside cancel("id1"); effect B is queued behind it.
   await waitFor(() => expect(mockCancel).toHaveBeenCalledWith("id1"));
-
-  // Deps flip to a new trial window → effect B schedules + stores id2.
   rerender({ status: "trial", ends: END2 });
-  await waitFor(() => expect(mockSetStored).toHaveBeenCalledWith(KEY, `${END2}|id2`));
 
-  // A resumes: it must bail without clearing the storage B just wrote.
+  // Let A resume (bails, no clear) → then serialized B runs and stores id2.
   mockSetStored.mockClear();
   await act(async () => {
     resolveCancel();
-    await Promise.resolve();
-    await Promise.resolve();
+    for (let i = 0; i < 10; i++) await Promise.resolve();
   });
+
+  // A never cleared storage, and the newer window's id is what's persisted.
   expect(mockSetStored).not.toHaveBeenCalledWith(KEY, "");
+  await waitFor(() => expect(mockSetStored).toHaveBeenCalledWith(KEY, `${END2}|id2`));
+});
+
+it("serializes sync runs so an older in-flight write can't precede a newer one", async () => {
+  // Effect A (window1) is parked mid storage-WRITE of its id. Effect B (window2)
+  // must NOT start its own schedule/write until A's write settles — otherwise
+  // A's write could land after B's and leave B's notification untracked.
+  mockGetStored.mockResolvedValue(null);
+  let resolveWriteA!: () => void;
+  mockSetStored.mockImplementationOnce(
+    () => new Promise<void>((r) => (resolveWriteA = r)),
+  );
+  mockSchedule.mockResolvedValueOnce("idA").mockResolvedValueOnce("idB");
+
+  const ENDB = new Date("2026-06-19T12:00:00.000Z").toISOString();
+  const { rerender } = renderHook(
+    ({ ends }: { ends: string | null }) => useTrialEndingNotification("trial", ends),
+    { initialProps: { ends: ENDS_AT as string | null } },
+  );
+
+  // A scheduled idA and is parked writing "ENDS_AT|idA".
+  await waitFor(() => expect(mockSetStored).toHaveBeenCalledWith(KEY, `${ENDS_AT}|idA`));
+  expect(mockSchedule).toHaveBeenCalledTimes(1);
+
+  // B mounts while A's write is in flight — it must be blocked behind A.
+  rerender({ ends: ENDB });
+  await act(async () => {
+    for (let i = 0; i < 10; i++) await Promise.resolve();
+  });
+  expect(mockSchedule).toHaveBeenCalledTimes(1); // B has NOT started yet
+
+  // A's write settles → serialized B now runs and writes its own id last.
+  await act(async () => {
+    resolveWriteA();
+    for (let i = 0; i < 10; i++) await Promise.resolve();
+  });
+  await waitFor(() => expect(mockSchedule).toHaveBeenCalledTimes(2));
+  await waitFor(() => expect(mockSetStored).toHaveBeenCalledWith(KEY, `${ENDB}|idB`));
+});
+
+it("does not leak an unhandled rejection when the storage read fails", async () => {
+  // getStoredItem rejects OUTSIDE the inner try blocks; the serialized chain's
+  // terminal catch must absorb it and log, not let it escape sync()'s
+  // fire-and-forget call.
+  mockGetStored.mockRejectedValueOnce(new Error("storage down"));
+
+  renderHook(() => useTrialEndingNotification("trial", ENDS_AT));
+
+  await waitFor(() =>
+    expect(logger.warn).toHaveBeenCalledWith(
+      "Trial-ending notification sync failed",
+      expect.objectContaining({ err: expect.any(Error) }),
+    ),
+  );
 });

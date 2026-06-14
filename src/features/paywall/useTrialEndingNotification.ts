@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import * as Notifications from "expo-notifications";
 
 import { getStoredItem, setStoredItem } from "@/lib/storage";
@@ -31,6 +31,14 @@ export function useTrialEndingNotification(
   entitlementStatus: TrialEntitlementStatus | null,
   trialEndsAt: string | null,
 ): void {
+  // Serialize every sync() run through one chain (anchored on a ref — this hook
+  // is a singleton, mounted once in TrialValidationBootstrap). Two effect runs
+  // must never interleave their reads/writes of the singleton storage key: a
+  // superseded effect's in-flight write could otherwise land AFTER a newer
+  // effect's and leave the current notification untracked. The active checks
+  // make a superseded run bail, but they can't revoke an already-started write.
+  const syncChainRef = useRef<Promise<void>>(Promise.resolve());
+
   useEffect(() => {
     let active = true;
     async function sync() {
@@ -126,7 +134,15 @@ export function useTrialEndingNotification(
         await Notifications.cancelScheduledNotificationAsync(id).catch(() => {});
       }
     }
-    void sync();
+    // Queue behind any prior run's in-flight sync (serialization), and catch the
+    // WHOLE operation so a storage rejection from the read or the non-trial
+    // clear can't escape this fire-and-forget call as an unhandled rejection —
+    // fail safe; the in-app banner is the guaranteed fallback.
+    syncChainRef.current = syncChainRef.current
+      .then(() => sync())
+      .catch((err) => {
+        logger.warn("Trial-ending notification sync failed", { err });
+      });
     return () => {
       active = false;
     };
