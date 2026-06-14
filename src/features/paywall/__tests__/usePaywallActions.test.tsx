@@ -144,6 +144,30 @@ describe("onRestore — three outcomes", () => {
   });
 });
 
+describe("concurrency mutex", () => {
+  it("a synchronous double-press starts only ONE purchase", async () => {
+    // Never-resolving purchase keeps the first op in flight; the second press
+    // (same event tick, before any re-render) must be a no-op.
+    mockPurchase.mockReturnValue(new Promise(() => {}));
+    const { result } = renderHook(() => usePaywallActions(jest.fn(), fastPoll));
+    await act(async () => {
+      result.current.onUnlock();
+      result.current.onUnlock();
+    });
+    expect(mockPurchase).toHaveBeenCalledTimes(1);
+  });
+
+  it("a synchronous double-press starts only ONE restore", async () => {
+    mockRestore.mockReturnValue(new Promise(() => {}));
+    const { result } = renderHook(() => usePaywallActions(jest.fn(), fastPoll));
+    await act(async () => {
+      result.current.onRestore();
+      result.current.onRestore();
+    });
+    expect(mockRestore).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe("onRecheck", () => {
   it("re-polls and resolves once paid/active is observed", async () => {
     mockRefresh.mockResolvedValue(ent("active"));

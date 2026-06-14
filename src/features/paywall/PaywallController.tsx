@@ -1,4 +1,11 @@
-import { createContext, useCallback, useContext, useMemo, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { Modal } from "react-native";
 
 import {
@@ -63,6 +70,10 @@ export function usePaywallActions(
   const [isRestoring, setIsRestoring] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
   const [status, setStatus] = useState<PaywallActionStatus>({ kind: "idle" });
+  // Synchronous mutex: isBusy is render-time state, so two presses in the same
+  // event tick both read it as false before React re-renders. This ref is set
+  // synchronously, so it actually prevents duplicate purchase/restore/poll ops.
+  const inFlightRef = useRef(false);
 
   const isBusy = isPurchasing || isRestoring || isVerifying;
 
@@ -94,55 +105,70 @@ export function usePaywallActions(
   }, [refresh, pollAttempts, pollIntervalMs, sleep, onResolved]);
 
   const onUnlock = useCallback(async () => {
-    if (isBusy) return;
-    setStatus({ kind: "idle" });
-    setIsPurchasing(true);
-    let cancelled = false;
+    if (inFlightRef.current) return;
+    inFlightRef.current = true;
     try {
-      ({ cancelled } = await purchaseLifetimeUnlock());
-    } catch (err) {
-      logger.error("Paywall purchase failed", { err: err as Error });
-      setStatus({ kind: "error", message: paywallCopy.purchaseFailed });
+      setStatus({ kind: "idle" });
+      setIsPurchasing(true);
+      let cancelled = false;
+      try {
+        ({ cancelled } = await purchaseLifetimeUnlock());
+      } catch (err) {
+        logger.error("Paywall purchase failed", { err: err as Error });
+        setStatus({ kind: "error", message: paywallCopy.purchaseFailed });
+        setIsPurchasing(false);
+        return;
+      }
       setIsPurchasing(false);
-      return;
+      if (cancelled) return; // user backed out — no message
+      await resolveWhenServerPaid();
+    } finally {
+      inFlightRef.current = false;
     }
-    setIsPurchasing(false);
-    if (cancelled) return; // user backed out — no message
-    await resolveWhenServerPaid();
-  }, [isBusy, resolveWhenServerPaid]);
+  }, [resolveWhenServerPaid]);
 
   const onRestore = useCallback(async () => {
-    if (isBusy) return;
-    setStatus({ kind: "idle" });
-    setIsRestoring(true);
-    let result: RestoreResult;
+    if (inFlightRef.current) return;
+    inFlightRef.current = true;
     try {
-      result = await restorePurchases();
-    } catch (err) {
-      logger.error("Paywall restore failed", { err: err as Error });
-      setStatus({ kind: "error", message: paywallCopy.restoreFailed });
+      setStatus({ kind: "idle" });
+      setIsRestoring(true);
+      let result: RestoreResult;
+      try {
+        result = await restorePurchases();
+      } catch (err) {
+        logger.error("Paywall restore failed", { err: err as Error });
+        setStatus({ kind: "error", message: paywallCopy.restoreFailed });
+        setIsRestoring(false);
+        return;
+      }
       setIsRestoring(false);
-      return;
+      if (result.status === "failed") {
+        setStatus({ kind: "error", message: paywallCopy.restoreFailed });
+        return;
+      }
+      if (!result.hasLifetimeEntitlement) {
+        // RC ran fine but this account never bought the unlock.
+        setStatus({ kind: "error", message: paywallCopy.restoreNoneFound });
+        return;
+      }
+      await resolveWhenServerPaid();
+    } finally {
+      inFlightRef.current = false;
     }
-    setIsRestoring(false);
-    if (result.status === "failed") {
-      setStatus({ kind: "error", message: paywallCopy.restoreFailed });
-      return;
-    }
-    if (!result.hasLifetimeEntitlement) {
-      // RC ran fine but this account never bought the unlock.
-      setStatus({ kind: "error", message: paywallCopy.restoreNoneFound });
-      return;
-    }
-    await resolveWhenServerPaid();
-  }, [isBusy, resolveWhenServerPaid]);
+  }, [resolveWhenServerPaid]);
 
   // "Check again" from the processing state: the store op already succeeded, so
   // just re-poll the server for the webhook to have landed.
   const onRecheck = useCallback(async () => {
-    if (isBusy) return;
-    await resolveWhenServerPaid();
-  }, [isBusy, resolveWhenServerPaid]);
+    if (inFlightRef.current) return;
+    inFlightRef.current = true;
+    try {
+      await resolveWhenServerPaid();
+    } finally {
+      inFlightRef.current = false;
+    }
+  }, [resolveWhenServerPaid]);
 
   const clearStatus = useCallback(() => setStatus({ kind: "idle" }), []);
 
