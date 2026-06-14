@@ -5,6 +5,7 @@ import {
   useEffect,
   useMemo,
   useState,
+  useSyncExternalStore,
 } from "react";
 import { Modal } from "react-native";
 
@@ -25,11 +26,32 @@ import { waitForServerPaid } from "@/features/paywall/waitForServerPaid";
 // instance (the cap-block modal AND the Settings rows), not per-hook. Without
 // this, a Restore started in Settings and an Upgrade opened in the modal would
 // run through two independent locks and overlap.
+//
+// It's exposed as a tiny external store so EVERY instance re-renders (and its
+// `isBusy` reflects the lock) when any instance starts/finishes an op — not
+// just a non-reactive Boolean that would leave the other surface's buttons
+// enabled (then silently no-op) while the lock is held elsewhere.
 let storeOpInFlight = false;
+const storeOpListeners = new Set<() => void>();
+
+function setStoreOpInFlight(value: boolean) {
+  if (storeOpInFlight === value) return;
+  storeOpInFlight = value;
+  storeOpListeners.forEach((listener) => listener());
+}
+function subscribeStoreOp(listener: () => void) {
+  storeOpListeners.add(listener);
+  return () => {
+    storeOpListeners.delete(listener);
+  };
+}
+function getStoreOpInFlight() {
+  return storeOpInFlight;
+}
 
 /** Test-only: reset the module-level store-op lock between tests. */
 export function __resetStoreOpLockForTests() {
-  storeOpInFlight = false;
+  setStoreOpInFlight(false);
 }
 
 export type PaywallTrigger =
@@ -83,8 +105,15 @@ export function usePaywallActions(
   const [isRestoring, setIsRestoring] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
   const [status, setStatus] = useState<PaywallActionStatus>({ kind: "idle" });
+  // Shared (cross-instance) lock state — reactive, so this instance's isBusy
+  // turns true when ANOTHER instance holds the lock too.
+  const sharedBusy = useSyncExternalStore(
+    subscribeStoreOp,
+    getStoreOpInFlight,
+    getStoreOpInFlight,
+  );
 
-  const isBusy = isPurchasing || isRestoring || isVerifying;
+  const isBusy = isPurchasing || isRestoring || isVerifying || sharedBusy;
 
   const pollAttempts = options?.pollAttempts;
   const pollIntervalMs = options?.pollIntervalMs;
@@ -126,7 +155,7 @@ export function usePaywallActions(
 
   const onUnlock = useCallback(async () => {
     if (storeOpInFlight) return;
-    storeOpInFlight = true;
+    setStoreOpInFlight(true);
     try {
       setStatus({ kind: "idle" });
       setIsPurchasing(true);
@@ -143,13 +172,13 @@ export function usePaywallActions(
       if (cancelled) return; // user backed out — no message
       await resolveWhenServerPaid();
     } finally {
-      storeOpInFlight = false;
+      setStoreOpInFlight(false);
     }
   }, [resolveWhenServerPaid]);
 
   const onRestore = useCallback(async () => {
     if (storeOpInFlight) return;
-    storeOpInFlight = true;
+    setStoreOpInFlight(true);
     try {
       setStatus({ kind: "idle" });
       setIsRestoring(true);
@@ -174,7 +203,7 @@ export function usePaywallActions(
       }
       await resolveWhenServerPaid();
     } finally {
-      storeOpInFlight = false;
+      setStoreOpInFlight(false);
     }
   }, [resolveWhenServerPaid]);
 
@@ -182,11 +211,11 @@ export function usePaywallActions(
   // just re-poll the server for the webhook to have landed.
   const onRecheck = useCallback(async () => {
     if (storeOpInFlight) return;
-    storeOpInFlight = true;
+    setStoreOpInFlight(true);
     try {
       await resolveWhenServerPaid();
     } finally {
-      storeOpInFlight = false;
+      setStoreOpInFlight(false);
     }
   }, [resolveWhenServerPaid]);
 
@@ -220,6 +249,15 @@ export function PaywallController({ children }: { children: React.ReactNode }) {
     },
     [clearStatus],
   );
+
+  // Dismiss a visible cap modal once the server confirms paid via ANY path
+  // (this poll, a Settings restore, or a purchase on another device) — never
+  // leave a paywall over a fully-unlocked app, even if our action status is idle.
+  useEffect(() => {
+    if (visible && isPaidStatus(entitlementStatus)) {
+      setVisible(false);
+    }
+  }, [visible, entitlementStatus]);
 
   const value = useMemo(() => ({ showCapBlockPaywall }), [showCapBlockPaywall]);
 

@@ -11,6 +11,7 @@ import { paywallCopy } from "@/features/paywall/copy";
 const mockPurchase = jest.fn();
 const mockRestore = jest.fn();
 const mockRefresh = jest.fn().mockResolvedValue(undefined);
+let mockEntitlementStatus = "expired";
 
 jest.mock("@/services/revenuecat", () => ({
   purchaseLifetimeUnlock: (...a: unknown[]) => mockPurchase(...a),
@@ -20,7 +21,7 @@ jest.mock("@/services/revenuecat", () => ({
 jest.mock("@/features/trial/hooks", () => ({
   useTrialValidation: () => ({
     accessMode: "expired_no_purchase",
-    entitlementStatus: "expired",
+    entitlementStatus: mockEntitlementStatus,
     refresh: mockRefresh,
   }),
 }));
@@ -46,6 +47,7 @@ beforeEach(() => {
   mockPurchase.mockReset();
   mockRestore.mockReset();
   mockRefresh.mockClear();
+  mockEntitlementStatus = "expired";
   __resetStoreOpLockForTests(); // module-level lock — reset between tests
 });
 
@@ -54,6 +56,22 @@ it("is hidden until showCapBlockPaywall is called", () => {
   expect(screen.queryByText(paywallCopy.capBlockTitle)).toBeNull();
   fireEvent.press(screen.getByText("open"));
   expect(screen.getByText(paywallCopy.capBlockTitle)).toBeTruthy();
+});
+
+it("dismisses a visible (idle) cap modal once paid is observed via another path", () => {
+  const { rerender } = renderWithController();
+  fireEvent.press(screen.getByText("open"));
+  expect(screen.getByText(paywallCopy.capBlockTitle)).toBeTruthy();
+
+  // Paid observed elsewhere (another device / a Settings restore) while the
+  // modal is open and idle — it must not stay over a fully-unlocked app.
+  mockEntitlementStatus = "paid";
+  rerender(
+    <PaywallController>
+      <Trigger />
+    </PaywallController>,
+  );
+  expect(screen.queryByText(paywallCopy.capBlockTitle)).toBeNull();
 });
 
 it("Maybe later dismisses the cap-block modal", () => {

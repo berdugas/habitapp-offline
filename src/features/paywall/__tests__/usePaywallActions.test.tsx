@@ -194,6 +194,20 @@ describe("concurrency mutex", () => {
     expect(mockPurchase).not.toHaveBeenCalled();
   });
 
+  it("the shared lock is REACTIVE — another instance's isBusy turns true", async () => {
+    mockRestore.mockReturnValue(new Promise(() => {})); // restore stays in flight
+    const settings = renderHook(() => usePaywallActions(jest.fn(), fastPoll));
+    const modal = renderHook(() => usePaywallActions(jest.fn(), fastPoll));
+
+    expect(modal.result.current.isBusy).toBe(false);
+    await act(async () => {
+      settings.result.current.onRestore(); // holds the shared lock
+    });
+    // The OTHER instance now reflects busy via the reactive store, so its UI
+    // disables instead of leaving an enabled button that silently no-ops.
+    expect(modal.result.current.isBusy).toBe(true);
+  });
+
   it("a synchronous double-press starts only ONE purchase", async () => {
     // Never-resolving purchase keeps the first op in flight; the second press
     // (same event tick, before any re-render) must be a no-op.
