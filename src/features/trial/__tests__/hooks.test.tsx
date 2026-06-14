@@ -420,6 +420,58 @@ describe("useTrialValidation", () => {
     expect(result.current.state.cached).toBeNull();
   });
 
+  it("never exposes the previous user's paid access to the new account in ANY render (account switch)", async () => {
+    // Asserts at the CONTEXT/render level (not just final state, which act
+    // would mask): no committed render after the switch may show "full".
+    const paidCache = {
+      ...freshEntitlement("user-1"),
+      entitlement_status: "paid" as const,
+    };
+    mockReadCachedEntitlement.mockResolvedValue(paidCache);
+    mockFetchTrialEntitlement.mockResolvedValue(paidCache);
+
+    let switchUserId: string | null = "user-1";
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    function SwitchWrapper({ children }: { children: React.ReactNode }) {
+      return (
+        <QueryClientProvider client={qc}>
+          <AuthSessionProvider
+            value={{
+              isBootstrapping: false,
+              session: switchUserId
+                ? ({ user: { id: switchUserId } } as never)
+                : null,
+              user: switchUserId ? ({ id: switchUserId } as never) : null,
+            }}
+          >
+            <TrialValidationBootstrap>{children}</TrialValidationBootstrap>
+          </AuthSessionProvider>
+        </QueryClientProvider>
+      );
+    }
+
+    const accessModes: string[] = [];
+    const { result, rerender } = renderHook(
+      () => {
+        const ctx = useTrialValidation();
+        accessModes.push(ctx.accessMode);
+        return ctx;
+      },
+      { wrapper: SwitchWrapper },
+    );
+    await waitFor(() => expect(result.current.accessMode).toBe("full"));
+
+    // Switch; user-2's reads/fetches hang so nothing resolves to retroactively
+    // mask a bad render.
+    accessModes.length = 0;
+    switchUserId = "user-2";
+    mockReadCachedEntitlement.mockReturnValue(new Promise(() => {}));
+    mockFetchTrialEntitlement.mockReturnValue(new Promise(() => {}));
+    rerender(undefined);
+
+    expect(accessModes).not.toContain("full");
+  });
+
   // ─── Case 10: AppState foreground with no cache (offline cold-start recovery) ──
 
   it("fetches when app becomes active and there is no cached entitlement", async () => {
