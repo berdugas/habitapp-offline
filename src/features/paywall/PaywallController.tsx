@@ -180,7 +180,17 @@ export function PaywallController({ children }: { children: React.ReactNode }) {
   return (
     <PaywallContext.Provider value={value}>
       {children}
-      <Modal visible={visible} animationType="slide" onRequestClose={dismiss}>
+      <Modal
+        visible={visible}
+        animationType="slide"
+        onRequestClose={() => {
+          // Don't let Android hardware Back false-dismiss while a store op is
+          // in flight or the server hasn't confirmed yet — the visible exit
+          // controls are hidden in that state, so Back must be inert too.
+          if (actions.isBusy || actions.status.kind === "processing") return;
+          dismiss();
+        }}
+      >
         <PaywallScreen
           variant="cap_block"
           isPurchasing={actions.isPurchasing}

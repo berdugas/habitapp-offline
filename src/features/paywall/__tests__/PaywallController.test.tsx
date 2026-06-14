@@ -1,5 +1,5 @@
 import { render, screen, fireEvent, waitFor, act } from "@/tests/setup/render";
-import { Text, Pressable } from "react-native";
+import { Text, Pressable, Modal } from "react-native";
 
 import { PaywallController, usePaywall } from "@/features/paywall/PaywallController";
 import { paywallCopy } from "@/features/paywall/copy";
@@ -73,6 +73,20 @@ it("Unlock purchases, polls the server, and dismisses once paid is observed", as
   await waitFor(() =>
     expect(screen.queryByText(paywallCopy.capBlockTitle)).toBeNull(),
   );
+});
+
+it("Android Back (onRequestClose) does NOT dismiss while a store op is in flight", async () => {
+  // Never-resolving purchase holds isPurchasing=true (busy). Hardware Back must
+  // be inert, mirroring the hidden visible exit controls.
+  mockPurchase.mockReturnValue(new Promise(() => {}));
+  renderWithController();
+  fireEvent.press(screen.getByText("open"));
+  await act(async () => {
+    fireEvent.press(screen.getByText(paywallCopy.unlockCta));
+  });
+
+  fireEvent(screen.UNSAFE_getByType(Modal), "requestClose");
+  expect(screen.getByText(paywallCopy.capBlockTitle)).toBeTruthy(); // still open
 });
 
 it("a cancelled purchase keeps the modal open and does not refresh", async () => {
