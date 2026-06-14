@@ -1,6 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
-import { render, screen, waitFor, act } from "@/tests/setup/render";
+import { render, screen, waitFor, act, fireEvent } from "@/tests/setup/render";
 
 import { PaywallHardBlock } from "@/features/paywall/PaywallHardBlock";
 import { paywallCopy } from "@/features/paywall/copy";
@@ -67,4 +67,25 @@ it("does NOT run auto-resolve when free_tier without cleanup", async () => {
   renderHardBlock();
   await act(async () => {});
   expect(mockArchiveKeepOne).not.toHaveBeenCalled();
+});
+
+it("the keep-one picker excludes graduated (automatic) habits", async () => {
+  // listActiveHabits returns status='active' rows, which includes graduated
+  // (habit_state='automatic') habits. The picker must filter those out — they
+  // consume no free-tier slot and are never archived.
+  mockGate.mockReturnValue({ status: "hard_block", needsCleanup: false, soleActiveHabitId: null });
+  mockListHabits
+    .mockResolvedValueOnce([
+      { id: "m1", title: "Manageable", habit_state: "active", status: "active", identity_phrase: null },
+      { id: "g1", title: "Graduated", habit_state: "automatic", status: "active", identity_phrase: null },
+    ])
+    .mockResolvedValueOnce([]);
+
+  renderHardBlock();
+  await act(async () => {
+    fireEvent.press(screen.getByText(paywallCopy.continueFreeCta));
+  });
+
+  await waitFor(() => expect(screen.getByText("Manageable")).toBeTruthy());
+  expect(screen.queryByText("Graduated")).toBeNull();
 });

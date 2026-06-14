@@ -47,12 +47,17 @@ export function PaywallHardBlock() {
       listBacklogHabits(user.id),
     ]);
     setPickerHabits(
-      [...actives, ...backlog].map((h) => ({
-        id: h.id,
-        title: h.title,
-        identity_phrase: h.identity_phrase,
-        status: h.status,
-      })),
+      // Only manageable (habit_state='active') habits are keep-one options —
+      // graduated/automatic habits consume no free-tier slot and are never
+      // archived (mirrors archiveHabitsForPaywallKeepOne + the gate's count).
+      [...actives, ...backlog]
+        .filter((h) => h.habit_state === "active")
+        .map((h) => ({
+          id: h.id,
+          title: h.title,
+          identity_phrase: h.identity_phrase,
+          status: h.status,
+        })),
     );
     setShowPicker(true);
   }

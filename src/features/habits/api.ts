@@ -244,8 +244,12 @@ export async function archiveHabitsForPaywallKeepOne(
     listBacklogHabits(userId),
   ]);
 
+  // Only manageable (habit_state='active') habits count toward the free-tier
+  // cap and are what the keep-one picker offers. Graduated/automatic habits
+  // consume no slot, so continue-free must NOT archive them — mirror the gate's
+  // counting (useActiveHabitCountQuery filters habit_state==='active').
   const toArchive = [...actives, ...backlogs].filter(
-    (h) => h.id !== keptHabitId,
+    (h) => h.habit_state === "active" && h.id !== keptHabitId,
   );
 
   // Cancel reminders for previously-active rows only (mirrors archiveHabit).

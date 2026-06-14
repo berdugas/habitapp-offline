@@ -298,6 +298,32 @@ describe("archiveHabitsForPaywallKeepOne", () => {
     expect(mockCancelReminder).not.toHaveBeenCalledWith("h3");
   });
 
+  it("does NOT archive graduated (habit_state='automatic') habits, but still archives manageable ones", async () => {
+    // Regression: the gate counts only habit_state='active' toward the cap, so
+    // continue-free must not archive graduated/automatic habits (they consume
+    // no slot). Previously every status=active row was archived, stranding
+    // graduated habits a free-tier user is entitled to keep.
+    mockListHabits.mockImplementation(async (filter: { status?: string }) => {
+      if (filter.status === "active") {
+        return [
+          { id: "h1", status: "active", habit_state: "active" }, // kept
+          { id: "g1", status: "active", habit_state: "automatic" }, // graduated
+        ];
+      }
+      if (filter.status === "backlog") {
+        return [{ id: "b1", status: "backlog", habit_state: "active" }]; // manageable
+      }
+      return [];
+    });
+
+    const result = await archiveHabitsForPaywallKeepOne("user-1", "h1");
+
+    // Only the manageable backlog habit is archived; the graduated one is left.
+    expect(result).toEqual({ archivedCount: 1 });
+    expect(mockArchiveRow).toHaveBeenCalledWith("b1");
+    expect(mockArchiveRow).not.toHaveBeenCalledWith("g1");
+  });
+
   it("archives all habits when keptHabitId is null", async () => {
     mockListHabits.mockImplementation(async (filter: { status?: string }) => {
       if (filter.status === "active") {
