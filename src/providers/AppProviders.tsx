@@ -5,6 +5,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "@/lib/query/queryClient";
 import { AuthBootstrap } from "@/providers/AuthBootstrap";
 import { TrialValidationBootstrap } from "@/providers/TrialValidationBootstrap";
+import { PaywallController } from "@/features/paywall/PaywallController";
 import { initDayBoundary } from "@/utils/dayBoundary";
 
 export function AppProviders({ children }: PropsWithChildren) {
@@ -16,7 +17,9 @@ export function AppProviders({ children }: PropsWithChildren) {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthBootstrap>
-        <TrialValidationBootstrap>{children}</TrialValidationBootstrap>
+        <TrialValidationBootstrap>
+          <PaywallController>{children}</PaywallController>
+        </TrialValidationBootstrap>
       </AuthBootstrap>
     </QueryClientProvider>
   );
