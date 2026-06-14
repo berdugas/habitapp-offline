@@ -236,6 +236,26 @@ describe("TodayScreen — paywall routing", () => {
     expect(mutateAsync).toHaveBeenCalledWith({ habitId: "habit-1", status: "done" });
   });
 
+  it("free-tier: per-goal '+' add button calls cap-block paywall, not create route", () => {
+    useTrialValidation.mockReturnValue(makeTrialState("expired_no_purchase"));
+    mockTodayHabits({
+      error: null,
+      habits: [makeHabit()],
+      isLoading: false,
+      upcomingHabits: [],
+      goalStreaks: { "a runner": 12 },
+    });
+
+    renderWithClient(<TodayScreen />);
+
+    fireEvent.press(screen.getByLabelText("Add a habit"));
+
+    expect(mockShowCapBlock).toHaveBeenCalledWith("cap_create");
+    expect(router.push).not.toHaveBeenCalledWith(
+      expect.objectContaining({ pathname: "/(app)/habits/create" }),
+    );
+  });
+
   it("read_only: HabitRow is disabled (logging is blocked)", () => {
     useTrialValidation.mockReturnValue(makeTrialState("read_only"));
     const mutateAsync = jest.fn().mockResolvedValue(undefined);

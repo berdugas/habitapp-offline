@@ -365,7 +365,7 @@ export default function TodayScreen() {
               identityPhrase={group.identityPhrase}
               remainingCount={group.habits.filter((h) => !h.offDay && h.todayStatus === null).length}
               onAddHabit={
-                isReadOnly
+                isOfflineReadOnly
                   ? undefined
                   : isFreeTierLocked
                     ? () => showCapBlockPaywall("cap_create")
