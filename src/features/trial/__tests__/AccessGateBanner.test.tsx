@@ -23,17 +23,18 @@ describe("AccessGateBanner", () => {
     expect(screen.getByText("Reconnect")).toBeTruthy();
   });
 
-  it("renders the same ReadOnlyBanner (with Reconnect) for 'expired_no_purchase' — sub-plan 1 contract", () => {
-    render(
+  it("renders null for 'expired_no_purchase' — the paywall owns that state now", () => {
+    // expired_no_purchase is handled by the paywall (hard-block for over-cap
+    // users, per-action "Unlock to…" affordances for resolved free-tier
+    // users) — it must NOT show the offline "Reconnect" banner.
+    const { toJSON } = render(
       <AccessGateBanner
         accessMode="expired_no_purchase"
         isReconnecting={false}
         onReconnect={noop}
       />,
     );
-    // The new expired_no_purchase state intentionally surfaces the same UI
-    // as read_only for now; sub-plan 4 (paywall) replaces this branch.
-    expect(screen.getByText("Reconnect to keep logging.")).toBeTruthy();
-    expect(screen.getByText("Reconnect")).toBeTruthy();
+    expect(toJSON()).toBeNull();
+    expect(screen.queryByText("Reconnect to keep logging.")).toBeNull();
   });
 });

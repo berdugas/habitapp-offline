@@ -8,14 +8,13 @@ type Props = {
 };
 
 /**
- * Single insertion point for screens that need to surface a "you can't
- * mutate right now" banner. Today renders ReadOnlyBanner for both
- * `read_only` and `expired_no_purchase` — matches sub-plan 1's contract
- * of "no user-facing behavior change for the new state." The paywall
- * sub-plan replaces the `expired_no_purchase` branch with an app-shell
- * paywall mount; consumers don't need a second migration when that lands.
+ * Surfaces the offline "you can't mutate right now" banner. Only fires for
+ * `read_only` (offline cache too stale). `expired_no_purchase` is owned by
+ * the paywall: over-cap users get the app-shell hard-block, resolved
+ * free-tier users get per-action "Unlock to…" affordances — neither wants
+ * a "Reconnect" banner.
  */
 export function AccessGateBanner({ accessMode, isReconnecting, onReconnect }: Props) {
-  if (accessMode === "full") return null;
+  if (accessMode !== "read_only") return null;
   return <ReadOnlyBanner isReconnecting={isReconnecting} onReconnect={onReconnect} />;
 }
