@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { listHabits } from "@/lib/db/repositories/habits";
 
 import { useAuthSession } from "@/features/auth/hooks";
 import {
@@ -100,6 +101,43 @@ export function getLibraryQueryKey(userId: string | undefined) {
 
 export function getBacklogQueryKey(userId: string | undefined) {
   return ["habits", "backlog", userId ?? "guest"] as const;
+}
+
+export function getActiveHabitCountQueryKey(userId: string | undefined) {
+  return ["habits", "active-count", userId ?? "guest"] as const;
+}
+
+export type ActiveHabitCount = {
+  activeCount: number;
+  manageable: number;
+  soleActiveHabitId: string | null;
+};
+
+/**
+ * Counts the user's active-state habits for the paywall gate. activeCount =
+ * status='active'; manageable = status in (active, backlog) — both only count
+ * habit_state='active' (graduated/automatic habits never count toward the
+ * free-tier cap). Mirrors assertCanCreateHabitOnFreeTier's counting.
+ */
+export function useActiveHabitCountQuery() {
+  const { user } = useAuthSession();
+  return useQuery({
+    enabled: Boolean(user?.id),
+    queryKey: getActiveHabitCountQueryKey(user?.id),
+    queryFn: async (): Promise<ActiveHabitCount> => {
+      const rows = await listHabits({
+        user_id: user!.id,
+        status: ["active", "backlog"],
+      });
+      const manageableRows = rows.filter((h) => h.habit_state === "active");
+      const actives = manageableRows.filter((h) => h.status === "active");
+      return {
+        activeCount: actives.length,
+        manageable: manageableRows.length,
+        soleActiveHabitId: actives.length === 1 ? actives[0].id : null,
+      };
+    },
+  });
 }
 
 export function getArchivedGoalsQueryKey(userId: string | undefined) {
@@ -304,6 +342,7 @@ export async function invalidateHabitSurfaceQueries(
     // goal-count cache broadly. Hits every cached identity_phrase at once.
     queryKey: ["habits", "goal-count"],
   });
+  await queryClient.invalidateQueries({ queryKey: ["habits", "active-count"] });
   await queryClient.invalidateQueries({
     queryKey: getLibraryQueryKey(userId),
   });
@@ -383,6 +422,7 @@ export async function invalidateHabitListQueries(
   await queryClient.invalidateQueries({
     queryKey: ["habits", "goal-cascade-count"],
   });
+  await queryClient.invalidateQueries({ queryKey: ["habits", "active-count"] });
 
   queryClient.removeQueries({ queryKey: getHabitDetailQueryKey(userId, habitId) });
   queryClient.removeQueries({ queryKey: ["habit-logs", "detail", userId, habitId] });

@@ -17,3 +17,13 @@ import type { AccessMode } from "@/features/trial/types";
 export function isReadOnly(mode: AccessMode): boolean {
   return mode === "read_only" || mode === "expired_no_purchase";
 }
+
+/**
+ * True when the user is in the post-trial, unpaid state that the paywall
+ * gates on. Distinct from isReadOnly (which also covers offline-stale
+ * read_only): a paywall-locked user should see "Unlock to…" affordances,
+ * not a "Reconnect" banner.
+ */
+export function isPaywallLocked(mode: AccessMode): boolean {
+  return mode === "expired_no_purchase";
+}
