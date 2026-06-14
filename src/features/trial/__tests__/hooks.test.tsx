@@ -361,6 +361,38 @@ describe("useTrialValidation", () => {
     expect(result.current.accessMode).toBe("full");
   });
 
+  it("does not commit (and clears) entitlement when the user signs out DURING the write", async () => {
+    mockReadCachedEntitlement.mockResolvedValue(null); // no cache → bootstrap fetches
+    mockFetchTrialEntitlement.mockResolvedValue(freshEntitlement("user-1"));
+    // Defer the storage write so we can flip the user mid-write.
+    let resolveWrite!: () => void;
+    mockWriteCachedEntitlement.mockImplementation(
+      () => new Promise<void>((r) => (resolveWrite = r)),
+    );
+
+    const { result, rerender } = renderHook(
+      ({ userId }: { userId: string | null }) =>
+        useTrialValidationLifecycle(userId, false),
+      { initialProps: { userId: "user-1" as string | null } },
+    );
+
+    await waitFor(() => expect(mockWriteCachedEntitlement).toHaveBeenCalled());
+
+    // Sign out while the write is still in flight.
+    rerender({ userId: null });
+    mockClearCachedEntitlement.mockClear();
+
+    await act(async () => {
+      resolveWrite();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    // The signed-out state must stand; the stale write is undone.
+    expect(result.current.state.cached).toBeNull();
+    expect(mockClearCachedEntitlement).toHaveBeenCalled();
+  });
+
   // ─── Case 10: AppState foreground with no cache (offline cold-start recovery) ──
 
   it("fetches when app becomes active and there is no cached entitlement", async () => {

@@ -112,7 +112,18 @@ export function useTrialValidationLifecycle(
       // Discard if a newer fetch superseded this one, or the user changed.
       if (fetchSeqRef.current !== seq || userIdRef.current !== uid) return null;
       await writeCachedEntitlement(entitlement);
-      if (fetchSeqRef.current !== seq) return null; // re-check after the write
+      // Re-validate AFTER the async write — auth or a newer fetch may have
+      // changed mid-write.
+      if (userIdRef.current !== uid) {
+        // The user signed out / switched while we persisted. Undo the stale
+        // write so it can't resurrect on the next launch — unless a NEWER fetch
+        // already owns the cache (then it's responsible for the right value).
+        if (fetchSeqRef.current === seq) {
+          await clearCachedEntitlement().catch(() => {});
+        }
+        return null;
+      }
+      if (fetchSeqRef.current !== seq) return null; // superseded by a newer fetch
       setState({ cached: entitlement, isBootstrapping: false, isValidating: false });
       return entitlement;
     } catch (error) {
