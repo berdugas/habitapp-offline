@@ -8,6 +8,7 @@ import {
 } from "@/features/trial/hooks";
 import { useRestorePaywallKeptHabitsOnUpgrade } from "@/features/trial/useRestorePaywallKeptHabitsOnUpgrade";
 import { useRevenueCatLifecycle } from "@/features/trial/useRevenueCatLifecycle";
+import { useTrialEndingNotification } from "@/features/paywall/useTrialEndingNotification";
 
 export function TrialValidationBootstrap({ children }: PropsWithChildren) {
   const { user, isBootstrapping: isAuthBootstrapping } = useAuthSession();
@@ -31,6 +32,11 @@ export function TrialValidationBootstrap({ children }: PropsWithChildren) {
   useRestorePaywallKeptHabitsOnUpgrade(
     user?.id ?? null,
     state.cached?.entitlement_status ?? null,
+  );
+
+  useTrialEndingNotification(
+    state.cached?.entitlement_status ?? null,
+    state.cached?.trial_ends_at ?? null,
   );
 
   const contextValue = buildTrialContextValue(state, refresh);
