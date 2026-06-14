@@ -40,6 +40,10 @@ export function PaywallHardBlock() {
   // it and discards its result if the episode changed, so a late list response
   // can't restore a stale picker after the reset.
   const episodeRef = useRef(0);
+  // Per-load sequence within an episode: a later Retry supersedes an earlier
+  // in-flight load, so an older (e.g. failed) request can't overwrite a newer
+  // successful one.
+  const pickerReqRef = useRef(0);
 
   // This component stays mounted under the (app) layout, so its picker state
   // must NOT leak into a future hard-block episode (keep-one → upgrade → refund
@@ -113,16 +117,19 @@ export function PaywallHardBlock() {
   async function openPicker() {
     if (!user?.id) return;
     const episode = episodeRef.current;
+    const reqId = (pickerReqRef.current += 1);
     const userId = user.id;
+    const isStale = () =>
+      episodeRef.current !== episode || pickerReqRef.current !== reqId;
     setPickerError(null);
     try {
       const [actives, backlog] = await Promise.all([
         listActiveHabits(userId),
         listBacklogHabits(userId),
       ]);
-      // The gate left hard_block (and reset ran) while we loaded — drop the
-      // stale result so it can't reopen the picker in a future episode.
-      if (episodeRef.current !== episode) return;
+      // Drop the result if the episode changed (gate left hard_block) OR a newer
+      // load (Retry) superseded this one.
+      if (isStale()) return;
       setPickerHabits(
         // Only manageable (habit_state='active') habits are keep-one options —
         // graduated/automatic habits consume no free-tier slot and are never
@@ -138,7 +145,7 @@ export function PaywallHardBlock() {
       );
       setShowPicker(true);
     } catch (error) {
-      if (episodeRef.current !== episode) return;
+      if (isStale()) return;
       // Don't let the rejection escape a void callback. Open the picker in its
       // load-error state (no choices, no destructive confirm) so the user gets
       // a retryable error rather than silently archiving everything.

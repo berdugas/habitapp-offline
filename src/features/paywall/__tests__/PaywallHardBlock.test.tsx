@@ -247,3 +247,42 @@ it("discards a late picker load that resolves after the gate left hard_block", a
   expect(screen.queryByText("Stale Habit")).toBeNull();
   expect(screen.getByText(paywallCopy.expiryTitle)).toBeTruthy();
 });
+
+it("an older picker load that fails later does NOT overwrite a newer successful one", async () => {
+  mockGate.mockReturnValue({ status: "hard_block", needsCleanup: false, soleActiveHabitId: null });
+  // req1 actives → deferred reject; req1 backlog → []; req2 actives → deferred
+  // resolve; req2 backlog → [].
+  let rejectOlder!: (e: Error) => void;
+  let resolveNewer!: (v: unknown) => void;
+  mockListHabits
+    .mockImplementationOnce(() => new Promise((_res, rej) => (rejectOlder = rej)))
+    .mockImplementationOnce(() => Promise.resolve([]))
+    .mockImplementationOnce(() => new Promise((res) => (resolveNewer = res)))
+    .mockImplementationOnce(() => Promise.resolve([]));
+
+  renderHardBlock();
+  // Two loads in the same episode (e.g. an initial open + a Retry).
+  act(() => {
+    fireEvent.press(screen.getByText(paywallCopy.continueFreeCta));
+  });
+  act(() => {
+    fireEvent.press(screen.getByText(paywallCopy.continueFreeCta));
+  });
+
+  // Newer load (req2) succeeds.
+  await act(async () => {
+    resolveNewer([
+      { id: "n1", title: "New Habit", habit_state: "active", status: "active", identity_phrase: null },
+    ]);
+    await Promise.resolve();
+  });
+  expect(screen.getByText("New Habit")).toBeTruthy();
+
+  // Older load (req1) fails afterward — must be discarded, not overwrite.
+  await act(async () => {
+    rejectOlder(new Error("late fail"));
+    await Promise.resolve();
+  });
+  expect(screen.getByText("New Habit")).toBeTruthy();
+  expect(screen.queryByText(paywallCopy.keepOneError)).toBeNull();
+});
