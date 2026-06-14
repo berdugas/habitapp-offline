@@ -13,6 +13,17 @@ jest.mock("@/features/trial/hooks", () => ({
 
 jest.mock("@/features/paywall/PaywallController", () => ({
   usePaywall: () => ({ showCapBlockPaywall: jest.fn() }),
+  usePaywallActions: () => ({
+    isPurchasing: false,
+    isRestoring: false,
+    isVerifying: false,
+    isBusy: false,
+    status: { kind: "idle" },
+    onUnlock: jest.fn(),
+    onRestore: jest.fn(),
+    onRecheck: jest.fn(),
+    clearStatus: jest.fn(),
+  }),
 }));
 
 jest.mock("@/services/revenuecat", () => ({

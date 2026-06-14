@@ -1,12 +1,24 @@
 const mockShowCapBlock = jest.fn();
-const mockRestore = jest.fn().mockResolvedValue(undefined);
+const mockOnRestore = jest.fn();
+const mockOnRecheck = jest.fn();
+const mockActions = {
+  isPurchasing: false,
+  isRestoring: false,
+  isVerifying: false,
+  isBusy: false,
+  status: { kind: "idle" } as
+    | { kind: "idle" }
+    | { kind: "processing" }
+    | { kind: "error"; message: string },
+  onUnlock: jest.fn(),
+  onRestore: mockOnRestore,
+  onRecheck: mockOnRecheck,
+  clearStatus: jest.fn(),
+};
 
 jest.mock("@/features/paywall/PaywallController", () => ({
   usePaywall: () => ({ showCapBlockPaywall: mockShowCapBlock }),
-}));
-
-jest.mock("@/services/revenuecat", () => ({
-  restorePurchases: (...a: unknown[]) => mockRestore(...a),
+  usePaywallActions: () => mockActions,
 }));
 
 jest.mock("@/features/trial/hooks", () => ({
@@ -84,6 +96,10 @@ function defaultSetup(overrides: {
 describe("SettingsScreen — paywall rows", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockActions.status = { kind: "idle" };
+    mockActions.isBusy = false;
+    mockActions.isRestoring = false;
+    mockActions.isVerifying = false;
     defaultSetup();
   });
 
@@ -103,12 +119,33 @@ describe("SettingsScreen — paywall rows", () => {
     expect(screen.queryByText("Upgrade for $1.99")).toBeNull();
   });
 
-  it("Restore Purchase row calls restorePurchases", async () => {
+  it("Restore Purchase row triggers the (verify-before-resolve) restore action", async () => {
     defaultSetup({ entitlementStatus: "expired", accessMode: "expired_no_purchase" });
     render(<SettingsScreen />);
     await act(async () => {
       fireEvent.press(screen.getByText("Restore Purchase"));
     });
-    expect(mockRestore).toHaveBeenCalled();
+    expect(mockOnRestore).toHaveBeenCalled();
+  });
+
+  it("shows the processing hint + a Check again row when the restore is awaiting the server", () => {
+    mockActions.status = { kind: "processing" };
+    defaultSetup({ entitlementStatus: "expired", accessMode: "expired_no_purchase" });
+    render(<SettingsScreen />);
+    expect(screen.getByText("Payment processing — this can take a moment.")).toBeTruthy();
+    fireEvent.press(screen.getByText("Check again"));
+    expect(mockOnRecheck).toHaveBeenCalled();
+  });
+
+  it("surfaces an inline error message (e.g. no previous purchase found)", () => {
+    mockActions.status = {
+      kind: "error",
+      message: "No previous purchase found on this account.",
+    };
+    defaultSetup({ entitlementStatus: "expired", accessMode: "expired_no_purchase" });
+    render(<SettingsScreen />);
+    expect(
+      screen.getByText("No previous purchase found on this account."),
+    ).toBeTruthy();
   });
 });

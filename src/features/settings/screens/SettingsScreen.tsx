@@ -14,9 +14,8 @@ import { useAuthSession } from "@/features/auth/hooks";
 import { signOut } from "@/features/auth/api";
 import { useTrialValidation } from "@/features/trial/hooks";
 import { isPaidStatus } from "@/features/trial/entitlement";
-import { usePaywall } from "@/features/paywall/PaywallController";
+import { usePaywall, usePaywallActions } from "@/features/paywall/PaywallController";
 import { paywallCopy } from "@/features/paywall/copy";
-import { restorePurchases } from "@/services/revenuecat";
 import { trackEvent } from "@/services/analytics";
 import { useTheme } from "@/theme/useTheme";
 import { useThemedStyles } from "@/theme/useThemedStyles";
@@ -36,10 +35,13 @@ function formatEntitlementStatus(status: TrialEntitlementStatus | null): string 
 
 export default function SettingsScreen() {
   const { user } = useAuthSession();
-  const { entitlementStatus, accessMode, refresh } = useTrialValidation();
+  const { entitlementStatus, accessMode } = useTrialValidation();
   const { showCapBlockPaywall } = usePaywall();
+  // Same verify-before-resolve restore flow as the paywall, surfaced inline
+  // here (no modal to dismiss): on success the poll refreshes the trial
+  // context → entitlementStatus flips to paid → the "Paid ✓" row appears.
+  const restore = usePaywallActions();
   const [isSigningOut, setIsSigningOut] = useState(false);
-  const [isRestoring, setIsRestoring] = useState(false);
   const isPaid = isPaidStatus(entitlementStatus);
   const theme = useTheme();
   const styles = useThemedStyles((t) =>
@@ -111,16 +113,10 @@ export default function SettingsScreen() {
     router.replace("/");
   }
 
-  async function handleRestore() {
-    if (isRestoring) return;
-    setIsRestoring(true);
+  function handleRestorePressed() {
+    if (restore.isBusy) return;
     trackEvent("settings_restore_purchase");
-    try {
-      await restorePurchases();
-      await refresh();
-    } finally {
-      setIsRestoring(false);
-    }
+    void restore.onRestore();
   }
 
   function handleExportPressed() {
@@ -168,14 +164,33 @@ export default function SettingsScreen() {
         )}
         <Pressable
           accessibilityRole="button"
-          disabled={isRestoring}
-          onPress={() => void handleRestore()}
+          disabled={restore.isBusy}
+          onPress={handleRestorePressed}
           style={styles.row}
         >
           <Text style={styles.rowLabel}>
-            {isRestoring ? "Restoring…" : paywallCopy.restoreCta}
+            {restore.isRestoring || restore.isVerifying
+              ? "Restoring…"
+              : paywallCopy.restoreCta}
           </Text>
         </Pressable>
+        {restore.status.kind === "processing" ? (
+          <Pressable
+            accessibilityRole="button"
+            disabled={restore.isBusy}
+            onPress={() => void restore.onRecheck()}
+            style={styles.row}
+          >
+            <Text style={styles.rowLabel}>
+              {restore.isVerifying ? "Checking…" : paywallCopy.checkAgainCta}
+            </Text>
+          </Pressable>
+        ) : null}
+        {restore.status.kind === "processing" ? (
+          <Text style={styles.statusLabel}>{paywallCopy.processing}</Text>
+        ) : restore.status.kind === "error" ? (
+          <Text style={styles.statusLabel}>{restore.status.message}</Text>
+        ) : null}
       </ZenCard>
 
       <ZenCard gap={0}>
