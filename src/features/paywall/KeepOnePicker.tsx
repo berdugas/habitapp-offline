@@ -11,13 +11,20 @@ type PickerHabit = { id: string; title: string; identity_phrase: string | null; 
 type Props = {
   habits: PickerHabit[];
   isSubmitting: boolean;
+  errorMessage?: string | null;
   onConfirm: (keptHabitId: string | null) => void;
   onCancel: () => void;
 };
 
 const KEEP_NONE = Symbol("keep-none");
 
-export function KeepOnePicker({ habits, isSubmitting, onConfirm, onCancel }: Props) {
+export function KeepOnePicker({
+  habits,
+  isSubmitting,
+  errorMessage,
+  onConfirm,
+  onCancel,
+}: Props) {
   const [selection, setSelection] = useState<string | typeof KEEP_NONE | null>(null);
   const [step, setStep] = useState<"pick" | "confirm">("pick");
   const styles = useThemedStyles((t) =>
@@ -25,6 +32,7 @@ export function KeepOnePicker({ habits, isSubmitting, onConfirm, onCancel }: Pro
       screen: { flex: 1, gap: t.spacing.lg, padding: t.spacing.xl },
       title: { color: t.colors.text, fontFamily: t.fontFamilies.displaySemi, fontSize: t.typography.headlineMd },
       body: { color: t.colors.textMuted, fontFamily: t.fontFamilies.body, fontSize: t.typography.bodyLg, lineHeight: 24 },
+      error: { color: t.colors.danger, fontFamily: t.fontFamilies.bodySemi, fontSize: t.typography.bodyMd },
       option: { backgroundColor: t.colors.surface, borderRadius: t.radius.md, borderWidth: 1, borderColor: t.colors.offDayBorder, padding: t.spacing.lg },
       optionSelected: { borderColor: t.colors.primary },
       optionLabel: { color: t.colors.text, fontFamily: t.fontFamilies.bodySemi, fontSize: t.typography.bodyLg },
@@ -41,6 +49,7 @@ export function KeepOnePicker({ habits, isSubmitting, onConfirm, onCancel }: Pro
       <View style={styles.screen}>
         <Text style={styles.title}>{paywallCopy.pickerConfirmTitle}</Text>
         <Text style={styles.body}>{paywallCopy.pickerConfirmBody}</Text>
+        {errorMessage ? <Text style={styles.error}>{errorMessage}</Text> : null}
         <PrimaryButton
           disabled={isSubmitting}
           label={isSubmitting ? "Archiving…" : paywallCopy.pickerConfirmYes}
@@ -58,6 +67,7 @@ export function KeepOnePicker({ habits, isSubmitting, onConfirm, onCancel }: Pro
   return (
     <ScrollView contentContainerStyle={styles.screen}>
       <Text style={styles.title}>{paywallCopy.pickerTitle}</Text>
+      {errorMessage ? <Text style={styles.error}>{errorMessage}</Text> : null}
       <View style={styles.list}>
         {habits.map((h) => (
           <Pressable

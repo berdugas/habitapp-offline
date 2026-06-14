@@ -54,3 +54,8 @@ it("the Continue button is disabled until a selection is made", () => {
   fireEvent.press(screen.getByText("Continue"));
   expect(screen.queryByText(paywallCopy.pickerConfirmYes)).toBeNull();
 });
+
+it("renders a retryable error message when provided", () => {
+  render(<KeepOnePicker {...baseProps()} errorMessage={paywallCopy.keepOneError} />);
+  expect(screen.getByText(paywallCopy.keepOneError)).toBeTruthy();
+});

@@ -13,6 +13,7 @@ import { usePaywallGate } from "@/features/paywall/usePaywallGate";
 import { usePaywallActions } from "@/features/paywall/PaywallController";
 import { PaywallScreen } from "@/features/paywall/PaywallScreen";
 import { KeepOnePicker } from "@/features/paywall/KeepOnePicker";
+import { paywallCopy } from "@/features/paywall/copy";
 import { logger } from "@/services/logger";
 
 type PickerHabit = { id: string; title: string; identity_phrase: string | null; status: string };
@@ -31,9 +32,23 @@ export function PaywallHardBlock() {
   const [showPicker, setShowPicker] = useState(false);
   const [pickerHabits, setPickerHabits] = useState<PickerHabit[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [pickerError, setPickerError] = useState<string | null>(null);
   const cleanupRanRef = useRef(false);
   const cleanupAttemptsRef = useRef(0);
   const [cleanupRetryTick, setCleanupRetryTick] = useState(0);
+
+  // This component stays mounted under the (app) layout, so its picker state
+  // must NOT leak into a future hard-block episode (keep-one → upgrade → refund
+  // → hard-block again): a stale, no-longer-existent habit id would make the
+  // archive keep NOTHING and wipe every current habit. Reset whenever we leave
+  // the hard-block state.
+  useEffect(() => {
+    if (gate.status !== "hard_block") {
+      setShowPicker(false);
+      setPickerHabits([]);
+      setPickerError(null);
+    }
+  }, [gate.status]);
 
   // Auto-resolve: archive leftover backlog so a <=1-active free-tier user's
   // queued habits restore on upgrade. Idempotent. A rejection is caught (not
@@ -41,7 +56,17 @@ export function PaywallHardBlock() {
   // schedules a BOUNDED timer retry — clearing the latch alone wouldn't re-run
   // the effect while the gate is stable, so the retry is driven through state.
   useEffect(() => {
-    if (gate.status !== "free_tier" || !gate.needsCleanup || !user?.id) return;
+    const inCleanupState =
+      gate.status === "free_tier" && gate.needsCleanup && !!user?.id;
+    if (!inCleanupState) {
+      // Left the cleanup state — reset the latch + budget so a FUTURE cleanup
+      // episode (e.g. refund back to free tier after an upgrade restored the
+      // backlog) runs again. The latch must not outlive the episode for the
+      // life of this always-mounted component.
+      cleanupRanRef.current = false;
+      cleanupAttemptsRef.current = 0;
+      return;
+    }
     if (cleanupRanRef.current) return;
     if (cleanupAttemptsRef.current >= MAX_CLEANUP_ATTEMPTS) return;
     cleanupAttemptsRef.current += 1;
@@ -82,32 +107,48 @@ export function PaywallHardBlock() {
 
   async function openPicker() {
     if (!user?.id) return;
-    const [actives, backlog] = await Promise.all([
-      listActiveHabits(user.id),
-      listBacklogHabits(user.id),
-    ]);
-    setPickerHabits(
-      // Only manageable (habit_state='active') habits are keep-one options —
-      // graduated/automatic habits consume no free-tier slot and are never
-      // archived (mirrors archiveHabitsForPaywallKeepOne + the gate's count).
-      [...actives, ...backlog]
-        .filter((h) => h.habit_state === "active")
-        .map((h) => ({
-          id: h.id,
-          title: h.title,
-          identity_phrase: h.identity_phrase,
-          status: h.status,
-        })),
-    );
-    setShowPicker(true);
+    setPickerError(null);
+    try {
+      const [actives, backlog] = await Promise.all([
+        listActiveHabits(user.id),
+        listBacklogHabits(user.id),
+      ]);
+      setPickerHabits(
+        // Only manageable (habit_state='active') habits are keep-one options —
+        // graduated/automatic habits consume no free-tier slot and are never
+        // archived (mirrors archiveHabitsForPaywallKeepOne + the gate's count).
+        [...actives, ...backlog]
+          .filter((h) => h.habit_state === "active")
+          .map((h) => ({
+            id: h.id,
+            title: h.title,
+            identity_phrase: h.identity_phrase,
+            status: h.status,
+          })),
+      );
+      setShowPicker(true);
+    } catch (error) {
+      // Don't let the rejection escape a void callback. Open the picker with a
+      // retryable error rather than silently doing nothing.
+      logger.error("Failed to load keep-one habit list", { error });
+      setPickerHabits([]);
+      setPickerError(paywallCopy.keepOneError);
+      setShowPicker(true);
+    }
   }
 
   async function confirmKeepOne(keptHabitId: string | null) {
     if (!user?.id) return;
+    setPickerError(null);
     setIsSubmitting(true);
     try {
       await archiveHabitsForPaywallKeepOne(user.id, keptHabitId);
       await queryClient.invalidateQueries({ queryKey: ["habits"] });
+    } catch (error) {
+      // Surface a retryable error and keep the picker open; the gate stays
+      // hard_block (nothing archived), so the user can try again.
+      logger.error("Failed to archive habits for keep-one", { error });
+      setPickerError(paywallCopy.keepOneError);
     } finally {
       setIsSubmitting(false);
     }
@@ -119,6 +160,7 @@ export function PaywallHardBlock() {
         <KeepOnePicker
           habits={pickerHabits}
           isSubmitting={isSubmitting}
+          errorMessage={pickerError}
           onConfirm={confirmKeepOne}
           onCancel={() => setShowPicker(false)}
         />

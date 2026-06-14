@@ -25,6 +25,7 @@ export const paywallCopy = {
     "Your other habits — active and any in your backlog — will be archived. The habit you keep becomes your free plan. You can restore everything anytime by unlocking.",
   pickerConfirmYes: "Yes, continue free",
   pickerConfirmBack: "Back",
+  keepOneError: "Couldn't update your habits. Please try again.",
   refundedBanner:
     "Your purchase was refunded. Pick up where you left off, or unlock again.",
   unlockToEdit: "Unlock to edit",

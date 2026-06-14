@@ -120,3 +120,81 @@ it("the keep-one picker excludes graduated (automatic) habits", async () => {
   await waitFor(() => expect(screen.getByText("Manageable")).toBeTruthy());
   expect(screen.queryByText("Graduated")).toBeNull();
 });
+
+function tree(qc: QueryClient) {
+  return (
+    <QueryClientProvider client={qc}>
+      <PaywallHardBlock />
+    </QueryClientProvider>
+  );
+}
+
+it("runs the auto-cleanup AGAIN in a later episode (latch resets when leaving the cleanup state)", async () => {
+  // Episode 1: free_tier needs cleanup → archives once.
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  mockGate.mockReturnValue({ status: "free_tier", needsCleanup: true, soleActiveHabitId: "h1" });
+  const { rerender } = render(tree(qc));
+  await waitFor(() => expect(mockArchiveKeepOne).toHaveBeenCalledTimes(1));
+
+  // Leave the cleanup state (e.g. upgrade restored backlog, then refund →
+  // hard_block) — the latch must reset.
+  mockGate.mockReturnValue({ status: "hard_block", needsCleanup: false, soleActiveHabitId: null });
+  rerender(tree(qc));
+
+  // Episode 2: free_tier needs cleanup again → must archive a SECOND time.
+  mockGate.mockReturnValue({ status: "free_tier", needsCleanup: true, soleActiveHabitId: "h1" });
+  rerender(tree(qc));
+  await waitFor(() => expect(mockArchiveKeepOne).toHaveBeenCalledTimes(2));
+});
+
+it("resets picker state when leaving hard_block so a later episode can't reopen a stale picker", async () => {
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  mockGate.mockReturnValue({ status: "hard_block", needsCleanup: false, soleActiveHabitId: null });
+  mockListHabits
+    .mockResolvedValueOnce([
+      { id: "old", title: "Old Habit", habit_state: "active", status: "active", identity_phrase: null },
+    ])
+    .mockResolvedValueOnce([]);
+
+  const { rerender } = render(tree(qc));
+  await act(async () => {
+    fireEvent.press(screen.getByText(paywallCopy.continueFreeCta));
+  });
+  await waitFor(() => expect(screen.getByText("Old Habit")).toBeTruthy());
+
+  // Gate clears (upgrade), then a later refund re-opens the hard-block.
+  mockGate.mockReturnValue({ status: "free_tier", needsCleanup: false, soleActiveHabitId: "x" });
+  rerender(tree(qc));
+  mockGate.mockReturnValue({ status: "hard_block", needsCleanup: false, soleActiveHabitId: null });
+  rerender(tree(qc));
+
+  // The stale picker must NOT reappear — the expiry paywall shows instead.
+  expect(screen.queryByText("Old Habit")).toBeNull();
+  expect(screen.getByText(paywallCopy.expiryTitle)).toBeTruthy();
+});
+
+it("shows a retryable error and keeps the picker open when the keep-one archive fails", async () => {
+  mockGate.mockReturnValue({ status: "hard_block", needsCleanup: false, soleActiveHabitId: null });
+  mockListHabits
+    .mockResolvedValueOnce([
+      { id: "h1", title: "Read", habit_state: "active", status: "active", identity_phrase: null },
+    ])
+    .mockResolvedValueOnce([]);
+  mockArchiveKeepOne.mockRejectedValueOnce(new Error("db fail"));
+
+  renderHardBlock();
+  await act(async () => {
+    fireEvent.press(screen.getByText(paywallCopy.continueFreeCta));
+  });
+  await waitFor(() => expect(screen.getByText("Read")).toBeTruthy());
+
+  fireEvent.press(screen.getByText("Read"));
+  fireEvent.press(screen.getByText("Continue"));
+  await act(async () => {
+    fireEvent.press(screen.getByText(paywallCopy.pickerConfirmYes));
+  });
+
+  // Error surfaced, picker still open (confirm step), nothing silently swallowed.
+  await waitFor(() => expect(screen.getByText(paywallCopy.keepOneError)).toBeTruthy());
+  expect(screen.getByText(paywallCopy.pickerConfirmYes)).toBeTruthy();
+});
