@@ -39,6 +39,7 @@ import { useArchiveHabitMutation } from "@/features/habits/hooks";
 import { AccessGateBanner } from "@/features/trial/AccessGateBanner";
 import { isReadOnly as computeIsReadOnly, isPaywallLocked } from "@/features/trial/accessMode";
 import { useTrialValidation } from "@/features/trial/hooks";
+import { TrialBadge } from "@/features/paywall/TrialBadge";
 import { usePaywall } from "@/features/paywall/PaywallController";
 import { setPreference } from "@/lib/db/repositories/preferences";
 import { useTheme } from "@/theme/useTheme";
@@ -335,6 +336,7 @@ export default function TodayScreen() {
       style={styles.screen}
     >
       <AppHeader />
+      <TrialBadge />
       <AccessGateBanner
         accessMode={accessMode}
         isReconnecting={isValidating}
