@@ -53,8 +53,16 @@ export function useTrialEndingNotification(
       const fire = computeNotificationFireDate(trialEndsAt, now());
       if (!fire) return;
 
-      const perms = await Notifications.getPermissionsAsync();
-      if (perms.status !== "granted") return; // no prompt — banner covers it
+      let perms;
+      try {
+        perms = await Notifications.getPermissionsAsync();
+      } catch (err) {
+        // Notifications module unavailable (or rejected) — fail safe and skip
+        // scheduling; the in-app banner is the guaranteed fallback.
+        logger.warn("Failed to read notification permissions", { err });
+        return;
+      }
+      if (perms?.status !== "granted") return; // no prompt — banner covers it
 
       try {
         const id = await Notifications.scheduleNotificationAsync({
