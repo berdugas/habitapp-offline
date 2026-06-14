@@ -14,6 +14,9 @@ type Props = {
   isPurchasing: boolean;
   isRestoring: boolean;
   isVerifying: boolean;
+  // Combined busy incl. the cross-instance shared store lock (isPurchasing/
+  // isRestoring/isVerifying are this instance's flags, used only for labels).
+  isBusy: boolean;
   status: PaywallActionStatus;
   showRefundedBanner: boolean;
   onUnlock: () => void;
@@ -28,6 +31,7 @@ export function PaywallScreen({
   isPurchasing,
   isRestoring,
   isVerifying,
+  isBusy,
   status,
   showRefundedBanner,
   onUnlock,
@@ -84,7 +88,10 @@ export function PaywallScreen({
   const body =
     variant === "expiry" ? paywallCopy.expiryBody : paywallCopy.capBlockBody;
 
-  const busy = isPurchasing || isRestoring || isVerifying;
+  // Disable on the SHARED busy state (incl. an op held by another instance, e.g.
+  // a Settings restore) — not just this instance's local flags — so a button
+  // never looks enabled while its handler would silently no-op behind the lock.
+  const busy = isBusy || isPurchasing || isRestoring || isVerifying;
   const isProcessing = status.kind === "processing";
 
   return (

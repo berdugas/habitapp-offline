@@ -140,6 +140,14 @@ describe("SettingsScreen — paywall rows", () => {
     expect(mockOnRecheck).toHaveBeenCalled();
   });
 
+  it("disables the Upgrade row while a restore is in flight (shared lock)", () => {
+    mockActions.isBusy = true; // a restore holds the shared store-op lock
+    defaultSetup({ entitlementStatus: "expired", accessMode: "expired_no_purchase" });
+    render(<SettingsScreen />);
+    fireEvent.press(screen.getByText("Upgrade for $1.99"));
+    expect(mockShowCapBlock).not.toHaveBeenCalled();
+  });
+
   it("surfaces an inline error message (e.g. no previous purchase found)", () => {
     mockActions.status = {
       kind: "error",

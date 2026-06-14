@@ -9,6 +9,7 @@ function baseProps() {
     isPurchasing: false,
     isRestoring: false,
     isVerifying: false,
+    isBusy: false,
     status: { kind: "idle" } as const,
     onUnlock: jest.fn(),
     onRestore: jest.fn(),
@@ -106,6 +107,14 @@ describe("PaywallScreen", () => {
       />,
     );
     expect(screen.getByText(paywallCopy.restoreNoneFound)).toBeTruthy();
+  });
+
+  it("isBusy alone (e.g. another instance holds the shared lock) blocks the unlock press", () => {
+    const props = baseProps();
+    render(<PaywallScreen {...props} isBusy />);
+    // Label is unchanged (local flags are false), but the press is blocked.
+    fireEvent.press(screen.getByText(paywallCopy.unlockCta));
+    expect(props.onUnlock).not.toHaveBeenCalled();
   });
 
   it("verifying disables the actions and labels the primary 'Verifying…'", () => {

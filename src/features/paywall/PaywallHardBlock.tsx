@@ -201,6 +201,7 @@ export function PaywallHardBlock() {
           isPurchasing={actions.isPurchasing}
           isRestoring={actions.isRestoring}
           isVerifying={actions.isVerifying}
+          isBusy={actions.isBusy}
           status={actions.status}
           showRefundedBanner={entitlementStatus === "cancelled"}
           onUnlock={actions.onUnlock}

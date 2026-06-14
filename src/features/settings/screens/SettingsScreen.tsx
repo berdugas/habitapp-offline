@@ -174,6 +174,7 @@ export default function SettingsScreen() {
             ) : (
               <Pressable
                 accessibilityRole="button"
+                disabled={restore.isBusy}
                 onPress={() => showCapBlockPaywall("settings_upgrade")}
                 style={styles.row}
               >
