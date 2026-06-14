@@ -26,6 +26,10 @@ jest.mock("@/features/trial/hooks", () => ({
   }),
 }));
 
+jest.mock("@/features/auth/hooks", () => ({
+  useAuthSession: () => ({ user: { id: "user-1" } }),
+}));
+
 function Trigger() {
   const { showCapBlockPaywall } = usePaywall();
   return (

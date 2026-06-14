@@ -34,6 +34,7 @@ jest.mock("@/features/today/hooks", () => ({
 
 jest.mock("@/features/habits/hooks", () => ({
   useArchiveHabitMutation: jest.fn(),
+  useActiveHabitCountQuery: jest.fn(),
 }));
 
 jest.mock("@/features/recovery/hooks", () => ({
@@ -66,9 +67,9 @@ const {
   useUpsertTodayHabitStatusMutation: jest.Mock;
 };
 
-const { useArchiveHabitMutation } = jest.requireMock(
+const { useArchiveHabitMutation, useActiveHabitCountQuery } = jest.requireMock(
   "@/features/habits/hooks",
-) as { useArchiveHabitMutation: jest.Mock };
+) as { useArchiveHabitMutation: jest.Mock; useActiveHabitCountQuery: jest.Mock };
 
 const { useRecoveryCheck, useSingleMissBanner } = jest.requireMock(
   "@/features/recovery/hooks",
@@ -138,6 +139,11 @@ describe("TodayScreen — paywall routing", () => {
     // router.push is also reset by clearAllMocks.
 
     useTrialValidation.mockReturnValue(makeTrialState("full"));
+    // Default: one manageable habit (at the free-tier cap) so the existing
+    // free-tier tests still route to the paywall. Zero-slot cases override this.
+    useActiveHabitCountQuery.mockReturnValue({
+      data: { activeCount: 1, manageable: 1, soleActiveHabitId: "habit-1" },
+    });
 
     useUpsertTodayHabitStatusMutation.mockReturnValue({
       error: null,
@@ -178,6 +184,30 @@ describe("TodayScreen — paywall routing", () => {
 
     expect(mockShowCapBlock).toHaveBeenCalledWith("cap_create");
     expect(router.push).not.toHaveBeenCalledWith("/(app)/habits/create");
+  });
+
+  it("free-tier with ZERO manageable habits CAN create (no paywall) — the API permits one", () => {
+    // After "Keep none" a free-tier user has zero slots used. A graduated habit
+    // still shows on Today (so the empty-state path doesn't fire), but it isn't
+    // a manageable slot, so creation must be ALLOWED, not gated to the paywall.
+    useTrialValidation.mockReturnValue(makeTrialState("expired_no_purchase"));
+    useActiveHabitCountQuery.mockReturnValue({
+      data: { activeCount: 0, manageable: 0, soleActiveHabitId: null },
+    });
+    mockTodayHabits({
+      error: null,
+      habits: [makeHabit({ id: "g1", habitState: "automatic" })],
+      isLoading: false,
+      upcomingHabits: [],
+      goalStreaks: { "a runner": 0 },
+    });
+
+    renderWithClient(<TodayScreen />);
+
+    fireEvent.press(screen.getByText("Start a new goal"));
+
+    expect(router.push).toHaveBeenCalledWith("/(app)/habits/create");
+    expect(mockShowCapBlock).not.toHaveBeenCalled();
   });
 
   it("read_only keeps the new-goal row hidden", () => {

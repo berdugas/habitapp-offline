@@ -14,6 +14,7 @@ import {
   restorePurchases,
   type RestoreResult,
 } from "@/services/revenuecat";
+import { useAuthSession } from "@/features/auth/hooks";
 import { useTrialValidation } from "@/features/trial/hooks";
 import { isPaidStatus } from "@/features/trial/entitlement";
 import { logger } from "@/services/logger";
@@ -101,6 +102,11 @@ export function usePaywallActions(
   options?: UsePaywallActionsOptions,
 ) {
   const { refresh, entitlementStatus } = useTrialValidation();
+  // Store ops are bound to the authenticated user — purchase/restore establish
+  // this RC identity before running so they can't charge/read the wrong (e.g.
+  // anonymous) RevenueCat customer.
+  const { user } = useAuthSession();
+  const userId = user?.id ?? null;
   const [isPurchasing, setIsPurchasing] = useState(false);
   const [isRestoring, setIsRestoring] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
@@ -155,13 +161,19 @@ export function usePaywallActions(
 
   const onUnlock = useCallback(async () => {
     if (storeOpInFlight) return;
+    if (!userId) {
+      // No authenticated user to bind the purchase to — never charge against an
+      // anonymous RC customer the webhook can't map back to a Supabase user.
+      setStatus({ kind: "error", message: paywallCopy.purchaseFailed });
+      return;
+    }
     setStoreOpInFlight(true);
     try {
       setStatus({ kind: "idle" });
       setIsPurchasing(true);
       let cancelled = false;
       try {
-        ({ cancelled } = await purchaseLifetimeUnlock());
+        ({ cancelled } = await purchaseLifetimeUnlock(userId));
       } catch (err) {
         logger.error("Paywall purchase failed", { err: err as Error });
         setStatus({ kind: "error", message: paywallCopy.purchaseFailed });
@@ -174,17 +186,21 @@ export function usePaywallActions(
     } finally {
       setStoreOpInFlight(false);
     }
-  }, [resolveWhenServerPaid]);
+  }, [resolveWhenServerPaid, userId]);
 
   const onRestore = useCallback(async () => {
     if (storeOpInFlight) return;
+    if (!userId) {
+      setStatus({ kind: "error", message: paywallCopy.restoreFailed });
+      return;
+    }
     setStoreOpInFlight(true);
     try {
       setStatus({ kind: "idle" });
       setIsRestoring(true);
       let result: RestoreResult;
       try {
-        result = await restorePurchases();
+        result = await restorePurchases(userId);
       } catch (err) {
         logger.error("Paywall restore failed", { err: err as Error });
         setStatus({ kind: "error", message: paywallCopy.restoreFailed });
@@ -205,7 +221,7 @@ export function usePaywallActions(
     } finally {
       setStoreOpInFlight(false);
     }
-  }, [resolveWhenServerPaid]);
+  }, [resolveWhenServerPaid, userId]);
 
   // "Check again" from the processing state: the store op already succeeded, so
   // just re-poll the server for the webhook to have landed.

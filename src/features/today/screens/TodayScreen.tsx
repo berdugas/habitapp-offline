@@ -35,7 +35,7 @@ import {
   recoveryModalPreferenceKey,
   singleMissBannerPreferenceKey,
 } from "@/features/recovery/api";
-import { useArchiveHabitMutation } from "@/features/habits/hooks";
+import { useArchiveHabitMutation, useActiveHabitCountQuery } from "@/features/habits/hooks";
 import { AccessGateBanner } from "@/features/trial/AccessGateBanner";
 import { isReadOnly as computeIsReadOnly, isPaywallLocked } from "@/features/trial/accessMode";
 import { useTrialValidation } from "@/features/trial/hooks";
@@ -179,10 +179,20 @@ export default function TodayScreen() {
   // Gate logging/undo/row-disabled on ONLY offline-stale state, not free-tier.
   // Free-tier users (expired_no_purchase) can always log their 1 habit.
   const isOfflineReadOnly = accessMode === "read_only";
+  const activeHabitCount = useActiveHabitCountQuery();
+  // A free-tier user is blocked from CREATING only when already at the 1-habit
+  // cap. With zero manageable habits (e.g. after "Keep none"), the API permits
+  // one creation (assertCanCreateHabitOnFreeTier) — gating on accessMode alone
+  // would trap them at zero. `manageable` mirrors that API's counting. Default
+  // to "at cap" while the count loads so we never flash an un-gated create for
+  // a capped user; the empty-state path already handles a truly-zero-habit user.
+  const isFreeTierAtCap =
+    isFreeTierLocked &&
+    (activeHabitCount.data ? activeHabitCount.data.manageable >= 1 : true);
   const { showCapBlockPaywall } = usePaywall();
 
   function handleNewGoalPress() {
-    if (isFreeTierLocked) {
+    if (isFreeTierAtCap) {
       showCapBlockPaywall("cap_create");
       return;
     }
@@ -371,7 +381,7 @@ export default function TodayScreen() {
               onAddHabit={
                 isOfflineReadOnly
                   ? undefined
-                  : isFreeTierLocked
+                  : isFreeTierAtCap
                     ? () => showCapBlockPaywall("cap_create")
                     : () =>
                         router.push({

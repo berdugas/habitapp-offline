@@ -45,6 +45,7 @@ jest.mock("@/features/today/hooks", () => ({
 
 jest.mock("@/features/habits/hooks", () => ({
   useArchiveHabitMutation: jest.fn(),
+  useActiveHabitCountQuery: jest.fn(),
 }));
 
 jest.mock("@/features/recovery/hooks", () => ({
@@ -64,9 +65,9 @@ const {
   useUpsertTodayHabitStatusMutation: jest.Mock;
 };
 
-const { useArchiveHabitMutation } = jest.requireMock(
+const { useArchiveHabitMutation, useActiveHabitCountQuery } = jest.requireMock(
   "@/features/habits/hooks",
-) as { useArchiveHabitMutation: jest.Mock };
+) as { useArchiveHabitMutation: jest.Mock; useActiveHabitCountQuery: jest.Mock };
 
 const { useRecoveryCheck, useSingleMissBanner } = jest.requireMock(
   "@/features/recovery/hooks",
@@ -134,6 +135,9 @@ describe("TodayScreen", () => {
       error: null,
       isPending: false,
       mutateAsync: jest.fn().mockResolvedValue(undefined),
+    });
+    useActiveHabitCountQuery.mockReturnValue({
+      data: { activeCount: 1, manageable: 1, soleActiveHabitId: null },
     });
     useRecoveryCheck.mockReturnValue({
       shouldShowModal: false,

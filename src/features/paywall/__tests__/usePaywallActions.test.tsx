@@ -21,6 +21,9 @@ jest.mock("@/features/trial/hooks", () => ({
     entitlementStatus: mockEntitlementStatus,
   }),
 }));
+jest.mock("@/features/auth/hooks", () => ({
+  useAuthSession: () => ({ user: { id: "user-1" } }),
+}));
 jest.mock("@/services/logger", () => ({
   logger: { error: jest.fn(), warn: jest.fn(), info: jest.fn() },
 }));

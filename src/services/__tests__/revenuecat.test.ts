@@ -109,7 +109,49 @@ describe("revenuecat service — wrappers gate on initialized", () => {
   });
 
   it("restorePurchases is a no-op when init was skipped", async () => {
-    await restorePurchases();
+    await restorePurchases("user-1");
+    expect(mockRestore).not.toHaveBeenCalled();
+  });
+});
+
+describe("restorePurchases — binds to the authenticated user", () => {
+  const mockLogIn = Purchases.logIn as jest.Mock;
+  const mockRestore = Purchases.restorePurchases as jest.Mock;
+
+  beforeEach(() => {
+    mockConfigure.mockClear();
+    mockLogIn.mockReset();
+    mockLogIn.mockResolvedValue({ customerInfo: {}, created: false });
+    mockRestore.mockReset();
+    mockRestore.mockResolvedValue({ entitlements: { active: {} } });
+    __resetForTests();
+    setEnv({ executionEnvironment: "standalone", apiKey: "appl_FAKEKEY" });
+    initRevenueCat();
+  });
+
+  it("logs in as the requested user BEFORE restoring (no stale-identity read)", async () => {
+    const order: string[] = [];
+    mockLogIn.mockImplementation(async () => {
+      order.push("logIn");
+      return { customerInfo: {}, created: false };
+    });
+    mockRestore.mockImplementation(async () => {
+      order.push("restore");
+      return { entitlements: { active: {} } };
+    });
+
+    await restorePurchases("user-9");
+
+    expect(mockLogIn).toHaveBeenCalledWith("user-9");
+    expect(order).toEqual(["logIn", "restore"]);
+  });
+
+  it("returns { status: 'failed' } and does NOT restore when identity can't be established", async () => {
+    mockLogIn.mockRejectedValue(new Error("identity down"));
+
+    const result = await restorePurchases("user-9");
+
+    expect(result).toEqual({ status: "failed" });
     expect(mockRestore).not.toHaveBeenCalled();
   });
 });

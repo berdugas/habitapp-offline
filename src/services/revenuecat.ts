@@ -131,17 +131,26 @@ export type RestoreResult =
 // Call ONLY from a user tap (e.g. Settings → Restore Purchase), never
 // from auto-running lifecycle code. The lifecycle hook uses syncPurchases().
 //
+// Takes the authenticated userId and re-establishes the RC identity BEFORE
+// restoring (in the same queued op, so no other identity op interleaves). A
+// failed lifecycle logIn — or an in-flight account switch — must not let
+// restore read whichever RC customer happened to be active and report the
+// wrong account's purchases. logIn is idempotent, so this is cheap when the
+// identity is already correct.
+//
 // Returns a typed result so the caller can show honest messaging:
-//   { status: "failed" }                            — SDK threw OR unconfigured
+//   { status: "failed" }                            — SDK threw, unconfigured,
+//        OR identity could not be established
 //   { status: "ok", hasLifetimeEntitlement: false } — restored, but this
 //        account never bought the unlock ("no previous purchase found")
 //   { status: "ok", hasLifetimeEntitlement: true }  — RC has the entitlement;
 //        the caller still polls Supabase before granting access.
 // RC is used only to PICK THE MESSAGE here, never to grant client-side access.
-export async function restorePurchases(): Promise<RestoreResult> {
+export async function restorePurchases(userId: string): Promise<RestoreResult> {
   if (!initialized) return { status: "failed" };
   return enqueueIdentityOp(async () => {
     try {
+      await Purchases.logIn(userId);
       const customerInfo = await Purchases.restorePurchases();
       // Single lifetime product, so any active entitlement IS the unlock.
       const active = customerInfo?.entitlements?.active ?? {};
@@ -158,7 +167,7 @@ export async function restorePurchases(): Promise<RestoreResult> {
 
 export { Purchases };
 
-export type PurchaseFailureReason = "no_offering" | "not_configured";
+export type PurchaseFailureReason = "no_offering" | "not_configured" | "identity_failed";
 
 export class PurchaseError extends Error {
   reason: PurchaseFailureReason;
@@ -195,10 +204,22 @@ export async function getLifetimePackage() {
  * flip happens server-side via the RC webhook; the client just refetches
  * the trial context afterward.
  *
- * Deliberately NOT routed through any identity queue: a purchase is not an
- * identity op, and the Play purchase sheet is inherently user-serialized.
+ * Binds the purchase to the authenticated `userId`: it establishes the RC
+ * identity (logInRevenueCat — serialized via the identity queue, idempotent)
+ * BEFORE charging, so the purchase and its webhook can't land on the
+ * anonymous/previous RC customer and then fail to unlock this Supabase user.
+ * Throws PurchaseError("identity_failed") if identity can't be established
+ * (better to not charge than to charge the wrong customer). The logIn itself
+ * is serialized, but the Play sheet is deliberately NOT held inside the queue
+ * (that would stall a later account switch behind an open/abandoned sheet).
  */
-export async function purchaseLifetimeUnlock(): Promise<{ cancelled: boolean }> {
+export async function purchaseLifetimeUnlock(
+  userId: string,
+): Promise<{ cancelled: boolean }> {
+  const identityOk = await logInRevenueCat(userId);
+  if (!identityOk) {
+    throw new PurchaseError("identity_failed");
+  }
   const pkg = await getLifetimePackage();
   try {
     await Purchases.purchasePackage(pkg);

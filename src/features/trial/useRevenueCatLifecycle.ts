@@ -67,6 +67,11 @@ export function useRevenueCatLifecycle(
           return;
         }
         if (!identityOk) {
+          // A failed background logIn is only a diagnostic here: the
+          // user-initiated store actions (purchaseLifetimeUnlock /
+          // restorePurchases) RE-ESTABLISH this user's RC identity themselves
+          // before running and bail if they can't, so a failure here can't let
+          // a later purchase/restore execute against a stale RC customer.
           logger.warn(
             "RevenueCat logIn failed; refresh will still re-fetch Supabase state",
             { userId: intendedUserId },

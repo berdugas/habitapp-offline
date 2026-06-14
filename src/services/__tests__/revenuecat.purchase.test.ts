@@ -24,6 +24,7 @@ jest.mock("expo-constants", () => ({
 
 const mockGetOfferings = Purchases.getOfferings as jest.Mock;
 const mockPurchasePackage = Purchases.purchasePackage as jest.Mock;
+const mockLogIn = Purchases.logIn as jest.Mock;
 
 const LIFETIME_PKG = { identifier: "$rc_lifetime", product: { priceString: "$1.99" } };
 
@@ -31,6 +32,8 @@ beforeEach(() => {
   __resetForTests();
   mockGetOfferings.mockReset();
   mockPurchasePackage.mockReset();
+  mockLogIn.mockReset();
+  mockLogIn.mockResolvedValue({ customerInfo: {}, created: false });
   mockExecutionEnvironment = "standalone";
   mockExtra = { revenueCatApiKey: "appl_FAKEKEY" };
   initRevenueCat();
@@ -73,19 +76,50 @@ describe("purchaseLifetimeUnlock", () => {
   it("resolves { cancelled: false } on a successful purchase", async () => {
     mockGetOfferings.mockResolvedValue({ current: { lifetime: LIFETIME_PKG } });
     mockPurchasePackage.mockResolvedValue({ customerInfo: {} });
-    await expect(purchaseLifetimeUnlock()).resolves.toEqual({ cancelled: false });
+    await expect(purchaseLifetimeUnlock("user-1")).resolves.toEqual({ cancelled: false });
     expect(mockPurchasePackage).toHaveBeenCalledWith(LIFETIME_PKG);
   });
 
   it("resolves { cancelled: true } when the user cancels (userCancelled flag)", async () => {
     mockGetOfferings.mockResolvedValue({ current: { lifetime: LIFETIME_PKG } });
     mockPurchasePackage.mockRejectedValue({ userCancelled: true });
-    await expect(purchaseLifetimeUnlock()).resolves.toEqual({ cancelled: true });
+    await expect(purchaseLifetimeUnlock("user-1")).resolves.toEqual({ cancelled: true });
   });
 
   it("rethrows non-cancel purchase errors", async () => {
     mockGetOfferings.mockResolvedValue({ current: { lifetime: LIFETIME_PKG } });
     mockPurchasePackage.mockRejectedValue(new Error("network down"));
-    await expect(purchaseLifetimeUnlock()).rejects.toThrow("network down");
+    await expect(purchaseLifetimeUnlock("user-1")).rejects.toThrow("network down");
+  });
+
+  it("establishes the buyer's RC identity (logIn) BEFORE charging", async () => {
+    mockGetOfferings.mockResolvedValue({ current: { lifetime: LIFETIME_PKG } });
+    const order: string[] = [];
+    mockLogIn.mockImplementation(async () => {
+      order.push("logIn");
+      return { customerInfo: {}, created: false };
+    });
+    mockPurchasePackage.mockImplementation(async () => {
+      order.push("purchase");
+      return { customerInfo: {} };
+    });
+
+    await purchaseLifetimeUnlock("user-7");
+
+    expect(mockLogIn).toHaveBeenCalledWith("user-7");
+    // Identity must be established first — a purchase against the anonymous/
+    // previous RC customer can't be matched to this Supabase user.
+    expect(order).toEqual(["logIn", "purchase"]);
+  });
+
+  it("throws PurchaseError('identity_failed') and does NOT charge when logIn fails", async () => {
+    mockGetOfferings.mockResolvedValue({ current: { lifetime: LIFETIME_PKG } });
+    mockLogIn.mockRejectedValue(new Error("identity down"));
+
+    await expect(purchaseLifetimeUnlock("user-7")).rejects.toMatchObject({
+      name: "PurchaseError",
+      reason: "identity_failed",
+    });
+    expect(mockPurchasePackage).not.toHaveBeenCalled();
   });
 });
