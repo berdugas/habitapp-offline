@@ -36,8 +36,10 @@ import {
 } from "@/features/habits/validators";
 import { getHabitSuggestionEditGuidance } from "@/features/recommendations/editGuidance";
 import { AccessGateBanner } from "@/features/trial/AccessGateBanner";
-import { isReadOnly as computeIsReadOnly } from "@/features/trial/accessMode";
+import { isPaywallLocked, isReadOnly as computeIsReadOnly } from "@/features/trial/accessMode";
 import { useTrialValidation } from "@/features/trial/hooks";
+import { usePaywall } from "@/features/paywall/PaywallController";
+import { paywallCopy } from "@/features/paywall/copy";
 import { useTheme } from "@/theme/useTheme";
 import { useThemedStyles } from "@/theme/useThemedStyles";
 import {
@@ -283,6 +285,9 @@ export default function EditHabitScreen() {
   const updateHabitMutation = useUpdateHabitMutation();
   const { accessMode, isValidating, refresh } = useTrialValidation();
   const isReadOnly = computeIsReadOnly(accessMode);
+  const isFreeTierLocked = isPaywallLocked(accessMode);
+  const isOfflineReadOnly = accessMode === "read_only";
+  const { showCapBlockPaywall } = usePaywall();
   const hasHydratedFormRef = useRef(false);
   const submitLockRef = useRef(false);
   const tinyActionRef = useRef<TextInput>(null);
@@ -595,21 +600,30 @@ export default function EditHabitScreen() {
       <ReminderPicker value={reminderTime} onChange={setReminderTime} disabled={!reminderReady} />
 
       {/* Save */}
-      <Pressable
-        style={({ pressed }) => [
-          styles.saveButton,
-          (updateHabitMutation.isPending || isReadOnly) && styles.saveButtonDisabled,
-          pressed && styles.saveButtonPressed,
-        ]}
-        disabled={updateHabitMutation.isPending || isReadOnly}
-        onPress={() => void handleSave()}
-      >
-        <Text style={styles.saveButtonText}>
-          {updateHabitMutation.isPending ? "Saving…" : "Save changes"}
-        </Text>
-      </Pressable>
+      {isFreeTierLocked ? (
+        <Pressable
+          style={({ pressed }) => [styles.saveButton, pressed && styles.saveButtonPressed]}
+          onPress={() => showCapBlockPaywall("cap_edit")}
+        >
+          <Text style={styles.saveButtonText}>{paywallCopy.unlockToEdit}</Text>
+        </Pressable>
+      ) : (
+        <Pressable
+          style={({ pressed }) => [
+            styles.saveButton,
+            (updateHabitMutation.isPending || isOfflineReadOnly) && styles.saveButtonDisabled,
+            pressed && styles.saveButtonPressed,
+          ]}
+          disabled={updateHabitMutation.isPending || isOfflineReadOnly}
+          onPress={() => void handleSave()}
+        >
+          <Text style={styles.saveButtonText}>
+            {updateHabitMutation.isPending ? "Saving…" : "Save changes"}
+          </Text>
+        </Pressable>
+      )}
 
-      {isReadOnly ? (
+      {isOfflineReadOnly ? (
         <Text style={styles.readOnlyHelper}>Reconnect to edit habits.</Text>
       ) : null}
     </ScrollView>

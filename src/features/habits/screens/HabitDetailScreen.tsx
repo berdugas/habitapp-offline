@@ -38,8 +38,9 @@ import { isWeeklyReviewDue } from "@/features/reviews/due";
 import { useLatestWeeklyReviewQuery } from "@/features/reviews/hooks";
 import { openGoalWeeklyReview } from "@/features/reviews/openReview";
 import { AccessGateBanner } from "@/features/trial/AccessGateBanner";
-import { isReadOnly as computeIsReadOnly } from "@/features/trial/accessMode";
+import { isPaywallLocked, isReadOnly as computeIsReadOnly } from "@/features/trial/accessMode";
 import { useTrialValidation } from "@/features/trial/hooks";
+import { usePaywall } from "@/features/paywall/PaywallController";
 import { useHabitLogsForRange } from "@/features/today/hooks";
 import { getReminderByHabitId } from "@/lib/db/repositories/reminders";
 import { useAuthSession } from "@/features/auth/hooks";
@@ -338,6 +339,8 @@ export default function HabitDetailScreen() {
   const calendarLogs = useHabitLogsForRange(habit?.id, calendarDays).data ?? [];
   const { accessMode, isValidating, refresh } = useTrialValidation();
   const isReadOnly = computeIsReadOnly(accessMode);
+  const isFreeTierLocked = isPaywallLocked(accessMode);
+  const { showCapBlockPaywall } = usePaywall();
 
   // Archive intro onboarding: tri-state (null = not yet loaded). The flag is
   // only written by the banner's dismiss on BacklogScreen — never here — so
@@ -784,11 +787,13 @@ export default function HabitDetailScreen() {
 
       <HabitDetailActions
         habit={habit}
-        isReadOnly={isReadOnly}
+        isReadOnly={accessMode === "read_only"}
+        isFreeTierLocked={isFreeTierLocked}
         archivePending={archiveHabitMutation.isPending}
         archiveIntroLoading={archiveIntroSeen === null}
         archiveError={Boolean(archiveHabitMutation.error)}
         onArchivePress={() => void handleArchivePress()}
+        onUnlockArchive={() => showCapBlockPaywall("cap_archive")}
         onBackPress={() => router.push("/(app)/habits/backlog")}
       />
 
