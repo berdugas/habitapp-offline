@@ -64,4 +64,21 @@ describe("PaywallScreen", () => {
     render(<PaywallScreen {...baseProps()} showRefundedBanner />);
     expect(screen.getByText(paywallCopy.refundedBanner)).toBeTruthy();
   });
+
+  it("calls onRestore when the restore CTA is pressed", () => {
+    const props = baseProps();
+    render(<PaywallScreen {...props} />);
+    fireEvent.press(screen.getByText(paywallCopy.restoreCta));
+    expect(props.onRestore).toHaveBeenCalledTimes(1);
+  });
+
+  it("swaps the restore label to 'Restoring…' and blocks the press while restoring", () => {
+    // TertiaryButton has no `disabled` prop, so the busy press-block lives in
+    // PaywallScreen's own onPress guard — pin it so it can't regress silently.
+    const props = baseProps();
+    render(<PaywallScreen {...props} isRestoring />);
+    expect(screen.queryByText(paywallCopy.restoreCta)).toBeNull();
+    fireEvent.press(screen.getByText("Restoring…"));
+    expect(props.onRestore).not.toHaveBeenCalled();
+  });
 });
