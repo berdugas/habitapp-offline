@@ -101,6 +101,13 @@ export function useRecordGraduationMutation() {
       await queryClient.invalidateQueries({
         queryKey: getLibraryQueryKey(user.id),
       });
+      // Graduation flips habit_state active→automatic, which removes the row
+      // from the paywall gate's active/manageable counts. Invalidate the
+      // gate's count query so expiry derives the correct free-tier/hard-block
+      // state instead of still counting the graduated habit.
+      await queryClient.invalidateQueries({
+        queryKey: ["habits", "active-count"],
+      });
     },
     onError: (error, variables) => {
       logger.error("Graduation mutation failed", {

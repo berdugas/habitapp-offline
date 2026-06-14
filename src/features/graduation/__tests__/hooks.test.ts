@@ -188,7 +188,7 @@ describe("graduation hooks", () => {
     });
   });
 
-  it("invalidates the five dependent query keys on successful graduation", async () => {
+  it("invalidates the dependent query keys (incl. the paywall active-count) on successful graduation", async () => {
     useRecordGraduationMutation();
 
     const mutationOptions = mockUseMutation.mock.calls[0]?.[0] as {
@@ -217,6 +217,11 @@ describe("graduation hooks", () => {
     });
     expect(mockInvalidateQueries).toHaveBeenCalledWith({
       queryKey: ["habits", "library", "user-1"],
+    });
+    // Graduation flips habit_state active→automatic, so the paywall gate's
+    // active-count query must be invalidated or expiry misclassifies.
+    expect(mockInvalidateQueries).toHaveBeenCalledWith({
+      queryKey: ["habits", "active-count"],
     });
   });
 

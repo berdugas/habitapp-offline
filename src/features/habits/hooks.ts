@@ -298,6 +298,7 @@ export function useHabitDetail(
 export function useCreateHabitMutation() {
   const { user } = useAuthSession();
   const { accessMode } = useTrialValidation();
+  const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async (payload: CreateHabitPayload) => {
@@ -307,8 +308,15 @@ export function useCreateHabitMutation() {
 
       return createHabit(user.id, payload, accessMode);
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       trackEvent("habit_created");
+      // Creating a habit changes the active/manageable counts the paywall
+      // gate derives. The always-mounted PaywallHardBlock never remounts on
+      // navigation, so its active-count query must be invalidated explicitly
+      // or a same-session trial→expiry can read a stale count and misclassify.
+      await queryClient.invalidateQueries({
+        queryKey: ["habits", "active-count"],
+      });
     },
   });
 }
