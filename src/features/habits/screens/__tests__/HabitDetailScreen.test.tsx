@@ -401,6 +401,51 @@ describe("HabitDetailScreen", () => {
     expect(screen.queryByText("Skip")).toBeNull();
   });
 
+  it("opens an EDITABLE selector for a free-tier (expired_no_purchase) user tapping an in-window cell", async () => {
+    // Regression: the old code gated on isReadOnly which covered BOTH
+    // "read_only" (offline) AND "expired_no_purchase" (free-tier).  That
+    // wrongly blocked free-tier users from retro-logging their one allowed
+    // habit and showed "Reconnect to log on this day." instead.
+    // The fix uses isOfflineReadOnly = accessMode === "read_only", so
+    // expired_no_purchase users get canEdit=true within the 48h window.
+    useTrialValidation.mockReturnValue({
+      accessMode: "expired_no_purchase",
+      entitlementStatus: "expired",
+      isBootstrapping: false,
+      isValidating: false,
+      lastValidatedAt: null,
+      refresh: jest.fn().mockResolvedValue(undefined),
+      trialEndsAt: null,
+      trialStartedAt: null,
+    });
+    useHabitDetail.mockReturnValue({
+      error: null,
+      formula: "After morning coffee, run for 2 minutes",
+      habit: makeHabit({ start_date: "2026-04-01" }),
+      isLoading: false,
+      isUpcoming: false,
+      latestReview: null,
+      progress: makeProgress(),
+      recentLogs: [],
+    });
+    renderWithClient(<HabitDetailScreen />);
+
+    // April 29 is ~34 h before "now" (April 30 10:00 UTC) — inside the 48 h
+    // retro window, so isWithinRetroWindow returns true.
+    fireEvent.press(screen.getByLabelText("2026-04-29, missed"));
+
+    await waitFor(() => {
+      // Editable selector shows Done + Skip action buttons.
+      expect(screen.getAllByText("Done").length).toBeGreaterThanOrEqual(1);
+      expect(screen.getByText("Skip")).toBeTruthy();
+    });
+    // Must NOT show the offline read-only message that the old code wrongly
+    // surfaced for expired_no_purchase users.
+    expect(
+      screen.queryByText("Reconnect to log on this day."),
+    ).toBeNull();
+  });
+
   it("cells before habit.start_date are not present in the growing grid", () => {
     // start_date = April 27. With today = April 30 (Thu), the grid starts on Monday Apr 27
     // and shows only that week (Apr 27 – May 3). Apr 25 is before startDate and not in grid.
