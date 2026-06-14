@@ -122,7 +122,11 @@ export function PaywallScreen({
               onPress={onUnlock}
             />
           )}
-          {variant === "expiry" ? (
+          {/* While processing, the store op already succeeded and we're only
+              waiting on the server. Expose ONLY "Check again" — never the
+              other actions, or a paid user could tap "Continue free" on the
+              hard-block variant and archive their habits right after paying. */}
+          {isProcessing ? null : variant === "expiry" ? (
             <SecondaryButton
               disabled={busy}
               label={paywallCopy.continueFreeCta}
@@ -136,10 +140,12 @@ export function PaywallScreen({
             />
           )}
           {/* TertiaryButton has no disabled prop — guard onPress directly */}
-          <TertiaryButton
-            label={isRestoring ? "Restoring…" : paywallCopy.restoreCta}
-            onPress={busy ? () => undefined : onRestore}
-          />
+          {isProcessing ? null : (
+            <TertiaryButton
+              label={isRestoring ? "Restoring…" : paywallCopy.restoreCta}
+              onPress={busy ? () => undefined : onRestore}
+            />
+          )}
         </View>
       </ScrollView>
     </View>

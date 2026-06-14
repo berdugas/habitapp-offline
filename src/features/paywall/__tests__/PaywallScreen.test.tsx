@@ -76,6 +76,21 @@ describe("PaywallScreen", () => {
     expect(screen.queryByText(paywallCopy.unlockCta)).toBeNull();
   });
 
+  it("processing hides Continue free + Restore on the hard-block (no archive right after payment)", () => {
+    render(
+      <PaywallScreen
+        {...baseProps()}
+        variant="expiry"
+        status={{ kind: "processing" }}
+      />,
+    );
+    expect(screen.getByText(paywallCopy.checkAgainCta)).toBeTruthy();
+    // A store-confirmed purchaser must NOT be able to archive via Continue free
+    // (or kick off a restore) while the server webhook is still pending.
+    expect(screen.queryByText(paywallCopy.continueFreeCta)).toBeNull();
+    expect(screen.queryByText(paywallCopy.restoreCta)).toBeNull();
+  });
+
   it("Check again calls onRecheck", () => {
     const props = baseProps();
     render(<PaywallScreen {...props} status={{ kind: "processing" }} />);
