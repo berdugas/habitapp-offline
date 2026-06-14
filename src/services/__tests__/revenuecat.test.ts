@@ -1,4 +1,11 @@
-import { __resetForTests, initRevenueCat } from "@/services/revenuecat";
+import {
+  __resetForTests,
+  initRevenueCat,
+  logInRevenueCat,
+  logOutRevenueCat,
+  restorePurchases,
+  syncPurchases,
+} from "@/services/revenuecat";
 import Purchases from "react-native-purchases";
 
 // Use the getter pattern (mirroring src/tests/unit/sentryService.test.ts)
@@ -59,5 +66,50 @@ describe("revenuecat service — Expo Go gate", () => {
     initRevenueCat();
     initRevenueCat();
     expect(mockConfigure).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("revenuecat service — wrappers gate on initialized", () => {
+  // Regression: in a standalone build with EXPO_PUBLIC_REVENUECAT_API_KEY
+  // missing in the EAS env, initRevenueCat() warns and skips configure().
+  // Wrappers previously only checked isExpoGo(), so they still tried to
+  // call the unconfigured native SDK and produced LogBox errors at
+  // runtime. They must silently no-op when the SDK was never configured.
+
+  const mockLogIn = Purchases.logIn as jest.Mock;
+  const mockLogOut = Purchases.logOut as jest.Mock;
+  const mockSync = Purchases.syncPurchases as jest.Mock;
+  const mockRestore = Purchases.restorePurchases as jest.Mock;
+
+  beforeEach(() => {
+    mockConfigure.mockClear();
+    mockLogIn.mockClear();
+    mockLogOut.mockClear();
+    mockSync.mockClear();
+    mockRestore.mockClear();
+    __resetForTests();
+    setEnv({ executionEnvironment: "standalone", apiKey: undefined });
+    initRevenueCat(); // intentionally no-ops (no apiKey)
+  });
+
+  it("logInRevenueCat is a no-op success when init was skipped (no API key)", async () => {
+    const ok = await logInRevenueCat("user-1");
+    expect(ok).toBe(true);
+    expect(mockLogIn).not.toHaveBeenCalled();
+  });
+
+  it("logOutRevenueCat is a no-op when init was skipped", async () => {
+    await logOutRevenueCat();
+    expect(mockLogOut).not.toHaveBeenCalled();
+  });
+
+  it("syncPurchases is a no-op when init was skipped", async () => {
+    await syncPurchases();
+    expect(mockSync).not.toHaveBeenCalled();
+  });
+
+  it("restorePurchases is a no-op when init was skipped", async () => {
+    await restorePurchases();
+    expect(mockRestore).not.toHaveBeenCalled();
   });
 });

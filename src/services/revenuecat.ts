@@ -67,18 +67,24 @@ function enqueueIdentityOp<T>(op: () => Promise<T>): Promise<T> {
 }
 
 // Returns true if the identity was successfully established (or if the
-// SDK gate short-circuited in Expo Go, where there's no real identity to
-// establish). Returns false on a real SDK failure. Callers MUST check
-// the return value before calling syncPurchases() / restorePurchases() —
-// running those against a stale RC identity would associate purchases
-// with the wrong account.
+// SDK was never configured — Expo Go, or no API key in the EAS env,
+// both of which are no-op success cases). Returns false on a real SDK
+// failure. Callers MUST check the return value before calling
+// syncPurchases() / restorePurchases() — running those against a stale
+// RC identity would associate purchases with the wrong account.
+//
+// Gating on `initialized` (not just isExpoGo) is important: in a
+// standalone build with no API key in the EAS env, initRevenueCat()
+// logs a warning and returns; the native SDK is then unconfigured and
+// every wrapper call would error at the JNI layer. Treat that as a
+// silent no-op success — there's no RC identity to keep in sync.
 //
 // Serialized via the identity queue: an in-flight logIn(A) finishes
 // before logIn(B) starts, so the SDK's final appUserID always reflects
 // the last caller (in program order), not whichever native promise
 // resolved last in real time.
 export async function logInRevenueCat(userId: string): Promise<boolean> {
-  if (isExpoGo()) return true;
+  if (!initialized) return true;
   return enqueueIdentityOp(async () => {
     try {
       await Purchases.logIn(userId);
@@ -91,7 +97,7 @@ export async function logInRevenueCat(userId: string): Promise<boolean> {
 }
 
 export async function logOutRevenueCat(): Promise<void> {
-  if (isExpoGo()) return;
+  if (!initialized) return;
   await enqueueIdentityOp(async () => {
     try {
       await Purchases.logOut();
@@ -107,7 +113,7 @@ export async function logOutRevenueCat(): Promise<void> {
 // loud restorePurchases() below is reserved for an explicit user gesture
 // ("Restore Purchase" button) where an iOS prompt is acceptable.
 export async function syncPurchases(): Promise<void> {
-  if (isExpoGo()) return;
+  if (!initialized) return;
   await enqueueIdentityOp(async () => {
     try {
       await Purchases.syncPurchases();
@@ -122,7 +128,7 @@ export async function syncPurchases(): Promise<void> {
 // from auto-running lifecycle code. The lifecycle hook uses
 // syncPurchases() instead.
 export async function restorePurchases(): Promise<void> {
-  if (isExpoGo()) return;
+  if (!initialized) return;
   await enqueueIdentityOp(async () => {
     try {
       await Purchases.restorePurchases();
