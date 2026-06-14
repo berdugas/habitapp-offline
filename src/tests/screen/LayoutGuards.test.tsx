@@ -33,6 +33,10 @@ jest.mock("@/features/auth/hooks", () => ({
   useAuthSession: jest.fn(),
 }));
 
+jest.mock("@/features/paywall/PaywallHardBlock", () => ({
+  PaywallHardBlock: () => null,
+}));
+
 const { useAuthSession } = jest.requireMock("@/features/auth/hooks") as {
   useAuthSession: jest.Mock;
 };

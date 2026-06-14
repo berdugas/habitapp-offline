@@ -11,6 +11,14 @@ jest.mock("@/features/trial/hooks", () => ({
   })),
 }));
 
+jest.mock("@/features/paywall/PaywallController", () => ({
+  usePaywall: () => ({ showCapBlockPaywall: jest.fn() }),
+}));
+
+jest.mock("@/services/revenuecat", () => ({
+  restorePurchases: jest.fn().mockResolvedValue(undefined),
+}));
+
 import { fireEvent, render, screen } from "@/tests/setup/render";
 
 import SettingsScreen from "@/features/settings/screens/SettingsScreen";

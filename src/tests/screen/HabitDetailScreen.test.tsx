@@ -23,6 +23,10 @@ jest.mock("@/features/trial/hooks", () => ({
   })),
 }));
 
+jest.mock("@/features/paywall/PaywallController", () => ({
+  usePaywall: () => ({ showCapBlockPaywall: jest.fn() }),
+}));
+
 import { act, fireEvent, render, screen, waitFor } from "@/tests/setup/render";
 
 async function flushAsyncState() {
