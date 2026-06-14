@@ -154,6 +154,41 @@ describe("useRestorePaywallKeptHabitsOnUpgrade", () => {
     jest.useRealTimers();
   });
 
+  it("makes exactly 3 (MAX_RECONCILE_ATTEMPTS) calls under persistent failure, not 4", async () => {
+    jest.useFakeTimers();
+    const loggerErrorSpy = jest.spyOn(logger, "error").mockImplementation(() => {});
+    mockRestore.mockReset();
+    mockRestore.mockRejectedValue(new Error("persistent"));
+
+    renderReconcile({ userId: "user-1", status: "paid" });
+
+    // Initial attempt.
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(mockRestore).toHaveBeenCalledTimes(1);
+
+    // Two bounded retries follow (total 3)...
+    await act(async () => {
+      await jest.advanceTimersByTimeAsync(3000);
+    });
+    expect(mockRestore).toHaveBeenCalledTimes(2);
+    await act(async () => {
+      await jest.advanceTimersByTimeAsync(3000);
+    });
+    expect(mockRestore).toHaveBeenCalledTimes(3);
+
+    // ...and NO fourth: the budget is 3 total, so no further timer is scheduled.
+    await act(async () => {
+      await jest.advanceTimersByTimeAsync(3000);
+    });
+    expect(mockRestore).toHaveBeenCalledTimes(3);
+
+    loggerErrorSpy.mockRestore();
+    jest.useRealTimers();
+  });
+
   it("logs an error when restorePaywallKeptHabits rejects", async () => {
     const loggerErrorSpy = jest.spyOn(logger, "error").mockImplementation(() => {});
     mockRestore.mockReset();

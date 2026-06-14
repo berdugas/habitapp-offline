@@ -62,6 +62,11 @@ export function useRestorePaywallKeptHabitsOnUpgrade(
       attemptsRef.current = 0;
     }
     if (reconciledForUserRef.current === userId) return; // already done this session
+    // Cap TOTAL attempts (initial + retries) at MAX_RECONCILE_ATTEMPTS. Count
+    // this attempt up front so a persistently-failing restore makes exactly MAX
+    // calls, not MAX + 1 (incrementing in the catch would allow one extra).
+    if (attemptsRef.current >= MAX_RECONCILE_ATTEMPTS) return;
+    attemptsRef.current += 1;
     reconciledForUserRef.current = userId;
 
     let cancelled = false;
@@ -71,7 +76,7 @@ export function useRestorePaywallKeptHabitsOnUpgrade(
       try {
         const result = await restorePaywallKeptHabits(userId);
         if (cancelled) return;
-        attemptsRef.current = 0;
+        attemptsRef.current = 0; // success — reset the budget for a future episode
         if (result.restoredCount > 0) {
           logger.info("Restored paywall-archived habits", {
             userId,
@@ -85,10 +90,10 @@ export function useRestorePaywallKeptHabitsOnUpgrade(
         if (cancelled) return;
         logger.error("Failed to restore paywall habits", { userId, error });
         // Clear the latch AND schedule a bounded retry (a ref reset alone
-        // wouldn't re-run this effect with unchanged deps).
+        // wouldn't re-run this effect with unchanged deps). Stop once the
+        // attempt budget (counted up front) is spent.
         reconciledForUserRef.current = null;
         if (attemptsRef.current < MAX_RECONCILE_ATTEMPTS) {
-          attemptsRef.current += 1;
           timer = setTimeout(
             () => setRetryTick((tick) => tick + 1),
             RECONCILE_RETRY_MS,

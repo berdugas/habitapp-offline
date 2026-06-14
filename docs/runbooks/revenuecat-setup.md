@@ -12,11 +12,30 @@ once again later for production (handled in sub-plan #6).
    - Bundle ID: `com.habitapp.mobile`
    - Get the **public SDK key** from Project Settings → API keys. This is
      the value for `EXPO_PUBLIC_REVENUECAT_API_KEY` (next section).
-4. Create a one-time IAP product:
-   - Identifier: `lifetime_unlock`
-   - Type: Non-consumable / non-renewing
-   - Price: $1.99 (mirror what's configured in Play Console — done in
-     sub-plan #6's P1 step)
+4. Create the monetization objects. The app needs ALL THREE — product,
+   entitlement, AND a current offering — not just the product. Skipping the
+   entitlement makes a real restore report "no previous purchase found"
+   (`restorePurchases()` reads `customerInfo.entitlements.active`); skipping the
+   offering makes the buy button fail with `no_offering`
+   (`getLifetimePackage()` reads `offerings.current`).
+   - **Product** (Products tab):
+     - Identifier: `lifetime_unlock`
+     - Type: Non-consumable / non-renewing
+     - Price: $1.99 (mirror what's configured in Play Console — done in
+       sub-plan #6's P1 step)
+   - **Entitlement** (Entitlements tab):
+     - Identifier: `lifetime` (any id works — the app treats ANY active
+       entitlement as the unlock, since there's a single product)
+     - Attach the `lifetime_unlock` product to it
+   - **Offering** (Offerings tab):
+     - Identifier: `default`
+     - Add a **package** of duration type **Lifetime** (package id
+       `$rc_lifetime`) and attach the `lifetime_unlock` product to it
+     - Mark this offering **Current** (the toggle/star) — the SDK reads
+       `offerings.current`, so a non-current offering is invisible to the app
+     - The app prefers the `$rc_lifetime` package but falls back to the first
+       available package, so a differently-typed package still purchases as
+       long as the offering is current
 5. Webhook configuration:
    - Project Settings → Integrations → Webhooks
    - URL: `https://<supabase-project-ref>.supabase.co/functions/v1/revenuecat-webhook`
