@@ -46,6 +46,24 @@ it("schedules + stores the id when permission is granted and nothing raced", asy
   expect(mockCancel).not.toHaveBeenCalled();
 });
 
+it("cancels the previous window's notification when the trial end changes (extension / account switch)", async () => {
+  // stored belongs to a DIFFERENT trial end (a trial extension, or a switch
+  // between two trial accounts sharing this device-global key). The old
+  // window's reminder must be cancelled before scheduling its replacement,
+  // not left to fire as an orphan.
+  const OLD_ENDS_AT = new Date("2026-06-20T12:00:00.000Z").toISOString();
+  mockGetStored.mockResolvedValue(`${OLD_ENDS_AT}|old-id`);
+  mockSchedule.mockResolvedValue("new-id");
+
+  renderHook(() => useTrialEndingNotification("trial", ENDS_AT));
+
+  await waitFor(() => expect(mockCancel).toHaveBeenCalledWith("old-id"));
+  // ...and the replacement is scheduled + stored for the NEW window.
+  await waitFor(() =>
+    expect(mockSetStored).toHaveBeenCalledWith(KEY, `${ENDS_AT}|new-id`),
+  );
+});
+
 it("cancels the just-scheduled notification if cleanup races scheduling (no orphan)", async () => {
   let resolveSchedule!: (id: string) => void;
   mockSchedule.mockReturnValue(new Promise((r) => (resolveSchedule = r)));

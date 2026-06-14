@@ -25,6 +25,17 @@ type PickerHabit = { id: string; title: string; identity_phrase: string | null; 
 const MAX_CLEANUP_ATTEMPTS = 3;
 const CLEANUP_RETRY_MS = 3000;
 
+// Bound retry for the paid-race reconcile (see reconcileIfPaidRaced): the
+// archive has already committed and the session reconcile hook may be latched
+// at zero rows, so a transient restore failure must retry a few times rather
+// than strand the rows until restart.
+const MAX_RECONCILE_ATTEMPTS = 3;
+const RECONCILE_RETRY_MS = 3000;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 export function PaywallHardBlock() {
   const gate = usePaywallGate();
   const { user } = useAuthSession();
@@ -48,12 +59,13 @@ export function PaywallHardBlock() {
   // in-flight load, so an older (e.g. failed) request can't overwrite a newer
   // successful one.
   const pickerReqRef = useRef(0);
-  // Latest entitlement status, readable from async archive completions (the
-  // closure's value would be stale if paid arrived mid-archive).
-  const entitlementStatusRef = useRef(entitlementStatus);
-  useEffect(() => {
-    entitlementStatusRef.current = entitlementStatus;
-  }, [entitlementStatus]);
+  // Latest (user, entitlement status) pair, BOUND TOGETHER and updated DURING
+  // RENDER. An async archive completion reads this to decide whether to
+  // reconcile; a passive effect could lag a fast account switch, and the status
+  // alone is not enough — user-1's in-flight archive must not restore based on
+  // user-2's paid status after a switch. Gate on BOTH paid AND userId match.
+  const entitlementUserRef = useRef({ userId: user?.id ?? null, status: entitlementStatus });
+  entitlementUserRef.current = { userId: user?.id ?? null, status: entitlementStatus };
 
   // If paid arrived (e.g. a purchase on another device) WHILE we were archiving,
   // the session-latched reconcile hook may have run its one-shot scan BEFORE our
@@ -61,9 +73,31 @@ export function PaywallHardBlock() {
   // paid. Re-run the idempotent restore here so those rows aren't stranded.
   const reconcileIfPaidRaced = useCallback(
     async (uid: string) => {
-      if (!isPaidStatus(entitlementStatusRef.current)) return;
-      await restorePaywallKeptHabits(uid);
-      await queryClient.invalidateQueries({ queryKey: ["habits"] });
+      const stillPaidForUser = () => {
+        const snap = entitlementUserRef.current;
+        return snap.userId === uid && isPaidStatus(snap.status);
+      };
+      if (!stillPaidForUser()) return;
+      // Bounded retry: the archive has already committed, and the session
+      // reconcile hook may already be latched at zero rows (it scanned before
+      // these rows were tagged), so a transient restore failure here would
+      // otherwise strand the rows until app restart.
+      for (let attempt = 1; attempt <= MAX_RECONCILE_ATTEMPTS; attempt++) {
+        // Re-check before each attempt: an account switch mid-retry must abort
+        // so we never restore the wrong user's habits.
+        if (!stillPaidForUser()) return;
+        try {
+          await restorePaywallKeptHabits(uid);
+          await queryClient.invalidateQueries({ queryKey: ["habits"] });
+          return;
+        } catch (error) {
+          logger.warn("Paid-race keep-one reconcile failed; will retry", {
+            error,
+            attempt,
+          });
+          if (attempt < MAX_RECONCILE_ATTEMPTS) await sleep(RECONCILE_RETRY_MS);
+        }
+      }
     },
     [queryClient],
   );
@@ -192,24 +226,27 @@ export function PaywallHardBlock() {
 
   async function confirmKeepOne(keptHabitId: string | null) {
     if (!user?.id) return;
+    const uid = user.id;
     setPickerError(null);
     setIsSubmitting(true);
     try {
-      await archiveHabitsForPaywallKeepOne(user.id, keptHabitId);
+      await archiveHabitsForPaywallKeepOne(uid, keptHabitId);
       await queryClient.invalidateQueries({ queryKey: ["habits"] });
-      // If paid raced this manual keep-one (purchase on another device landed
-      // mid-archive), the session-latched reconcile hook may have already done
-      // its one-shot scan before these rows were tagged. Re-run the idempotent
-      // restore so the kept-one's archived siblings aren't stranded.
-      await reconcileIfPaidRaced(user.id);
     } catch (error) {
       // Surface a retryable error and keep the picker open; the gate stays
       // hard_block (nothing archived), so the user can try again.
       logger.error("Failed to archive habits for keep-one", { error });
       setPickerError(paywallCopy.keepOneError);
-    } finally {
       setIsSubmitting(false);
+      return;
     }
+    setIsSubmitting(false);
+    // The archive COMMITTED. Reconcile is a separate, best-effort concern: if
+    // paid raced this keep-one, the session-latched reconcile hook may have
+    // scanned zero rows before these were tagged, so it won't pick them up.
+    // reconcileIfPaidRaced restores them with its own bounded retry — a failure
+    // here must NOT surface as an archive error (the archive succeeded).
+    await reconcileIfPaidRaced(uid);
   }
 
   return (

@@ -50,6 +50,17 @@ export function useTrialEndingNotification(
       if (!trialEndsAt) return;
       if (stored && stored.startsWith(`${trialEndsAt}|`)) return;
 
+      // A stored id for a DIFFERENT trial window (a trial extension, or a switch
+      // between two trial accounts sharing this device-global key) must be
+      // cancelled before we schedule its replacement — otherwise the old
+      // window's reminder is orphaned and still fires.
+      if (stored) {
+        const [, oldId] = stored.split("|");
+        if (oldId) {
+          await Notifications.cancelScheduledNotificationAsync(oldId).catch(() => {});
+        }
+      }
+
       const fire = computeNotificationFireDate(trialEndsAt, now());
       if (!fire) return;
 

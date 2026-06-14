@@ -397,3 +397,101 @@ it("does NOT reconcile after a keep-one archive while still unpaid (no redundant
   expect(mockArchiveKeepOne).toHaveBeenCalledWith("user-1", "keep");
   expect(mockRestoreKept).not.toHaveBeenCalled();
 });
+
+it("retries the paid-race reconcile after a MANUAL keep-one on a transient failure", async () => {
+  // The gap the old code missed: confirmKeepOne's reconcile had NO retry, so a
+  // transient restore failure (after the archive committed, with the session
+  // hook already latched at zero rows) stranded the rows until restart. The
+  // fix gives confirmKeepOne's reconcile its own bounded retry. (The
+  // auto-cleanup path already retried via its archive-retry, so this MUST go
+  // through the picker to distinguish old from new.)
+  jest.useFakeTimers();
+  try {
+    mockGate.mockReturnValue({ status: "hard_block", needsCleanup: false, soleActiveHabitId: null });
+    mockEntitlementStatus = "paid"; // paid raced the archive
+    mockListHabits
+      .mockResolvedValueOnce([
+        { id: "keep", title: "Read", habit_state: "active", status: "active", identity_phrase: null },
+      ])
+      .mockResolvedValueOnce([]);
+    mockArchiveKeepOne.mockResolvedValue({ archivedCount: 1 });
+    mockRestoreKept
+      .mockRejectedValueOnce(new Error("transient db error"))
+      .mockResolvedValueOnce({ restoredCount: 1 });
+
+    renderHardBlock();
+
+    // Open the picker (resolve the list loads).
+    fireEvent.press(screen.getByText(paywallCopy.continueFreeCta));
+    await act(async () => {
+      for (let i = 0; i < 10; i++) await Promise.resolve();
+    });
+
+    // Select + confirm the keep-one.
+    fireEvent.press(screen.getByText("Read"));
+    fireEvent.press(screen.getByText("Continue"));
+    fireEvent.press(screen.getByText(paywallCopy.pickerConfirmYes));
+
+    // Flush archive → invalidate → first (failing) reconcile attempt.
+    await act(async () => {
+      for (let i = 0; i < 10; i++) await Promise.resolve();
+    });
+    expect(mockArchiveKeepOne).toHaveBeenCalledTimes(1);
+    expect(mockRestoreKept).toHaveBeenCalledTimes(1);
+
+    // The bounded-retry sleep elapses → a second attempt runs and succeeds.
+    await act(async () => {
+      await jest.advanceTimersByTimeAsync(3000);
+    });
+    expect(mockRestoreKept).toHaveBeenCalledTimes(2);
+  } finally {
+    jest.useRealTimers();
+  }
+});
+
+it("does NOT reconcile user-1's archive based on user-2's paid status after a switch", async () => {
+  // user-1's keep-one archive is in flight when the app switches to a PAID
+  // user-2. The reconcile is bound to (user, status): completing user-1's
+  // archive must NOT restore user-1's habits just because user-2 is now paid.
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  mockGate.mockReturnValue({ status: "hard_block", needsCleanup: false, soleActiveHabitId: null });
+  mockListHabits
+    .mockResolvedValueOnce([
+      { id: "keep", title: "Read", habit_state: "active", status: "active", identity_phrase: null },
+    ])
+    .mockResolvedValueOnce([]);
+
+  // Defer user-1's archive so the account can switch while it's in flight.
+  let resolveArchive!: (v: unknown) => void;
+  mockArchiveKeepOne.mockImplementationOnce(
+    () => new Promise((r) => (resolveArchive = r)),
+  );
+
+  const { rerender } = render(tree(qc));
+  await act(async () => {
+    fireEvent.press(screen.getByText(paywallCopy.continueFreeCta));
+  });
+  await waitFor(() => expect(screen.getByText("Read")).toBeTruthy());
+
+  fireEvent.press(screen.getByText("Read"));
+  fireEvent.press(screen.getByText("Continue"));
+  act(() => {
+    fireEvent.press(screen.getByText(paywallCopy.pickerConfirmYes));
+  });
+
+  // Switch to a PAID user-2 while user-1's archive is still in flight.
+  mockUserId = "user-2";
+  mockEntitlementStatus = "paid";
+  rerender(tree(qc));
+
+  // user-1's archive finally completes.
+  await act(async () => {
+    resolveArchive({ archivedCount: 1 });
+    await Promise.resolve();
+    await Promise.resolve();
+  });
+
+  // user-2's paid status must NOT restore user-1's habits.
+  expect(mockArchiveKeepOne).toHaveBeenCalledWith("user-1", "keep");
+  expect(mockRestoreKept).not.toHaveBeenCalled();
+});
