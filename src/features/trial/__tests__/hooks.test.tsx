@@ -393,6 +393,33 @@ describe("useTrialValidation", () => {
     expect(mockClearCachedEntitlement).toHaveBeenCalled();
   });
 
+  it("synchronously masks the previous user's access on a direct account switch", async () => {
+    const paidCache = {
+      ...freshEntitlement("user-1"),
+      entitlement_status: "paid" as const,
+    };
+    mockReadCachedEntitlement.mockResolvedValue(paidCache);
+    mockFetchTrialEntitlement.mockResolvedValue(paidCache);
+
+    const { result, rerender } = renderHook(
+      ({ userId }: { userId: string | null }) =>
+        useTrialValidationLifecycle(userId, false),
+      { initialProps: { userId: "user-1" as string | null } },
+    );
+    await waitFor(() =>
+      expect(result.current.state.cached?.entitlement_status).toBe("paid"),
+    );
+
+    // Switch to user-2; their cache read hangs, so only the SYNCHRONOUS mask
+    // has run — the new account must not inherit user-1's paid access.
+    mockReadCachedEntitlement.mockReturnValue(new Promise(() => {}));
+    await act(async () => {
+      rerender({ userId: "user-2" });
+    });
+
+    expect(result.current.state.cached).toBeNull();
+  });
+
   // ─── Case 10: AppState foreground with no cache (offline cold-start recovery) ──
 
   it("fetches when app becomes active and there is no cached entitlement", async () => {

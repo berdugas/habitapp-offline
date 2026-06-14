@@ -153,9 +153,18 @@ export function useTrialValidationLifecycle(
     // read-only mode on every cold start.
     if (isAuthBootstrapping) return;
 
+    // Synchronously mask stale CROSS-USER state before the async hydration
+    // below runs. cachedRef holds the latest committed entitlement; if it
+    // belongs to a different user (account switch or sign-out), drop it NOW so
+    // the new/none account never briefly inherits the previous user's access.
+    if (cachedRef.current && cachedRef.current.user_id !== userId) {
+      setState({ cached: null, isBootstrapping: true, isValidating: false });
+    }
+
     let cancelled = false;
 
     async function bootstrap() {
+      try {
       const cached = await readCachedEntitlement();
       if (cancelled) return;
 
@@ -188,6 +197,15 @@ export function useTrialValidationLifecycle(
       // No cache, user present — fetch immediately.
       if (!cancelled) {
         await fetchAndCache(userId);
+      }
+      } catch (error) {
+        // Hydration failed — fail safe to no-access rather than leaving stale
+        // (possibly cross-user) state in place.
+        if (cancelled) return;
+        logger.error("Trial bootstrap failed to read cached entitlement", {
+          error,
+        });
+        setState({ cached: null, isBootstrapping: false, isValidating: false });
       }
     }
 
