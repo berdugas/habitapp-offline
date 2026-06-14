@@ -1,13 +1,15 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { useQueryClient } from "@tanstack/react-query";
 
 import { useAuthSession } from "@/features/auth/hooks";
 import { useTrialValidation } from "@/features/trial/hooks";
+import { isPaidStatus } from "@/features/trial/entitlement";
 import {
   archiveHabitsForPaywallKeepOne,
   listActiveHabits,
   listBacklogHabits,
+  restorePaywallKeptHabits,
 } from "@/features/habits/api";
 import { usePaywallGate } from "@/features/paywall/usePaywallGate";
 import { usePaywallActions } from "@/features/paywall/PaywallController";
@@ -46,6 +48,25 @@ export function PaywallHardBlock() {
   // in-flight load, so an older (e.g. failed) request can't overwrite a newer
   // successful one.
   const pickerReqRef = useRef(0);
+  // Latest entitlement status, readable from async archive completions (the
+  // closure's value would be stale if paid arrived mid-archive).
+  const entitlementStatusRef = useRef(entitlementStatus);
+  useEffect(() => {
+    entitlementStatusRef.current = entitlementStatus;
+  }, [entitlementStatus]);
+
+  // If paid arrived (e.g. a purchase on another device) WHILE we were archiving,
+  // the session-latched reconcile hook may have run its one-shot scan BEFORE our
+  // rows were tagged paywall_keep_one — and won't re-run while status stays
+  // paid. Re-run the idempotent restore here so those rows aren't stranded.
+  const reconcileIfPaidRaced = useCallback(
+    async (uid: string) => {
+      if (!isPaidStatus(entitlementStatusRef.current)) return;
+      await restorePaywallKeptHabits(uid);
+      await queryClient.invalidateQueries({ queryKey: ["habits"] });
+    },
+    [queryClient],
+  );
 
   // This component stays mounted under the (app) layout, so its picker state
   // must NOT leak into a future episode — either the gate leaving hard_block
@@ -96,6 +117,7 @@ export function PaywallHardBlock() {
     let timer: ReturnType<typeof setTimeout> | undefined;
     void archiveHabitsForPaywallKeepOne(userId, gate.soleActiveHabitId)
       .then(() => queryClient.invalidateQueries({ queryKey: ["habits"] }))
+      .then(() => reconcileIfPaidRaced(userId))
       .catch((error) => {
         if (cancelled) return;
         logger.warn("Paywall backlog auto-cleanup failed; will retry", {
@@ -121,6 +143,7 @@ export function PaywallHardBlock() {
     user?.id,
     queryClient,
     cleanupRetryTick,
+    reconcileIfPaidRaced,
   ]);
 
   if (gate.status !== "hard_block") return null;
@@ -174,6 +197,11 @@ export function PaywallHardBlock() {
     try {
       await archiveHabitsForPaywallKeepOne(user.id, keptHabitId);
       await queryClient.invalidateQueries({ queryKey: ["habits"] });
+      // If paid raced this manual keep-one (purchase on another device landed
+      // mid-archive), the session-latched reconcile hook may have already done
+      // its one-shot scan before these rows were tagged. Re-run the idempotent
+      // restore so the kept-one's archived siblings aren't stranded.
+      await reconcileIfPaidRaced(user.id);
     } catch (error) {
       // Surface a retryable error and keep the picker open; the gate stays
       // hard_block (nothing archived), so the user can try again.

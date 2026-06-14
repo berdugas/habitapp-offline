@@ -7,15 +7,17 @@ import { paywallCopy } from "@/features/paywall/copy";
 
 const mockGate = jest.fn();
 const mockArchiveKeepOne = jest.fn().mockResolvedValue({ archivedCount: 0 });
+const mockRestoreKept = jest.fn().mockResolvedValue({ restoredCount: 0 });
 const mockRefresh = jest.fn().mockResolvedValue(undefined);
 const mockListHabits = jest.fn().mockResolvedValue([]);
 let mockUserId: string | null = "user-1";
+let mockEntitlementStatus: string = "expired";
 
 jest.mock("@/features/paywall/usePaywallGate", () => ({
   usePaywallGate: () => mockGate(),
 }));
 jest.mock("@/features/trial/hooks", () => ({
-  useTrialValidation: () => ({ entitlementStatus: "expired", refresh: mockRefresh }),
+  useTrialValidation: () => ({ entitlementStatus: mockEntitlementStatus, refresh: mockRefresh }),
 }));
 jest.mock("@/features/auth/hooks", () => ({
   useAuthSession: () => ({ user: mockUserId ? { id: mockUserId } : null }),
@@ -26,6 +28,7 @@ jest.mock("@/services/revenuecat", () => ({
 }));
 jest.mock("@/features/habits/api", () => ({
   archiveHabitsForPaywallKeepOne: (...a: unknown[]) => mockArchiveKeepOne(...a),
+  restorePaywallKeptHabits: (...a: unknown[]) => mockRestoreKept(...a),
   listActiveHabits: () => mockListHabits(),
   listBacklogHabits: () => mockListHabits(),
 }));
@@ -45,7 +48,11 @@ function renderHardBlock() {
 beforeEach(() => {
   mockGate.mockReset();
   mockArchiveKeepOne.mockClear();
+  mockArchiveKeepOne.mockResolvedValue({ archivedCount: 0 });
+  mockRestoreKept.mockClear();
+  mockRestoreKept.mockResolvedValue({ restoredCount: 0 });
   mockUserId = "user-1";
+  mockEntitlementStatus = "expired";
 });
 
 it("renders nothing when status is inactive", () => {
@@ -311,4 +318,82 @@ it("resets the picker on a direct account switch that stays hard_block", async (
 
   expect(screen.queryByText("User-1 Habit")).toBeNull();
   expect(screen.getByText(paywallCopy.expiryTitle)).toBeTruthy();
+});
+
+it("reconciles paywall-kept habits if paid races a manual keep-one archive", async () => {
+  // Race: a purchase on another device lands WHILE the user is confirming a
+  // keep-one. The session-latched reconcile hook may have already run its
+  // one-shot scan BEFORE these rows were tagged paywall_keep_one — and won't
+  // re-run while status stays paid. confirmKeepOne must itself re-run the
+  // idempotent restore once the archive completes under paid status, so the
+  // kept-one's just-archived siblings aren't stranded.
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  mockGate.mockReturnValue({ status: "hard_block", needsCleanup: false, soleActiveHabitId: null });
+  mockListHabits
+    .mockResolvedValueOnce([
+      { id: "keep", title: "Read", habit_state: "active", status: "active", identity_phrase: null },
+    ])
+    .mockResolvedValueOnce([]);
+
+  // Defer the archive so paid can land while it's still in flight.
+  let resolveArchive!: (v: unknown) => void;
+  mockArchiveKeepOne.mockImplementationOnce(
+    () => new Promise((r) => (resolveArchive = r)),
+  );
+
+  const { rerender } = render(tree(qc));
+  await act(async () => {
+    fireEvent.press(screen.getByText(paywallCopy.continueFreeCta));
+  });
+  await waitFor(() => expect(screen.getByText("Read")).toBeTruthy());
+
+  fireEvent.press(screen.getByText("Read"));
+  fireEvent.press(screen.getByText("Continue"));
+  act(() => {
+    fireEvent.press(screen.getByText(paywallCopy.pickerConfirmYes));
+  });
+
+  // Archive is in flight — a purchase on another device makes us paid. The ref
+  // must pick this up so the post-archive reconcile sees it.
+  mockEntitlementStatus = "paid";
+  rerender(tree(qc));
+
+  // Archive completes AFTER paid was observed.
+  await act(async () => {
+    resolveArchive({ archivedCount: 1 });
+    await Promise.resolve();
+    await Promise.resolve();
+  });
+
+  // The idempotent restore must run so the rows we just tagged aren't stranded
+  // behind the already-latched session reconcile.
+  expect(mockRestoreKept).toHaveBeenCalledWith("user-1");
+});
+
+it("does NOT reconcile after a keep-one archive while still unpaid (no redundant restore)", async () => {
+  // The normal hard-block keep-one flow is unpaid — restore must NOT run here.
+  // (If the user later upgrades, the session reconcile hook handles it.) This
+  // guards the isPaidStatus check from being dropped.
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  mockGate.mockReturnValue({ status: "hard_block", needsCleanup: false, soleActiveHabitId: null });
+  mockListHabits
+    .mockResolvedValueOnce([
+      { id: "keep", title: "Read", habit_state: "active", status: "active", identity_phrase: null },
+    ])
+    .mockResolvedValueOnce([]);
+
+  render(tree(qc)); // entitlementStatus stays "expired"
+  await act(async () => {
+    fireEvent.press(screen.getByText(paywallCopy.continueFreeCta));
+  });
+  await waitFor(() => expect(screen.getByText("Read")).toBeTruthy());
+
+  fireEvent.press(screen.getByText("Read"));
+  fireEvent.press(screen.getByText("Continue"));
+  await act(async () => {
+    fireEvent.press(screen.getByText(paywallCopy.pickerConfirmYes));
+  });
+
+  expect(mockArchiveKeepOne).toHaveBeenCalledWith("user-1", "keep");
+  expect(mockRestoreKept).not.toHaveBeenCalled();
 });
