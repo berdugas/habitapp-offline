@@ -195,4 +195,8 @@ describe("computeAccessMode", () => {
       ).toBe("expired_no_purchase");
     });
   });
+
+  it("uses a 14-day staleness grace window in production", () => {
+    expect(TRIAL_GRACE_PERIOD_DAYS).toBe(14);
+  });
 });
