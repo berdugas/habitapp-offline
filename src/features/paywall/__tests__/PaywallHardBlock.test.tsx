@@ -28,6 +28,9 @@ jest.mock("@/features/habits/api", () => ({
   listActiveHabits: () => mockListHabits(),
   listBacklogHabits: () => mockListHabits(),
 }));
+jest.mock("@/services/logger", () => ({
+  logger: { warn: jest.fn(), error: jest.fn(), info: jest.fn() },
+}));
 
 function renderHardBlock() {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -67,6 +70,36 @@ it("does NOT run auto-resolve when free_tier without cleanup", async () => {
   renderHardBlock();
   await act(async () => {});
   expect(mockArchiveKeepOne).not.toHaveBeenCalled();
+});
+
+it("retries the auto-cleanup on a later render after a transient failure (latch not stuck)", async () => {
+  // Regression: the latch was set BEFORE the archive, and the archive had no
+  // rejection handler. A transient failure became an unhandled rejection AND
+  // permanently disabled retries. The fix latches only on success + catches.
+  mockArchiveKeepOne
+    .mockRejectedValueOnce(new Error("transient db error"))
+    .mockResolvedValueOnce({ archivedCount: 1 });
+  mockGate.mockReturnValue({ status: "free_tier", needsCleanup: true, soleActiveHabitId: "h1" });
+
+  // Stable QueryClient across rerenders so the effect's queryClient dep doesn't
+  // change — the retry must come from the latch being clear, not a dep change.
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const { rerender } = render(
+    <QueryClientProvider client={qc}>
+      <PaywallHardBlock />
+    </QueryClientProvider>,
+  );
+  await waitFor(() => expect(mockArchiveKeepOne).toHaveBeenCalledTimes(1));
+
+  // Gate recomputes with a different sole-active id (e.g. count refetched).
+  // With the old immediate latch this would early-return; now it retries.
+  mockGate.mockReturnValue({ status: "free_tier", needsCleanup: true, soleActiveHabitId: "h2" });
+  rerender(
+    <QueryClientProvider client={qc}>
+      <PaywallHardBlock />
+    </QueryClientProvider>,
+  );
+  await waitFor(() => expect(mockArchiveKeepOne).toHaveBeenCalledTimes(2));
 });
 
 it("the keep-one picker excludes graduated (automatic) habits", async () => {
