@@ -148,49 +148,56 @@ export default function SettingsScreen() {
       </ZenCard>
 
       <ZenCard gap={0}>
-        {isPaid ? (
-          <View style={styles.row}>
-            <Text style={styles.rowLabel}>{paywallCopy.settingsPaid}</Text>
-          </View>
+        {restore.status.kind === "processing" ? (
+          // Awaiting the server after a store-confirmed restore — expose ONLY
+          // Check again (like the paywall), so Upgrade/Restore can't start a
+          // competing RevenueCat op before the first one resolves.
+          <>
+            <Pressable
+              accessibilityRole="button"
+              disabled={restore.isBusy}
+              onPress={() => void restore.onRecheck()}
+              style={styles.row}
+            >
+              <Text style={styles.rowLabel}>
+                {restore.isVerifying ? "Checking…" : paywallCopy.checkAgainCta}
+              </Text>
+            </Pressable>
+            <Text style={styles.statusLabel}>{paywallCopy.processing}</Text>
+          </>
         ) : (
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => showCapBlockPaywall("settings_upgrade")}
-            style={styles.row}
-          >
-            <Text style={styles.rowLabel}>{paywallCopy.settingsUpgrade}</Text>
-            <ChevronRight color={theme.colors.textFaint} size={18} strokeWidth={1.75} />
-          </Pressable>
+          <>
+            {isPaid ? (
+              <View style={styles.row}>
+                <Text style={styles.rowLabel}>{paywallCopy.settingsPaid}</Text>
+              </View>
+            ) : (
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => showCapBlockPaywall("settings_upgrade")}
+                style={styles.row}
+              >
+                <Text style={styles.rowLabel}>{paywallCopy.settingsUpgrade}</Text>
+                <ChevronRight color={theme.colors.textFaint} size={18} strokeWidth={1.75} />
+              </Pressable>
+            )}
+            <Pressable
+              accessibilityRole="button"
+              disabled={restore.isBusy}
+              onPress={handleRestorePressed}
+              style={styles.row}
+            >
+              <Text style={styles.rowLabel}>
+                {restore.isRestoring || restore.isVerifying
+                  ? "Restoring…"
+                  : paywallCopy.restoreCta}
+              </Text>
+            </Pressable>
+            {restore.status.kind === "error" ? (
+              <Text style={styles.statusLabel}>{restore.status.message}</Text>
+            ) : null}
+          </>
         )}
-        <Pressable
-          accessibilityRole="button"
-          disabled={restore.isBusy}
-          onPress={handleRestorePressed}
-          style={styles.row}
-        >
-          <Text style={styles.rowLabel}>
-            {restore.isRestoring || restore.isVerifying
-              ? "Restoring…"
-              : paywallCopy.restoreCta}
-          </Text>
-        </Pressable>
-        {restore.status.kind === "processing" ? (
-          <Pressable
-            accessibilityRole="button"
-            disabled={restore.isBusy}
-            onPress={() => void restore.onRecheck()}
-            style={styles.row}
-          >
-            <Text style={styles.rowLabel}>
-              {restore.isVerifying ? "Checking…" : paywallCopy.checkAgainCta}
-            </Text>
-          </Pressable>
-        ) : null}
-        {restore.status.kind === "processing" ? (
-          <Text style={styles.statusLabel}>{paywallCopy.processing}</Text>
-        ) : restore.status.kind === "error" ? (
-          <Text style={styles.statusLabel}>{restore.status.message}</Text>
-        ) : null}
       </ZenCard>
 
       <ZenCard gap={0}>

@@ -128,11 +128,14 @@ describe("SettingsScreen — paywall rows", () => {
     expect(mockOnRestore).toHaveBeenCalled();
   });
 
-  it("shows the processing hint + a Check again row when the restore is awaiting the server", () => {
+  it("processing exposes only Check again — hides Upgrade + Restore (no competing op)", () => {
     mockActions.status = { kind: "processing" };
     defaultSetup({ entitlementStatus: "expired", accessMode: "expired_no_purchase" });
     render(<SettingsScreen />);
     expect(screen.getByText("Payment processing — this can take a moment.")).toBeTruthy();
+    // A store-confirmed restore awaiting Supabase must not allow another op.
+    expect(screen.queryByText("Upgrade for $1.99")).toBeNull();
+    expect(screen.queryByText("Restore Purchase")).toBeNull();
     fireEvent.press(screen.getByText("Check again"));
     expect(mockOnRecheck).toHaveBeenCalled();
   });
