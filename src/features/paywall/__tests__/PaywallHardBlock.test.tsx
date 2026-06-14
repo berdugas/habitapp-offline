@@ -72,34 +72,32 @@ it("does NOT run auto-resolve when free_tier without cleanup", async () => {
   expect(mockArchiveKeepOne).not.toHaveBeenCalled();
 });
 
-it("retries the auto-cleanup on a later render after a transient failure (latch not stuck)", async () => {
-  // Regression: the latch was set BEFORE the archive, and the archive had no
-  // rejection handler. A transient failure became an unhandled rejection AND
-  // permanently disabled retries. The fix latches only on success + catches.
+it("retries the auto-cleanup via a bounded timer on a STABLE gate after a transient failure", async () => {
+  // Regression: a transient archive failure must retry WITHOUT relying on an
+  // unrelated dep change. Clearing the latch alone wouldn't re-run the effect
+  // on a stable gate — the fix schedules a real timer retry.
+  jest.useFakeTimers();
   mockArchiveKeepOne
     .mockRejectedValueOnce(new Error("transient db error"))
     .mockResolvedValueOnce({ archivedCount: 1 });
   mockGate.mockReturnValue({ status: "free_tier", needsCleanup: true, soleActiveHabitId: "h1" });
 
-  // Stable QueryClient across rerenders so the effect's queryClient dep doesn't
-  // change — the retry must come from the latch being clear, not a dep change.
-  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  const { rerender } = render(
-    <QueryClientProvider client={qc}>
-      <PaywallHardBlock />
-    </QueryClientProvider>,
-  );
-  await waitFor(() => expect(mockArchiveKeepOne).toHaveBeenCalledTimes(1));
+  renderHardBlock();
 
-  // Gate recomputes with a different sole-active id (e.g. count refetched).
-  // With the old immediate latch this would early-return; now it retries.
-  mockGate.mockReturnValue({ status: "free_tier", needsCleanup: true, soleActiveHabitId: "h2" });
-  rerender(
-    <QueryClientProvider client={qc}>
-      <PaywallHardBlock />
-    </QueryClientProvider>,
-  );
-  await waitFor(() => expect(mockArchiveKeepOne).toHaveBeenCalledTimes(2));
+  // First attempt fails — flush its microtasks so the catch schedules a timer.
+  await act(async () => {
+    await Promise.resolve();
+    await Promise.resolve();
+  });
+  expect(mockArchiveKeepOne).toHaveBeenCalledTimes(1);
+
+  // Advancing the timer retries with the gate completely unchanged.
+  await act(async () => {
+    await jest.advanceTimersByTimeAsync(3000);
+  });
+  expect(mockArchiveKeepOne).toHaveBeenCalledTimes(2);
+
+  jest.useRealTimers();
 });
 
 it("the keep-one picker excludes graduated (automatic) habits", async () => {

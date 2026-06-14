@@ -17,9 +17,10 @@ import { logger } from "@/services/logger";
 
 type PickerHabit = { id: string; title: string; identity_phrase: string | null; status: string };
 
-// Bound auto-cleanup retries so a persistently-failing archive can't loop the
-// effect every render, while a transient failure still gets a few more shots.
+// Bound auto-cleanup retries so a persistently-failing archive can't loop
+// forever, while a transient failure still gets a few more shots via a timer.
 const MAX_CLEANUP_ATTEMPTS = 3;
+const CLEANUP_RETRY_MS = 3000;
 
 export function PaywallHardBlock() {
   const gate = usePaywallGate();
@@ -32,32 +33,50 @@ export function PaywallHardBlock() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const cleanupRanRef = useRef(false);
   const cleanupAttemptsRef = useRef(0);
+  const [cleanupRetryTick, setCleanupRetryTick] = useState(0);
 
   // Auto-resolve: archive leftover backlog so a <=1-active free-tier user's
-  // queued habits restore on upgrade. Idempotent. The latch is set only AFTER
-  // the archive succeeds, and a rejection is caught (not left as an unhandled
-  // rejection) — so a transient SQLite failure can retry on a later render
-  // instead of permanently stranding the backlog. Attempts are bounded.
+  // queued habits restore on upgrade. Idempotent. A rejection is caught (not
+  // left as an unhandled rejection); on failure it clears the latch and
+  // schedules a BOUNDED timer retry — clearing the latch alone wouldn't re-run
+  // the effect while the gate is stable, so the retry is driven through state.
   useEffect(() => {
     if (gate.status !== "free_tier" || !gate.needsCleanup || !user?.id) return;
     if (cleanupRanRef.current) return;
     if (cleanupAttemptsRef.current >= MAX_CLEANUP_ATTEMPTS) return;
     cleanupAttemptsRef.current += 1;
+    cleanupRanRef.current = true; // optimistic — blocks concurrent re-entry
     const userId = user.id;
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
     void archiveHabitsForPaywallKeepOne(userId, gate.soleActiveHabitId)
-      .then(() => {
-        cleanupRanRef.current = true;
-        return queryClient.invalidateQueries({ queryKey: ["habits"] });
-      })
+      .then(() => queryClient.invalidateQueries({ queryKey: ["habits"] }))
       .catch((error) => {
-        // Latch stays open → a later render (e.g. after the gate refetches)
-        // retries, up to MAX_CLEANUP_ATTEMPTS.
+        if (cancelled) return;
         logger.warn("Paywall backlog auto-cleanup failed; will retry", {
           error,
           attempt: cleanupAttemptsRef.current,
         });
+        cleanupRanRef.current = false; // clear latch so the scheduled retry runs
+        if (cleanupAttemptsRef.current < MAX_CLEANUP_ATTEMPTS) {
+          timer = setTimeout(
+            () => setCleanupRetryTick((tick) => tick + 1),
+            CLEANUP_RETRY_MS,
+          );
+        }
       });
-  }, [gate.status, gate.needsCleanup, gate.soleActiveHabitId, user?.id, queryClient]);
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+    };
+  }, [
+    gate.status,
+    gate.needsCleanup,
+    gate.soleActiveHabitId,
+    user?.id,
+    queryClient,
+    cleanupRetryTick,
+  ]);
 
   if (gate.status !== "hard_block") return null;
 
