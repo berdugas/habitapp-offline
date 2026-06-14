@@ -36,6 +36,10 @@ export function PaywallHardBlock() {
   const cleanupRanRef = useRef(false);
   const cleanupAttemptsRef = useRef(0);
   const [cleanupRetryTick, setCleanupRetryTick] = useState(0);
+  // Bumped whenever we leave hard_block; an in-flight openPicker load captures
+  // it and discards its result if the episode changed, so a late list response
+  // can't restore a stale picker after the reset.
+  const episodeRef = useRef(0);
 
   // This component stays mounted under the (app) layout, so its picker state
   // must NOT leak into a future hard-block episode (keep-one → upgrade → refund
@@ -44,6 +48,7 @@ export function PaywallHardBlock() {
   // the hard-block state.
   useEffect(() => {
     if (gate.status !== "hard_block") {
+      episodeRef.current += 1; // invalidate any in-flight openPicker load
       setShowPicker(false);
       setPickerHabits([]);
       setPickerError(null);
@@ -107,12 +112,17 @@ export function PaywallHardBlock() {
 
   async function openPicker() {
     if (!user?.id) return;
+    const episode = episodeRef.current;
+    const userId = user.id;
     setPickerError(null);
     try {
       const [actives, backlog] = await Promise.all([
-        listActiveHabits(user.id),
-        listBacklogHabits(user.id),
+        listActiveHabits(userId),
+        listBacklogHabits(userId),
       ]);
+      // The gate left hard_block (and reset ran) while we loaded — drop the
+      // stale result so it can't reopen the picker in a future episode.
+      if (episodeRef.current !== episode) return;
       setPickerHabits(
         // Only manageable (habit_state='active') habits are keep-one options —
         // graduated/automatic habits consume no free-tier slot and are never
@@ -128,8 +138,10 @@ export function PaywallHardBlock() {
       );
       setShowPicker(true);
     } catch (error) {
-      // Don't let the rejection escape a void callback. Open the picker with a
-      // retryable error rather than silently doing nothing.
+      if (episodeRef.current !== episode) return;
+      // Don't let the rejection escape a void callback. Open the picker in its
+      // load-error state (no choices, no destructive confirm) so the user gets
+      // a retryable error rather than silently archiving everything.
       logger.error("Failed to load keep-one habit list", { error });
       setPickerHabits([]);
       setPickerError(paywallCopy.keepOneError);
@@ -163,6 +175,7 @@ export function PaywallHardBlock() {
           errorMessage={pickerError}
           onConfirm={confirmKeepOne}
           onCancel={() => setShowPicker(false)}
+          onRetry={() => void openPicker()}
         />
       ) : (
         <PaywallScreen

@@ -14,6 +14,7 @@ type Props = {
   errorMessage?: string | null;
   onConfirm: (keptHabitId: string | null) => void;
   onCancel: () => void;
+  onRetry?: () => void;
 };
 
 const KEEP_NONE = Symbol("keep-none");
@@ -24,6 +25,7 @@ export function KeepOnePicker({
   errorMessage,
   onConfirm,
   onCancel,
+  onRetry,
 }: Props) {
   const [selection, setSelection] = useState<string | typeof KEEP_NONE | null>(null);
   const [step, setStep] = useState<"pick" | "confirm">("pick");
@@ -42,6 +44,20 @@ export function KeepOnePicker({
 
   function isSelected(value: string | typeof KEEP_NONE) {
     return selection === value;
+  }
+
+  // Load failed (no choices arrived). Offer Retry / Back only — never "Keep
+  // none"/"Continue", which would archive every live habit without the user
+  // ever seeing their options.
+  if (errorMessage && habits.length === 0) {
+    return (
+      <View style={styles.screen}>
+        <Text style={styles.title}>{paywallCopy.pickerTitle}</Text>
+        <Text style={styles.error}>{errorMessage}</Text>
+        {onRetry ? <PrimaryButton label="Retry" onPress={onRetry} /> : null}
+        <SecondaryButton label={paywallCopy.pickerConfirmBack} onPress={onCancel} />
+      </View>
+    );
   }
 
   if (step === "confirm") {

@@ -198,3 +198,52 @@ it("shows a retryable error and keeps the picker open when the keep-one archive 
   await waitFor(() => expect(screen.getByText(paywallCopy.keepOneError)).toBeTruthy());
   expect(screen.getByText(paywallCopy.pickerConfirmYes)).toBeTruthy();
 });
+
+it("opens the picker in a load-error state (Retry/Back, no Keep none) when the list fails to load", async () => {
+  mockGate.mockReturnValue({ status: "hard_block", needsCleanup: false, soleActiveHabitId: null });
+  mockListHabits.mockRejectedValue(new Error("load fail"));
+
+  renderHardBlock();
+  await act(async () => {
+    fireEvent.press(screen.getByText(paywallCopy.continueFreeCta));
+  });
+
+  await waitFor(() => expect(screen.getByText(paywallCopy.keepOneError)).toBeTruthy());
+  expect(screen.getByText("Retry")).toBeTruthy();
+  // No destructive "Keep none" when the choices never loaded.
+  expect(screen.queryByText(paywallCopy.pickerKeepNone)).toBeNull();
+});
+
+it("discards a late picker load that resolves after the gate left hard_block", async () => {
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  mockGate.mockReturnValue({ status: "hard_block", needsCleanup: false, soleActiveHabitId: null });
+
+  // Defer the actives load so it's still in flight when the gate changes.
+  let resolveActives!: (v: unknown) => void;
+  mockListHabits
+    .mockImplementationOnce(() => new Promise((r) => (resolveActives = r)))
+    .mockImplementationOnce(() => Promise.resolve([]));
+
+  const { rerender } = render(tree(qc));
+  act(() => {
+    fireEvent.press(screen.getByText(paywallCopy.continueFreeCta));
+  });
+
+  // Gate leaves hard_block (upgrade) → reset runs, episode bumps.
+  mockGate.mockReturnValue({ status: "free_tier", needsCleanup: false, soleActiveHabitId: "x" });
+  rerender(tree(qc));
+
+  // The in-flight load finally resolves — but for the OLD episode, so discarded.
+  await act(async () => {
+    resolveActives([
+      { id: "stale", title: "Stale Habit", habit_state: "active", status: "active", identity_phrase: null },
+    ]);
+    await Promise.resolve();
+  });
+
+  // A later hard-block must NOT show the stale picker.
+  mockGate.mockReturnValue({ status: "hard_block", needsCleanup: false, soleActiveHabitId: null });
+  rerender(tree(qc));
+  expect(screen.queryByText("Stale Habit")).toBeNull();
+  expect(screen.getByText(paywallCopy.expiryTitle)).toBeTruthy();
+});

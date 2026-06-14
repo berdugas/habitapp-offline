@@ -59,3 +59,24 @@ it("renders a retryable error message when provided", () => {
   render(<KeepOnePicker {...baseProps()} errorMessage={paywallCopy.keepOneError} />);
   expect(screen.getByText(paywallCopy.keepOneError)).toBeTruthy();
 });
+
+it("on a load failure (error + no habits) shows Retry/Back but NOT Keep none/Continue", () => {
+  const onRetry = jest.fn();
+  render(
+    <KeepOnePicker
+      habits={[]}
+      isSubmitting={false}
+      errorMessage={paywallCopy.keepOneError}
+      onConfirm={jest.fn()}
+      onCancel={jest.fn()}
+      onRetry={onRetry}
+    />,
+  );
+  expect(screen.getByText(paywallCopy.keepOneError)).toBeTruthy();
+  expect(screen.getByText("Retry")).toBeTruthy();
+  // Must NOT offer a way to archive every habit when the choices never loaded.
+  expect(screen.queryByText(paywallCopy.pickerKeepNone)).toBeNull();
+  expect(screen.queryByText("Continue")).toBeNull();
+  fireEvent.press(screen.getByText("Retry"));
+  expect(onRetry).toHaveBeenCalled();
+});
