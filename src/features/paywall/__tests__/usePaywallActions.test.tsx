@@ -1,18 +1,25 @@
 import { renderHook, act } from "@testing-library/react-native";
 
-import { usePaywallActions } from "@/features/paywall/PaywallController";
+import {
+  usePaywallActions,
+  __resetStoreOpLockForTests,
+} from "@/features/paywall/PaywallController";
 import { paywallCopy } from "@/features/paywall/copy";
 
 const mockPurchase = jest.fn();
 const mockRestore = jest.fn();
 const mockRefresh = jest.fn();
+let mockEntitlementStatus: string | null = null;
 
 jest.mock("@/services/revenuecat", () => ({
   purchaseLifetimeUnlock: (...a: unknown[]) => mockPurchase(...a),
   restorePurchases: (...a: unknown[]) => mockRestore(...a),
 }));
 jest.mock("@/features/trial/hooks", () => ({
-  useTrialValidation: () => ({ refresh: mockRefresh }),
+  useTrialValidation: () => ({
+    refresh: mockRefresh,
+    entitlementStatus: mockEntitlementStatus,
+  }),
 }));
 jest.mock("@/services/logger", () => ({
   logger: { error: jest.fn(), warn: jest.fn(), info: jest.fn() },
@@ -29,6 +36,8 @@ beforeEach(() => {
   mockPurchase.mockReset();
   mockRestore.mockReset();
   mockRefresh.mockReset();
+  mockEntitlementStatus = null;
+  __resetStoreOpLockForTests(); // module-level lock — reset between tests
 });
 
 describe("onUnlock", () => {
@@ -144,7 +153,47 @@ describe("onRestore — three outcomes", () => {
   });
 });
 
+describe("externally-observed paid", () => {
+  it("resolves the processing state when entitlement turns paid via another path", async () => {
+    // Drive into processing (purchase ok, poll times out), then a background
+    // lifecycle refresh flips entitlementStatus to paid.
+    mockPurchase.mockResolvedValue({ cancelled: false });
+    mockRefresh.mockResolvedValue(ent("expired"));
+    const onResolved = jest.fn();
+    const { result, rerender } = renderHook(() =>
+      usePaywallActions(onResolved, fastPoll),
+    );
+    await act(async () => {
+      await result.current.onUnlock();
+    });
+    expect(result.current.status).toEqual({ kind: "processing" });
+
+    onResolved.mockClear();
+    mockEntitlementStatus = "paid"; // observed elsewhere
+    rerender(undefined);
+
+    expect(onResolved).toHaveBeenCalledTimes(1);
+    expect(result.current.status).toEqual({ kind: "idle" });
+  });
+});
+
 describe("concurrency mutex", () => {
+  it("the store-op lock is SHARED across instances (Settings restore blocks a modal purchase)", async () => {
+    mockRestore.mockReturnValue(new Promise(() => {})); // restore stays in flight
+    const settings = renderHook(() => usePaywallActions(jest.fn(), fastPoll));
+    const modal = renderHook(() => usePaywallActions(jest.fn(), fastPoll));
+
+    await act(async () => {
+      settings.result.current.onRestore(); // locks the shared module lock
+    });
+    await act(async () => {
+      modal.result.current.onUnlock(); // different instance — must be blocked
+    });
+
+    expect(mockRestore).toHaveBeenCalledTimes(1);
+    expect(mockPurchase).not.toHaveBeenCalled();
+  });
+
   it("a synchronous double-press starts only ONE purchase", async () => {
     // Never-resolving purchase keeps the first op in flight; the second press
     // (same event tick, before any re-render) must be a no-op.

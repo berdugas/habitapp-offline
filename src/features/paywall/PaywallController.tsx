@@ -2,8 +2,8 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
-  useRef,
   useState,
 } from "react";
 import { Modal } from "react-native";
@@ -14,10 +14,23 @@ import {
   type RestoreResult,
 } from "@/services/revenuecat";
 import { useTrialValidation } from "@/features/trial/hooks";
+import { isPaidStatus } from "@/features/trial/entitlement";
 import { logger } from "@/services/logger";
 import { PaywallScreen } from "@/features/paywall/PaywallScreen";
 import { paywallCopy } from "@/features/paywall/copy";
 import { waitForServerPaid } from "@/features/paywall/waitForServerPaid";
+
+// Store operations are globally serialized (one Play billing session), so this
+// in-flight lock lives at MODULE scope — shared by EVERY usePaywallActions
+// instance (the cap-block modal AND the Settings rows), not per-hook. Without
+// this, a Restore started in Settings and an Upgrade opened in the modal would
+// run through two independent locks and overlap.
+let storeOpInFlight = false;
+
+/** Test-only: reset the module-level store-op lock between tests. */
+export function __resetStoreOpLockForTests() {
+  storeOpInFlight = false;
+}
 
 export type PaywallTrigger =
   | "cap_create"
@@ -65,21 +78,28 @@ export function usePaywallActions(
   onResolved?: () => void,
   options?: UsePaywallActionsOptions,
 ) {
-  const { refresh } = useTrialValidation();
+  const { refresh, entitlementStatus } = useTrialValidation();
   const [isPurchasing, setIsPurchasing] = useState(false);
   const [isRestoring, setIsRestoring] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
   const [status, setStatus] = useState<PaywallActionStatus>({ kind: "idle" });
-  // Synchronous mutex: isBusy is render-time state, so two presses in the same
-  // event tick both read it as false before React re-renders. This ref is set
-  // synchronously, so it actually prevents duplicate purchase/restore/poll ops.
-  const inFlightRef = useRef(false);
 
   const isBusy = isPurchasing || isRestoring || isVerifying;
 
   const pollAttempts = options?.pollAttempts;
   const pollIntervalMs = options?.pollIntervalMs;
   const sleep = options?.sleep;
+
+  // If the server reports paid through ANY path (our poll, AppState/network
+  // lifecycle refresh, or another instance) while we're showing the processing
+  // state, resolve it — don't leave the modal stuck on "Check again" / Settings
+  // stuck on its processing branch when access is already confirmed.
+  useEffect(() => {
+    if (status.kind === "processing" && isPaidStatus(entitlementStatus)) {
+      setStatus({ kind: "idle" });
+      onResolved?.();
+    }
+  }, [status.kind, entitlementStatus, onResolved]);
 
   // After a store-confirmed op, wait for the server then resolve or surface a
   // processing state. timed_out (webhook lag) and failed (offline) both keep
@@ -105,8 +125,8 @@ export function usePaywallActions(
   }, [refresh, pollAttempts, pollIntervalMs, sleep, onResolved]);
 
   const onUnlock = useCallback(async () => {
-    if (inFlightRef.current) return;
-    inFlightRef.current = true;
+    if (storeOpInFlight) return;
+    storeOpInFlight = true;
     try {
       setStatus({ kind: "idle" });
       setIsPurchasing(true);
@@ -123,13 +143,13 @@ export function usePaywallActions(
       if (cancelled) return; // user backed out — no message
       await resolveWhenServerPaid();
     } finally {
-      inFlightRef.current = false;
+      storeOpInFlight = false;
     }
   }, [resolveWhenServerPaid]);
 
   const onRestore = useCallback(async () => {
-    if (inFlightRef.current) return;
-    inFlightRef.current = true;
+    if (storeOpInFlight) return;
+    storeOpInFlight = true;
     try {
       setStatus({ kind: "idle" });
       setIsRestoring(true);
@@ -154,19 +174,19 @@ export function usePaywallActions(
       }
       await resolveWhenServerPaid();
     } finally {
-      inFlightRef.current = false;
+      storeOpInFlight = false;
     }
   }, [resolveWhenServerPaid]);
 
   // "Check again" from the processing state: the store op already succeeded, so
   // just re-poll the server for the webhook to have landed.
   const onRecheck = useCallback(async () => {
-    if (inFlightRef.current) return;
-    inFlightRef.current = true;
+    if (storeOpInFlight) return;
+    storeOpInFlight = true;
     try {
       await resolveWhenServerPaid();
     } finally {
-      inFlightRef.current = false;
+      storeOpInFlight = false;
     }
   }, [resolveWhenServerPaid]);
 

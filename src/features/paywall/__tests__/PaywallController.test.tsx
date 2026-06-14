@@ -1,7 +1,11 @@
 import { render, screen, fireEvent, waitFor, act } from "@/tests/setup/render";
 import { Text, Pressable, Modal } from "react-native";
 
-import { PaywallController, usePaywall } from "@/features/paywall/PaywallController";
+import {
+  PaywallController,
+  usePaywall,
+  __resetStoreOpLockForTests,
+} from "@/features/paywall/PaywallController";
 import { paywallCopy } from "@/features/paywall/copy";
 
 const mockPurchase = jest.fn();
@@ -42,6 +46,7 @@ beforeEach(() => {
   mockPurchase.mockReset();
   mockRestore.mockReset();
   mockRefresh.mockClear();
+  __resetStoreOpLockForTests(); // module-level lock — reset between tests
 });
 
 it("is hidden until showCapBlockPaywall is called", () => {
