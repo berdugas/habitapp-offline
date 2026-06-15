@@ -4,6 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { restorePaywallKeptHabits } from "@/features/habits/api";
 import { isPaidStatus } from "@/features/trial/entitlement";
 import { logger } from "@/services/logger";
+import { trackEvent } from "@/services/analytics";
 
 import type { TrialEntitlementStatus } from "@/features/trial/types";
 
@@ -81,6 +82,9 @@ export function useRestorePaywallKeptHabitsOnUpgrade(
           logger.info("Restored paywall-archived habits", {
             userId,
             restoredCount: result.restoredCount,
+          });
+          trackEvent("archive_restored_on_upgrade", {
+            restored_count: result.restoredCount,
           });
           // Refresh the mounted habit screens so restored habits appear now,
           // not after a later remount/refetch.
