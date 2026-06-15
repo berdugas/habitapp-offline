@@ -91,3 +91,36 @@ it("fires paywall_shown with trigger 'expiry' when the hard-block mounts", () =>
   renderHardBlock();
   expect(mockTrackEvent).toHaveBeenCalledWith("paywall_shown", { trigger: "expiry" });
 });
+
+it("fires paywall_continue_free when Continue free is tapped", () => {
+  renderHardBlock();
+  fireEvent.press(screen.getByText("continue-free"));
+  expect(mockTrackEvent).toHaveBeenCalledWith("paywall_continue_free");
+});
+
+it("fires paywall_keep_one_picked with the habit id after a successful archive", async () => {
+  renderHardBlock();
+  fireEvent.press(screen.getByText("continue-free"));
+  // openPicker loads the (mocked) habits, then the stub KeepOnePicker renders.
+  await waitFor(() => expect(screen.getByText("confirm-one")).toBeTruthy());
+  await act(async () => {
+    fireEvent.press(screen.getByText("confirm-one"));
+  });
+  await waitFor(() =>
+    expect(mockTrackEvent).toHaveBeenCalledWith("paywall_keep_one_picked", {
+      habit_id: "habit-1",
+    }),
+  );
+});
+
+it("fires paywall_keep_none_picked when 'keep none' is confirmed", async () => {
+  renderHardBlock();
+  fireEvent.press(screen.getByText("continue-free"));
+  await waitFor(() => expect(screen.getByText("confirm-none")).toBeTruthy());
+  await act(async () => {
+    fireEvent.press(screen.getByText("confirm-none"));
+  });
+  await waitFor(() =>
+    expect(mockTrackEvent).toHaveBeenCalledWith("paywall_keep_none_picked"),
+  );
+});

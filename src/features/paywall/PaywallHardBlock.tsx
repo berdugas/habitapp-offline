@@ -256,6 +256,11 @@ export function PaywallHardBlock() {
       return;
     }
     setIsSubmitting(false);
+    if (keptHabitId === null) {
+      trackEvent("paywall_keep_none_picked");
+    } else {
+      trackEvent("paywall_keep_one_picked", { habit_id: keptHabitId });
+    }
     // The archive COMMITTED. Reconcile is a separate, best-effort concern: if
     // paid raced this keep-one, the session-latched reconcile hook may have
     // scanned zero rows before these were tagged, so it won't pick them up.
@@ -287,7 +292,10 @@ export function PaywallHardBlock() {
           onUnlock={actions.onUnlock}
           onRestore={actions.onRestore}
           onRecheck={actions.onRecheck}
-          onContinueFree={() => void openPicker()}
+          onContinueFree={() => {
+            trackEvent("paywall_continue_free");
+            void openPicker();
+          }}
           onDismiss={() => {}}
         />
       )}

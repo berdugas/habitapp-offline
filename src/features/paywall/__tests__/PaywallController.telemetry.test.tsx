@@ -139,3 +139,11 @@ it("fires restore_purchase_failed with error_kind when the store restore fails",
     error_kind: "store_failed",
   });
 });
+
+it("fires paywall_dismissed when the user taps Maybe later (not on an unlock)", () => {
+  renderWithController();
+  fireEvent.press(screen.getByText("open"));
+  mockTrackEvent.mockClear(); // ignore the paywall_shown from opening
+  fireEvent.press(screen.getByText(paywallCopy.maybeLaterCta));
+  expect(mockTrackEvent).toHaveBeenCalledWith("paywall_dismissed");
+});

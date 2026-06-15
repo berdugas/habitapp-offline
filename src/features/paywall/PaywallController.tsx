@@ -327,6 +327,13 @@ export function PaywallController({ children }: { children: React.ReactNode }) {
   const { user } = useAuthSession();
   const userId = user?.id ?? null;
   const dismiss = useCallback(() => setVisible(false), []);
+  // User-initiated dismissal (Maybe later / Back / Continue free) — distinct from
+  // the programmatic `dismiss` reused as `onResolved`, so a successful unlock that
+  // auto-closes the modal does NOT log a dismissal.
+  const dismissByUser = useCallback(() => {
+    trackEvent("paywall_dismissed");
+    setVisible(false);
+  }, []);
   const actions = usePaywallActions(dismiss);
   const { clearStatus } = actions; // stable (useCallback []) — safe as a dep
 
@@ -372,7 +379,7 @@ export function PaywallController({ children }: { children: React.ReactNode }) {
           // in flight or the server hasn't confirmed yet — the visible exit
           // controls are hidden in that state, so Back must be inert too.
           if (actions.isBusy || actions.status.kind === "processing") return;
-          dismiss();
+          dismissByUser();
         }}
       >
         <PaywallScreen
@@ -386,8 +393,8 @@ export function PaywallController({ children }: { children: React.ReactNode }) {
           onUnlock={actions.onUnlock}
           onRestore={actions.onRestore}
           onRecheck={actions.onRecheck}
-          onContinueFree={dismiss}
-          onDismiss={dismiss}
+          onContinueFree={dismissByUser}
+          onDismiss={dismissByUser}
         />
       </Modal>
     </PaywallContext.Provider>
