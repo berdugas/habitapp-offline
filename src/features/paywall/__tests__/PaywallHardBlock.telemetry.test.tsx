@@ -10,6 +10,7 @@ const mockRestoreKept = jest.fn().mockResolvedValue({ restoredCount: 0 });
 const mockListActive = jest.fn();
 const mockListBacklog = jest.fn();
 let mockGate = { status: "hard_block", needsCleanup: false, soleActiveHabitId: null as string | null };
+let mockUserId: string | null = "user-1";
 
 jest.mock("@/services/analytics", () => ({
   trackEvent: (...a: unknown[]) => mockTrackEvent(...a),
@@ -33,7 +34,7 @@ jest.mock("@/features/trial/hooks", () => ({
   useTrialValidation: () => ({ entitlementStatus: "expired" }),
 }));
 jest.mock("@/features/auth/hooks", () => ({
-  useAuthSession: () => ({ user: { id: "user-1" } }),
+  useAuthSession: () => ({ user: mockUserId ? { id: mockUserId } : null }),
 }));
 jest.mock("@/features/habits/api", () => ({
   archiveHabitsForPaywallKeepOne: (...a: unknown[]) => mockArchiveKeepOne(...a),
@@ -85,6 +86,7 @@ beforeEach(() => {
   ]);
   mockListBacklog.mockReset().mockResolvedValue([]);
   mockGate = { status: "hard_block", needsCleanup: false, soleActiveHabitId: null };
+  mockUserId = "user-1";
 });
 
 it("fires paywall_shown with trigger 'expiry' when the hard-block mounts", () => {
@@ -92,9 +94,35 @@ it("fires paywall_shown with trigger 'expiry' when the hard-block mounts", () =>
   expect(mockTrackEvent).toHaveBeenCalledWith("paywall_shown", { trigger: "expiry" });
 });
 
-it("fires paywall_continue_free when Continue free is tapped", () => {
+it("re-fires paywall_shown for a second account on a direct switch that stays hard_block", () => {
+  // Same QueryClient + component instance across rerender so the latch ref
+  // persists — a fresh remount would reset it and hide the bug.
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const ui = (
+    <QueryClientProvider client={qc}>
+      <PaywallHardBlock />
+    </QueryClientProvider>
+  );
+  const view = render(ui);
+  expect(mockTrackEvent).toHaveBeenCalledWith("paywall_shown", { trigger: "expiry" });
+
+  mockTrackEvent.mockClear();
+  mockUserId = "user-2"; // sign out user-1, sign in user-2 — gate stays hard_block
+  view.rerender(
+    <QueryClientProvider client={qc}>
+      <PaywallHardBlock />
+    </QueryClientProvider>,
+  );
+  expect(mockTrackEvent).toHaveBeenCalledWith("paywall_shown", { trigger: "expiry" });
+});
+
+it("fires paywall_continue_free when Continue free is tapped", async () => {
   renderHardBlock();
-  fireEvent.press(screen.getByText("continue-free"));
+  // continue_free fires synchronously on press; wrap in async act so the
+  // openPicker() it kicks off settles inside act (no unresolved-act warning).
+  await act(async () => {
+    fireEvent.press(screen.getByText("continue-free"));
+  });
   expect(mockTrackEvent).toHaveBeenCalledWith("paywall_continue_free");
 });
 

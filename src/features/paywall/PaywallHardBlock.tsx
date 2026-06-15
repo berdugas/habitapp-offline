@@ -120,19 +120,22 @@ export function PaywallHardBlock() {
     }
   }, [gate.status, user?.id]);
 
-  // Fire paywall_shown once per hard_block episode (reset when we leave it, so a
-  // later episode — refund back to hard-block — re-fires).
-  const shownRef = useRef(false);
+  // Fire paywall_shown once per hard_block episode, keyed by user. Reset when we
+  // leave hard_block so a later episode (refund back to hard-block) re-fires; key
+  // by user id so a DIRECT account switch that stays hard_block — which this
+  // always-mounted component explicitly supports — fires for the second user too.
+  const shownForUserRef = useRef<string | null>(null);
   useEffect(() => {
+    const uid = user?.id ?? null;
     if (gate.status === "hard_block") {
-      if (!shownRef.current) {
-        shownRef.current = true;
+      if (uid && shownForUserRef.current !== uid) {
+        shownForUserRef.current = uid;
         trackEvent("paywall_shown", { trigger: "expiry" });
       }
     } else {
-      shownRef.current = false;
+      shownForUserRef.current = null;
     }
-  }, [gate.status]);
+  }, [gate.status, user?.id]);
 
   // Auto-resolve: archive leftover backlog so a <=1-active free-tier user's
   // queued habits restore on upgrade. Idempotent. A rejection is caught (not
