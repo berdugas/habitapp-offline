@@ -24,6 +24,17 @@ import { PaywallScreen } from "@/features/paywall/PaywallScreen";
 import { paywallCopy } from "@/features/paywall/copy";
 import { waitForServerPaid } from "@/features/paywall/waitForServerPaid";
 
+// Best-effort error tag for telemetry: PurchaseError carries `.reason`
+// (e.g. "not_configured" / "identity_failed"); fall back to the error name.
+function errorKind(err: unknown): string {
+  if (err && typeof err === "object") {
+    const e = err as { reason?: unknown; name?: unknown };
+    if (typeof e.reason === "string") return e.reason;
+    if (typeof e.name === "string") return e.name;
+  }
+  return "unknown";
+}
+
 // Store operations are globally serialized (one Play billing session), so this
 // in-flight lock lives at MODULE scope — shared by EVERY usePaywallActions
 // instance (the cap-block modal AND the Settings rows), not per-hook. Without
@@ -215,17 +226,23 @@ export function usePaywallActions(
     try {
       setStatus({ kind: "idle" });
       setIsPurchasing(true);
+      trackEvent("paywall_purchase_started");
       let cancelled = false;
       try {
         ({ cancelled } = await purchaseLifetimeUnlock(userId));
       } catch (err) {
+        trackEvent("paywall_purchase_failed", { error_kind: errorKind(err) });
         logger.error("Paywall purchase failed", { err: err as Error });
         setIsPurchasing(false);
         setErrorIfCurrent(userId, paywallCopy.purchaseFailed);
         return;
       }
       setIsPurchasing(false);
-      if (cancelled) return; // user backed out — no message
+      if (cancelled) {
+        trackEvent("paywall_purchase_cancelled");
+        return; // user backed out — no message
+      }
+      trackEvent("paywall_purchase_completed");
       await resolveWhenServerPaid(userId);
     } finally {
       setStoreOpInFlight(false);
