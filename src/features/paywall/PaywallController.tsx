@@ -19,6 +19,7 @@ import { useAuthSession } from "@/features/auth/hooks";
 import { useTrialValidation } from "@/features/trial/hooks";
 import { isPaidStatus } from "@/features/trial/entitlement";
 import { logger } from "@/services/logger";
+import { trackEvent } from "@/services/analytics";
 import { PaywallScreen } from "@/features/paywall/PaywallScreen";
 import { paywallCopy } from "@/features/paywall/copy";
 import { waitForServerPaid } from "@/features/paywall/waitForServerPaid";
@@ -308,8 +309,8 @@ export function PaywallController({ children }: { children: React.ReactNode }) {
   const { clearStatus } = actions; // stable (useCallback []) — safe as a dep
 
   const showCapBlockPaywall = useCallback(
-    (_trigger: PaywallTrigger) => {
-      // _trigger is consumed by telemetry in a later sub-plan.
+    (trigger: PaywallTrigger) => {
+      trackEvent("paywall_shown", { trigger });
       clearStatus(); // drop any lingering error/processing from a prior open
       setVisible(true);
     },

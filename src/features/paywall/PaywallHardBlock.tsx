@@ -17,6 +17,7 @@ import { PaywallScreen } from "@/features/paywall/PaywallScreen";
 import { KeepOnePicker } from "@/features/paywall/KeepOnePicker";
 import { paywallCopy } from "@/features/paywall/copy";
 import { logger } from "@/services/logger";
+import { trackEvent } from "@/services/analytics";
 
 type PickerHabit = { id: string; title: string; identity_phrase: string | null; status: string };
 
@@ -118,6 +119,20 @@ export function PaywallHardBlock() {
       setPickerError(null);
     }
   }, [gate.status, user?.id]);
+
+  // Fire paywall_shown once per hard_block episode (reset when we leave it, so a
+  // later episode — refund back to hard-block — re-fires).
+  const shownRef = useRef(false);
+  useEffect(() => {
+    if (gate.status === "hard_block") {
+      if (!shownRef.current) {
+        shownRef.current = true;
+        trackEvent("paywall_shown", { trigger: "expiry" });
+      }
+    } else {
+      shownRef.current = false;
+    }
+  }, [gate.status]);
 
   // Auto-resolve: archive leftover backlog so a <=1-active free-tier user's
   // queued habits restore on upgrade. Idempotent. A rejection is caught (not
