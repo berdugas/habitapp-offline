@@ -22,6 +22,15 @@ describe("redact()", () => {
     });
   });
 
+  it("passes paywall funnel enums (trigger, error_kind) unchanged", () => {
+    // These keys carry the expiry funnel's grouping value and the failure
+    // classification — they must reach PostHog unredacted or the funnel and
+    // error segmentation collapse to "[redacted]".
+    expect(
+      redact({ trigger: "expiry", error_kind: "identity_failed" }),
+    ).toEqual({ trigger: "expiry", error_kind: "identity_failed" });
+  });
+
   it("passes numbers regardless of key", () => {
     expect(redact({ streak: 5, randomNumber: 42 })).toEqual({
       streak: 5,

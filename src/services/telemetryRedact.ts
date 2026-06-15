@@ -37,6 +37,11 @@ export const SAFE_KEY_ALLOWLIST: ReadonlySet<string> = new Set([
   "scheduling_type",
   "has_reminder",
   "is_archived",
+  // Paywall funnel enums: `trigger` groups the expiry conversion funnel;
+  // `error_kind` segments purchase/restore failures. Bounded enum values
+  // (no PII) — see PaywallController / PaywallHardBlock.
+  "trigger",
+  "error_kind",
 
   // Logger forwarder's first-arg message (dev-written string)
   "contextMessage",
