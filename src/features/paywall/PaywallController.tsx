@@ -259,10 +259,12 @@ export function usePaywallActions(
     try {
       setStatus({ kind: "idle" });
       setIsRestoring(true);
+      trackEvent("restore_purchase_attempted");
       let result: RestoreResult;
       try {
         result = await restorePurchases(userId);
       } catch (err) {
+        trackEvent("restore_purchase_failed", { error_kind: errorKind(err) });
         logger.error("Paywall restore failed", { err: err as Error });
         setIsRestoring(false);
         setErrorIfCurrent(userId, paywallCopy.restoreFailed);
@@ -270,14 +272,17 @@ export function usePaywallActions(
       }
       setIsRestoring(false);
       if (result.status === "failed") {
+        trackEvent("restore_purchase_failed", { error_kind: "store_failed" });
         setErrorIfCurrent(userId, paywallCopy.restoreFailed);
         return;
       }
       if (!result.hasLifetimeEntitlement) {
+        trackEvent("restore_purchase_no_entitlement");
         // RC ran fine but this account never bought the unlock.
         setErrorIfCurrent(userId, paywallCopy.restoreNoneFound);
         return;
       }
+      trackEvent("restore_purchase_succeeded");
       await resolveWhenServerPaid(userId);
     } finally {
       setStoreOpInFlight(false);

@@ -115,7 +115,6 @@ export default function SettingsScreen() {
 
   function handleRestorePressed() {
     if (restore.isBusy) return;
-    trackEvent("settings_restore_purchase");
     void restore.onRestore();
   }
 

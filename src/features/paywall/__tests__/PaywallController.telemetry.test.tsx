@@ -102,3 +102,40 @@ it("fires purchase_failed with error_kind from PurchaseError.reason", async () =
     error_kind: "identity_failed",
   });
 });
+
+it("fires restore_purchase_attempted then succeeded when an entitlement is found", async () => {
+  mockRestore.mockResolvedValue({ status: "ok", hasLifetimeEntitlement: true });
+  mockRefresh.mockResolvedValue({ entitlement_status: "paid" });
+  renderWithController();
+  fireEvent.press(screen.getByText("open"));
+  await act(async () => {
+    fireEvent.press(screen.getByText(paywallCopy.restoreCta));
+  });
+  await waitFor(() => expect(mockRestore).toHaveBeenCalled());
+  expect(mockTrackEvent).toHaveBeenCalledWith("restore_purchase_attempted");
+  expect(mockTrackEvent).toHaveBeenCalledWith("restore_purchase_succeeded");
+});
+
+it("fires restore_purchase_no_entitlement when the account never purchased", async () => {
+  mockRestore.mockResolvedValue({ status: "ok", hasLifetimeEntitlement: false });
+  renderWithController();
+  fireEvent.press(screen.getByText("open"));
+  await act(async () => {
+    fireEvent.press(screen.getByText(paywallCopy.restoreCta));
+  });
+  await waitFor(() => expect(mockRestore).toHaveBeenCalled());
+  expect(mockTrackEvent).toHaveBeenCalledWith("restore_purchase_no_entitlement");
+});
+
+it("fires restore_purchase_failed with error_kind when the store restore fails", async () => {
+  mockRestore.mockResolvedValue({ status: "failed" });
+  renderWithController();
+  fireEvent.press(screen.getByText("open"));
+  await act(async () => {
+    fireEvent.press(screen.getByText(paywallCopy.restoreCta));
+  });
+  await waitFor(() => expect(mockRestore).toHaveBeenCalled());
+  expect(mockTrackEvent).toHaveBeenCalledWith("restore_purchase_failed", {
+    error_kind: "store_failed",
+  });
+});
